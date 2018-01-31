@@ -24,6 +24,59 @@ index 6896d0e..577bd52 100644
  endmenu
  
  menu "Mainboard"
+diff --git ./src/drivers/pc80/tpm/romstage.c ./src/drivers/pc80/tpm/romstage.c
+index 5531458..95e65f2 100644
+--- ./src/drivers/pc80/tpm/romstage.c
++++ ./src/drivers/pc80/tpm/romstage.c
+@@ -48,6 +48,12 @@ static const struct {
+ 
+ static const struct {
+ 	u8 buffer[12];
++} tpm2_startup_cmd = {
++	{0x80, 0x01, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x01, 0x44, 0x0, 0x0 }
++};
++
++static const struct {
++	u8 buffer[12];
+ } tpm_deactivate_cmd = {
+ 	{0x0, 0xc1, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x0, 0x99, 0x0, 0x3 }
+ };
+@@ -229,9 +235,15 @@ void init_tpm(int s3resume)
+ 			return;
+ 		}
+ 	} else {
+-		printk(BIOS_SPEW, "TPM: Startup\n");
+-		result = TlclSendReceive(tpm_startup_cmd.buffer,
+-					response, sizeof(response));
++		if (IS_ENABLED(CONFIG_TPM2)) {
++			printk(BIOS_SPEW, "TPM2: Startup\n");
++			result = TlclSendReceive(tpm2_startup_cmd.buffer,
++						response, sizeof(response));
++		} else {
++			printk(BIOS_SPEW, "TPM: Startup\n");
++			result = TlclSendReceive(tpm_startup_cmd.buffer,
++						response, sizeof(response));
++		}
+ 	}
+ 
+ 	tis_close();
+diff --git ./src/drivers/pc80/tpm/tpm.c ./src/drivers/pc80/tpm/tpm.c
+index 574d3af..9bdc73f 100644
+--- ./src/drivers/pc80/tpm/tpm.c
++++ ./src/drivers/pc80/tpm/tpm.c
+@@ -125,10 +125,11 @@ static const struct device_name atmel_devices[] = {
+ 
+ static const struct device_name infineon_devices[] = {
+ 	{0x000b, "SLB9635 TT 1.2"},
+-	{0x001a, "SLB9660 TT 1.2"},
+ #if IS_ENABLED(CONFIG_TPM2)
++	{0x001a, "SLB9665 TT 2.0"},
+ 	{0x001b, "SLB9670 TT 2.0"},
+ #else
++	{0x001a, "SLB9660 TT 1.2"},
+ 	{0x001b, "SLB9670 TT 1.2"},
+ #endif
+ 	{0xffff}
 diff --git ./src/include/program_loading.h ./src/include/program_loading.h
 index 416e2e9..40486cd 100644
 --- ./src/include/program_loading.h
@@ -418,6 +471,18 @@ index 49854cb..32eb128 100644
 +	return tlcl_extend(pcr_num, hash, NULL);
 +}
 +
+diff --git ./src/mainboard/asus/kgpe-d16/Kconfig ./src/mainboard/asus/kgpe-d16/Kconfig
+index 531ba4f..5227d28 100644
+--- ./src/mainboard/asus/kgpe-d16/Kconfig
++++ ./src/mainboard/asus/kgpe-d16/Kconfig
+@@ -28,6 +28,7 @@ config BOARD_SPECIFIC_OPTIONS # dummy
+ 	select BOARD_ROMSIZE_KB_2048
+ 	select ENABLE_APIC_EXT_ID
+ 	select SPI_FLASH
++	select TPM2
+ 	select MAINBOARD_HAS_LPC_TPM
+ 	select HAVE_ACPI_RESUME
+ 	select DRIVERS_I2C_W83795
 diff --git ./src/mainboard/asus/kgpe-d16/devicetree.cb ./src/mainboard/asus/kgpe-d16/devicetree.cb
 index 9039f6d..0ea4216 100644
 --- ./src/mainboard/asus/kgpe-d16/devicetree.cb
