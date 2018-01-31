@@ -418,6 +418,1572 @@ index 49854cb..32eb128 100644
 +	return tlcl_extend(pcr_num, hash, NULL);
 +}
 +
+diff --git ./src/mainboard/asus/kgpe-d16/devicetree.cb ./src/mainboard/asus/kgpe-d16/devicetree.cb
+index 9039f6d..0ea4216 100644
+--- ./src/mainboard/asus/kgpe-d16/devicetree.cb
++++ ./src/mainboard/asus/kgpe-d16/devicetree.cb
+@@ -217,6 +217,9 @@ chip northbridge/amd/amdfam10/root_complex	# Root complex
+ 						chip drivers/pc80/tpm
+ 							device pnp 4e.0 on end		# TPM module
+ 						end
++						chip drivers/generic/generic		# BMC KCS
++							device pnp ca2.0 on end
++						end
+ 					end
+ 					device pci 14.4 on			# Bridge
+ 						device pci 1.0 on end		# VGA
+diff --git ./src/mainboard/asus/kgpe-d16/dsdt.asl.orig ./src/mainboard/asus/kgpe-d16/dsdt.asl.orig
+new file mode 100644
+index 0000000..6a25b4d
+--- /dev/null
++++ ./src/mainboard/asus/kgpe-d16/dsdt.asl.orig
+@@ -0,0 +1,808 @@
++/*
++ * This file is part of the coreboot project.
++ *
++ * Copyright (C) 2015 Timothy Pearson <tpearson@raptorengineeringinc.com>, Raptor Engineering
++ * Copyright (C) 2005 - 2012 Advanced Micro Devices, Inc.
++ * Copyright (C) 2007-2009 coresystems GmbH
++ * Copyright (C) 2004 Nick Barker <Nick.Barker9@btinternet.com>
++ * Copyright (C) 2007, 2008 Rudolf Marek <r.marek@assembler.cz>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++/*
++ * WARNING: Sleep/Wake is a work in progress and is still somewhat flaky!
++ * Everything else does to the best of my knowledge... (T.P. 01/26/2015)
++ */
++
++/*
++ * ISA portions taken from QEMU acpi-dsdt.dsl.
++ */
++
++/*
++ * PCI link routing templates taken from ck804.asl and modified for this board
++ */
++
++DefinitionBlock (
++		"DSDT.AML",	/* Output filename */
++		"DSDT",		/* Signature */
++		0x03,		/* DSDT Revision, needs to be 2 or higher for 64bit */
++		"ASUS  ",	/* OEMID */
++		"COREBOOT",	/* TABLE ID */
++		0x00000001	/* OEM Revision */
++		)
++{
++	#include "northbridge/amd/amdfam10/amdfam10_util.asl"
++	#include "southbridge/amd/sr5650/acpi/sr5650.asl"
++
++	/* Some global data */
++	Name(OSVR, 3)	/* Assume nothing. WinXp = 1, Vista = 2, Linux = 3, WinCE = 4 */
++	Name(OSV, Ones)	/* Assume nothing */
++	Name(PICM, One)	/* Assume APIC */
++
++	/* HPET enable */
++	Name (HPTE, 0x1)
++
++	#include <southbridge/amd/common/acpi/sleepstates.asl>
++
++	/* The _PIC method is called by the OS to choose between interrupt
++		* routing via the i8259 interrupt controller or the APIC.
++		*
++		* _PIC is called with a parameter of 0 for i8259 configuration and
++		* with a parameter of 1 for Local Apic/IOAPIC configuration.
++		*/
++	Method (_PIC, 1, Serialized) {
++		If (Arg0)
++		{
++			\_SB.CIRQ()
++		}
++		Store (Arg0, PICM)
++	}
++
++	/* _PR CPU0 is dynamically supplied by SSDT */
++	/* CPU objects and _PSS entries are dynamically supplied by SSDT */
++
++	Scope(\_GPE) {	/* Start Scope GPE */
++		/*  General event 3  */
++		Method(_L03) {
++			/* Level-Triggered GPE */
++			Notify(\_SB.PWRB, 0x02)			/* NOTIFY_DEVICE_WAKE */
++		}
++
++		/*  General event 4  */
++		Method(_L04) {
++			/* Level-Triggered GPE */
++			Notify (\_SB.PCI0.PBR0, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PWRB, 0x02)		/* NOTIFY_DEVICE_WAKE */
++		}
++
++		/*  Keyboard controller PME#  */
++		Method(_L08) {
++			/* Level-Triggered GPE */
++			Notify(\_SB.PCI0.LPC.PS2K, 0x02)	/* NOTIFY_DEVICE_WAKE */
++			Notify(\_SB.PCI0.LPC.PS2M, 0x02)	/* NOTIFY_DEVICE_WAKE */
++			Notify(\_SB.PWRB, 0x02)			/* NOTIFY_DEVICE_WAKE */
++		}
++
++		/*  USB controller PME#  */
++		Method(_L0B) {
++			/* Level-Triggered GPE */
++			Notify (\_SB.PCI0.USB0, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.USB1, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.USB2, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.USB3, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.USB4, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.USB5, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.USB6, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PWRB, 0x02)		/* NOTIFY_DEVICE_WAKE */
++		}
++
++		/*  GPIO0 or GEvent8 event  */
++		Method(_L18) {
++			/* Level-Triggered GPE */
++			Notify (\_SB.PCI0.PCE1, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.NICA, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.NICB, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.PCE4, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.PCE5, 0x02)		/* NOTIFY_DEVICE_WAKE */
++			Notify (\_SB.PCI0.PCE3, 0x02)		/* NOTIFY_DEVICE_WAKE */
++		}
++
++	} 	/* End Scope GPE */
++
++	/* Root of the bus hierarchy */
++	Scope (\_SB)
++	{
++		/* Top southbridge PCI device (SR5690 + SP5100) */
++		Device (PCI0)
++		{
++			/* BUS0 root bus */
++
++			Name (_HID, EisaId ("PNP0A08"))         /* PCI-e root bus (SR5690) */
++			Name (_CID, EisaId ("PNP0A03"))         /* PCI root bus (SP5100) */
++			Name (_ADR, 0x00180001)
++			Name (_UID, 0x00)
++
++			Name (HCIN, 0x00)  // HC1
++
++			Method (_BBN, 0, NotSerialized)
++			{
++				Return (GBUS (GHCN(HCIN), GHCL(HCIN)))
++			}
++
++			/* Operating System Capabilities Method */
++			Method(_OSC,4)
++			{
++				/* Let OS control everything */
++				Return (Arg3)
++			}
++
++			External (BUSN)
++			External (MMIO)
++			External (PCIO)
++			External (SBLK)
++			External (TOM1)
++			External (HCLK)
++			External (SBDN)
++			External (HCDN)
++			External (CBST)
++
++			/* PCI Routing Tables */
++			Name (PR00, Package () {
++				/* PIC */
++				/* Top southbridge device (SR5690) */
++				/* HT Link */
++				Package (0x04) { 0x0000FFFF, 0x00, LNKA, 0x00 },
++
++				/* PCI-E Slot 1 (Bridge) */
++				Package (0x04) { 0x0002FFFF, 0x00, LNKE, 0x00 },
++
++				/* NIC A (Bridge) */
++				Package (0x04) { 0x0009FFFF, 0x00, LNKF, 0x00 },
++
++				/* NIC B (Bridge) */
++				Package (0x04) { 0x000AFFFF, 0x00, LNKG, 0x00 },
++
++				/* PCI-E Slot 4 (Bridge) */
++				Package (0x04) { 0x000BFFFF, 0x00, LNKG, 0x00 },
++
++				/* PCI-E Slot 5 (Bridge) */
++				Package (0x04) { 0x000CFFFF, 0x00, LNKG, 0x00 },
++
++				/* PCI-E Slot 3 (Bridge) */
++				Package (0x04) { 0x000DFFFF, 0x00, LNKG, 0x00 },
++
++				/* Bottom southbridge device (SP5100) */
++				/* SATA 0 */
++				Package (0x04) { 0x0011FFFF, 0x00, LNKG, 0x00 },
++
++				/* USB 0 */
++				Package (0x04) { 0x0012FFFF, 0x00, LNKA, 0x00 },
++				Package (0x04) { 0x0012FFFF, 0x01, LNKB, 0x00 },
++				Package (0x04) { 0x0012FFFF, 0x02, LNKC, 0x00 },
++				Package (0x04) { 0x0012FFFF, 0x03, LNKD, 0x00 },
++
++				/* USB 1 */
++				Package (0x04) { 0x0013FFFF, 0x00, LNKC, 0x00 },
++				Package (0x04) { 0x0013FFFF, 0x01, LNKD, 0x00 },
++				Package (0x04) { 0x0013FFFF, 0x02, LNKA, 0x00 },
++				Package (0x04) { 0x0013FFFF, 0x03, LNKB, 0x00 },
++
++				/* SMBUS / IDE / LPC / VGA / FireWire / PCI Slot 0 */
++				Package (0x04) { 0x0014FFFF, 0x00, LNKA, 0x00 },
++				Package (0x04) { 0x0014FFFF, 0x01, LNKB, 0x00 },
++				Package (0x04) { 0x0014FFFF, 0x02, LNKC, 0x00 },
++				Package (0x04) { 0x0014FFFF, 0x03, LNKD, 0x00 },
++			})
++
++			Name (AR00, Package () {
++				/* APIC */
++				/* Top southbridge device (SR5690) */
++				/* HT Link */
++				Package (0x04) { 0x0000FFFF, 0x00, 0x00, 55 },
++
++				/* PCI-E Slot 1 (Bridge) */
++				Package (0x04) { 0x0002FFFF, 0x00, 0x00, 52 },
++
++				/* NIC A (Bridge) */
++				Package (0x04) { 0x0009FFFF, 0x00, 0x00, 53 },
++
++				/* NIC B (Bridge) */
++				Package (0x04) { 0x000AFFFF, 0x00, 0x00, 54 },
++
++				/* PCI-E Slot 4 (Bridge) */
++				Package (0x04) { 0x000BFFFF, 0x00, 0x00, 54 },
++
++				/* PCI-E Slot 5 (Bridge) */
++				Package (0x04) { 0x000CFFFF, 0x00, 0x00, 54 },
++
++				/* PCI-E Slot 3 (Bridge) */
++				Package (0x04) { 0x000DFFFF, 0x00, 0x00, 54 },
++
++				/* Bottom southbridge device (SP5100) */
++				/* SATA 0 */
++				Package (0x04) { 0x0011FFFF, 0x00, 0x00, 22 },
++
++				/* USB 0 */
++				Package (0x04) { 0x0012FFFF, 0x00, 0x00, 16 },
++				Package (0x04) { 0x0012FFFF, 0x01, 0x00, 17 },
++				Package (0x04) { 0x0012FFFF, 0x02, 0x00, 18 },
++				Package (0x04) { 0x0012FFFF, 0x03, 0x00, 19 },
++
++				/* USB 1 */
++				Package (0x04) { 0x0013FFFF, 0x00, 0x00, 18 },
++				Package (0x04) { 0x0013FFFF, 0x01, 0x00, 19 },
++				Package (0x04) { 0x0013FFFF, 0x02, 0x00, 16 },
++				Package (0x04) { 0x0013FFFF, 0x03, 0x00, 17 },
++
++				/* SMBUS / IDE / LPC / VGA / FireWire / PCI Slot 0 */
++				Package (0x04) { 0x0014FFFF, 0x00, 0x00, 16 },
++				Package (0x04) { 0x0014FFFF, 0x01, 0x00, 17 },
++				Package (0x04) { 0x0014FFFF, 0x02, 0x00, 18 },
++				Package (0x04) { 0x0014FFFF, 0x03, 0x00, 19 },
++			})
++
++			Name (PR01, Package () {
++				/* PIC */
++				Package (0x04) { 0x1FFFF, 0x00, LNKF, 0x00 },
++				Package (0x04) { 0x2FFFF, 0x00, LNKE, 0x00 },
++				Package (0x04) { 0x3FFFF, 0x00, LNKG, 0x00 },
++				Package (0x04) { 0x3FFFF, 0x01, LNKH, 0x00 },
++				Package (0x04) { 0x3FFFF, 0x02, LNKE, 0x00 },
++				Package (0x04) { 0x3FFFF, 0x03, LNKF, 0x00 },
++			})
++
++			Name (AR01, Package () {
++				/* APIC */
++				Package (0x04) { 0x1FFFF, 0x00, 0x00, 21 },
++				Package (0x04) { 0x2FFFF, 0x00, 0x00, 20 },
++				Package (0x04) { 0x3FFFF, 0x00, 0x00, 22 },
++				Package (0x04) { 0x3FFFF, 0x01, 0x00, 23 },
++				Package (0x04) { 0x3FFFF, 0x02, 0x00, 20 },
++				Package (0x04) { 0x3FFFF, 0x03, 0x00, 21 },
++			})
++
++			Name (PR02, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKA, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKB, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKC, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKD, 0x00 },
++			})
++
++			Name (AR02, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 24 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 25 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 26 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 27 },
++			})
++
++			Name (PR03, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKE, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKF, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKG, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKH, 0x00 },
++			})
++
++			Name (AR03, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 44 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 45 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 46 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 47 },
++			})
++
++			Name (PR04, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKA, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKB, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKC, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKD, 0x00 },
++			})
++
++			Name (AR04, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 48 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 49 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 50 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 51 },
++			})
++
++			Name (PR05, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKH, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKE, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKF, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKG, 0x00 },
++			})
++
++			Name (AR05, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 47 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 44 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 45 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 46 },
++			})
++
++			Name (PR06, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKA, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKB, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKC, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKD, 0x00 },
++			})
++
++			Name (AR06, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 32 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 33 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 34 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 35 },
++			})
++
++			Name (PR07, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKE, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKF, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKG, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKH, 0x00 },
++			})
++
++			Name (AR07, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 36 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 37 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 38 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 39 },
++			})
++
++			Name (PR08, Package () {
++				/* PIC */
++				Package (0x04) { 0xFFFF, 0x00, LNKA, 0x00 },
++				Package (0x04) { 0xFFFF, 0x01, LNKB, 0x00 },
++				Package (0x04) { 0xFFFF, 0x02, LNKC, 0x00 },
++				Package (0x04) { 0xFFFF, 0x03, LNKD, 0x00 },
++			})
++
++			Name (AR08, Package () {
++				/* APIC */
++				Package (0x04) { 0xFFFF, 0x00, 0x00, 40 },
++				Package (0x04) { 0xFFFF, 0x01, 0x00, 41 },
++				Package (0x04) { 0xFFFF, 0x02, 0x00, 42 },
++				Package (0x04) { 0xFFFF, 0x03, 0x00, 43 },
++			})
++
++			/* PCI Resource Tables */
++
++			/* PCI Resource Settings Access */
++			Method (_CRS, 0, Serialized)
++			{
++				Name (BUF0, ResourceTemplate ()
++				{
++					IO (Decode16,
++					0x0CF8,	// Address Range Minimum
++					0x0CF8,	// Address Range Maximum
++					0x01,	// Address Alignment
++					0x08,	// Address Length
++					)
++					WordIO (ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
++					0x0000,	// Address Space Granularity
++					0x0000,	// Address Range Minimum
++					0x0CF7,	// Address Range Maximum
++					0x0000,	// Address Translation Offset
++					0x0CF8,	// Address Length
++					,, , TypeStatic)
++				})
++				/* Methods below use SSDT to get actual MMIO regs
++				   The IO ports are from 0xd00, optionally an VGA,
++				   otherwise the info from MMIO is used.
++				   \_SB.GXXX(node, link)
++				 */
++				Concatenate (\_SB.GMEM (0x00, \_SB.PCI0.SBLK), BUF0, Local1)
++				Concatenate (\_SB.GIOR (0x00, \_SB.PCI0.SBLK), Local1, Local2)
++				Concatenate (\_SB.GWBN (0x00, \_SB.PCI0.SBLK), Local2, Local3)
++				Return (Local3)
++			}
++
++			/* PCI Routing Table Access */
++			Method (_PRT, 0, NotSerialized) {
++				If (PICM) {
++					Return (AR00)
++				} Else {
++					Return (PR00)
++				}
++			}
++
++			/* 0:11.0 SP5100 SATA 0 */
++			Device(SAT0)
++			{
++				Name (_ADR, 0x00110000)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++				#include "southbridge/amd/sb700/acpi/sata.asl"
++			}
++
++			/* 0:12.0 SP5100 USB 0 */
++			Device (USB0)
++			{
++				Name (_ADR, 0x00120000)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 0:12.1 SP5100 USB 1 */
++			Device (USB1)
++			{
++				Name (_ADR, 0x00120001)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 0:12.2 SP5100 USB 2 */
++			Device (USB2)
++			{
++				Name (_ADR, 0x00120002)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 0:13.0 SP5100 USB 3 */
++			Device (USB3)
++			{
++				Name (_ADR, 0x00130000)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 0:13.1 SP5100 USB 4 */
++			Device (USB4)
++			{
++				Name (_ADR, 0x00130001)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 0:13.2 SP5100 USB 5 */
++			Device (USB5)
++			{
++				Name (_ADR, 0x00130002)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 0:14.1 SP5100 IDE Controller */
++			Device (IDEC)
++			{
++				Name (_ADR, 0x00140001)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++				#include "southbridge/amd/sb700/acpi/ide.asl"
++			}
++
++			/* 0:14.3 SP5100 LPC */
++			Device (LPC) {
++				Name (_HID, EisaId ("PNP0A05"))
++				Name (_ADR, 0x00140003)
++
++				/* Real Time Clock Device */
++				Device(RTC0) {
++					Name(_HID, EISAID("PNP0B00"))   /* AT Real Time Clock (not PIIX4 compatible) */
++					Name(BUF0, ResourceTemplate() {
++						IO(Decode16, 0x0070, 0x0070, 0x01, 0x02)
++					})
++					Name(BUF1, ResourceTemplate() {
++						IRQNoFlags() { 8 }
++						IO(Decode16, 0x0070, 0x0070, 0x01, 0x02)
++					})
++					Method(_CRS, 0) {
++						If(HPTE) {
++							Return(BUF0)
++						}
++						Return(BUF1)
++					}
++				}
++
++				Device(TMR) {   /* Timer */
++					Name(_HID,EISAID("PNP0100"))    /* System Timer */
++					Name(BUF0, ResourceTemplate() {
++						IO(Decode16, 0x0040, 0x0040, 0x01, 0x04)
++					})
++					Name(BUF1, ResourceTemplate() {
++						IRQNoFlags() { 0 }
++						IO(Decode16, 0x0040, 0x0040, 0x01, 0x04)
++					})
++					Method(_CRS, 0) {
++						If(HPTE) {
++							Return(BUF0)
++						}
++						Return(BUF1)
++					}
++				}
++
++				Device(SPKR) {  /* Speaker */
++					Name(_HID,EISAID("PNP0800"))    /* AT style speaker */
++					Name(_CRS, ResourceTemplate() {
++						IO(Decode16, 0x0061, 0x0061, 0, 1)
++					})
++				}
++
++				Device(PIC) {
++					Name(_HID,EISAID("PNP0000"))    /* AT Interrupt Controller */
++					Name(_CRS, ResourceTemplate() {
++						IRQNoFlags() { 2 }
++						IO(Decode16,0x0020, 0x0020, 0, 2)
++						IO(Decode16,0x00A0, 0x00A0, 0, 2)
++					})
++				}
++
++				Device(MAD) { /* 8257 DMA */
++					Name(_HID,EISAID("PNP0200"))    /* Hardware Device ID */
++					Name(_CRS, ResourceTemplate() {
++						DMA(Compatibility,BusMaster,Transfer8){4}
++						IO(Decode16, 0x0000, 0x0000, 0x10, 0x10)
++						IO(Decode16, 0x0081, 0x0081, 0x01, 0x03)
++						IO(Decode16, 0x0087, 0x0087, 0x01, 0x01)
++						IO(Decode16, 0x0089, 0x0089, 0x01, 0x03)
++						IO(Decode16, 0x008F, 0x008F, 0x01, 0x01)
++						IO(Decode16, 0x00C0, 0x00C0, 0x10, 0x20)
++					}) /* End Name(_SB.PCI0.LpcIsaBr.MAD._CRS) */
++				}
++
++				Device(COPR) {
++					Name(_HID,EISAID("PNP0C04"))    /* Math Coprocessor */
++					Name(_CRS, ResourceTemplate() {
++						IO(Decode16, 0x00F0, 0x00F0, 0, 0x10)
++						IRQNoFlags(){13}
++					})
++				}
++
++				#include "../../../superio/winbond/w83667hg-a/ps2_controller.asl"
++
++				/* UART 1 */
++				Device (URT1)
++				{
++					Name (_HID, EisaId ("PNP0501"))		// "PNP0501" for UART
++					Name(_PRW, Package () {0x03, 0x04})	// Wake from S1-S4
++					Method (_STA, 0, NotSerialized)
++					{
++						Return (0x0f)			// Always enable
++					}
++					Name (_PRS, ResourceTemplate() {
++						StartDependentFn(0, 1) {
++							IO(Decode16, 0x3f8, 0x3f8, 0x8, 0x8)
++							IRQNoFlags() { 4 }
++						} EndDependentFn()
++					})
++					Method (_CRS, 0)
++					{
++						Return(ResourceTemplate() {
++							IO(Decode16, 0x3f8, 0x3f8, 0x8, 0x8)
++							IRQNoFlags() { 4 }
++						})
++					}
++				}
++
++				/* UART 2 */
++				Device (URT2)
++				{
++					Name (_HID, EisaId ("PNP0501"))		// "PNP0501" for UART
++					Name(_PRW, Package () {0x03, 0x04})	// Wake from S1-S4
++					Method (_STA, 0, NotSerialized)
++					{
++						Return (0x0f)			// Always enable
++					}
++					Name (_PRS, ResourceTemplate() {
++						StartDependentFn(0, 1) {
++							IO(Decode16, 0x2f8, 0x2f8, 0x8, 0x8)
++							IRQNoFlags() { 3 }
++						} EndDependentFn()
++					})
++					Method (_CRS, 0)
++					{
++						Return(ResourceTemplate() {
++							IO(Decode16, 0x2f8, 0x2f8, 0x8, 0x8)
++							IRQNoFlags() { 3 }
++						})
++					}
++				}
++			}
++
++			/* High Precision Event Timer */
++			Device (HPET)
++			{
++				Name (_HID, EisaId ("PNP0103"))
++				Name (CRS, ResourceTemplate ()
++				{
++					Memory32Fixed(ReadOnly, 0xFED00000, 0x00000400)
++				})
++				Method (_STA, 0)
++				{
++					If(HPTE) {
++						Return (0x0F)
++					}
++					Return (0x0)
++				}
++				Method(_CRS, 0)
++				{
++					Return(CRS)
++				}
++			}
++
++			/* 0:14.4 PCI Bridge */
++			Device (PBR0)
++			{
++				Name (_ADR, 0x00140004)			// _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)		// _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR01)
++					} Else {
++						Return (PR01)
++					}
++				}
++				Device (SLT1)
++				{
++					Name (_ADR, 0xFFFF)			// _ADR: Address
++					Name(_PRW, Package () {0x0B, 0x04})	// Wake from S1-S4
++				}
++			}
++
++			/* 0:14.5 SP5100 USB 6 */
++			Device (USB6)
++			{
++				Name (_ADR, 0x00140005)  // _ADR: Address
++				Name(_PRW, Package () {0x05, 0x04})	// Wake from S1-S4
++			}
++
++			/* 2:00.0 PCIe x16 */
++			Device (PCE1)
++			{
++				Name (_ADR, 0x00020000)			// _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)		// _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR02)
++					} Else {
++						Return (PR02)
++					}
++				}
++				Device (SLT1)
++				{
++					Name (_ADR, 0xFFFF)			// _ADR: Address
++					Name(_PRW, Package () {0x0B, 0x04})	// Wake from S1-S4
++				}
++			}
++
++			/* 1:00.0 PIKE */
++			Device (PIKE)
++			{
++				Name (_ADR, 0x00040000)			// _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)		// _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR03)
++					} Else {
++						Return (PR03)
++					}
++				}
++				Device (SLT1)
++				{
++					Name (_ADR, 0xFFFF)			// _ADR: Address
++					Name(_PRW, Package () {0x0B, 0x04})	// Wake from S1-S4
++				}
++			}
++
++			/* 3:00.0 PCIe NIC A */
++			Device (NICA)
++			{
++				Name (_ADR, 0x00090000)  // _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)  // _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR04)
++					} Else {
++						Return (PR04)
++					}
++				}
++				Device (BDC1)
++				{
++					Name (_ADR, Zero)  // _ADR: Address
++				}
++			}
++
++			/* 4:00.0 PCIe NIC B */
++			Device (NICB)
++			{
++				Name (_ADR, 0x000A0000)  // _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)  // _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR05)
++					} Else {
++						Return (PR05)
++					}
++				}
++				Device (BDC2)
++				{
++					Name (_ADR, Zero)  // _ADR: Address
++				}
++			}
++
++			/* 5:00.0 PCIe x16 */
++			Device (PCE4)
++			{
++				Name (_ADR, 0x000B0000)			// _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)		// _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR06)
++					} Else {
++						Return (PR06)
++					}
++				}
++				Device (SLT1)
++				{
++					Name (_ADR, 0xFFFF)			// _ADR: Address
++					Name(_PRW, Package () {0x0B, 0x04})	// Wake from S1-S4
++				}
++			}
++
++			/* 6:00.0 PCIe x16 */
++			Device (PCE5)
++			{
++				Name (_ADR, 0x000C0000)			// _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)		// _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR07)
++					} Else {
++						Return (PR07)
++					}
++				}
++				Device (SLT1)
++				{
++					Name (_ADR, 0xFFFF)			// _ADR: Address
++					Name(_PRW, Package () {0x0B, 0x04})	// Wake from S1-S4
++				}
++			}
++
++			/* 7:00.0 PCIe x16 */
++			Device (PCE3)
++			{
++				Name (_ADR, 0x000D0000)			// _ADR: Address
++				Name(_PRW, Package () {0x11, 0x04})	// Wake from S1-S4
++				Method (_PRT, 0, NotSerialized)		// _PRT: PCI Routing Table
++				{
++					If (PICM) {
++						Return (AR08)
++					} Else {
++						Return (PR08)
++					}
++				}
++				Device (SLT1)
++				{
++					Name (_ADR, 0xFFFF)			// _ADR: Address
++					Name(_PRW, Package () {0x0B, 0x04})	// Wake from S1-S4
++				}
++			}
++		}
++
++		Device (PWRB) {	/* Start Power button device */
++			Name(_HID, EISAID("PNP0C0C"))
++			Name(_UID, 0xAA)
++			Name(_PRW, Package () {3, 0x04})	/* wake from S1-S4 */
++			Name(_STA, 0x0B) /* sata is invisible */
++		}
++	}
++
++#include "acpi/pm_ctrl.asl"
++
++}
+diff --git ./src/mainboard/asus/kgpe-d16/mainboard.c ./src/mainboard/asus/kgpe-d16/mainboard.c
+index 65029d4..8ee3a5e 100644
+--- ./src/mainboard/asus/kgpe-d16/mainboard.c
++++ ./src/mainboard/asus/kgpe-d16/mainboard.c
+@@ -70,6 +70,13 @@ static void mainboard_enable(device_t dev)
+ 
+ 	set_pcie_dereset();
+ 	/* get_ide_dma66(); */
++
++	/* Enable access to the BMC IPMI via KCS */
++	device_t lpc_sio_dev = dev_find_slot_pnp(0xca2, 0);
++	struct resource *res = new_resource(lpc_sio_dev, 0xca2);
++	res->base = 0xca2;
++	res->size = 1;
++	res->flags = IORESOURCE_IO | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
+ }
+ 
+ /* override the default SATA PHY setup */
+diff --git ./src/mainboard/asus/kgpe-d16/romstage.c ./src/mainboard/asus/kgpe-d16/romstage.c
+index 63b93c1..bb4f181 100644
+--- ./src/mainboard/asus/kgpe-d16/romstage.c
++++ ./src/mainboard/asus/kgpe-d16/romstage.c
+@@ -88,6 +88,47 @@ static void switch_spd_mux(uint8_t channel)
+ 	byte &= ~0xc0;			/* Enable SPD mux GPIO output drivers */
+ 	byte |= (channel << 2) & 0xc;	/* Set SPD mux GPIOs */
+ 	pci_write_config8(PCI_DEV(0, 0x14, 0), 0x54, byte);
++
++	/* Temporary AST PCI mapping */
++	uint32_t base_memory = 0xfc000000;
++	uint32_t memory_limit = 0xfc800000;
++
++	/* Temporarily enable the SP5100 PCI bridge */
++	uint16_t prev_sec_cfg = pci_read_config16(PCI_DEV(0, 0x14, 4), 0x04);
++	uint8_t prev_sec_bus = pci_read_config8(PCI_DEV(0, 0x14, 4), 0x19);
++	uint8_t prev_sec_sub_bus = pci_read_config8(PCI_DEV(0, 0x14, 4), 0x1a);
++	uint16_t prev_sec_mem_base = pci_read_config16(PCI_DEV(0, 0x14, 4), 0x20);
++	uint16_t prev_sec_mem_limit = pci_read_config16(PCI_DEV(0, 0x14, 4), 0x22);
++	pci_write_config8(PCI_DEV(0, 0x14, 4), 0x19, 0x01);
++	pci_write_config8(PCI_DEV(0, 0x14, 4), 0x1a, 0xff);
++	pci_write_config16(PCI_DEV(0, 0x14, 4), 0x20, (base_memory >> 20));
++	pci_write_config16(PCI_DEV(0, 0x14, 4), 0x22, (memory_limit >> 20));
++	pci_write_config16(PCI_DEV(0, 0x14, 4), 0x04, 0x2);
++
++	/* Temporarily enable AST BAR1 */
++	uint32_t prev_ast_cfg = pci_read_config32(PCI_DEV(1, 0x1, 0), 0x04);
++	uint32_t prev_ast_bar1 = pci_read_config32(PCI_DEV(1, 0x1, 0), 0x14);
++	pci_write_config32(PCI_DEV(1, 0x1, 0), 0x14, base_memory);
++	pci_write_config32(PCI_DEV(1, 0x1, 0), 0x04, 0x02100002);
++
++	/* Use the P2A bridge to set ASpeed SPD mux GPIOs to the same values as the SP5100 */
++	void* ast_bar1 = (void*)base_memory;
++	write32(ast_bar1 + 0xf004, 0x1e780000);								/* Enable access to GPIO controller */
++	write32(ast_bar1 + 0xf000, 0x1);
++	write32(ast_bar1 + 0x10024, read32(ast_bar1 + 0x10024) | 0x3000);				/* Enable SPD mux GPIO output drivers */
++	write32(ast_bar1 + 0x10020, (read32(ast_bar1 + 0x10020) & ~0x3000) | ((channel & 0x3) << 12));	/* Set SPD mux GPIOs */
++	write32(ast_bar1 + 0xf000, 0x0);
++
++	/* Deconfigure AST BAR1 */
++	pci_write_config32(PCI_DEV(1, 0x1, 0), 0x04, prev_ast_cfg);
++	pci_write_config32(PCI_DEV(1, 0x1, 0), 0x14, prev_ast_bar1);
++
++	/* Deconfigure SP5100 PCI bridge */
++	pci_write_config16(PCI_DEV(0, 0x14, 4), 0x04, prev_sec_cfg);
++	pci_write_config16(PCI_DEV(0, 0x14, 4), 0x22, prev_sec_mem_limit);
++	pci_write_config16(PCI_DEV(0, 0x14, 4), 0x20, prev_sec_mem_base);
++	pci_write_config8(PCI_DEV(0, 0x14, 4), 0x1a, prev_sec_sub_bus);
++	pci_write_config8(PCI_DEV(0, 0x14, 4), 0x19, prev_sec_bus);
+ }
+ 
+ static const uint8_t spd_addr_fam15[] = {
+diff --git ./src/mainboard/asus/kgpe-d16/romstage.c.orig ./src/mainboard/asus/kgpe-d16/romstage.c.orig
+new file mode 100644
+index 0000000..63b93c1
+--- /dev/null
++++ ./src/mainboard/asus/kgpe-d16/romstage.c.orig
+@@ -0,0 +1,662 @@
++/*
++ * This file is part of the coreboot project.
++ *
++ * Copyright (C) 2015 - 2017 Raptor Engineering, LLC
++ *
++ * Copyright (C) 2007 AMD
++ * Written by Yinghai Lu <yinghailu@amd.com> for AMD.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <stdint.h>
++#include <string.h>
++#include <reset.h>
++#include <device/pci_def.h>
++#include <device/pci_ids.h>
++#include <arch/io.h>
++#include <device/pnp_def.h>
++#include <cpu/x86/lapic.h>
++#include <console/console.h>
++#include <romstage_handoff.h>
++#include <timestamp.h>
++#include <lib.h>
++#include <spd.h>
++#include <cpu/amd/model_10xxx_rev.h>
++#include <delay.h>
++#include <cpu/x86/lapic.h>
++#include <superio/winbond/common/winbond.h>
++#include <superio/winbond/w83667hg-a/w83667hg-a.h>
++#include <cpu/x86/bist.h>
++#include <cpu/amd/car.h>
++#include <smp/spinlock.h>
++#include <southbridge/amd/sb700/sb700.h>
++#include <southbridge/amd/sb700/smbus.h>
++#include <southbridge/amd/sr5650/sr5650.h>
++#include <northbridge/amd/amdfam10/raminit.h>
++#include <northbridge/amd/amdht/ht_wrapper.h>
++#include <cpu/amd/family_10h-family_15h/init_cpus.h>
++#include <arch/early_variables.h>
++#include <cbmem.h>
++#include <tpm.h>
++
++#include "resourcemap.c"
++#include "cpu/amd/quadcore/quadcore.c"
++
++#define SERIAL_0_DEV PNP_DEV(0x2e, W83667HG_A_SP1)
++#define SERIAL_1_DEV PNP_DEV(0x2e, W83667HG_A_SP2)
++
++void activate_spd_rom(const struct mem_controller *ctrl);
++int spd_read_byte(unsigned device, unsigned address);
++extern struct sys_info sysinfo_car;
++
++int spd_read_byte(unsigned device, unsigned address)
++{
++	return do_smbus_read_byte(SMBUS_AUX_IO_BASE, device, address);
++}
++
++/*
++ * ASUS KGPE-D16 specific SPD enable/disable magic.
++ *
++ * Setting SP5100 GPIOs 59 and 60 controls an SPI mux with four settings:
++ * 0: Disabled
++ * 1: Normal SPI access
++ * 2: CPU0 SPD
++ * 3: CPU1 SPD
++ *
++ * Disable SPD access after RAM init to allow access to standard SMBus/I2C offsets
++ * which is required e.g. by lm-sensors.
++ */
++
++/* Relevant GPIO register information is available in the
++ * AMD SP5100 Register Reference Guide rev. 3.03, page 130
++ */
++static void switch_spd_mux(uint8_t channel)
++{
++	uint8_t byte;
++
++	byte = pci_read_config8(PCI_DEV(0, 0x14, 0), 0x54);
++	byte &= ~0xc;			/* Clear SPD mux GPIOs */
++	byte &= ~0xc0;			/* Enable SPD mux GPIO output drivers */
++	byte |= (channel << 2) & 0xc;	/* Set SPD mux GPIOs */
++	pci_write_config8(PCI_DEV(0, 0x14, 0), 0x54, byte);
++}
++
++static const uint8_t spd_addr_fam15[] = {
++	// Socket 0 Node 0 ("Node 0")
++	RC00, DIMM0, DIMM1, 0, 0, DIMM2, DIMM3, 0, 0,
++	// Socket 0 Node 1 ("Node 1")
++	RC00, DIMM4, DIMM5, 0, 0, DIMM6, DIMM7, 0, 0,
++	// Socket 1 Node 0 ("Node 2")
++	RC01, DIMM0, DIMM1, 0, 0, DIMM2, DIMM3, 0, 0,
++	// Socket 1 Node 1 ("Node 3")
++	RC01, DIMM4, DIMM5, 0, 0, DIMM6, DIMM7, 0, 0,
++};
++
++static const uint8_t spd_addr_fam10[] = {
++	// Socket 0 Node 0 ("Node 0")
++	RC00, DIMM0, DIMM1, 0, 0, DIMM2, DIMM3, 0, 0,
++	// Socket 0 Node 1 ("Node 1")
++	RC00, DIMM4, DIMM5, 0, 0, DIMM6, DIMM7, 0, 0,
++	// Socket 1 Node 1 ("Node 2")
++	RC01, DIMM4, DIMM5, 0, 0, DIMM6, DIMM7, 0, 0,
++	// Socket 1 Node 0 ("Node 3")
++	RC01, DIMM0, DIMM1, 0, 0, DIMM2, DIMM3, 0, 0,
++};
++
++void activate_spd_rom(const struct mem_controller *ctrl) {
++	struct sys_info *sysinfo = &sysinfo_car;
++	printk(BIOS_DEBUG, "activate_spd_rom() for node %02x\n", ctrl->node_id);
++	if (ctrl->node_id == 0) {
++		printk(BIOS_DEBUG, "enable_spd_node0()\n");
++		switch_spd_mux(0x2);
++	} else if (ctrl->node_id == 1) {
++		printk(BIOS_DEBUG, "enable_spd_node1()\n");
++		switch_spd_mux((is_fam15h() || (sysinfo->nodes <= 2))?0x2:0x3);
++	} else if (ctrl->node_id == 2) {
++		printk(BIOS_DEBUG, "enable_spd_node2()\n");
++		switch_spd_mux((is_fam15h() || (sysinfo->nodes <= 2))?0x3:0x2);
++	} else if (ctrl->node_id == 3) {
++		printk(BIOS_DEBUG, "enable_spd_node3()\n");
++		switch_spd_mux(0x3);
++	}
++}
++
++/* Voltages are specified by index
++ * Valid indices for this platform are:
++ * 0: 1.5V
++ * 1: 1.35V
++ * 2: 1.25V
++ * 3: 1.15V
++ */
++static void set_ddr3_voltage(uint8_t node, uint8_t index) {
++	uint8_t byte;
++	uint8_t value = 0;
++
++	if (index == 0)
++		value = 0x0;
++	else if (index == 1)
++		value = 0x1;
++	else if (index == 2)
++		value = 0x4;
++	else if (index == 3)
++		value = 0x5;
++	if (node == 1)
++		value <<= 1;
++
++	/* Set GPIOs */
++	byte = pci_read_config8(PCI_DEV(0, 0x14, 3), 0xd1);
++	if (node == 0)
++		byte &= ~0x5;
++	if (node == 1)
++		byte &= ~0xa;
++	byte |= value;
++	pci_write_config8(PCI_DEV(0, 0x14, 3), 0xd1, byte);
++
++	/* Enable GPIO output drivers */
++	byte = pci_read_config8(PCI_DEV(0, 0x14, 3), 0xd0);
++	byte &= 0x0f;
++	pci_write_config8(PCI_DEV(0, 0x14, 3), 0xd0, byte);
++
++	printk(BIOS_DEBUG, "Node %02d DIMM voltage set to index %02x\n", node, index);
++}
++
++void DIMMSetVoltages(struct MCTStatStruc *pMCTstat,
++				struct DCTStatStruc *pDCTstatA) {
++	/* This mainboard allows the DIMM voltage to be set per-socket.
++	 * Therefore, for each socket, iterate over all DIMMs to find the
++	 * lowest supported voltage common to all DIMMs on that socket.
++	 */
++	uint8_t nvram;
++	uint8_t dimm;
++	uint8_t node;
++	uint8_t socket;
++	uint8_t allowed_voltages = 0xf;	/* The mainboard VRMs allow 1.15V, 1.25V, 1.35V, and 1.5V */
++	uint8_t socket_allowed_voltages = allowed_voltages;
++	uint32_t set_voltage = 0;
++
++	if (get_option(&nvram, "minimum_memory_voltage") == CB_SUCCESS) {
++		switch (nvram) {
++		case 2:
++			allowed_voltages = 0x7;	/* Allow 1.25V, 1.35V, and 1.5V */
++			break;
++		case 1:
++			allowed_voltages = 0x3;	/* Allow 1.35V and 1.5V */
++			break;
++		case 0:
++		default:
++			allowed_voltages = 0x1;	/* Allow 1.5V only */
++			break;
++		}
++	}
++
++	for (node = 0; node < MAX_NODES_SUPPORTED; node++) {
++		socket = node / 2;
++		struct DCTStatStruc *pDCTstat;
++		pDCTstat = pDCTstatA + node;
++
++		/* reset socket_allowed_voltages before processing each socket */
++		if (!(node % 2))
++			socket_allowed_voltages = allowed_voltages;
++
++		if (pDCTstat->NodePresent) {
++			for (dimm = 0; dimm < MAX_DIMMS_SUPPORTED; dimm++) {
++				if (pDCTstat->DIMMValid & (1 << dimm)) {
++					socket_allowed_voltages &= pDCTstat->DimmSupportedVoltages[dimm];
++				}
++			}
++		}
++
++		/* set voltage per socket after processing last contained node */
++		if (pDCTstat->NodePresent && (node % 2)) {
++			/* Set voltages */
++			if (socket_allowed_voltages & 0x8) {
++				set_voltage = 0x8;
++				set_ddr3_voltage(socket, 3);
++			} else if (socket_allowed_voltages & 0x4) {
++				set_voltage = 0x4;
++				set_ddr3_voltage(socket, 2);
++			} else if (socket_allowed_voltages & 0x2) {
++				set_voltage = 0x2;
++				set_ddr3_voltage(socket, 1);
++			} else {
++				set_voltage = 0x1;
++				set_ddr3_voltage(socket, 0);
++			}
++
++			/* Save final DIMM voltages for MCT and SMBIOS use */
++			if (pDCTstat->NodePresent) {
++				for (dimm = 0; dimm < MAX_DIMMS_SUPPORTED; dimm++) {
++					pDCTstat->DimmConfiguredVoltage[dimm] = set_voltage;
++				}
++			}
++			pDCTstat = pDCTstatA + (node - 1);
++			if (pDCTstat->NodePresent) {
++				for (dimm = 0; dimm < MAX_DIMMS_SUPPORTED; dimm++) {
++					pDCTstat->DimmConfiguredVoltage[dimm] = set_voltage;
++				}
++			}
++		}
++	}
++
++	/* Allow the DDR supply voltages to settle */
++	udelay(100000);
++}
++
++static void set_peripheral_control_lines(void) {
++	uint8_t byte;
++	uint8_t nvram;
++	uint8_t enable_ieee1394;
++
++	enable_ieee1394 = 1;
++
++	if (get_option(&nvram, "ieee1394_controller") == CB_SUCCESS)
++		enable_ieee1394 = nvram & 0x1;
++
++	if (enable_ieee1394) {
++		/* Enable PCICLK5 (onboard FireWire device) */
++		outb(0x41, 0xcd6);
++		outb(0x02, 0xcd7);
++	} else {
++		/* Disable PCICLK5 (onboard FireWire device) */
++		outb(0x41, 0xcd6);
++		outb(0x00, 0xcd7);
++	}
++
++	/* Enable the RTC AltCentury register */
++	outb(0x41, 0xcd6);
++	byte = inb(0xcd7);
++	byte |= 0x10;
++	outb(byte, 0xcd7);
++}
++
++#ifdef TEST_MEMORY
++static void execute_memory_test(void)
++{
++	/* Test DRAM functionality */
++	uint32_t i;
++	uint32_t v;
++	uint32_t w;
++	uint32_t x;
++	uint32_t y;
++	uint32_t z;
++	uint32_t* dataptr;
++	uint32_t readback;
++	uint32_t start = 0x300000;
++	printk(BIOS_DEBUG, "Writing test pattern 1 to memory...\n");
++	for (i = 0; i < 0x1000000; i = i + 8) {
++		dataptr = (void *)(start + i);
++		*dataptr = 0x55555555;
++		dataptr = (void *)(start + i + 4);
++		*dataptr = 0xaaaaaaaa;
++	}
++	printk(BIOS_DEBUG, "Done!\n");
++	printk(BIOS_DEBUG, "Testing memory...\n");
++	for (i = 0; i < 0x1000000; i = i + 8) {
++		dataptr = (void *)(start + i);
++		readback = *dataptr;
++		if (readback != 0x55555555)
++			printk(BIOS_DEBUG, "%p: INCORRECT VALUE %08x (should have been %08x)\n", dataptr, readback, 0x55555555);
++		dataptr = (void *)(start + i + 4);
++		readback = *dataptr;
++		if (readback != 0xaaaaaaaa)
++			printk(BIOS_DEBUG, "%p: INCORRECT VALUE %08x (should have been %08x)\n", dataptr, readback, 0xaaaaaaaa);
++	}
++	printk(BIOS_DEBUG, "Done!\n");
++	printk(BIOS_DEBUG, "Writing test pattern 2 to memory...\n");
++	/* Set up the PRNG seeds for initial write */
++	w = 0x55555555;
++	x = 0xaaaaaaaa;
++	y = 0x12345678;
++	z = 0x87654321;
++	for (i = 0; i < 0x1000000; i = i + 4) {
++		/* Use Xorshift as a PRNG to stress test the bus */
++		v = x;
++		v ^= v << 11;
++		v ^= v >> 8;
++		x = y;
++		y = z;
++		z = w;
++		w ^= w >> 19;
++		w ^= v;
++		dataptr = (void *)(start + i);
++		*dataptr = w;
++	}
++	printk(BIOS_DEBUG, "Done!\n");
++	printk(BIOS_DEBUG, "Testing memory...\n");
++	/* Reset the PRNG seeds for readback */
++	w = 0x55555555;
++	x = 0xaaaaaaaa;
++	y = 0x12345678;
++	z = 0x87654321;
++	for (i = 0; i < 0x1000000; i = i + 4) {
++		/* Use Xorshift as a PRNG to stress test the bus */
++		v = x;
++		v ^= v << 11;
++		v ^= v >> 8;
++		x = y;
++		y = z;
++		z = w;
++		w ^= w >> 19;
++		w ^= v;
++		dataptr = (void *)(start + i);
++		readback = *dataptr;
++		if (readback != w)
++			printk(BIOS_DEBUG, "%p: INCORRECT VALUE %08x (should have been %08x)\n", dataptr, readback, w);
++	}
++	printk(BIOS_DEBUG, "Done!\n");
++}
++#endif
++
++static spinlock_t printk_spinlock CAR_GLOBAL;
++
++spinlock_t* romstage_console_lock(void)
++{
++	return car_get_var_ptr(&printk_spinlock);
++}
++
++void initialize_romstage_console_lock(void)
++{
++	spin_unlock(romstage_console_lock());
++}
++
++static spinlock_t nvram_cbfs_spinlock CAR_GLOBAL;
++
++spinlock_t* romstage_nvram_cbfs_lock(void)
++{
++	return car_get_var_ptr(&nvram_cbfs_spinlock);
++}
++
++void initialize_romstage_nvram_cbfs_lock(void)
++{
++	spin_unlock(romstage_nvram_cbfs_lock());
++}
++
++static spinlock_t microcode_cbfs_spinlock CAR_GLOBAL;
++
++spinlock_t* romstage_microcode_cbfs_lock(void)
++{
++	return car_get_var_ptr(&microcode_cbfs_spinlock);
++}
++
++void initialize_romstage_microcode_cbfs_lock(void)
++{
++	spin_unlock(romstage_microcode_cbfs_lock());
++}
++
++void cache_as_ram_main(unsigned long bist, unsigned long cpu_init_detectedx)
++{
++	uint32_t esp;
++	__asm__ volatile (
++		"movl %%esp, %0"
++		: "=r" (esp)
++		);
++
++	struct sys_info *sysinfo = &sysinfo_car;
++
++	/* Limit the maximum HT speed to 2.6GHz to prevent lockups
++	 * due to HT CPU <--> CPU wiring not being validated to 3.2GHz
++	 */
++	sysinfo->ht_link_cfg.ht_speed_limit = 2600;
++
++	uint32_t bsp_apicid = 0, val;
++	uint8_t byte;
++	uint8_t power_on_reset = 0;
++	msr_t msr;
++
++	int s3resume = acpi_is_wakeup_s3();
++
++	if (!cpu_init_detectedx && boot_cpu()) {
++		/* Initial timestamp */
++		timestamp_init(timestamp_get());
++		timestamp_add_now(TS_START_ROMSTAGE);
++
++		/* Initialize the printk, nvram CBFS, and microcode CBFS spinlocks */
++		initialize_romstage_console_lock();
++		initialize_romstage_nvram_cbfs_lock();
++		initialize_romstage_microcode_cbfs_lock();
++
++		/* Nothing special needs to be done to find bus 0 */
++		/* Allow the HT devices to be found */
++		set_bsp_node_CHtExtNodeCfgEn();
++		enumerate_ht_chain();
++
++		/* SR56x0 pcie bridges block pci_locate_device() before pcie training.
++		 * disable all pcie bridges on SR56x0 to work around it
++		 */
++		sr5650_disable_pcie_bridge();
++
++		/* Initialize southbridge */
++		sb7xx_51xx_pci_port80();
++
++		/* Configure secondary serial port pin mux */
++		winbond_set_pinmux(SERIAL_1_DEV, 0x2a, W83667HG_SPI_PINMUX_GPIO4_SERIAL_B_MASK, W83667HG_SPI_PINMUX_SERIAL_B);
++
++		/* Initialize early serial */
++		winbond_enable_serial(SERIAL_0_DEV, CONFIG_TTYS0_BASE);
++		console_init();
++
++		/* Disable LPC legacy DMA support to prevent lockup */
++		byte = pci_read_config8(PCI_DEV(0, 0x14, 3), 0x78);
++		byte &= ~(1 << 0);
++		pci_write_config8(PCI_DEV(0, 0x14, 3), 0x78, byte);
++	}
++
++	printk(BIOS_SPEW, "Initial stack pointer: %08x\n", esp);
++
++	post_code(0x30);
++
++	if (bist == 0)
++		bsp_apicid = init_cpus(cpu_init_detectedx, sysinfo);
++
++	post_code(0x32);
++
++	enable_sr5650_dev8();
++	sb7xx_51xx_lpc_init();
++
++	if (CONFIG_MAX_PHYSICAL_CPUS != 4)
++		printk(BIOS_WARNING, "CONFIG_MAX_PHYSICAL_CPUS is %d, but this is a dual socket AMD G34 board!\n", CONFIG_MAX_PHYSICAL_CPUS);
++
++	/* Halt if there was a built in self test failure */
++	report_bist_failure(bist);
++
++	val = cpuid_eax(1);
++	printk(BIOS_DEBUG, "BSP Family_Model: %08x\n", val);
++	printk(BIOS_DEBUG, "*sysinfo range: [%p,%p]\n",sysinfo,sysinfo+1);
++	printk(BIOS_DEBUG, "bsp_apicid = %02x\n", bsp_apicid);
++	printk(BIOS_DEBUG, "cpu_init_detectedx = %08lx\n", cpu_init_detectedx);
++
++	/* Setup sysinfo defaults */
++	set_sysinfo_in_ram(0);
++
++	if (!sb7xx_51xx_decode_last_reset())
++		power_on_reset = 1;
++
++	initialize_mca(1, power_on_reset);
++	update_microcode(val);
++
++	post_code(0x33);
++
++	cpuSetAMDMSR(0);
++	post_code(0x34);
++
++	amd_ht_init(sysinfo);
++	amd_ht_fixup(sysinfo);
++	post_code(0x35);
++
++	/* Setup nodes PCI space and start core 0 AP init. */
++	finalize_node_setup(sysinfo);
++
++	/* Setup any mainboard PCI settings etc. */
++	setup_mb_resource_map();
++	initialize_mca(0, power_on_reset);
++	post_code(0x36);
++
++	/* Wait for all the APs core0 started by finalize_node_setup. */
++	wait_all_core0_started();
++
++	/* run _early_setup before soft-reset. */
++	sr5650_early_setup();
++	sb7xx_51xx_early_setup();
++
++	if (IS_ENABLED(CONFIG_LOGICAL_CPUS)) {
++		/* Core0 on each node is configured. Now setup any additional cores. */
++		printk(BIOS_DEBUG, "start_other_cores()\n");
++		start_other_cores(bsp_apicid);
++		post_code(0x37);
++		wait_all_other_cores_started(bsp_apicid);
++	}
++
++	if (IS_ENABLED(CONFIG_SET_FIDVID)) {
++		msr = rdmsr(0xc0010071);
++		printk(BIOS_DEBUG, "\nBegin FIDVID MSR 0xc0010071 0x%08x 0x%08x\n", msr.hi, msr.lo);
++
++		/* FIXME: The sb fid change may survive the warm reset and only need to be done once */
++		enable_fid_change_on_sb(sysinfo->sbbusn, sysinfo->sbdn);
++
++		post_code(0x39);
++
++		#if IS_ENABLED(CONFIG_SET_FIDVID)
++		if (!warm_reset_detect(0)) {			// BSP is node 0
++			init_fidvid_bsp(bsp_apicid, sysinfo->nodes);
++		} else {
++			init_fidvid_stage2(bsp_apicid, 0);	// BSP is node 0
++		}
++		#endif
++
++		post_code(0x3A);
++
++		/* show final fid and vid */
++		msr = rdmsr(0xc0010071);
++		printk(BIOS_DEBUG, "End FIDVIDMSR 0xc0010071 0x%08x 0x%08x\n", msr.hi, msr.lo);
++	}
++
++	post_code(0x38);
++
++	init_timer(); // Need to use TMICT to synconize FID/VID
++
++	sr5650_htinit();
++
++	/* Reset for HT, FIDVID, PLL and errata changes to take effect. */
++	if (!warm_reset_detect(0)) {
++		printk(BIOS_INFO, "...WARM RESET...\n\n\n");
++		soft_reset();
++		die("After soft_reset - shouldn't see this message!!!\n");
++	}
++
++	sr5650_htinit_dect_and_enable_isochronous_link();
++
++	/* Set default DDR memory voltage
++	 * This will be overridden later during RAM initialization
++	 */
++	set_lpc_sticky_ctl(1);	/* Retain LPC/IMC GPIO configuration during S3 sleep */
++	if (!s3resume) {	/* Avoid supply voltage glitches while the DIMMs are retaining data */
++		set_ddr3_voltage(0, 0);	/* Node 0 */
++		set_ddr3_voltage(1, 0);	/* Node 1 */
++	}
++
++	/* Set up peripheral control lines */
++	set_peripheral_control_lines();
++
++	post_code(0x3B);
++
++	/* Wait for all APs to be stopped, otherwise RAM initialization may hang */
++	if (IS_ENABLED(CONFIG_LOGICAL_CPUS))
++		wait_all_other_cores_stopped(bsp_apicid);
++
++	/* It's the time to set ctrl in sysinfo now; */
++	printk(BIOS_DEBUG, "fill_mem_ctrl() detected %d nodes\n", sysinfo->nodes);
++	if (is_fam15h())
++		fill_mem_ctrl(sysinfo->nodes, sysinfo->ctrl, spd_addr_fam15);
++	else
++		fill_mem_ctrl(sysinfo->nodes, sysinfo->ctrl, spd_addr_fam10);
++	post_code(0x3D);
++
++#if 0
++	/* FIXME
++	 * After the AMD K10 code has been converted to use
++	 * IS_ENABLED(CONFIG_DEBUG_SMBUS) uncomment this block
++	 */
++	if (IS_ENABLED(CONFIG_DEBUG_SMBUS)) {
++	        dump_spd_registers(&cpu[0]);
++        	dump_smbus_registers();
++	}
++#endif
++
++	post_code(0x40);
++
++	timestamp_add_now(TS_BEFORE_INITRAM);
++	printk(BIOS_DEBUG, "raminit_amdmct()\n");
++	raminit_amdmct(sysinfo);
++	timestamp_add_now(TS_AFTER_INITRAM);
++
++#ifdef TEST_MEMORY
++	execute_memory_test();
++#endif
++
++#if !IS_ENABLED(CONFIG_LATE_CBMEM_INIT)
++	if (s3resume)
++		cbmem_initialize();
++	else
++		cbmem_initialize_empty();
++
++	romstage_handoff_init(s3resume);
++
++	post_code(0x41);
++
++	amdmct_cbmem_store_info(sysinfo);
++#endif
++
++	printk(BIOS_DEBUG, "disable_spd()\n");
++	switch_spd_mux(0x1);
++
++	sr5650_before_pci_init();
++	sb7xx_51xx_before_pci_init();
++
++	/* Configure SP5100 GPIOs to match vendor settings */
++	pci_write_config16(PCI_DEV(0, 0x14, 0), 0x50, 0x0170);
++	pci_write_config16(PCI_DEV(0, 0x14, 0), 0x54, 0x0707);
++	pci_write_config16(PCI_DEV(0, 0x14, 0), 0x56, 0x0bb0);
++	pci_write_config16(PCI_DEV(0, 0x14, 0), 0x5a, 0x0ff0);
++
++	if (IS_ENABLED(CONFIG_LPC_TPM))
++		init_tpm(s3resume);
++}
++
++/**
++ * BOOL AMD_CB_ManualBUIDSwapList(u8 Node, u8 Link, u8 **List)
++ * Description:
++ *	This routine is called every time a non-coherent chain is processed.
++ *	BUID assignment may be controlled explicitly on a non-coherent chain. Provide a
++ *	swap list. The first part of the list controls the BUID assignment and the
++ *	second part of the list provides the device to device linking.  Device orientation
++ *	can be detected automatically, or explicitly.  See documentation for more details.
++ *
++ *	Automatic non-coherent init assigns BUIDs starting at 1 and incrementing sequentially
++ *	based on each device's unit count.
++ *
++ * Parameters:
++ *	@param[in]  node   = The node on which this chain is located
++ *	@param[in]  link   = The link on the host for this chain
++ *	@param[out] List   = supply a pointer to a list
++ */
++BOOL AMD_CB_ManualBUIDSwapList (u8 node, u8 link, const u8 **List)
++{
++	/* Force BUID to 0 */
++	static const u8 swaplist[] = {0, 0, 0xFF, 0, 0xFF};
++	if ((is_fam15h() && (node == 0) && (link == 1))			/* Family 15h BSP SB link */
++		|| (!is_fam15h() && (node == 0) && (link == 3))) {	/* Family 10h BSP SB link */
++		*List = swaplist;
++		return 1;
++	}
++
++	return 0;
++}
 diff --git ./src/northbridge/intel/sandybridge/romstage.c ./src/northbridge/intel/sandybridge/romstage.c
 index 8608d5a..dac90ee 100644
 --- ./src/northbridge/intel/sandybridge/romstage.c
