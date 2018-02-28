@@ -68,7 +68,8 @@ do
 	if [ "$key" = "kernel" ]; then
 		if [ "$kexectype" = "xen" ]; then
 			# always overload xen and with custom arguments
-			kexeccmd="$kexeccmd -l /bin/xen.gz"
+			kexeccmd="$kexeccmd -l /boot/$firstval
+			#kexeccmd="$kexeccmd -l /bin/xen.gz"
 			kexeccmd="$kexeccmd --command-line \"no-real-mode reboot=no vga=current\""
 		elif [ "$kexectype" = "multiboot" ]; then
 			fix_file_path
