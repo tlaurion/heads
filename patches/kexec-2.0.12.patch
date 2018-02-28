@@ -106,19 +106,19 @@ diff -u --recursive clean/kexec-tools-2.0.16/kexec/kexec.c kexec-tools-2.0.16/ke
  	if (sort_segments(&info) < 0) {
  		return -1;
  	}
--
--       // force segment 0 to have memsz == bufsz
--       // so that it won't overwrite EBDA
--       printf("hack ebda into segment 0!\n");
--       uint8_t * ebda = calloc(1, info.segment[0].memsz);
--       memcpy(ebda, info.segment[0].buf, info.segment[0].bufsz);
--       info.segment[0].bufsz = info.segment[0].memsz;
--       info.segment[0].buf = ebda;
--
--       // install some default EBDA values
--       *(uint16_t*)(ebda + 0x40e) = 0xF600; // segment
--       *(uint16_t*)(ebda + 0x413) = 0x400; // size
--
++
++       // force segment 0 to have memsz == bufsz
++       // so that it won't overwrite EBDA
++       printf("hack ebda into segment 0!\n");
++       uint8_t * ebda = calloc(1, info.segment[0].memsz);
++       memcpy(ebda, info.segment[0].buf, info.segment[0].bufsz);
++       info.segment[0].bufsz = info.segment[0].memsz;
++       info.segment[0].buf = ebda;
++
++       // install some default EBDA values
++       *(uint16_t*)(ebda + 0x40e) = 0xF600; // segment
++       *(uint16_t*)(ebda + 0x413) = 0x400; // size
++
  	/* if purgatory is loaded update it */
  	update_purgatory(&info);
  	if (entry)
