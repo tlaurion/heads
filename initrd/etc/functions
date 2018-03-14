@@ -3,6 +3,9 @@
 
 die() {
 	echo >&2 "$*";
+	# In order to die with dignity...
+	echo s > /proc/sysrq-trigger
+	echo u > /proc/sysrq-trigger
 	exit 1;
 }
 
@@ -15,6 +18,41 @@ lock_chip() {
 	FIN_CODE=0xcb
 	echo "Finalizing chipset"
 	io386 -o b -b x $APM_CNT $FIN_CODE
+}
+
+gpg_auth() {
+	echo >&2 "!!!!! Please authenticate with OpenPGP card to prove you own this box..."
+
+	confirm_gpg_card
+
+	# Perform a signing-based challenge-response,
+	# to authencate that the card plugged in holding
+	# the key to sign the list of boot files.
+	CR_NONCE="/tmp/secret/cr_nonce"
+	CR_SIG="/tmp/secret/cr_nonce.sig"
+
+	dd \
+		if=/dev/urandom \
+		of="$CR_NONCE" \
+		count=1 \
+		bs=20 \
+		2>/dev/null \
+		|| die "Unable to generate 20 random bytes"
+
+	for tries in 1 2 3; do
+		if gpg --digest-algo SHA256 \
+			--detach-sign \
+			-o "$CR_SIG" \
+			"$CR_NONCE" \
+			&& gpgv "$CR_SIG" "$CR_NONCE" \
+		; then
+			return 0
+		else
+			rm "$CR_SIG"
+			continue
+		fi
+	done
+	return 1
 }
 
 recovery() {
@@ -35,16 +73,20 @@ recovery() {
 
 	while [ true ]
 	do
-		echo >&2 "!!!!! Starting recovery shell"
-		sleep 1
+		if [ "$CONFIG_RECOVERY_NEED_AUTH" != y ] || gpg_auth; then
+			echo >&2 "!!!!! Starting recovery shell"
+			sleep 1
 
-		if [ -x /bin/setsid ]; then
-			/bin/setsid -c /bin/ash
+			if [ -x /bin/setsid ]; then
+				/bin/setsid -c /bin/ash
+			else
+				/bin/ash
+			fi
+			# clear screen
+			printf "\033c"
 		else
-			/bin/ash
+			die "!!!!! Authentication failed! I am to be panic!"
 		fi
-		# clear screen
-		printf "\033c"
 	done
 }
 

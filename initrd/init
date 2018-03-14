@@ -81,11 +81,15 @@ if [ "$boot_option" = "r" ]; then
 	# Start an interactive shell
 	recovery 'User requested recovery shell'
 	# just in case...
-	if [ "$CONFIG_TPM" = "y" ]; then
-		tpm extend -ix 4 -ic recovery
+	if [ "$CONFIG_RECOVERY_NEED_AUTH" != y ]; then
+		if [ "$CONFIG_TPM" = y ]; then
+			tpm extend -ix 4 -ic recovery
+		fi
+		exec /bin/ash
+		exit
+	else
+		exit 1
 	fi
-	exec /bin/ash
-	exit
 fi
 
 combine_configs
@@ -125,7 +129,11 @@ else
 fi
 
 # belts and suspenders, just in case...
-if [ "$CONFIG_TPM" = "y" ]; then
-	tpm extend -ix 4 -ic recovery
+if [ "$CONFIG_RECOVERY_NEED_AUTH" != y ]; then
+	if [ "$CONFIG_TPM" = y ]; then
+		tpm extend -ix 4 -ic recovery
+	fi
+	exec /bin/ash
+else
+	exit 1
 fi
-exec /bin/ash
