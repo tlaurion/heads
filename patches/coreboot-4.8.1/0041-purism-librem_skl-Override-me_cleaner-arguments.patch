@@ -1,0 +1,34 @@
+From 5f5c16484d09a83c27258c70ce29f88d5f370892 Mon Sep 17 00:00:00 2001
+From: Youness Alaoui <youness.alaoui@puri.sm>
+Date: Wed, 13 Jun 2018 17:24:36 -0400
+Subject: [PATCH 3/6] purism/librem_skl: Override me_cleaner arguments
+
+The me_cleaner tool needs to whitelist the MFS partition when
+cleaning out the ME otherwise the Wifi doesn't work. This is
+probably due to PCIe clock and the ME doing the ICC register
+initialization.
+
+Change-Id: Ic1357dd6ea47a3c04e067e39cda819006c91edcf
+Signed-off-by: Youness Alaoui <youness.alaoui@puri.sm>
+---
+ src/mainboard/purism/librem_skl/Kconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/mainboard/purism/librem_skl/Kconfig b/src/mainboard/purism/librem_skl/Kconfig
+index be4b7a37c7..cbfc9b7966 100644
+--- a/src/mainboard/purism/librem_skl/Kconfig
++++ b/src/mainboard/purism/librem_skl/Kconfig
+@@ -17,6 +17,10 @@ config IRQ_SLOT_COUNT
+ 	int
+ 	default 18
+ 
++config ME_CLEANER_ARGS
++	string
++	default "-S -w MFS"
++
+ config VARIANT_DIR
+ 	string
+ 	default "librem13v2" if BOARD_PURISM_LIBREM13_V2
+-- 
+2.17.1
+

@@ -1,0 +1,69 @@
+From d171fabfe3a1e140b86bba01956093b4440a3d72 Mon Sep 17 00:00:00 2001
+From: Nicola Corna <nicola@corna.info>
+Date: Sat, 31 Mar 2018 18:24:44 +0200
+Subject: [PATCH 2/6] sb/intel/common/firmware: Use the -S flag of me_cleaner
+
+The -S flag of me_cleaner, in addition to the standard code removal,
+sets the the AltMeDisable bit (ME 6.x-10.x) or the HAP bit (ME 11.x),
+which asks Intel ME to stop the execution after the hardware
+initialization.
+
+This should bring some advantages:
+ * The state of Intel ME can be easily obtained by reading the Current
+    Operation Mode register to trigger specific adjustments in the
+    raminit (as already done in bd82x6x)
+ * Intel ME falls into a more defined state, instead of being in a
+    generic "Image Failure"
+ * Hopefully, less code is run by Intel ME, as the execution should
+    stop before even trying to load additional modules
+
+Tested on:
+ * Nehalem, Sandy Bridge and Ivy Bridge (Nicola Corna)
+ * Broadwell, Skylake and Kabylake (Youness Alaoui)
+
+If needed, the -S flag can be removed or integrated with other
+board-specific options by overriding CONFIG_ME_CLEANER_ARGS.
+
+Change-Id: I2c12d09124dcc39924d1dc4eaf53a2dc1f69a2ac
+Signed-off-by: Nicola Corna <nicola@corna.info>
+Reviewed-on: https://review.coreboot.org/25508
+Tested-by: build bot (Jenkins) <no-reply@coreboot.org>
+Reviewed-by: Youness Alaoui <snifikino@gmail.com>
+---
+ src/southbridge/intel/common/firmware/Kconfig      | 5 +++++
+ src/southbridge/intel/common/firmware/Makefile.inc | 3 ++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/southbridge/intel/common/firmware/Kconfig b/src/southbridge/intel/common/firmware/Kconfig
+index fd6a52397a..4b882bd553 100644
+--- a/src/southbridge/intel/common/firmware/Kconfig
++++ b/src/southbridge/intel/common/firmware/Kconfig
+@@ -103,6 +103,11 @@ config USE_ME_CLEANER
+ comment "Please test the modified ME/TXE firmware and coreboot in two steps"
+ 	depends on USE_ME_CLEANER
+ 
++config ME_CLEANER_ARGS
++	string
++	depends on USE_ME_CLEANER
++	default "-S"
++
+ config HAVE_GBE_BIN
+ 	bool "Add gigabit ethernet firmware"
+ 	depends on HAVE_IFD_BIN
+diff --git a/src/southbridge/intel/common/firmware/Makefile.inc b/src/southbridge/intel/common/firmware/Makefile.inc
+index d6e62964d7..737a79d4c5 100644
+--- a/src/southbridge/intel/common/firmware/Makefile.inc
++++ b/src/southbridge/intel/common/firmware/Makefile.inc
+@@ -63,7 +63,8 @@ ifeq ($(CONFIG_CHECK_ME),y)
+ endif
+ ifeq ($(CONFIG_USE_ME_CLEANER),y)
+ 	printf "    ME_CLEANER coreboot.pre\n"
+-	util/me_cleaner/me_cleaner.py $(obj)/coreboot.pre > \
++	util/me_cleaner/me_cleaner.py $(obj)/coreboot.pre \
++		$(patsubst "%,%,$(patsubst %",%,$(CONFIG_ME_CLEANER_ARGS))) > \
+ 		$(obj)/me_cleaner.log
+ endif
+ ifeq ($(CONFIG_HAVE_GBE_BIN),y)
+-- 
+2.17.1
+
