@@ -186,7 +186,7 @@ while true; do
     if (whiptail --title 'Generate new TOTP secret' \
         --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 16 90) then
       echo "Scan the QR code to add the new TOTP secret"
-      /bin/seal-totp
+      /bin/seal-totp ${HOST_IDENTIFIER}
       echo "Once you have scanned the QR code, hit Enter to reboot"
       read
       /bin/reboot
