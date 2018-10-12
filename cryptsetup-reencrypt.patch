@@ -1,0 +1,27 @@
+diff --git a/install/.gitignore b/install/.gitignore
+deleted file mode 100644
+index 72e8ffc..0000000
+--- a/install/.gitignore
++++ /dev/null
+@@ -1 +0,0 @@
+-*
+diff --git a/modules/cryptsetup b/modules/cryptsetup
+index e81d356..4cea7f3 100644
+--- a/modules/cryptsetup
++++ b/modules/cryptsetup
+@@ -15,6 +15,7 @@ cryptsetup_configure := ./configure \
+ 	--host i386-elf-linux \
+ 	--prefix "/" \
+ 	--disable-gcrypt-pbkdf2 \
++	--enable-cryptsetup-reencrypt \
+ 	--with-crypto_backend=kernel \
+ 
+ # but after building, replace prefix so that they will be installed
+@@ -28,6 +29,7 @@ cryptsetup_target := \
+ 
+ cryptsetup_output := \
+ 	src/.libs/cryptsetup \
++	src/.libs/cryptsetup-reencrypt \
+ 	src/.libs/veritysetup \
+ 
+ cryptsetup_libraries := \
