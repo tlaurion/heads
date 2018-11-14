@@ -131,6 +131,7 @@ confirm_gpg_card()
 	# setup the USB so we can reach the GPG card
 	enable_usb
 
+	gpg-connect-agent updatestartuptty /bye
 	gpg --card-status \
 	|| die "gpg card read failed"
 }
