@@ -55,6 +55,6 @@ gpg2_target := $(MAKE_JOBS) \
 		DESTDIR="$(INSTALL)" \
 		install
 
-gpg2_output := g10/gpg agent/gpg-agent tools/gpg-connect-agent scd/scdaemon
+gpg2_output := g10/gpg agent/gpg-agent scd/scdaemon
 
 gpg2_depends := libgpg-error libgcrypt libksba libassuan npth libusb-compat $(musl_dep)
