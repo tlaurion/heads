@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+set -e -o pipefail
+. /etc/functions
+. /etc/config
+
+gpg --card-edit --home /.gnupg/ || GPG_GEN_ERROR=1
+    if [ $GPG_GEN_ERROR -ne 0 ]; then
+        whiptail --title 'USB Drive Missing' \
+          --msgbox "Insert your USB drive and press Enter to continue." 16 60 USB_FAILED=0
+        mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
+      if [ $USB_FAILED -ne 0 ]; then
+        whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Mounting /media Failed' \
+          --msgbox "Unable to mount $CONFIG_USB_BOOT_DEV" 16 60
+
+gpg --card-edit --home /.gnupg/
+
