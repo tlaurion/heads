@@ -91,8 +91,10 @@ update_checksums()
 }
 update_totp()
 {
-  echo "Scan the QR code to add the new TOTP secret"
-  /bin/seal-totp
+  if [ "$CONFIG_TPM" = "y" ]; then
+    echo "Scan the QR code to add the new TOTP secret"
+    /bin/seal-totp
+  fi
   if [ -x /bin/libremkey_hotp_verification ]; then
     echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
     read
@@ -104,16 +106,19 @@ update_totp()
   /bin/reboot
 }
 
-last_half=X
-while true; do
-  MAIN_MENU_OPTIONS=""
-  MAIN_MENU_BG_COLOR=""
-  unset totp_confirm
-  # update the TOTP code every thirty seconds
-  date=`date "+%Y-%m-%d %H:%M:%S"`
-  seconds=`date "+%s"`
-  half=`expr \( $seconds % 60 \) / 30`
-  if [ "$CONFIG_TPM" = n ]; then
+if [ "$CONFIG_TPM" = "y" ]; then
+  last_half=X
+  while true; do
+    MAIN_MENU_OPTIONS=""
+    MAIN_MENU_BG_COLOR=""
+    unset totp_confirm
+    # update the TOTP code every thirty seconds
+    date=`date "+%Y-%m-%d %H:%M:%S"`
+    seconds=`date "+%s"`
+    half=`expr \( $seconds % 60 \) / 30`
+fi
+
+if [ "$CONFIG_TPM" != y ]; then
     TOTP="NO TPM"
   elif [ "$half" != "$last_half" ]; then
     last_half=$half;
