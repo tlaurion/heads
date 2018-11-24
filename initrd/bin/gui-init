@@ -99,7 +99,7 @@ update_totp()
     echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
     read
     /bin/seal-libremkey
-  else
+  if [ "$CONFIG_TPM" = "y" ]; then
     echo "Once you have scanned the QR code, hit Enter to reboot"
     read
   fi
