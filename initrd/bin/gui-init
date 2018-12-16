@@ -4,7 +4,7 @@
 CONFIG_BOOT_GUI_MENU_NAME='Heads Boot Menu'
 
 . /etc/functions
-. /etc/config
+. /tmp/config
 
 mount_boot()
 {
@@ -181,6 +181,7 @@ while true; do
       'r' ' TOTP/HOTP does not match, refresh code' \
       'g' ' Generate new TOTP/HOTP secret' \
       's' ' Update checksums and sign all files in /boot' \
+      'c' ' Change configuration settings -->' \
       'f' ' Flash/Update the BIOS -->' \
       'p' ' Reset the TPM' \
       'n' ' TOTP/HOTP does not match after refresh, troubleshoot' \
@@ -293,6 +294,11 @@ while true; do
 
   if [ "$totp_confirm" = "s" ]; then
     update_checksums
+    continue
+  fi
+
+  if [ "$totp_confirm" = "c" ]; then
+    config-gui.sh
     continue
   fi
 
