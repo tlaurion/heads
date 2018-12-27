@@ -35,11 +35,12 @@ else
 # without a TPM, use the first 20 characters of the ROM SHA256sum 
   echo "TPM not configured, measuring ROM directly" 1>&2
   # use a previously-copied image if it exists
-  if [ -f ${ROM_IMAGE} ]; then
-    sha256sum ${ROM_IMAGE} | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
-  else
-    flash.sh -s ${ROM_IMAGE} | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
-  fi
+  #if [ -f ${ROM_IMAGE} ]; then
+  #  sha256sum ${ROM_IMAGE} | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
+  #else
+    #flash.sh -s ${ROM_IMAGE} | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
+  cbfs --list | grep -E 'fallback|heads|microcode|bootblock' | while read CBFS_FILES; do cbfs -r $CBFS_FILES; done | sha256sum | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET 
+  #fi
 fi
 
 # Store counter in file instead of TPM for now, as it conflicts with Heads
