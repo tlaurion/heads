@@ -43,7 +43,7 @@ flash_rom() {
     #flashrom $FLASHROM_OPTIONS -r "${ROM}" 1&>2 >/dev/null \
     #|| die "$ROM: Read failed"
     #sha256sum ${ROM} | cut -f1 -d ' '
-    cbfs --list | grep -E 'fallback|heads|microcode|bootblock' | while read CBFS_FILES; do cbfs -r $CBFS_FILES; done | sha256sum | cut -f1 -d ' '
+    cbfs --list | grep -E 'fallback|heads|microcode|cmos|data|config|bootblock' | while read CBFS_FILES; do cbfs -r $CBFS_FILES; done | sha256sum | cut -f1 -d ' '
   else
     cp "$ROM" /tmp/${CONFIG_BOARD}.rom
     sha256sum /tmp/${CONFIG_BOARD}.rom

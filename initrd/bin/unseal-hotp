@@ -39,7 +39,7 @@ else
   #  sha256sum ${ROM_IMAGE} | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
   #else
     #flash.sh -s ${ROM_IMAGE} | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
-  cbfs --list | grep -E 'fallback|heads|microcode|bootblock' | while read CBFS_FILES; do cbfs -r $CBFS_FILES; done | sha256sum | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET 
+  cbfs --list | grep -E 'fallback|heads|microcode|cmos|data|config|bootblock' | while read CBFS_FILES; do cbfs -r $CBFS_FILES; done | sha256sum | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET 
   #fi
 fi
 
