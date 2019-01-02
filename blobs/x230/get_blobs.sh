@@ -6,17 +6,17 @@ SKL_UCODE_SHA="9c84936df700d74612a99e6ab581640ecf423d25a0b74a1ea23a6d9872349213"
 SKL_DESCRIPTOR_SHA="d9723e272958515758cc0390eebbb8f3f3295f535001c9e6dd42e214f0d66da1"
 SKL_ME_NOCONF_SHA="821c6fa16e62e15bc902ce2e958ffb61f63349a471685bed0dc78ce721a01bfa"
 SKL_ME_SHA="821c6fa16e62e15bc902ce2e958ffb61f63349a471685bed0dc78ce721a01bfa"
-SKL_FSP_SHA="a7dfec436f5a21a66b5a455775599d73a95170a3446849a34e89a64a2bb69820"
-SKL_FSPM_SHA="7a1acc72073969e6753bbfe145f06c3f4d35e2516cb241641eae968705e2cc46"
-SKL_FSPS_SHA="0dac94d249473e9d366597fd1f96a0232fb7bf045a3d08f16784961273351822"
-SKL_VBT_SHA="51fa214ca44a61b171662d4c2ca6adc1aa3dc6c3d7a24bf9ae5f249f012d61c0"
+#SKL_FSP_SHA="a7dfec436f5a21a66b5a455775599d73a95170a3446849a34e89a64a2bb69820"
+#SKL_FSPM_SHA="7a1acc72073969e6753bbfe145f06c3f4d35e2516cb241641eae968705e2cc46"
+#SKL_FSPS_SHA="0dac94d249473e9d366597fd1f96a0232fb7bf045a3d08f16784961273351822"
+#SKL_VBT_SHA="51fa214ca44a61b171662d4c2ca6adc1aa3dc6c3d7a24bf9ae5f249f012d61c0"
 
 # FSP downloadable from Github
-SKL_UCODE_URL="https://github.com/platomav/CPUMicrocodes/raw/bfb23e48eb84dff1495d1c8789f133a1b684de27/Intel/cpu406E3_platC0_ver000000C2_2017-11-16_PRD_C6C6F699.bin"
-SKL_FSP_URL="https://github.com/IntelFsp/FSP/raw/8267cde09763c0c699704fbae10e6bd121f01b6a/KabylakeFspBinPkg/Fsp.fd"
-SKL_VBT_URL="https://github.com/IntelFsp/FSP/raw/8267cde09763c0c699704fbae10e6bd121f01b6a/KabylakeFspBinPkg/SampleCode/Vbt/Vbt.bin"
-SKL_FSP_SPLIT_URL="https://raw.githubusercontent.com/tianocore/edk2/e8a70885d8f34533b6dd69878fe95a249e9af086/IntelFsp2Pkg/Tools/SplitFspBin.py"
-SKL_FSP_SPLIT_SHA="f654f6363de68ad78b1baf8b8e573b53715c3bc76f7f3c23562641e49a7033f3"
+#SKL_UCODE_URL="https://github.com/platomav/CPUMicrocodes/raw/bfb23e48eb84dff1495d1c8789f133a1b684de27/Intel/cpu406E3_platC0_ver000000C2_2017-11-16_PRD_C6C6F699.bin"
+#SKL_FSP_URL="https://github.com/IntelFsp/FSP/raw/8267cde09763c0c699704fbae10e6bd121f01b6a/KabylakeFspBinPkg/Fsp.fd"
+#SKL_VBT_URL="https://github.com/IntelFsp/FSP/raw/8267cde09763c0c699704fbae10e6bd121f01b6a/KabylakeFspBinPkg/SampleCode/Vbt/Vbt.bin"
+#SKL_FSP_SPLIT_URL="https://raw.githubusercontent.com/tianocore/edk2/e8a70885d8f34533b6dd69878fe95a249e9af086/IntelFsp2Pkg/Tools/SplitFspBin.py"
+#SKL_FSP_SPLIT_SHA="f654f6363de68ad78b1baf8b8e573b53715c3bc76f7f3c23562641e49a7033f3"
 ME_CLEANER_URL="https://raw.githubusercontent.com/corna/me_cleaner/a994685cb24c8a683c3839d7ae7102c3aae5783f/me_cleaner.py"
 ME_CLEANER_SHA="28e9c1904690a39d9bbb913ddfde38f6f6a6428654105be3ca911fd53866b27a"
 
@@ -227,4 +227,4 @@ apply_me_cleaner
 #check_binary fspm.bin $SKL_FSPM_SHA
 #check_binary fsps.bin $SKL_FSPS_SHA
 #check_and_get_url vbt.bin $SKL_VBT_URL $SKL_VBT_SHA "Video BIOS Table"
-check_and_get_url cpu_microcode_blob.bin $SKL_UCODE_URL $SKL_UCODE_SHA "Intel Microcode Update"
+#check_and_get_url cpu_microcode_blob.bin $SKL_UCODE_URL $SKL_UCODE_SHA "Intel Microcode Update"
