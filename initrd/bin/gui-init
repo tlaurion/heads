@@ -645,7 +645,7 @@ while true; do
   if [ "$totp_confirm" = "R" ]; then
     if [[ -z $reownership_state ]] || [[ $reownership_state = "luks_reencryption" ]]; then 
       whiptail --title 'Reencrypt LUKS container with a new user selected strong passphrase?' \
-          --msgbox "This will replace the actual Disk recovery key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM (through\n setting a default boot option and accepting to add Disk encryption key\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk recovery key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nPress the Enter key." 30 90
+          --msgbox "This will replace the actual Disk recovery key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk recovery key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nPress the Enter key." 30 90
     
       select_luks_container
     
