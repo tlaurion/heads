@@ -361,7 +361,7 @@ while true; do
 
     totp_confirm=$(cat /tmp/whiptail)
   fi
-
+  
   if [ "$totp_confirm" = "o" ]; then
     whiptail --clear --title "Other Boot Options" \
       --menu "Select A Boot Option" 20 90 10 \
@@ -718,7 +718,6 @@ while true; do
       continue
     fi
   fi
-
 done
 
 recovery "Something failed during boot"
