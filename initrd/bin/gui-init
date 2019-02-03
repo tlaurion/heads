@@ -75,7 +75,7 @@ mount_boot()
   # Mount local disk if it is not already mounted
   if ! grep -q /boot /proc/mounts ; then
     mount -o ro /boot \
-      || recovery "Unable to mount /boot"
+      || recovery "Unable to mount /boot from $CONFIG_BOOT_DEV"
   fi
 }
 verify_global_hashes()
@@ -166,9 +166,23 @@ update_totp()
     echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
     read
     /bin/seal-libremkey
+    while [ $? -ne 0 ];do
+      echo "Sealing HOTP secret into LibremKey/Nitrokey failed. Let's try again."
+      /bin/seal-libremkey
+      #TODO: there is still a corner case to deal with. Sometimes, tpm-reset needs to be called to fix things up.
+    done
   else
     echo "Once you have scanned the QR code, hit Enter to reboot"
     read
+  fi
+  if [ -e /boot/kexec_key_devices.txt ]; then
+    echo -e "\n\nYour disk unlock key passphrase was invalidated by resealing TOTP/HTOP."
+    echo -e "You will be requested to set a new default boot option on next reboot.\n\n"
+    echo "Hit Enter to reboot"
+    read
+    mount -o remount,rw /boot
+    touch /boot/reset_disk_unlock_key
+    mount -o remount,ro /boot
   fi
   /bin/reboot
 }
@@ -237,6 +251,14 @@ check_onboarding_progress()
       unset totp_confirm
     fi
 }
+
+mount_boot 
+if [ -e /boot/reset_disk_unlock_key ]; then
+  whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: You must change your disk unlock key passphrase' --msgbox \
+    "You just generated a new TOTP/HOTP secret. TPM released disk unlock key\n won't work anymore and must be recreated.\n To do so, select a new default boot option, and agree to modify the disk." 30 90
+  kexec-select-boot -m -b /boot -c "grub.cfg" -g
+fi
+
 
 last_half=X
 while true; do
@@ -605,7 +627,7 @@ while true; do
       } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/
 
       #Export and inject public key and trustdb export into extracted rom with current user keys being wiped
-      rom=/tmp/coreboot.rom
+      rom=/tmp/heads-running_backup.rom
 
       #remove invalid kexec_* signed files
       mount_boot
@@ -614,7 +636,6 @@ while true; do
       mount -o remount,ro /boot
 
       gpg --home=/.gnupg/ --export --armor $gpgcard_email_address  > /media/gpg_keys/public.key
-      gpg --home=/.gnupg/ --export-ownertrust > /media/gpg_keys/otrust.txt
       cp -r ./.gnupg/* /media/gpg_keys/ 2> /dev/null
     
       #Flush changes to external media:
@@ -626,9 +647,12 @@ while true; do
       #delete public gpg keys and otrust (trustdb) in extracted running rom
       cbfs -o $rom --list|grep -e pubring -e trustdb -e otrust -e public|while read file; do cbfs -o $rom -d $file;done
 
-      #Insert public key and trustdb exports into reproducible rom:
+      #Insert public key in armored form and trustdb ultimately trusting user's key into reproducible rom:
       cbfs -o $rom -a "heads/initrd/.gnupg/keys/public.key" -f /media/gpg_keys/public.key
-      cbfs -o $rom -a "heads/initrd/.gnupg/keys/otrust.txt" -f /media/gpg_keys/otrust.txt
+      cbfs -o $rom -a "heads/initrd/.gnupg/trustdb.gpg" -f /.gnupg/trustdb.gpg
+
+      #TODO: validate pertinence of the readding pubring. key-init generates it from keys found under heads/initrd/.gnupg/keys/*.key
+
 
       #flash back a "clean" rom with public key and trustdb into SPI flash
       flash.sh -c $rom

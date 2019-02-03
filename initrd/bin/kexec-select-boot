@@ -191,6 +191,11 @@ save_default_option() {
 			sleep 2
 			default_failed="n"
 			force_menu="n"
+			if [ -e /boot/reset_disk_unlock_key ]; then
+        			mount -o remount,rw /boot
+        			rm -f /boot/reset_disk_unlock_key
+        			mount -o remount,ro /boot
+      			fi
 			return
 		else
 			echo "Failed to save defaults"
