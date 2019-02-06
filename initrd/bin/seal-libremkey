@@ -29,7 +29,7 @@ tpm unsealfile  \
 || die "Unable to unseal HOTP secret"
 
 rm -f "$HOTP_SEALED"
-secret="`cat $HOTP_SECRET`"
+secret="$(cat $HOTP_SECRET)"
 rm -f "$HOTP_SECRET"
 
 # Store counter in file instead of TPM for now, as it conflicts with Heads
@@ -61,10 +61,10 @@ fi
 read -s -p "Enter your Librem Key Admin PIN" admin_pin
 echo
 
-libremkey_hotp_initialize $admin_pin $secret $counter_value 
+libremkey_hotp_initialize "$admin_pin" "$secret" $counter_value 
 if [ $? -ne 0 ]; then
   read -s -p "Error setting HOTP secret, re-enter Admin PIN and try again:" admin_pin
-  libremkey_hotp_initialize $admin_pin $secret $counter_value \
+  libremkey_hotp_initialize "$admin_pin" "$secret" $counter_value \
   || die "Setting HOTP secret failed"
 fi
 
@@ -78,8 +78,8 @@ secret=""
 
 mount -o remount,rw /boot
 
-counter_value=`expr $counter_value + 1`
-echo $counter_value > $HOTP_COUNTER \
+counter_value=$(expr $counter_value + 1)
+echo "$counter_value" > $HOTP_COUNTER \
 || die "Unable to create hotp counter file"
 
 #sha256sum /tmp/counter-$counter > $HOTP_COUNTER \

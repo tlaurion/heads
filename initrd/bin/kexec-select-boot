@@ -199,6 +199,8 @@ save_default_option() {
 			return
 		else
 			echo "Failed to save defaults"
+			echo "Press Enter to continue"
+			read
 		fi
 	fi
 

@@ -161,13 +161,14 @@ update_checksums()
 update_totp()
 {
   echo "Scan the QR code to add the new TOTP secret"
-  /bin/seal-totp
+  /bin/seal-totp $CONFIG_BOARD
   if [ -x /bin/libremkey_hotp_verification ]; then
     echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
     read
     /bin/seal-libremkey
     while [ $? -ne 0 ];do
-      echo "Sealing HOTP secret into LibremKey/Nitrokey failed. Let's try again."
+      echo "Sealing HOTP secret into LibremKey/Nitrokey failed. Let's try again by updating TOTP."
+      update_totp
       /bin/seal-libremkey
       #TODO: there is still a corner case to deal with. Sometimes, tpm-reset needs to be called to fix things up.
     done
@@ -256,7 +257,7 @@ mount_boot
 if [ -e /boot/reset_disk_unlock_key ]; then
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: You must change your disk unlock key passphrase' --msgbox \
     "You just generated a new TOTP/HOTP secret. TPM released disk unlock key\n won't work anymore and must be recreated.\n To do so, select a new default boot option, and agree to modify the disk." 30 90
-  kexec-select-boot -m -b /boot -c "grub.cfg" -g
+    kexec-select-boot -m -b /boot -c "grub.cfg" -g
 fi
 
 
@@ -571,7 +572,11 @@ while true; do
       fi
 
       mkdir -p /media/gpg_keys
-    
+      
+      #Generate Encryption, Signing and Authentication keys
+      whiptail --clear --title 'GPG card key generation' --msgbox \
+        "BE PATIENT! Generating 4096 bits Encryption, Signing and Authentication\n keys take around 5 minutes each! Be prepared to patient around 15 minutes!\n\nPress the Enter Key to continue" 30 90
+
       confirm_gpg_card
       {
         echo admin
@@ -610,10 +615,6 @@ while true; do
         echo "$gpgcard_admin_pass"
       } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/
 
-      #Generate Encryption, Signing and Authentication keys
-      whiptail --clear --title 'GPG card key generation' --msgbox \
-        "BE PATIENT! Generating 4096 bits Encryption, Signing and Authentication\n keys take around 5 minutes each! Be prepared to patient around 15 minutes!\n\nPress the Enter Key to continue" 30 90
-
       {
         echo admin
         echo generate
@@ -651,8 +652,7 @@ while true; do
       cbfs -o $rom -a "heads/initrd/.gnupg/keys/public.key" -f /media/gpg_keys/public.key
       cbfs -o $rom -a "heads/initrd/.gnupg/trustdb.gpg" -f /.gnupg/trustdb.gpg
 
-      #TODO: validate pertinence of the readding pubring. key-init generates it from keys found under heads/initrd/.gnupg/keys/*.key
-
+      #TODO: validate pertinence of the reading pubring. key-init generates it from keys found under heads/initrd/.gnupg/keys/*.key
 
       #flash back a "clean" rom with public key and trustdb into SPI flash
       flash.sh -c $rom
