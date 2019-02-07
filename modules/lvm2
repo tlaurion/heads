@@ -55,4 +55,4 @@ lvm2_output := \
 	tools/dmsetup \
 	tools/lvm \
 
-lvm2_depends := util-linux $(musl_dep)
+lvm2_depends := util-linux thin-provisioning-tools $(musl_dep)
