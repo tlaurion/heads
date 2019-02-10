@@ -36,7 +36,7 @@ if [ -r "$KEY_LVM" ]; then
 fi
 
 # Key slot 0 is the manual recovery pass phrase
-# that they user entered when they installed Qubes,
+# that the user entered when they installed Qubes,
 # key slot 1 is the one that we've generated.
 read -s -p "Enter disk recovery key: " disk_password
 echo -n "$disk_password" > "$RECOVERY_KEY"
