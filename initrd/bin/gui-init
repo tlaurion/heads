@@ -258,7 +258,14 @@ mount_boot
 if [ -e /boot/reset_disk_unlock_key ]; then
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: You must change your disk unlock key passphrase' --msgbox \
     "You just generated a new TOTP/HOTP secret. TPM released disk unlock key\n won't work anymore and must be recreated.\n To do so, select a new default boot option, and agree to modify the disk." 30 90
+  # Try to select a kernel from the menu
+    mount_boot
+    verify_global_hashes
+    if [ $? -ne 0 ]; then
+      continue
+    fi
     kexec-select-boot -m -b /boot -c "grub.cfg" -g
+    continue
 fi
 
 
