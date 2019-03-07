@@ -9,6 +9,9 @@ build:
     paths:
       - heads/
   script:
+    - git config --global user.email "insurgo@riseup.net"
+    - git config --global user.name "Thierry Laurion"
+    - ./gitorclone.sh https://gitlab.com/tlaurion/heads heads
     - cd heads
     - git pull origin oem_reownership-staging
     - git log
