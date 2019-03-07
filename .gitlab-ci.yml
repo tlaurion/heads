@@ -7,17 +7,11 @@ build:
   stage: build
   cache:
     paths:
-      - heads/
+      - ./
   script:
-    - git config --global user.email "insurgo@riseup.net"
-    - git config --global user.name "Thierry Laurion"
-    - ./gitorclone.sh https://gitlab.com/tlaurion/heads heads
-    - cd heads
-    - git pull origin oem_reownership-staging
-    - git log
     - make BOARD=x230-flash
     - make BOARD=x230
   artifacts:
     paths:
-      - heads/build/x230-flash/x230-flash.rom
-      - heads/build/x230/coreboot.rom
+      - ./build/x230-flash/x230-flash.rom
+      - ./build/x230/coreboot.rom
