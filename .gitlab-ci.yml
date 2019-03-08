@@ -6,12 +6,12 @@ stages:
 build:
   stage: build
   cache:
-        paths:
-            - ./
+    paths:
+      - ./
   cache:
     untracked: true
-        paths:
-            - ./git
+    paths:
+      - ./git
   script:
     - make BOARD=x230-flash
     - make BOARD=x230
