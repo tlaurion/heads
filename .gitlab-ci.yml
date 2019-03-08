@@ -6,9 +6,8 @@ stages:
 build:
   stage: build
   cache:
-    tracked: true
-        paths:
-            - ./
+    paths:
+        - ./
     untracked: true
         paths:
             - ./git
