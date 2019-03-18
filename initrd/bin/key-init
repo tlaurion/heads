@@ -6,10 +6,10 @@ set -e -o pipefail
 
 # Import user's keys
 gpg --import /.gnupg/keys/*.key  /.gnupg/keys/*.asc 2>/dev/null || true
-echo -e "\n\nUser's GPG keys in keyring:"
-gpg --list-keys
-echo "Press Enter key to continue..."
-read
+#echo -e "\n\nUser's GPG keys in keyring:"
+#gpg --list-keys
+#echo "Press Enter key to continue..."
+#read
 
 # Import trusted distro keys allowed for ISO signing
 gpg --homedir=/etc/distro/ --import /etc/distro/keys/* 2>/dev/null || true
