@@ -29,6 +29,15 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   #Cannot create a new gpg homedir with right permissions nor chmod 700 that directory.
   #Meanwhile, we reuse /.gnupg by temporarely deleting it's existing content.
   rm -rf .gnupg/*
+  killall gpg-agent gpg scdaemon 2> /dev/null || true
+
+  whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert A USB Disk' --msgbox \
+  "Please insert a USB disk on which you want to store your GPG public key\n and trustdb.\n\nThose will be backuped under the 'gpg_keys' directory.\n\nHit Enter to continue." 30 90
+
+  mount_usb
+
+  #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
+  mount -o remount,rw /media
 
   #Setting new passwords
   gpgcard_user_pass1=1
@@ -60,20 +69,28 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   echo -e "\n\n"
   echo -e "We will generate a GnuPG (GPG) keypair identifiable with the following text form:"
   echo -e "Real Name (Comment) email@address.org\n"
-  echo -e "Enter your Real Name:"
-  read gpgcard_real_name
-  echo "Enter your email@adress.org:"
-  read gpgcard_email_address
-  echo "Enter Comment (To distinguish this key from others with same previous attributes):"
-  read gpgcard_comment
+  
+  while [[ ${#gpgcard_real_name} -lt 5 ]]; do
+  {
+    echo -e "Enter your Real Name (At least 5 characters):"
+    read -r gpgcard_real_name
+  };done
 
-  whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert A USB Disk' --msgbox \
-  "Please insert a USB disk on which you want to store your GPG public key\n and trustdb.\n\nThose will be backuped under the 'gpg_keys' directory.\n\nHit Enter to continue." 30 90     
+  
+  while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
+  {
+    echo "Enter your email@adress.org:"
+    read -r gpgcard_email_address
+  };done
 
-  mount_usb
+  while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z $gpgcard_comment ]]; do
+  {
+    echo "Enter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
+    read -r gpgcard_comment
+  };done
 
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
-  mount -o remount,rw /media
+  mount -o remount,rw /media 
 
   #backup existing /media/gpg_keys directory
   if [ -d /media/gpg_keys ];then
@@ -148,10 +165,9 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   mount -o remount,ro /boot
 
   gpg --home=/.gnupg/ --export --armor "$gpgcard_email_address"  > /media/gpg_keys/public.key
-  #TODO: append this to cp commands below: 2> /dev/null
-  cp -rf /.gnupg/openpgp-revocs.d/* /media/gpg_keys/
-  cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/
-  cp -rf /.gnupg/pubring.* /.gnupg/trustdb.gpg /media/gpg_keys/
+  cp -rf /.gnupg/openpgp-revocs.d/* /media/gpg_keys/ 2> /dev/null
+  cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/ 2> /dev/null
+  cp -rf /.gnupg/pubring.* /.gnupg/trustdb.gpg /media/gpg_keys/ 2> /dev/null
 
   #Flush changes to external media
   mount -o remount,ro /media
