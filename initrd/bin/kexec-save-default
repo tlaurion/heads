@@ -90,6 +90,8 @@ if [ "$CONFIG_TPM" = "y" ]; then
 		echo "+++ LVM volume groups (lvm vgscan): "
 		lvm vgscan || true
 
+		echo -e "\nPress Enter keep suggested and previously used values in the following prompts.\n"
+		
 		read \
 			-p "Encrypted LVM group? ($lvm_suggest): " \
 			lvm_volume_group
@@ -102,10 +104,19 @@ if [ "$CONFIG_TPM" = "y" ]; then
 			key_devices
 
 		save_key_params="-s -p $paramsdev"
+		#place suggested old values if no input was entered
+		if [ -z "$key_devices" ] && [ -n $old_key_devices ]; then
+			key_devices=$old_key_devices
+		elif [ -z "$lvm_volume_group" ] && [ -n "$old_lvm_volume_group" ]; then
+			lvm_volume_group=$old_lvm_volume_group
+		fi
+
 		if [ -n "$lvm_volume_group" ]; then
 			save_key_params="$save_key_params -l $lvm_volume_group $key_devices"
-		else
+		elif [ -n $key_devices ]; then
 			save_key_params="$save_key_params $key_devices"
+		else
+			die "No LVM Group nor Encrypted devices provided."
 		fi
 		echo "Running kexec-save-key with params: $save_key_params"
 		kexec-save-key $save_key_params \
