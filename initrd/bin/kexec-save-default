@@ -135,7 +135,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
 			die "No LVM Group nor Encrypted devices provided."
 		fi
 		
-		echo "Running kexec-save-key with params: $save_key_params"
+		echo -e "\nRunning kexec-save-key with params: $save_key_params\n"
 		kexec-save-key $save_key_params \
 			|| die "Failed to save the disk key"
 	fi
