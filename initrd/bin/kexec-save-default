@@ -87,30 +87,46 @@ if [ "$CONFIG_TPM" = "y" ]; then
 	fi
 
 	if [ "$save_key" = "y" ]; then
-		echo "+++ LVM volume groups (lvm vgscan): "
-		lvm vgscan || true
-
-		echo -e "\nPress Enter keep suggested and previously used values in the following prompts.\n"
-		
 		read \
-			-p "Encrypted LVM group? ($lvm_suggest): " \
-			lvm_volume_group
+			-n 1 \
+			-p "Do you want to reuse past Encrypted LVM groups/Block devices? (Y/n/Enter):" \
+			reuse_past_devices
 
-		echo "+++ Block devices (blkid): "
-		blkid || true
+		if [ "$reuse_past_devices" = "y" \
+			-o "$reuse_past_devices" = "Y" \
+			 -o -z "$reuse_past_devices" ]; then
+				#reuse old values
+				if [ -z "$key_devices" ] && [ -n $old_key_devices ]; then
+					key_devices=$old_key_devices
+				elif [ -z "$lvm_volume_group" ] && [ -n "$old_lvm_volume_group" ]; then
+					lvm_volume_group=$old_lvm_volume_group
+				fi
+		else
+			echo "+++ LVM volume groups (lvm vgscan): "
+			lvm vgscan || true
 
-		read \
-			-p "Encrypted devices? ($devices_suggest): " \
-			key_devices
+			echo -e "\nPress Enter to keep suggested and previously used values in the following prompts or define new ones.\n"
 
-		save_key_params="-s -p $paramsdev"
-		#place suggested old values if no input was entered
-		if [ -z "$key_devices" ] && [ -n $old_key_devices ]; then
-			key_devices=$old_key_devices
-		elif [ -z "$lvm_volume_group" ] && [ -n "$old_lvm_volume_group" ]; then
-			lvm_volume_group=$old_lvm_volume_group
+			read \
+				-p "Encrypted LVM group? ($lvm_suggest): " \
+				lvm_volume_group
+
+			echo "+++ Block devices (blkid): "
+			blkid || true
+
+			read \
+				-p "Encrypted devices? ($devices_suggest): " \
+				key_devices
+
+			#place suggested old values if no input was entered
+			if [ -z "$key_devices" ] && [ -n $old_key_devices ]; then
+				key_devices=$old_key_devices
+			elif [ -z "$lvm_volume_group" ] && [ -n "$old_lvm_volume_group" ]; then
+				lvm_volume_group=$old_lvm_volume_group
+			fi
 		fi
 
+		save_key_params="-s -p $paramsdev"
 		if [ -n "$lvm_volume_group" ]; then
 			save_key_params="$save_key_params -l $lvm_volume_group $key_devices"
 		elif [ -n $key_devices ]; then
@@ -118,6 +134,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
 		else
 			die "No LVM Group nor Encrypted devices provided."
 		fi
+		
 		echo "Running kexec-save-key with params: $save_key_params"
 		kexec-save-key $save_key_params \
 			|| die "Failed to save the disk key"
