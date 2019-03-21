@@ -1,4 +1,6 @@
-image: insurgotech/heads-ci:latest
+#TODO: fix fedora-29 container below. Built images results in black screen. x230-flash kernel complains about GZ not being supported?!
+#image: insurgotech/heads-ci:latest
+image: nemanjan00/heads-ci:latest
 
 stages:
   - build
