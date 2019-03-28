@@ -120,21 +120,20 @@ update_totp()
   echo "Scan the QR code to add the new TOTP secret"
   /bin/seal-totp $CONFIG_BOARD
   if [ -x /bin/libremkey_hotp_verification ]; then
-    echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
+    echo "Once you have scanned the QR code, hit Enter to configure your LibremKey/Nitrokey"
     read
     /bin/seal-libremkey
     while [ $? -ne 0 ];do
-      echo "Sealing HOTP secret into LibremKey/Nitrokey failed. Let's try again by updating TOTP."
+      echo -e "\n\nSealing HOTP secret into LibremKey/Nitrokey failed. Let's try again by resealing both TOTP and HOTP."
       update_totp
       /bin/seal-libremkey
-      #TODO: there is still a corner case to deal with. Sometimes, tpm-reset needs to be called to fix things up.
     done
   else
     echo "Once you have scanned the QR code, hit Enter to reboot"
     read
   fi
   if [ -e /boot/kexec_key_devices.txt ]; then
-    echo -e "\n\nYour disk unlock key passphrase was invalidated by resealing TOTP/HTOP."
+    echo -e "\n\nYour disk unlock key passphrase was invalidated by resealing TOTP/HOTP."
     echo -e "You will be requested to set a new default boot option on next reboot.\n\n"
     echo "Hit Enter to reboot"
     read
@@ -191,7 +190,7 @@ check_onboarding_progress()
         "To set Disk Unlock Key, released by the TPM only if firmware integrity\n is attested and when combined with a valid passphrase:\n\nSelect from Main menu:\n\nAdvanced Options menu -> Other Boot Options -> Show OS boot menu\n1-Then select the first boot option proposed (dynamic option)\n2-Then,answer Y when asked to add disk encryption to the TPM.\n\nYou will be asked to set one in the following step.\n\nPlease hit Enter to continue" 30 60
         
        else
-        #Deal with corner case where after inserting key in previous step, HTOP seal fails with provided good password.
+        #Deal with corner case where after inserting key in previous step, HOTP seal fails with provided good password.
         #In that case, we regenerate HOTP and TOTP
         totp_confirm="g"
         echo $totp_confirm > /tmp/whiptail
@@ -232,7 +231,7 @@ if [ -e /boot/reset_disk_unlock_key ]; then
       HOTP=`unseal-hotp`
       enable_usb
       if ! libremkey_hotp_verification info ; then
-        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Librem Key' --msgbox "Your Librem Key was not detected.\n\nPlease insert your Librem Key" 30 90
+        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your LibremKey/Nitrokey' --msgbox "Your LibremKey/Nitrokey was not detected.\n\nPlease insert your LibremKey/Nitrokey" 30 90
       fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
       libremkey_hotp_verification check $HOTP
@@ -245,7 +244,7 @@ if [ -e /boot/reset_disk_unlock_key ]; then
           MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
         ;;
         * )
-          HOTP="Error checking code, Insert Librem Key and retry"
+          HOTP="Error checking code, Insert LibremKey/Nitrokey and retry"
           MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
         ;;
         esac
@@ -311,7 +310,7 @@ while true; do
       HOTP=`unseal-hotp`
       enable_usb
       if ! libremkey_hotp_verification info ; then
-        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Librem Key' --msgbox "Your Librem Key was not detected.\n\nPlease insert your Librem Key" 30 90
+        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your LibremKey/Nitrokey' --msgbox "Your LibremKey/Nitrokey was not detected.\n\nPlease insert your LibremKey/Nitrokey" 30 90
         fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
       libremkey_hotp_verification check $HOTP
@@ -324,7 +323,7 @@ while true; do
           MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
         ;;
         * )
-          HOTP="Error checking code, Insert Librem Key and retry"
+          HOTP="Error checking code, Insert LibremKey/Nitrokey and retry"
           MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
         ;;
       esac
@@ -335,7 +334,7 @@ while true; do
     if [[ -e /boot/oem ]] && [[ ! -s /boot/oem ]] ;then
       #oem empty file found. Show Onboarding menu once.
       whiptail --title 'Hardware reownership Wizard' --msgbox \
-        "The received hardware is currently owned by your OEM. We will change that.\n\nOn the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\\nIf it's not, reboot your hardware with your Librem/Nitrokey inserted.\nIf the HOTP code is still invalid, return received hardware back to OEM.\n\nThis Wizard would otherwise make you own your own hardware by:\n1-Reencrypting encrypted drive content (LUKS container)\n2-Changing LUKS Recovery key and it's passphrase\n3-Resetting your LibremKey/Nitrokey Pro v2 to factory defaults\n4-Setting User (PIN) and Admin passwords into your LibremKey/NitroKey\n4-Generating keys in it, exporting public key and\n importing it in the rom prior to reprogramming the SPI flash with it\n5-Own your Trusted Platform Module (TPM)\n6-Take integrity measures of all /boot files and sign the resulting\n checksum file with yourLibremKey/Nitrokey Pro\n\nHit Enter to continue." 30 60
+        "The received hardware is currently owned by your OEM. We will change that.\n\nOn the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\\nIf it's not, reboot your hardware with your Librem/Nitrokey inserted.\nIf the HOTP code is still invalid, return received hardware back to OEM.\n\nThis Wizard would otherwise make you own your own hardware by:\n1-Reencrypting encrypted drive content (LUKS container)\n2-Changing LUKS Recovery key and it's passphrase\n3-Resetting your LibremKey/Nitrokey Pro v2 to factory defaults\n4-Setting User (PIN) and Admin passwords into your LibremKey/NitroKey\n4-Generating keys in it, exporting public key and\n importing it in the rom prior to reprogramming the SPI flash with it\n5-Owning your Trusted Platform Module (TPM)\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with yourLibremKey/Nitrokey Pro\n\nHit Enter to continue." 30 60
       totp_confirm="O"
       echo $totp_confirm > /tmp/whiptail
       mount -o remount,rw /boot
@@ -347,7 +346,7 @@ while true; do
       echo $totp_confirm > /tmp/whiptail
     else
       whiptail $MAIN_MENU_BG_COLOR --clear --title "$CONFIG_BOOT_GUI_MENU_NAME" \
-        --menu "$date\nTOTP: $TOTP | HOTP: $HOTP" 20 90 10 \
+        --menu "Greenwich Mean Time: $date\nTOTP: $TOTP | HOTP: $HOTP" 20 90 10 \
         'y' ' Default boot' \
         'a' ' Advanced Settings -->' \
         'x' ' Exit to recovery shell' \
@@ -529,7 +528,7 @@ while true; do
 
   if [ "$totp_confirm" = "R" ]; then
     if [[ -z $reownership_state ]] || [[ $reownership_state = "luks_reencryption" ]]; then 
-      whiptail --title 'Reencrypt LUKS container with a new user selected strong passphrase?' \
+      whiptail --title 'Reencrypt actual LUKS container with a new user selected strong passphrase?' \
           --msgbox "This will replace the actual Disk recovery key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk recovery key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
     
       select_luks_container
