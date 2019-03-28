@@ -17,24 +17,30 @@ if ! grep -q /media /proc/mounts ; then
     if [ $USB_FAILED -ne 0 ]; then
       whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Mounting /media Failed' \
         --msgbox "Unable to mount $CONFIG_USB_BOOT_DEV" 16 60
+      if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Select a USB device replacement for $CONFIG_USB_BOOT_DEV ?' \
+  --yesno "You can select an alternative USB device to store your public GPG key onto.\n Choose a different device then:\n Current USB device: $CONFIG_USB_BOOT_DEV\n Current system boot device: $CONFIG_BOOT_DEV \n\n Now is not a good timing to flash those changes permanently.\n PLEASE SELECT EXIT AFTER YOU ARE DONE, DO NOT SAVE CHANGES." 30 90) then
+        /bin/config-gui.sh
+      else
+        die "Please prepare a device that this computer will identify as $CONFIG_USB_BOOT_DEV\n."
+      fi 
     fi
   fi
 fi
 }
 
 if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of GPG card' \
-  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1-Wipe all PRIVATE keys that were previously kept inside GPG card\n 2-Set default key size to 4096 bits (maximum)\n 3-Ask you to choose two passwords to interact with the card:\n  3.1: An admininstrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4-Generate new Encryption, Signing and Authentication keys\n  inside your GPG card\n5-Export associated public key, replace the one being\n  present and trusted inside running BIOS, and reflash\n  SPI flash with resulting rom image.\n\nAs a result, the running BIOS will be modified.\n\nWould you like to continue?" 30 90) then
+  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1-Wipe all PRIVATE keys that were previously kept inside GPG card\n 2-Set default key size to 4096 bits (maximum)\n 3-Ask you to choose two passwords to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4-Generate new Encryption, Signing and Authentication keys\n  inside your GPG card\n5-Export associated public key, replace the one being\n  present and trusted inside running BIOS, and reflash\n  the SPI flash with resulting rom image.\n\nAs a result, the running BIOS will be modified.\n\nWould you like to continue?" 30 90) then
 
   #TODO: Circumvent permission bug with mkdir and chmod permitting to use gpg --home=/media/gpg_keys directly. 
   #Cannot create a new gpg homedir with right permissions nor chmod 700 that directory.
   #Meanwhile, we reuse /.gnupg by temporarely deleting it's existing content.
-  rm -rf .gnupg/*
-  killall gpg-agent gpg scdaemon 2> /dev/null || true
+  rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
+  killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
 
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert A USB Disk' --msgbox \
   "Please insert a USB disk on which you want to store your GPG public key\n and trustdb.\n\nThose will be backuped under the 'gpg_keys' directory.\n\nHit Enter to continue." 30 90
 
-  mount_usb
+  mount_usb||die "Unable to mount USB device."
 
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
   mount -o remount,rw /media
@@ -47,9 +53,9 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
   {
-    echo -e "Choose your new GPG card user password (PIN) that will be typed when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
+    echo -e "Choose your new GPG card user password (PIN) that will be typed when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:\n"
     read -s gpgcard_user_pass1
-    echo "Retype user passphrase:"
+    echo -e "Retype user passphrase:\n"
     read -s gpgcard_user_pass2
     if [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]]; then echo "Passwords typed were different."; fi
   };done
@@ -57,9 +63,9 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
   {
-    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HTOP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
+    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:\n"
     read -s gpgcard_admin_pass1
-    echo "Retype admin password:"
+    echo -e "Retype admin password:\n"
     read -s gpgcard_admin_pass2
 
     if [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]]; then echo "Passwords typed were different."; fi
@@ -72,20 +78,20 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
-    echo -e "Enter your Real Name (At least 5 characters):"
+    echo -e "Enter your Real Name (At least 5 characters long):\n"
     read -r gpgcard_real_name
   };done
 
   
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
-    echo "Enter your email@adress.org:"
+    echo -e "Enter your email@adress.org:\n"
     read -r gpgcard_email_address
   };done
 
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z $gpgcard_comment ]]; do
   {
-    echo "Enter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
+    echo -e "Enter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):\n"
     read -r gpgcard_comment
   };done
 
@@ -219,6 +225,6 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   fi
 
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Reboot required' --msgbox \
-    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trustdb\n included.\n\n Heads will detect it and react accordingly:\n It will ask you to regenerate a new TOTP/HOTP code (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card user password (PIN).\n\nHit Enter to reboot." 30 90
+    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trustdb\n included.\n\n Heads will detect it and react accordingly:\n It will ask you to regenerate a new TOTP/HOTP code (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card and it's associated user password (PIN).\n\nHit Enter to reboot." 30 90
   /bin/reboot
 fi
