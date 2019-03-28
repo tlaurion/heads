@@ -96,13 +96,13 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   };done
 
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
-  mount -o remount,rw /media 
+  mount -o remount,rw /media || die "Remounting /media into Read/Write mode failed."
 
   #backup existing /media/gpg_keys directory
   if [ -d /media/gpg_keys ];then
     newdir="/media/gpg_keys-$(date '+%Y-%m-%d-%H_%M_%S')"
     echo "Backing up /media/gpg_keys into $newdir"
-    mv /media/gpg_keys "$newdir"
+    mv /media/gpg_keys "$newdir" || die "Moving old gpg_keys directory into $newdir failed."
   fi
 
   mkdir -p /media/gpg_keys
@@ -119,7 +119,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo factory-reset
     echo y
     echo yes
-  } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit --home=/.gnupg/
+  } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Factory resetting the GPG card failed."
 
   #Setting new admin and user passwords in GPG card
   {
@@ -134,7 +134,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo "$gpgcard_admin_pass"
     echo "$gpgcard_admin_pass"
     echo Q
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting new admin and user PINs in GPG card failed."
 
   #Set GPG card key attributes key sizes to 4096 bits
   {
@@ -149,7 +149,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo 1 # RSA
     echo 4096 #Authentication key size set to maximum supported by SmartCard
     echo "$gpgcard_admin_pass"
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting key attributed to RSA 4096 bits in GPG card failed."
 
   {
     echo admin
@@ -161,7 +161,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo "$gpgcard_real_name"
     echo "$gpgcard_email_address"
     echo "$gpgcard_comment"
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting real name, emdail address and comment in GPG failed."
 
   #Export and inject public key and trustdb export into extracted rom with current user keys being wiped
   rom=/tmp/gpg-gui.rom
@@ -170,27 +170,27 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   rm -f /boot/kexec*
   mount -o remount,ro /boot
 
-  gpg --home=/.gnupg/ --export --armor "$gpgcard_email_address"  > /media/gpg_keys/public.key
-  cp -rf /.gnupg/openpgp-revocs.d/* /media/gpg_keys/ 2> /dev/null
-  cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/ 2> /dev/null
-  cp -rf /.gnupg/pubring.* /.gnupg/trustdb.gpg /media/gpg_keys/ 2> /dev/null
+  gpg --home=/.gnupg/ --export --armor "$gpgcard_email_address"  > /media/gpg_keys/public.key || die "Exporting public key to /media/gpg_keys/public.key failed."
+  cp -rf /.gnupg/openpgp-revocs.d/* /media/gpg_keys/ 2> /dev/null || die "Copying revocation certificated into /media/gpg_keys/ failed."
+  cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/ 2> /dev/null 
+  cp -rf /.gnupg/pubring.* /.gnupg/trustdb.gpg /media/gpg_keys/ 2> /dev/null || die "Copying public keyring into /media/gpg_keys/ failed."
 
   #Flush changes to external media
   mount -o remount,ro /media
 
   #Read rom
-  /bin/flash.sh -r $rom
+  /bin/flash.sh -r $rom || die "Flashing back $rom including your newly genereated and exported public key failed."
 
   #delete previously injected public.key
   if (cbfs -o $rom -l | grep -q "heads/initrd/.gnupg/keys/public.key"); then
-    cbfs -o $rom -d "heads/initrd/.gnupg/keys/public.key"
+    cbfs -o $rom -d "heads/initrd/.gnupg/keys/public.key" || die "Deleting old public key from running rom backup failed."
   fi
   
   #delete previously injected GPG1 and GPG2 pubrings
   if (cbfs -o $rom -l | grep -q "heads/initrd/.gnupg/pubring.kbx"); then
-    cbfs -o $rom -d "heads/initrd/.gnupg/pubring.kbx"
+    cbfs -o $rom -d "heads/initrd/.gnupg/pubring.kbx" || die "Deleting old public keyring from running rom backup failed."
     if (cbfs -o $rom -l | grep -q "heads/initrd/.gnupg/pubring.gpg"); then
-      cbfs -o $rom -d "heads/initrd/.gnupg/pubring.gpg"
+      cbfs -o $rom -d "heads/initrd/.gnupg/pubring.gpg" || die "Deleting old and deprecated public keyring from running rom backup failed."
       if [ -e /.gnupg/pubring.gpg ];then
         rm /.gnupg/pubring.gpg
       fi
@@ -198,16 +198,16 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   fi
   #delete previously injected trustdb
   if (cbfs -o $rom -l | grep -q "heads/initrd/.gnupg/trustdb.gpg") then
-    cbfs -o $rom -d "heads/initrd/.gnupg/trustdb.gpg"
+    cbfs -o $rom -d "heads/initrd/.gnupg/trustdb.gpg" || die "Deleting old trust database from running rom backup failed."
   fi
   #Remove old method of exporting/importing owner trust exported file
   if (cbfs -o $rom -l | grep -q "heads/initrd/.gnupg/otrust.txt") then
-    cbfs -o $rom -d "heads/initrd/.gnupg/otrust.txt"
+    cbfs -o $rom -d "heads/initrd/.gnupg/otrust.txt" || die "Deleting old and depracated trust database export failed."
   fi
 
   #Insert public key in armored form and trustdb ultimately trusting user's key into reproducible rom:
-  cbfs -o "$rom" -a "heads/initrd/.gnupg/pubring.kbx" -f /.gnupg/pubring.kbx
-  cbfs -o "$rom" -a "heads/initrd/.gnupg/trustdb.gpg" -f /.gnupg/trustdb.gpg
+  cbfs -o "$rom" -a "heads/initrd/.gnupg/pubring.kbx" -f /.gnupg/pubring.kbx || die "Inserting public keyring in runnning rom backup failed."
+  cbfs -o "$rom" -a "heads/initrd/.gnupg/trustdb.gpg" -f /.gnupg/trustdb.gpg || die "Inserting trust databse in running rom backup failed."
 
   if (whiptail --title 'Flash ROM?' \
     --yesno "This will replace your old ROM with $rom\n\nDo you want to proceed?" 16 90) then
