@@ -53,9 +53,9 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
   {
-    echo -e "Choose your new GPG card user password (PIN) that will be typed when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:\n"
+    echo -e "\nChoose your new GPG card user password (PIN) that will be typed when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
     read -s gpgcard_user_pass1
-    echo -e "Retype user passphrase:\n"
+    echo -e "\nRetype user passphrase:"
     read -s gpgcard_user_pass2
     if [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]]; then echo "Passwords typed were different."; fi
   };done
@@ -63,9 +63,9 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
   {
-    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:\n"
+    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
     read -s gpgcard_admin_pass1
-    echo -e "Retype admin password:\n"
+    echo -e "\nRetype admin password:"
     read -s gpgcard_admin_pass2
 
     if [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]]; then echo "Passwords typed were different."; fi
@@ -74,24 +74,24 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   echo -e "\n\n"
   echo -e "We will generate a GnuPG (GPG) keypair identifiable with the following text form:"
-  echo -e "Real Name (Comment) email@address.org\n"
+  echo -e "Real Name (Comment) email@address.org"
   
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
-    echo -e "Enter your Real Name (At least 5 characters long):\n"
+    echo -e "\nEnter your Real Name (At least 5 characters long):"
     read -r gpgcard_real_name
   };done
 
   
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
-    echo -e "Enter your email@adress.org:\n"
+    echo -e "\nEnter your email@adress.org:"
     read -r gpgcard_email_address
   };done
 
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z $gpgcard_comment ]]; do
   {
-    echo -e "Enter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):\n"
+    echo -e "\nEnter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
     read -r gpgcard_comment
   };done
 
