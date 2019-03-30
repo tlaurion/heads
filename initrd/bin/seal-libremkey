@@ -58,7 +58,7 @@ if ! libremkey_hotp_verification info ; then
   || die "Unable to find LibremKey/NitroKey"
 fi
 
-read -s -p "Enter your LibremKey/NitroKey Admin PIN" admin_pin
+read -s -p "Enter your LibremKey/NitroKey Admin PIN:" admin_pin
 echo
 
 libremkey_hotp_initialize $admin_pin $secret $counter_value 

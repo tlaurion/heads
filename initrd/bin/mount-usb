@@ -11,11 +11,11 @@ if ! lsmod | grep -q usb_storage; then
 fi
 
 if [ ! -d /media ]; then
-	mkdir /media
+	mkdir /media || die "Unable to create /media directory"
 fi
 
 if [ -z "$1" ]; then
-	mount -o ro /media
+	mount -o ro /media || die "Unable to mount /media in Read Only mode"
 else
-	mount -o ro $1 /media
+	mount -o ro $1 /media || die "unable to mount $1 on /media in Read Only mode"
 fi

@@ -32,7 +32,7 @@ if [ -r "$KEY_LVM" ]; then
 		die "No LVM volume group defined for activation"
 	fi
 	lvm vgchange -a y $VOLUME_GROUP \
-		|| die "$VOLUME_GROUP: unable to activate volume group"
+		|| die "$VOLUME_GROUP: Unable to activate volume group"
 fi
 
 # Key slot 0 is the manual recovery pass phrase

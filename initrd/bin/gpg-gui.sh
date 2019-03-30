@@ -17,6 +17,12 @@ mount_usb(){
       if [ $USB_FAILED -ne 0 ]; then
         whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Mounting /media Failed' \
           --msgbox "Unable to mount $CONFIG_USB_BOOT_DEV" 16 60
+      if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Select a new device to add keys of flash BIOS image from?' \
+  --yesno "You can select an alternative disk to import keys and BIOS image from.\n Choose a different device then:\n Current USB device: $CONFIG_USB_BOOT_DEV\n Current system boot device: $CONFIG_BOOT_DEV \n\n Now is not a good timing to flash those changes permanently.\n PLEASE SELECT EXIT AFTER YOU ARE DONE, DO NOT SAVE CHANGES." 30 90) then
+        /bin/config-gui.sh
+      else
+        die "Please prepare a device that this computer will identify as $CONFIG_USB_BOOT_DEV"
+      fi 
       fi
     fi
   fi
@@ -89,7 +95,7 @@ while true; do
     "a" )
       if (whiptail --title 'ROM and GPG public key required' \
           --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n* Your BIOS image (*.rom)\n\nAfter you select these files, this program will reflash your BIOS\n\nDo you want to proceed?" 16 90) then
-        mount_usb
+        mount_usb || die "Unable to mount USB device"
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt
@@ -160,8 +166,8 @@ while true; do
     ;;
     "r" )
       if (whiptail --title 'GPG public key required' \
-          --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n\nAfter you select this file, this program will copy and reflash your BIOS\n\nDo you want to proceed?" 16 90) then
-        mount_usb
+          --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n\nNormally, the file should be named public.key\n\nAfter you select this file, this program will copy and reflash your BIOS\n\nDo you want to proceed?" 16 90) then
+        mount_usb || die "Unable to mount USB device"
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt

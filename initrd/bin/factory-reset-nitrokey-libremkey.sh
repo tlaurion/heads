@@ -8,20 +8,20 @@ mount_usb(){
 # Mount the USB boot device
 if ! grep -q /media /proc/mounts ; then
   mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
-  if [ $USB_FAILED -ne 0 ]; then
+  if [ $USB_FAILED -eq 1 ]; then
     if [ ! -e "$CONFIG_USB_BOOT_DEV" ]; then
       whiptail --title 'USB Drive Missing' \
         --msgbox "Insert your USB drive and press Enter to continue." 16 60 USB_FAILED=0
         mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
     fi
-    if [ $USB_FAILED -ne 0 ]; then
+    if [ $USB_FAILED -eq 1 ]; then
       whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Mounting /media Failed' \
         --msgbox "Unable to mount $CONFIG_USB_BOOT_DEV" 16 60
-      if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Select a USB device replacement for $CONFIG_USB_BOOT_DEV ?' \
-  --yesno "You can select an alternative USB device to store your public GPG key onto.\n Choose a different device then:\n Current USB device: $CONFIG_USB_BOOT_DEV\n Current system boot device: $CONFIG_BOOT_DEV \n\n Now is not a good timing to flash those changes permanently.\n PLEASE SELECT EXIT AFTER YOU ARE DONE, DO NOT SAVE CHANGES." 30 90) then
+      if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Select a new device to store your keys?' \
+  --yesno "You can select an alternative disk to store your public GPG key onto.\n Choose a different device then:\n Current USB device: $CONFIG_USB_BOOT_DEV\n Current system boot device: $CONFIG_BOOT_DEV \n\n Now is not a good timing to flash those changes permanently.\n PLEASE SELECT EXIT AFTER YOU ARE DONE, DO NOT SAVE CHANGES." 30 90) then
         /bin/config-gui.sh
       else
-        die "Please prepare a device that this computer will identify as $CONFIG_USB_BOOT_DEV\n."
+        die "Please prepare a device that this computer will identify as $CONFIG_USB_BOOT_DEV"
       fi 
     fi
   fi
@@ -36,15 +36,14 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   #Meanwhile, we reuse /.gnupg by temporarely deleting it's existing content.
   rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
   killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
-
+  
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert A USB Disk' --msgbox \
   "Please insert a USB disk on which you want to store your GPG public key\n and trustdb.\n\nThose will be backuped under the 'gpg_keys' directory.\n\nHit Enter to continue." 30 90
-
-  mount_usb||die "Unable to mount USB device."
-
+  
+  mount_usb || die "Unable to mount USB device."
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
-  mount -o remount,rw /media
-
+  mount -o remount,rw /media || die "Unable to remount /media into Read Write mode. Is the device write protected?"
+  
   #Setting new passwords
   gpgcard_user_pass1=1
   gpgcard_user_pass2=2
@@ -96,7 +95,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   };done
 
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
-  mount -o remount,rw /media || die "Remounting /media into Read/Write mode failed."
+  mount -o remount,rw /media || die "Unable to remount /media into Read Write mode. Is the device write protected?" 
 
   #backup existing /media/gpg_keys directory
   if [ -d /media/gpg_keys ];then

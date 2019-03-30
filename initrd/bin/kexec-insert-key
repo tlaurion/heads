@@ -23,7 +23,7 @@ if [ -r "$TMP_KEY_LVM" ]; then
 		die "No LVM volume group defined for activation"
 	fi
 	lvm vgchange -a y $VOLUME_GROUP \
-		|| die "$VOLUME_GROUP: unable to activate volume group"
+		|| die "$VOLUME_GROUP: Unable to activate volume group"
 fi
 
 # Measure the LUKS headers before we unseal the disk key

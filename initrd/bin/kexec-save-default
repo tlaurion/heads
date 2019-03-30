@@ -45,6 +45,7 @@ fi
 KEY_DEVICES="$paramsdir/kexec_key_devices.txt"
 KEY_LVM="$paramsdir/kexec_key_lvm.txt"
 save_key="n"
+
 if [ "$CONFIG_TPM" = "y" ]; then
   if [ ! -r "$KEY_DEVICES" ]; then
     read \
@@ -61,12 +62,11 @@ if [ "$CONFIG_TPM" = "y" ]; then
   else
     read \
       -n 1 \
-      -p "Do you want to reseal a disk key to the TPM [y/N]: " \
+      -p "Do you want to reseal a disk key to the TPM [Y/n]: " \
       change_key_confirm
     echo
 
-    if [ "$change_key_confirm" = "y" \
-      -o "$change_key_confirm" = "Y" ]; then
+    if [ "$change_key_confirm" = "y" ] || [ "$change_key_confirm" = "Y" ] || [ -z "$change_key_confirm" ]; then
       old_lvm_volume_group=""
       if [ -r "$KEY_LVM" ]; then
         old_lvm_volume_group=`cat $KEY_LVM` || true
@@ -82,6 +82,9 @@ if [ "$CONFIG_TPM" = "y" ]; then
       lvm_suggest="was '$old_lvm_volume_group'"
       devices_suggest="was '$old_key_devices'"
       save_key="y"
+    else
+      echo -e "\n\nTo set a new unlock disk password, different then the disk recovery password, resealing the disk key to the TPM is needed.\n\nThe actual default boot option may have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, which already modified the TPM.\n\nIt is strongly advised to set a new default option, which will add the disk unlock key to the TPM.\n\nThe disk unlock key password you will choose at this step will be required of you at each machine startup and will protect the disk recovery key password from interested eyes.\n\nBy selecting a disk unlock password, a camera that would see you type your disk unlock key password will only be able to access the content of your hard drive on this computer.\n\nMore critically, someone knowing your disk recovery key password would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
+      die "User refused to reseal the disk unlock key to the TPM"
     fi
   fi
 
@@ -89,10 +92,10 @@ if [ "$CONFIG_TPM" = "y" ]; then
     if [ -n "$old_key_devices" ] || [ -n "$old_lvm_volume_group" ]; then
       read \
         -n 1 \
-        -p "Do you want to reuse past Encrypted LVM groups/Block devices? (y/n):" \
+        -p "Do you want to reuse past Encrypted LVM groups/Block devices? (Y/n):" \
         reuse_past_devices
        echo
-      if [ "$reuse_past_devices" = "y" ] || [ "$reuse_past_devices" = "Y" ]; then
+      if [ "$reuse_past_devices" = "y" ] || [ "$reuse_past_devices" = "Y" ] || [ -z "$reuse_past_devices" ]; then
         if [ -z "$key_devices" ] && [ -n "$old_key_devices" ]; then
           key_devices=$old_key_devices
         if [ -z "$lvm_volume_group" ] && [ -n "$old_lvm_volume_group" ]; then
