@@ -46,6 +46,16 @@ flash_rom() {
 
     flashrom $FLASHROM_OPTIONS -w /tmp/${CONFIG_BOARD}.rom \
     || die "$ROM: Flash failed"
+
+    if [ -e /boot/kexec_key_devices.txt ]; then
+    	echo -e "\n\nYour disk unlock key passphrase was invalidated by flashing a new ROM"
+    	echo -e "You will be requested to set a new default boot option and associated disk unlock key password.\n\n"
+    	echo "Hit Enter to reboot"
+    	read
+    	mount -o remount,rw /boot
+    	touch /boot/reset_disk_unlock_key
+    	mount -o remount,ro /boot
+    fi
   fi
 }
 
