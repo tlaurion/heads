@@ -31,12 +31,6 @@ fi
 if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of GPG card' \
   --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1-Wipe all PRIVATE keys that were previously kept inside GPG card\n 2-Set default key size to 4096 bits (maximum)\n 3-Ask you to choose two passwords to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4-Generate new Encryption, Signing and Authentication keys\n  inside your GPG card\n5-Export associated public key, replace the one being\n  present and trusted inside running BIOS, and reflash\n  the SPI flash with resulting rom image.\n\nAs a result, the running BIOS will be modified.\n\nWould you like to continue?" 30 90) then
 
-  #TODO: Circumvent permission bug with mkdir and chmod permitting to use gpg --home=/media/gpg_keys directly. 
-  #Cannot create a new gpg homedir with right permissions nor chmod 700 that directory.
-  #Meanwhile, we reuse /.gnupg by temporarely deleting it's existing content.
-  rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
-  killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
-  
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert A USB Disk' --msgbox \
   "Please insert a USB disk on which you want to store your GPG public key\n and trustdb.\n\nThose will be backuped under the 'gpg_keys' directory.\n\nHit Enter to continue." 30 90
   
@@ -44,6 +38,12 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
   mount -o remount,rw /media || die "Unable to remount /media into Read Write mode. Is the device write protected?"
   
+  #TODO: Circumvent permission bug with mkdir and chmod permitting to use gpg --home=/media/gpg_keys directly. 
+  #Cannot create a new gpg homedir with right permissions nor chmod 700 that directory.
+  #Meanwhile, we reuse /.gnupg by temporarely deleting it's existing content.
+  rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
+  killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
+ 
   #Setting new passwords
   gpgcard_user_pass1=1
   gpgcard_user_pass2=2
