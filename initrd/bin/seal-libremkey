@@ -64,6 +64,7 @@ echo
 libremkey_hotp_initialize $admin_pin $secret $counter_value 
 if [ $? -ne 0 ]; then
   read -s -p "Error setting HOTP secret, re-enter Admin PIN and try again:" admin_pin
+  echo
   libremkey_hotp_initialize $admin_pin $secret $counter_value \
   || die "Setting HOTP secret failed"
 fi
