@@ -133,8 +133,8 @@ update_totp()
     read
   fi
   if [ -e /boot/kexec_key_devices.txt ]; then
-    echo -e "\n\nYour disk unlock key passphrase was invalidated by resealing TOTP/HOTP."
-    echo -e "You will be requested to set a new default boot option on next reboot.\n\n"
+    echo -e "\n\nYour TPM released Disk Unlock Key was invalidated by modifying the firmware, which triggered resealing TOTP/HOTP."
+    echo -e "You will be requested to set a new default boot option and set a new Disk Unlock Key on next reboot.\n\n"
     echo "Hit Enter to reboot"
     read
     mount -o remount,rw /boot
@@ -181,13 +181,13 @@ check_onboarding_progress()
         unset reownership_state
 
         whiptail --title 'DISK UNLOCK KEY ADVICE 1/3' --msgbox \
-        "***You SHOULD SET a Disk unlock key for your own data privacy!!!***\n\nDoing so, a witness will only be able to type observed Disk unlock\n passphrase from this computer and won't be able on a cloned\n copy of this disk.\n\nThe release of Disk unlock key happens ONLY if TPM attests firmware\nintegrity, and only if Disk unlock user passphrase is valid.\n\nPlease hit Enter to continue" 30 60
+        "***You SHOULD SET a new Disk Unlock Key for your own data privacy!!!***\n\nDoing so, a witness will only be able to type observed Disk Unlock\n Key passphrase from this computer and won't be able on a cloned\n copy of this disk.\n\nThe release of Disk Unlock Key happens ONLY if TPM attests firmware\nintegrity, and only if Disk Unlock Key passphrase is valid.\n\nPlease hit Enter to continue" 30 60
 
         whiptail --title 'DISK UNLOCK KEY ADVICE 2/3' --msgbox \
-        "Otherwise, typing your Disk Recovery key passphrase at boot puts you\nat risk. Someone could clone your disk and type that witnessed\npassphrase and access your data both locally and from a cloned\ndisk.\n\nThis is why strong passphrases are so important to data privacy.\nCONSIDER YOURSELF WARNED.\n\nPlease hit Enter to continue" 30 60
+        "Otherwise, typing your Disk Recovery Key passphrase at boot puts you\nat risk. Someone could clone your disk and type that witnessed\npassphrase and access your data both locally and from a cloned\ndisk.\n\nCoupled with a strong passphrase, this improves your data privacy.\nCONSIDER YOURSELF WARNED.\n\nPlease hit Enter to continue" 30 60
 
         whiptail --title 'DISK UNLOCK KEY ADVICE 3/3' --msgbox \
-        "To set Disk Unlock Key, released by the TPM only if firmware integrity\n is attested and when combined with a valid passphrase:\n\nSelect from Main menu:\n\nAdvanced Options menu -> Other Boot Options -> Show OS boot menu\n1-Then select the first boot option proposed (dynamic option)\n2-Then,answer Y when asked to add disk encryption to the TPM.\n\nYou will be asked to set one in the following step.\n\nPlease hit Enter to continue" 30 60
+        "To set Disk Unlock Key, released by the TPM only if firmware integrity\n is attested:\n\nSelect from Main menu:\n\nAdvanced Options menu -> Other Boot Options -> Show OS boot menu\n1-Then select the first boot option proposed (dynamic option)\n2-Then,answer Y when asked to add Disk Unlock Key to the TPM.\n\nYou will be prompted to set one in the following steps.\n\nPlease hit Enter to continue" 30 60
         
        else
         #Deal with corner case where after inserting key in previous step, HOTP seal fails with provided good password.
@@ -210,8 +210,8 @@ check_onboarding_progress()
 
 mount_boot 
 if [ -e /boot/reset_disk_unlock_key ]; then
-  whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: You must change your disk unlock key passphrase' --msgbox \
-    "You just generated a new TOTP/HOTP secret. TPM released disk unlock key\n stored in LUKS header must be regenerated.\n\nTo do so, select a new default boot option and agree to:\n -Modify the disk\n -Reseal disk key to the TPM.\n -Sign config changes with your GPG card user's PIN" 30 90
+  whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: You must change your Disk Unlock Key' --msgbox \
+    "You just generated a new TOTP/HOTP secret. TPM released Disk Unlock Key\n stored in LUKS header must be regenerated.\n\nTo do so, select a new default boot option and agree to:\n -Modify the disk\n -Reseal Disk Unlock Key to the TPM.\n -Sign config changes with your GPG card user's PIN" 30 90
   # Try to select a kernel from the menu
   mount_boot
   verify_global_hashes
@@ -334,7 +334,7 @@ while true; do
     if [[ -e /boot/oem ]] && [[ ! -s /boot/oem ]] ;then
       #oem empty file found. Show Onboarding menu once.
       whiptail --title 'Hardware reownership Wizard' --msgbox \
-        "The received hardware is currently owned by your OEM. We will change that.\n\nOn the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\\nIf it's not, reboot your hardware with your Librem/Nitrokey inserted.\nIf the HOTP code is still invalid, return received hardware back to OEM.\n\nThis Wizard would otherwise make you own your own hardware by:\n1-Reencrypting encrypted drive content (LUKS container)\n2-Changing LUKS Recovery key and it's passphrase\n3-Resetting your LibremKey/Nitrokey Pro v2 to factory defaults\n4-Setting User (PIN) and Admin passwords into your LibremKey/NitroKey\n4-Generating keys in it, exporting public key and\n importing it in the rom prior to reprogramming the SPI flash with it\n5-Owning your Trusted Platform Module (TPM)\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with yourLibremKey/Nitrokey Pro\n\nHit Enter to continue." 30 60
+        "The received hardware is currently owned by your OEM. We will change that.\n\nOn the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\\nIf it's not, reboot your hardware with your Librem/Nitrokey inserted.\nIf the HOTP code is still invalid, contact your OEM.\n\nThis Wizard will otherwise make you own your own hardware by:\n1-Reencrypting encrypted drive content (LUKS container)\n2-Changing LUKS Disk Recovery Key and it's passphrase\n3-Resetting your LibremKey/Nitrokey Pro v2 to factory defaults\n4-Setting User (PIN) and Admin passwords into your LibremKey/NitroKey\n4-Generating keys in it, exporting public key and\n importing it in the rom prior to reprogramming the SPI flash with it\n5-Owning your Trusted Platform Module (TPM)\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with yourLibremKey/Nitrokey Pro\n\nHit Enter to continue." 30 60
       totp_confirm="O"
       echo $totp_confirm > /tmp/whiptail
       mount -o remount,rw /boot
@@ -448,7 +448,7 @@ while true; do
 
   if [ "$totp_confirm" = "p" ]; then
     if (whiptail --title 'Reset the TPM' \
-        --yesno "This will clear the TPM and TPM password, replace them with new ones!\n\nDo you want to proceed?" 16 90) then
+        --yesno "This will clear the TPM content and reset TPM Owner password.\n\nDo you want to proceed?" 16 90) then
       /bin/tpm-reset
       
       #set flag in oem file
@@ -529,20 +529,20 @@ while true; do
   if [ "$totp_confirm" = "R" ]; then
     if [[ -z $reownership_state ]] || [[ $reownership_state = "luks_reencryption" ]]; then 
       whiptail --title 'Reencrypt actual LUKS container with a new user selected strong passphrase?' \
-          --msgbox "This will replace the actual Disk recovery key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk recovery key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
+          --msgbox "This will replace the actual Disk Recovery Key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk recovery key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
     
       select_luks_container
     
       whiptail --title 'Reencrypting LUKS container!' --msgbox \
-      "Please enter current Recovery key passphrase (slot 0) to reencrypt\n LUKS container with a brand new encryption key\n\nHit Enter to continue." 30 60
+      "Please enter current Disk Recovery Key passphrase (slot 0) to reencrypt\n LUKS container with a brand new encryption key\n\nHit Enter to continue." 30 60
       cryptsetup-reencrypt -B 32 --use-directio $LUKS --key-slot 0
       
       if [ $(echo $?) -ne 0 ]; then
-        whiptail --title 'Invalid LUKS passphrase?' --msgbox \
-          "The LUKS Recovery password was provided to you by the OEM over secure\ncommunication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall Linux OS from a USB drive.\n\nTo do so, place ISO file with it's signature file on root of USB drive,\n and select Boot from USB\n\nHit Enter to continue." 30 60
+        whiptail --title 'Invalid LUKS Disk Recovery passphrase?' --msgbox \
+          "The LUKS Disk Recovery Key password was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\n\nTo do so, place ISO file with a valid signature file (.asc) on root of USB drive,\n and select Boot from USB\n\nHit Enter to continue." 30 60
         continue
       else
-        #Successfully reencrypted LUKS container with current Recovery key passphrase. Write successful state in oem file
+        #Successfully reencrypted LUKS container with current Disk Recovery Key passphrase. Write successful state in oem file
         if [ -e /boot/oem ];then
           mount -o remount,rw /boot
           echo "luks_reencrypted" >> /boot/oem
@@ -553,18 +553,18 @@ while true; do
     fi
 
     if [[ -z $reownership_state ]] || [[ $reownership_state == "luks_password_change" ]]; then
-      whiptail --title 'Changing LUKS Recovery key passphrase' --msgbox \
-        "Please enter current Recovery key passphrase (slot 0).\nThen choose a strong passphrase of your own.\n\n**DICEWARE passphrase methodology is STRONGLY ADVISED.**\n\nHit Enter to continue" 30 60
+      whiptail --title 'Changing LUKS Disk Recovery Key passphrase' --msgbox \
+        "Please enter current Disk Recovery Key passphrase (slot 0).\nThen choose a strong passphrase of your own.\n\n**DICEWARE passphrase methodology is STRONGLY ADVISED.**\n\nHit Enter to continue" 30 60
 
       select_luks_container
     
       cryptsetup luksChangeKey $LUKS --key-slot 0 --tries 3
       if [ $(echo $?) -ne 0 ]; then
         whiptail --title 'Invalid LUKS passphrase?' --msgbox \
-          "The LUKS Recovery password was provided to you by the OEM over secure channel.\nIf you previously changed it and do not remember it,\n you will have to reinstall Linux OS from a USB drive.\nTo do so, put OS ISO file with it's signature file on USB drive,\n And select Boot from USB\n\nHit Enter to continue." 30 60
+          "The LUKS Disk Recovery Key passphrase was provided to you by the OEM over secure communication channel.\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\nTo do so, put OS ISO file with it's signature file on USB drive,\n And select Boot from USB\n\nHit Enter to continue." 30 60
         continue
       else
-        #Successfully changed passphrase of LUKS Recovery key. Write successful state in oem file
+        #Successfully changed LUKS Disk Recovery Key passphrase. Write successful state in oem file
         if [ -e /boot/oem ];then
           mount -o remount,rw /boot
           echo "luks_passwd_changed" >> /boot/oem

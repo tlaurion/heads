@@ -144,8 +144,8 @@ if [ "$CONFIG_TPM" = "y" ]; then
       devices_suggest="was '$old_key_devices'"
       save_key="y"
     else
-      echo -e "\n\nTo set a new unlock disk password, different then the disk recovery password, resealing the disk key to the TPM is needed.\n\nThe actual default boot option may have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, which already modified the TPM.\n\nIt is strongly advised to set a new default option, which will add the disk unlock key to the TPM.\n\nThe disk unlock key password you will choose at this step will be required of you at each machine startup and will protect the disk recovery key password from interested eyes.\n\nBy selecting a disk unlock password, a camera that would see you type your disk unlock key password will only be able to access the content of your hard drive on this computer.\n\nMore critically, someone knowing your disk recovery key password would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
-      die "User refused to reseal the disk unlock key to the TPM"
+      echo -e "\n\nTo set a new Disk Unlock Key passphrase, different then Disk Recovery Key passphrase, resealing the Disk Unlock key to the TPM is needed.\n\nThe actual default boot option have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, prompted from TPM measurements mismatches.\n\nIt is strongly advised to set a new default boot option, which will add the Disk Unlock Key to the TPM.\n\nThe Disk Unlock Key passphrase you will choose at this step will be required of you at each machine startup and will protect the Disk Recovery Key passphrase from interested eyes.\n\nBy selecting a Disk Unlock Key passphrase, a camera that would see you type your Disk Unlock Key passphrase will only be able to access the content of your hard drive on this computer.\n\nMore critically, someone knowing your Disk Recovery Key passphrase would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
+      die "User refused to reseal the Disk Unlock Key to the TPM"
     fi
   fi
 
@@ -153,7 +153,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
     if [ -n "$old_key_devices" ] || [ -n "$old_lvm_volume_group" ]; then
       read \
         -n 1 \
-        -p "Do you want to reuse past Encrypted LVM groups/Block devices? (Y/n):" \
+        -p "Do you want to reuse configured Encrypted LVM groups/Block devices? (Y/n):" \
         reuse_past_devices
        echo
       if [ "$reuse_past_devices" = "y" ] || [ "$reuse_past_devices" = "Y" ] || [ -z "$reuse_past_devices" ]; then
@@ -216,7 +216,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
   fi  
   echo -e "\nRunning kexec-save-key with params: $save_key_params\n"
   kexec-save-key $save_key_params \
-  || die "Failed to save the disk key"
+  || die "Failed to save the Disk Unlock Key"
 fi
 
 # try to switch to rw mode

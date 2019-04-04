@@ -24,11 +24,11 @@ tpm nv_readvalue \
 || die "Unable to read key from TPM NVRAM"
 
 for tries in 1 2 3; do
-	read -s -p "Enter unlock password (blank to abort): " tpm_password
+	read -s -p "Enter TPM Owner password (blank to abort): " tpm_password
 	echo
 
 	if [ -z "$tpm_password" ]; then
-		die "Aborting unseal disk encryption key"
+		die "Aborting unsealing of Disk Encryption Key used as the Disk Unlock Key since no TPM Owner password was provided."
 	fi
 
 	if tpm unsealfile \
@@ -43,7 +43,7 @@ for tries in 1 2 3; do
 	fi
 
 	pcrs
-	warn "Unable to unseal disk encryption key"
+	warn "Unable to unseal Disk Encryption Key used as the Disk Unlock Key"
 done
 
 die "Retry count exceeded..."
