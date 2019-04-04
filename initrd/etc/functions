@@ -3,6 +3,7 @@
 
 die() {
 	echo >&2 "$*";
+	read -p 'Hit enter to continue:'
 	exit 1;
 }
 
