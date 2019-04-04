@@ -24,7 +24,7 @@ tpm nv_readvalue \
 || die "Unable to read key from TPM NVRAM"
 
 for tries in 1 2 3; do
-	read -s -p "Enter TPM Owner password (blank to abort): " tpm_password
+	read -s -p "Enter LUKS Disk Unlock password (blank to abort): " tpm_password
 	echo
 
 	if [ -z "$tpm_password" ]; then
