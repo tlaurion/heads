@@ -39,6 +39,8 @@ lvm_suggest=$(lvm vgscan|awk -F '"' {'print $1'}|tail -n +2)
 num_lvm=$(echo "$lvm_suggest"|wc -l)
 if [ $num_lvm -eq 1 ] && [ ! -z $lvm_suggest ]; then
   lvm_volume_group=$lvm_suggest
+elif [ -z $lvm_suggest ]; then
+  num_lvm=0
 fi
 
 devices_suggest=$(blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks $device;if [ $(echo $?) == 0 ]; then echo $device;fi; done | sort)
@@ -74,21 +76,47 @@ if [ "$CONFIG_TPM" = "y" ]; then
     if [ "$add_key_confirm" = "y" ] || [ "$add_key_confirm" = "Y" ] || [ -z "$add_key_confirm" ]; then
       if [ $num_lvm -gt 1 ]; then
         read \
-        -p "Encrypted LVM group? choose one: $lvm_suggest: " \
-        lvm_volume_group
-    else
+          -p "Encrypted LVM group? choose one: $lvm_suggest: " \
+          lvm_volume_group
+        
+        //untested
+        LVM_NOT_FOUND=1
+        while [ $LVM_NOT_FOUND -ne 0 ];do
+        {
+            read \
+              -p "Encrypted LVM group? choose between: $lvm_suggest: " \
+              lvm_volume_group
+
+            result=$(echo "$lvm_suggest" | grep -q "$lvm_volume_group") || LVM_NOT_FOUND=1
+            if [ $? == 0 ]; then
+              LVM_NOT_FOUND=0
+            fi
+        };done	
+      else
         echo "No encrypted LVM Group found."
-    fi
+      fi
 
        if [ $num_devices -gt 1 ]; then
         read \
         -p "Encrypted devices? (choose one: $devices_suggest): " \
         key_devices
-       else
-        echo "No encrypted devices found."
-       fi
+        LUKSDEV_NOT_FOUND=1
+        while [ $LUKSDEV_NOT_FOUND -ne 0 ];do
+        {
+          read \
+          -p "Encrypted devices? (choose one: $devices_suggest): " \
+          key_devices
 
-      save_key="y"
+          result=$(echo "$devices_suggest" | grep -q "$key_devices") || LUKSDEV_NOT_FOUND=1
+          if [ $? == 0 ]; then
+            LUKSDEV_NOT_FOUND=0
+          fi
+        };done
+      else
+        echo "No encrypted devices found."
+      fi
+
+    save_key="y"
     else
       die "User chose to not add disk unlock key to te TPM"
     fi
@@ -139,9 +167,19 @@ if [ "$CONFIG_TPM" = "y" ]; then
         if [ $num_lvm -eq 1 ]; then
           lvm_volume_group=$lvm_suggest
         elif [ $num_lvm -gt 1 ]; then
-          read \
-            -p "Encrypted LVM group? choose one: $lvm_suggest: " \
-            lvm_volume_group
+          //untested
+          LVM_NOT_FOUND=1
+          while [ $LVM_NOT_FOUND -ne 0 ];do
+          {
+              read \
+                -p "Encrypted LVM group? choose between: $lvm_suggest: " \
+                lvm_volume_group
+
+              result=$(echo "$lvm_suggest" | grep -q "$lvm_volume_group") || LVM_NOT_FOUND=1
+              if [ $? == 0 ]; then
+                LVM_NOT_FOUND=0
+              fi
+          };done
         else
           echo "No encrypted LVM Group found."
         fi
@@ -149,9 +187,18 @@ if [ "$CONFIG_TPM" = "y" ]; then
         if [ $num_devices -eq 1 ]; then
           key_devices=$devices_suggest
         elif [ $num_devices -gt 1 ]; then
-          read \
-          -p "Encrypted devices? (choose one: $devices_suggest): " \
-          key_devices
+          LUKSDEV_NOT_FOUND=1
+            while [ $LUKSDEV_NOT_FOUND -ne 0 ];do
+            {
+              read \
+              -p "Encrypted devices? (choose one: $devices_suggest): " \
+              key_devices
+
+              result=$(echo "$devices_suggest" | grep -q "$key_devices") || LUKSDEV_NOT_FOUND=1
+              if [ $? == 0]; then
+                LUKSDEV_NOT_FOUND=0
+              fi
+            };done
         else
           echo "No encrypted devices found."
         fi
@@ -164,7 +211,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
     elif [ -n $key_devices ]; then
       save_key_params="$save_key_params $key_devices"
     else
-      die "No LVM Group nor Encrypted devices provided."
+      die "No LVM Group nor encrypted devices provided."
     fi
   fi  
   echo -e "\nRunning kexec-save-key with params: $save_key_params\n"
