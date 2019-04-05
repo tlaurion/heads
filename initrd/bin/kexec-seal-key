@@ -66,14 +66,14 @@ for dev in `cat "$KEY_DEVICES" | cut -d\  -f1`; do
 	cryptsetup luksKillSlot \
 		--key-file "$RECOVERY_KEY" \
 		$dev 1 \
-	|| warn "$dev: ignoring problem"
+	|| warn "Removing LUKS Disk Unlock on $dev keyslot 1 failed. Bad passphrase or slot 1 not existing. Continuing..."
 
 	echo "++++++ $dev: Adding key"
 	cryptsetup luksAddKey \
 		--key-file "$RECOVERY_KEY" \
 		--key-slot 1 \
 		$dev "$KEY_FILE" \
-	|| die "$dev: Unable to add key"
+	|| die "$dev: Unable to add key. Good password is supposed to remove keyslot and prevent this error. Try again."
 done
 
 # Now that we have setup the new keys, measure the PCRs
