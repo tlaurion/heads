@@ -54,7 +54,7 @@ if [ "$unseal_failed" = "y" ]; then
 	confirm_boot="n"
 	read \
 		-n 1 \
-		-p "Do you wish to boot and use the Disk Recovery Key and type it's associated passphrase? [Y/n] " \
+		-p "Do you wish to boot and use the Disk Recovery Key? [Y/n] " \
 		confirm_boot
 
 	if [ "$confirm_boot" != 'y' \
