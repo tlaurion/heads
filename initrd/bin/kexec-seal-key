@@ -35,21 +35,27 @@ if [ -r "$KEY_LVM" ]; then
 		|| die "$VOLUME_GROUP: Unable to activate volume group"
 fi
 
-# Key slot 0 is the Disk Recovery Key
+# Key slot 0 is the Disk Recovery Key pass phrase
 # that the user/OEM entered when they installed/reencrypted the Operating System (LUKS container)
 # key slot 1 is the Disk Unlock Key that the user generated.
 read -s -p "Enter Disk Recovery Key passphrase: " disk_password
 echo -n "$disk_password" > "$RECOVERY_KEY"
 echo
 
-read -s -p "New Disk Unlock Key passphrase for booting Operating System: " key_password
-echo
-read -s -p "Repeat Disk Unlock Key passphrase: " key_password2
-echo
+password_mismatch=1
+while [ "$password_mismatch" -ne 0 ];do
+{
+  read -s -p "New Disk Unlock Key passphrase for booting Operating System: " key_password
+  echo
+  read -s -p "Repeat Disk Unlock Key passphrase: " key_password2
+  echo
 
-if [ "$key_password" != "$key_password2" ]; then
-	die "Disk Unlock Key passphrases did not match"
-fi
+  if [ "$key_password" != "$key_password2" ]; then
+	  die "Disk Unlock Key passphrases did not match"
+  else
+    password_mismatch=0
+  fi
+};done
 
 # Generate key file
 dd \
@@ -62,18 +68,18 @@ dd \
 
 # Remove all the old keys from slot 1
 for dev in `cat "$KEY_DEVICES" | cut -d\  -f1`; do
-	echo "++++++ $dev: Removing old key slot"
-	cryptsetup luksKillSlot \
-		--key-file "$RECOVERY_KEY" \
-		$dev 1 \
-	|| warn "Removing LUKS Disk Unlock on $dev keyslot 1 failed. Bad passphrase or slot 1 not existing. Continuing..."
+  echo "++++++ $dev: Removing key slot 1"
+  cryptsetup luksKillSlot \
+    --key-file "$RECOVERY_KEY" \
+    $dev 1 \
+  || warn "Removing LUKS Disk Unlock Key on $dev (key slot 1) failed. Bad passphrase or key slot 1 not existing. Continuing..."
 
-	echo "++++++ $dev: Adding key"
-	cryptsetup luksAddKey \
-		--key-file "$RECOVERY_KEY" \
-		--key-slot 1 \
-		$dev "$KEY_FILE" \
-	|| die "$dev: Unable to add key. Good password is supposed to remove keyslot and prevent this error. Try again."
+  echo "++++++ $dev: Adding key"
+  cryptsetup luksAddKey \
+    --key-file "$RECOVERY_KEY" \
+    --key-slot 1 \
+    $dev "$KEY_FILE" \
+  || die "Unable to add key to $dev key slot 1. Please try again with actual LUKS Disk Recovery Key Password."
 done
 
 # Now that we have setup the new keys, measure the PCRs
