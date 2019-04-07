@@ -172,11 +172,10 @@ check_onboarding_progress()
       echo $totp_confirm > /tmp/whiptail
       return
     fi
-    if [ $(grep -E "luks_reencrypted|luks_passwd_changed|gpg_factory_resetted|tpm_reowned" /boot/oem | wc -l) -eq 4 ];then
+    if [ $(grep -E "luks_reencrypted|luks_passwd_changed|gpg_factory_resetted|tpm_reowned" /boot/oem | uniq | wc -l) -eq 4 ];then
       if [ $HOTP = "Success" ];then
         mount -o remount,rw /boot
         rm /boot/oem
-        rm /boot/kexec_*hashes*
         mount -o remount,ro /boot
         unset reownership_state
 
@@ -214,11 +213,7 @@ if [ -e /boot/reset_disk_unlock_key ]; then
     "You just generated a new TOTP/HOTP secret. TPM released Disk Unlock Key\n stored in LUKS header must be regenerated.\n\nTo do so, select a new default boot option and agree to:\n -Modify the disk\n -Reseal Disk Unlock Key to the TPM.\n -Sign config changes with your GPG card user's PIN" 30 90
   # Try to select a kernel from the menu
   mount_boot
-  verify_global_hashes
-  if [ $? -ne 0 ]; then
-    continue
-  fi
- 
+  
   if [ "$CONFIG_TPM" = n ]; then
       TOTP="NO TPM"
   else
@@ -234,7 +229,7 @@ if [ -e /boot/reset_disk_unlock_key ]; then
         whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your LibremKey/Nitrokey' --msgbox "Your LibremKey/Nitrokey was not detected.\n\nPlease insert your LibremKey/Nitrokey" 30 90
       fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
-      libremkey_hotp_verification check $HOTP
+      libremkey_hotp_verification check "$HOTP"
       case "$?" in
         0 )
           HOTP="Success"
@@ -253,6 +248,9 @@ if [ -e /boot/reset_disk_unlock_key ]; then
     fi
       
     if [ $HOTP = "Success" ];then
+      mount -o remount,rw /boot
+      rm /boot/reset_disk_unlock_key
+      mount -o remount,ro /boot
       kexec-select-boot -m -b /boot -c "grub.cfg" -g
       continue
     else
@@ -313,7 +311,7 @@ while true; do
         whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your LibremKey/Nitrokey' --msgbox "Your LibremKey/Nitrokey was not detected.\n\nPlease insert your LibremKey/Nitrokey" 30 90
         fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
-      libremkey_hotp_verification check $HOTP
+      libremkey_hotp_verification check "$HOTP"
       case "$?" in
         0 )
           HOTP="Success"
@@ -539,7 +537,7 @@ while true; do
       
       if [ $(echo $?) -ne 0 ]; then
         whiptail --title 'Invalid LUKS Disk Recovery passphrase?' --msgbox \
-          "The LUKS Disk Recovery Key password was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\n\nTo do so, place ISO file with a valid signature file (.asc) on root of USB drive,\n and select Boot from USB\n\nHit Enter to continue." 30 60
+          "The LUKS Disk Recovery Key password was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\n\nTo do so, place ISO file and its signature file on root of USB drive,\n and select Boot from USB\n\nHit Enter to continue." 30 60
         continue
       else
         #Successfully reencrypted LUKS container with current Disk Recovery Key passphrase. Write successful state in oem file
@@ -561,7 +559,7 @@ while true; do
       cryptsetup luksChangeKey $LUKS --key-slot 0 --tries 3
       if [ $(echo $?) -ne 0 ]; then
         whiptail --title 'Invalid LUKS passphrase?' --msgbox \
-          "The LUKS Disk Recovery Key passphrase was provided to you by the OEM over secure communication channel.\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\nTo do so, put OS ISO file with it's signature file on USB drive,\n And select Boot from USB\n\nHit Enter to continue." 30 60
+          "The LUKS Disk Recovery Key passphrase was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\nTo do so, put OS ISO file and it's signature file on root of USB drive,\n And select Boot from USB\n\nHit Enter to continue." 30 60
         continue
       else
         #Successfully changed LUKS Disk Recovery Key passphrase. Write successful state in oem file
