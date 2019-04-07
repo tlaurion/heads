@@ -81,10 +81,10 @@ mount -o remount,rw /boot
 
 counter_value=$(expr $counter_value + 1)
 echo "$counter_value" > $HOTP_COUNTER \
-|| die "Unable to create hotp counter file"
+|| die "Unable to create HOTP counter file"
 
 #sha256sum /tmp/counter-$counter > $HOTP_COUNTER \
-#|| die "Unable to create hotp counter file"
+#|| die "Unable to create HOTP counter file"
 mount -o remount,ro /boot
 
 echo "LibremKey/NitroKey initialized successfully. Press Enter to continue."
