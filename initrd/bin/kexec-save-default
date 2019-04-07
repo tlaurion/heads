@@ -36,15 +36,15 @@ HASH_FILE="$paramsdir/kexec_default_hashes.txt"
 
 lvm_suggest=$(lvm vgscan|awk -F '"' {'print $1'}|tail -n +2)
 num_lvm=$(echo "$lvm_suggest"|wc -l)
-if [ $num_lvm -eq 1 ] && [ ! -z $lvm_suggest ]; then
+if [ "$num_lvm" -eq 1 ] && [ -n "$lvm_suggest" ]; then
   lvm_volume_group=$lvm_suggest
-elif [ -z $lvm_suggest ]; then
+elif [ -z "$lvm_suggest" ]; then
   num_lvm=0
 fi
 
-devices_suggest=$(blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks $device;if [ $(echo $?) == 0 ]; then echo $device;fi; done | sort)
+devices_suggest=$(blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks "$device";if [ $(echo $?) == 0 ]; then echo "$device";fi; done | sort)
 num_devices=$(echo "$devices_suggest"|wc -l)
-if [ $num_devices -eq 1 ]; then
+if [ "$num_devices" -eq 1 ]; then
   key_devices=$devices_suggest
 else
   devices_suggest=$(echo $devices_suggest)
@@ -55,7 +55,7 @@ if [ ! -r "$TMP_MENU_FILE" ]; then
   die "No menu options available, please run kexec-select-boot"
 fi
 
-entry=`head -n $index $TMP_MENU_FILE | tail -1`
+entry=$(head -n "$index" $TMP_MENU_FILE | tail -1)
 if [ -z "$entry" ]; then
   die "Invalid menu index $index"
 fi
@@ -65,7 +65,7 @@ KEY_LVM="$paramsdir/kexec_key_lvm.txt"
 save_key="n"
 
 if [ "$CONFIG_TPM" = "y" ]; then
-  if [ ! -r "$KEY_DEVICES" ]; then
+  if [ ! -s "$KEY_DEVICES" ]; then
     read \
       -n 1 \
       -p "Do you wish to add a Disk Unlock Key to the TPM [Y/n]: " \
@@ -87,11 +87,14 @@ if [ "$CONFIG_TPM" = "y" ]; then
               selected_lvmdev_not_existing=0
             fi
         };done	
+      elif [ $num_lvm -eq 1 ]; then
+        echo "Single Encrypted LVM group found at $lvm_suggest. Using it."
+        lvm_volume_group=$lvm_suggest
       else
         echo "No encrypted LVM Group found."
       fi
 
-      if [ $num_devices -gt 1 ]; then
+      if [ "$num_devices" -gt 1 ]; then
         selected_luksdev_not_existing=1
         while [ $selected_luksdev_not_existing -ne 0 ];do
         {
@@ -104,6 +107,9 @@ if [ "$CONFIG_TPM" = "y" ]; then
             selected_luksdev_not_existing=0
           fi
         };done
+      elif [ "$num_devices" -eq 1 ]; then
+        echo "Single Encrypted Disk found at $devices_suggest. Using it."
+        key_devices=$devices_suggest
       else
         echo "No encrypted devices found."
       fi
@@ -122,18 +128,18 @@ if [ "$CONFIG_TPM" = "y" ]; then
     if [ "$change_key_confirm" = "y" ] || [ "$change_key_confirm" = "Y" ] || [ -z "$change_key_confirm" ]; then
       old_lvm_volume_group=""
       if [ -r "$KEY_LVM" ]; then
-        old_lvm_volume_group=`cat $KEY_LVM` || true
-        old_key_devices=`cat $KEY_DEVICES \
+        old_lvm_volume_group=$(cat "$KEY_LVM") || true
+        old_key_devices=$(cat "$KEY_DEVICES" \
         | cut -d\  -f1 \
         | grep -v "$old_lvm_volume_group" \
-        | xargs` || true
+        | xargs) || true
       else
-        old_key_devices=`cat $KEY_DEVICES \
-        | cut -d\  -f1 | xargs` || true
+        old_key_devices=$(cat "$KEY_DEVICES" \
+        | cut -d\  -f1 | xargs) || true
       fi
 
-      lvm_suggest="was '$old_lvm_volume_group'"
-      devices_suggest="was '$old_key_devices'"
+      lvm_suggest="$old_lvm_volume_group"
+      devices_suggest="$old_key_devices"
       save_key="y"
     else
       echo -e "\n\nTo set a new Disk Unlock Key passphrase, different then Disk Recovery Key passphrase, resealing the Disk Unlock key to the TPM is needed.\n\nThe actual default boot option have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, prompted from TPM measurements mismatches.\n\nIt is strongly advised to set a new default boot option, which will add the Disk Unlock Key to the TPM.\n\nThe Disk Unlock Key passphrase you will choose at this step will be required of you at each machine startup and will protect the Disk Recovery Key passphrase from interested eyes.\n\nBy selecting a Disk Unlock Key passphrase, a camera that would see you type your Disk Unlock Key passphrase will only be able to access the content of your hard drive on this computer.\n\nMore critically, someone knowing your Disk Recovery Key passphrase would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
@@ -150,14 +156,15 @@ if [ "$CONFIG_TPM" = "y" ]; then
        echo
       if [ "$reuse_past_devices" = "y" ] || [ "$reuse_past_devices" = "Y" ] || [ -z "$reuse_past_devices" ]; then
         if [ -z "$key_devices" ] && [ -n "$old_key_devices" ]; then
-          key_devices=$old_key_devices
+          key_devices="$old_key_devices"
         fi
         if [ -z "$lvm_volume_group" ] && [ -n "$old_lvm_volume_group" ]; then
-          lvm_volume_group=$old_lvm_volume_group
+          lvm_volume_group="$old_lvm_volume_group"
         fi
       else
         if [ $num_lvm -eq 1 ]; then
-          lvm_volume_group=$lvm_suggest
+          echo "Single Encrypted LVM group found at $lvm_suggest. Using it."
+          lvm_volume_group="$lvm_suggest"
         elif [ $num_lvm -gt 1 ]; then
           //untested
           selected_lvmdev_not_existing=1
@@ -176,9 +183,10 @@ if [ "$CONFIG_TPM" = "y" ]; then
           echo "No encrypted LVM Group found."
         fi
 
-        if [ $num_devices -eq 1 ]; then
-          key_devices=$devices_suggest
-        elif [ $num_devices -gt 1 ]; then
+        if [ "$num_devices" -eq 1 ]; then
+          echo "Single Encrypted Disk found at $devices_suggest. Using it."
+          key_devices="$devices_suggest"
+        elif [ "$num_devices" -gt 1 ]; then
           selected_luksdev_not_existing=1
             while [ $selected_luksdev_not_existing -ne 0 ];do
             {
@@ -187,7 +195,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
               key_devices
 
               result=$(echo "$devices_suggest" | grep -q "$key_devices") || selected_luksdev_not_existing=1
-              if [ $? == 0]; then
+              if [ $? == 0 ]; then
                 selected_luksdev_not_existing=0
               fi
             };done
@@ -200,7 +208,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
     save_key_params="-s -p $paramsdev"
     if [ -n "$lvm_volume_group" ]; then
       save_key_params="$save_key_params -l $lvm_volume_group $key_devices"
-    elif [ -n $key_devices ]; then
+    elif [ -n "$key_devices" ]; then
       save_key_params="$save_key_params $key_devices"
     else
       die "No LVM Group nor encrypted devices provided."
