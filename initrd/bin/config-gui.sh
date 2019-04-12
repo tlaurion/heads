@@ -55,7 +55,7 @@ while true; do
   whiptail --clear --title "Config Management Menu" \
     --menu "This menu lets you change settings for the current BIOS session.\n\nAll changes will revert after a reboot,\n\nunless you also save them to the running BIOS." 20 90 10 \
     'b' ' Change the /boot device' \
-    'u' ' Change the USB boot device' \
+    'u' ' Change the USB boot/external storage device' \
     's' ' Save the current configuration to the running BIOS' \
     'x' ' Exit' \
     2>/tmp/whiptail || recovery "GUI menu failed"
