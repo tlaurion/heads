@@ -54,8 +54,6 @@ flash_rom() {
       mount -o remount,rw /boot
       touch /boot/reset_disk_unlock_key
       mount -o remount,ro /boot
-      echo "Hit Enter to continue"
-      read
     fi
   fi
 }

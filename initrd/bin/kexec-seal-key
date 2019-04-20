@@ -56,7 +56,7 @@ if [ -z "$oem_luks_Disk_Unlock_Key" ]; then
     echo
 
     if [ "$key_password" != "$key_password2" ]; then
-	    die "Disk Unlock Key passphrases did not match"
+	    echo "Disk Unlock Key passphrases did not match"
     else
       password_mismatch=0
     fi

@@ -157,78 +157,80 @@ read_oem_file()
 {
   echo "Mounting USB drive to provision OEM reownership from /media/oem-provisioning..."
   /bin/mount-usb || warn "Unable to mount USB device. Continuing"
-  oem_name=$(grep "oem_name" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_name" ]; then
-    export oem_name="$oem_name"
-  else
-    oem_name="your OEM"
-    export oem_name="$oem_name"
-  fi
+  if [ -e /media/oem-provisioning ]; then
+    oem_name=$(grep "oem_name" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_name" ]; then
+      export oem_name="$oem_name"
+    else
+      oem_name="your OEM"
+      export oem_name="$oem_name"
+    fi
 
-  oem_gpg_Admin_PIN=$(grep "oem_gpg_Admin_PIN" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_gpg_Admin_PIN" ]; then
-    export oem_gpg_Admin_PIN="$oem_gpg_Admin_PIN"
-  else
-    unset oem_gpg_Admin_PIN
-  fi
+    oem_gpg_Admin_PIN=$(grep "oem_gpg_Admin_PIN" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_gpg_Admin_PIN" ]; then
+      export oem_gpg_Admin_PIN="$oem_gpg_Admin_PIN"
+    else
+      unset oem_gpg_Admin_PIN
+    fi
   
-  oem_gpg_User_PIN=$(grep "oem_gpg_User_PIN" /media/oem-provisioning | awk -F '=' {'print $2'}) 
-  if [ -n "$oem_gpg_User_PIN" ]; then
-    export oem_gpg_User_PIN="$oem_gpg_User_PIN"
-  else
-    unset oem_gpg_User_PIN 
-  fi
+    oem_gpg_User_PIN=$(grep "oem_gpg_User_PIN" /media/oem-provisioning | awk -F '=' {'print $2'}) 
+    if [ -n "$oem_gpg_User_PIN" ]; then
+      export oem_gpg_User_PIN="$oem_gpg_User_PIN"
+    else
+      unset oem_gpg_User_PIN 
+    fi
 
-  oem_gpg_real_name=$(grep "oem_gpg_real_name" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_gpg_real_name" ]; then
-    export oem_gpg_real_name="$oem_gpg_real_name"
-  else
-    unset oem_gpg_real_name
-  fi
+    oem_gpg_real_name=$(grep "oem_gpg_real_name" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_gpg_real_name" ]; then
+      export oem_gpg_real_name="$oem_gpg_real_name"
+    else
+      unset oem_gpg_real_name
+    fi
 
-  oem_gpg_email=$(grep "oem_gpg_email" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_gpg_email" ]; then
-    export oem_gpg_email="$oem_gpg_email"
-  else
-    unset oem_gpg_email 
-  fi
+    oem_gpg_email=$(grep "oem_gpg_email" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_gpg_email" ]; then
+      export oem_gpg_email="$oem_gpg_email"
+    else
+      unset oem_gpg_email 
+    fi
 
-  oem_gpg_comment=$(grep "oem_gpg_comment" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_gpg_comment" ]; then
-    export oem_gpg_comment="$oem_gpg_comment"
-  else
-    unset oem_gpg_comment
-  fi
+    oem_gpg_comment=$(grep "oem_gpg_comment" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_gpg_comment" ]; then
+      export oem_gpg_comment="$oem_gpg_comment"
+    else
+      unset oem_gpg_comment
+    fi
 
-  oem_luks_actual_Disk_Recovery_Key=$(grep "oem_luks_actual_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_luks_actual_Disk_Recovery_Key" ]; then
-    export oem_luks_actual_Disk_Recovery_Key="$oem_luks_actual_Disk_Recovery_Key"
-  else
-    unset oem_luks_actual_Disk_Recovery_Key
-  fi
+    oem_luks_actual_Disk_Recovery_Key=$(grep "oem_luks_actual_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_luks_actual_Disk_Recovery_Key" ]; then
+      export oem_luks_actual_Disk_Recovery_Key="$oem_luks_actual_Disk_Recovery_Key"
+    else
+      unset oem_luks_actual_Disk_Recovery_Key
+    fi
 
-  oem_luks_new_Disk_Recovery_Key=$(grep "oem_luks_new_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_luks_new_Disk_Recovery_Key" ]; then
-    export oem_luks_new_Disk_Recovery_Key="$oem_luks_new_Disk_Recovery_Key"
-  else
-    unset oem_luks_new_Disk_Recovery_Key
-  fi
+    oem_luks_new_Disk_Recovery_Key=$(grep "oem_luks_new_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_luks_new_Disk_Recovery_Key" ]; then
+      export oem_luks_new_Disk_Recovery_Key="$oem_luks_new_Disk_Recovery_Key"
+    else
+      unset oem_luks_new_Disk_Recovery_Key
+    fi
 
-  oem_luks_Disk_Unlock_Key=$(grep "oem_luks_Disk_Unlock_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_luks_Disk_Unlock_Key" ]; then
-    export oem_luks_Disk_Unlock_Key="$oem_luks_Disk_Unlock_Key"
-  else
-    unset oem_luks_Disk_Unlock_Key
-  fi
+    oem_luks_Disk_Unlock_Key=$(grep "oem_luks_Disk_Unlock_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_luks_Disk_Unlock_Key" ]; then
+      export oem_luks_Disk_Unlock_Key="$oem_luks_Disk_Unlock_Key"
+    else
+      unset oem_luks_Disk_Unlock_Key
+    fi
 
-  oem_TPM_Owner_Password=$(grep "oem_TPM_Owner_Password" /media/oem-provisioning | awk -F '=' {'print $2'})
-  if [ -n "$oem_TPM_Owner_Password" ]; then
-    export oem_TPM_Owner_Password="$oem_TPM_Owner_Password"
-  else
-    unset oem_TPM_Owner_Password
-  fi
+    oem_TPM_Owner_Password=$(grep "oem_TPM_Owner_Password" /media/oem-provisioning | awk -F '=' {'print $2'})
+    if [ -n "$oem_TPM_Owner_Password" ]; then
+      export oem_TPM_Owner_Password="$oem_TPM_Owner_Password"
+    else
+      unset oem_TPM_Owner_Password
+    fi
   
-  export oem_configuration_read=1
+    export oem_configuration_read=1
+  fi
 }
 check_onboarding_progress()
 {
@@ -293,36 +295,13 @@ check_onboarding_progress()
       fi
     fi
   else
-    #/boot/oem file has been deleted. We do this here too so that we use the opportunity of using provisioned /media/oem-provisiong informations
-    #TODO: Put whiptail with text: By continuing, you will regenerate TOTP/HOTP code since it's invalid.\n On reboot, you will select a new default boot option and agree to:\n -Modify the disk\n -Reseal Disk Unlock Key to the TPM.\n -Sign config changes with your GPG card user's PIN
-    mount -o remount,rw /boot
-    #TODO: reset_disk_unlock_key gets checksumed and signed before its deleted. BAD
-    rm /boot/reset_disk_unlock_key
-    mount -o remount,ro /boot
-    #TODO: since /boot/oem got deleted here, we take the opportunity to generate new hashes not including it nor /boot/reset_disk_unlock_key, if needed
-    #TODO: Was after "DISK UNLOCK KEY ADVICE 3/3"
-    verify_global_hashes
-    kexec-select-boot -m -b /boot -c "grub.cfg" -g
+    reset_disk_unlock_key
     return
-  fi
-  
+  fi  
 }
-
+reset_disk_unlock_key()
+{
 mount_boot
-if [ -e /boot/oem ];then
-  if [ -z "$oem_configuration_read" ]; then
-    #Read /media/oem-provisioning file once to read provisioned secrets
-    read_oem_file
-  fi
-fi
-
-#TODO:validate that resetting disk unlock key only happens when /boot/oem doesn't exist anymore. Should happen after TPM reset.
-#Flashing modifies measurements, which should trigger TOTP/HOTP resealing. That happens when inserting gpg public key.
-#Measurements become invalid when TPM is reset, also.
-if [ -e /boot/reset_disk_unlock_key ] && [ ! -e /boot/oem ]; then
-  if (whiptail $CONFIG_WARNING_BG_COLOR --title "WARNING: You must change your Disk Unlock Key" \
-        --yesno "You just updated the ROM, which requires resealing TOTP/HOTP secrets.\nTPM released Disk Unlock Key stored in LUKS header must also be regenerated.\n\nIf you did not modify the ROM, this might be a sign of system compromise.\nIn that case, you should say No here and investigate." 30 90) then
-    mount_boot
   
     if [ "$CONFIG_TPM" = n ]; then
       TOTP="NO TPM"
@@ -375,6 +354,23 @@ if [ -e /boot/reset_disk_unlock_key ] && [ ! -e /boot/oem ]; then
       fi
       continue
     fi
+}
+
+mount_boot
+if [ -e /boot/oem ];then
+  if [ -z "$oem_configuration_read" ]; then
+    #Read /media/oem-provisioning file once to read provisioned secrets
+    read_oem_file
+  fi
+fi
+
+#TODO:validate that resetting disk unlock key only happens when /boot/oem doesn't exist anymore. Should happen after TPM reset.
+#Flashing modifies measurements, which should trigger TOTP/HOTP resealing. That happens when inserting gpg public key.
+#Measurements become invalid when TPM is reset, also.
+if [ -e /boot/reset_disk_unlock_key ] && [ ! -e /boot/oem ]; then
+  if (whiptail $CONFIG_WARNING_BG_COLOR --title "WARNING: You must change your Disk Unlock Key" \
+        --yesno "You just updated the ROM, which requires resealing TOTP/HOTP secrets.\nTPM released Disk Unlock Key stored in LUKS header must also be regenerated.\n\nIf you did not modify the ROM, this might be a sign of system compromise.\nIn that case, you should say No here and investigate." 30 90) then
+    reset_disk_unlock_key
   else
     recovery "User refused to update TOTP/HOTP following what seemed to be a ROM update. Time to investigate changes manually."
   fi
