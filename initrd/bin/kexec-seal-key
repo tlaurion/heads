@@ -38,24 +38,32 @@ fi
 # Key slot 0 is the Disk Recovery Key pass phrase
 # that the user/OEM entered when they installed/reencrypted the Operating System (LUKS container)
 # key slot 1 is the Disk Unlock Key that the user generated.
-read -s -p "Enter Disk Recovery Key passphrase: " disk_password
-echo -n "$disk_password" > "$RECOVERY_KEY"
-echo
-
-password_mismatch=1
-while [ "$password_mismatch" -ne 0 ];do
-{
-  read -s -p "New Disk Unlock Key passphrase for booting Operating System: " key_password
+if [ -z "$oem_luks_new_Disk_Recovery_Key" ]; then
+  read -s -p "Enter Disk Recovery Key passphrase: " disk_password
+  echo -n "$disk_password" > "$RECOVERY_KEY"
   echo
-  read -s -p "Repeat Disk Unlock Key passphrase: " key_password2
-  echo
+else
+  echo -n "$oem_luks_new_Disk_Recovery_Key" > "$RECOVERY_KEY"
+fi
 
-  if [ "$key_password" != "$key_password2" ]; then
-	  die "Disk Unlock Key passphrases did not match"
-  else
-    password_mismatch=0
-  fi
-};done
+if [ -z "$oem_luks_Disk_Unlock_Key" ]; then
+  password_mismatch=1
+  while [ "$password_mismatch" -ne 0 ];do
+  {
+    read -s -p "New Disk Unlock Key passphrase for booting Operating System: " key_password
+    echo
+    read -s -p "Repeat Disk Unlock Key passphrase: " key_password2
+    echo
+
+    if [ "$key_password" != "$key_password2" ]; then
+	    die "Disk Unlock Key passphrases did not match"
+    else
+      password_mismatch=0
+    fi
+  };done
+else
+  key_password=$(echo -n "$oem_luks_Disk_Unlock_Key")
+fi
 
 # Generate key file
 dd \
@@ -138,9 +146,13 @@ if ! tpm nv_writevalue \
 	# about the sealed file
 	tpm physicalpresence -s \
 	|| warn "Warning: Unable to assert physical presence"
-
-	read -s -p "TPM Owner password: " tpm_password
-	echo
+  
+  if [ -z "$oem_TPM_Owner_Password" ]; then
+	  read -s -p "TPM Owner password: " tpm_password
+	  echo
+  else
+    tpm_password="$oem_TPM_Owner_Password"
+  fi
 
 	tpm nv_definespace \
 		-in $TPM_INDEX \

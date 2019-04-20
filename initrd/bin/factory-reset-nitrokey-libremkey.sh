@@ -44,11 +44,18 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
   killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
  
-  #Setting new passwords
-  gpgcard_user_pass1=1
-  gpgcard_user_pass2=2
-  gpgcard_admin_pass1=3
-  gpgcard_admin_pass2=4
+  if [ -z $oem_gpg_Admin_PIN ] || [ -z $oem_gpg_User_PIN ]; then
+    #Setting new passwords
+    gpgcard_user_pass1=1
+    gpgcard_user_pass2=2
+    gpgcard_admin_pass1=3
+    gpgcard_admin_pass2=4
+  else
+    gpgcard_user_pass1="$oem_gpg_User_PIN"
+    gpgcard_user_pass2="$oem_gpg_User_PIN"
+    gpgcard_admin_pass1="$oem_gpg_Admin_PIN"
+    gpgcard_admin_pass2="$oem_gpg_Admin_PIN"
+  fi
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
   {
@@ -75,19 +82,21 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   echo -e "We will generate a GnuPG (GPG) keypair identifiable with the following text form:"
   echo -e "Real Name (Comment) email@address.org"
   
+  gpgcard_real_name="$oem_gpg_real_name"
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
     echo -e "\nEnter your Real Name (At least 5 characters long):"
     read -r gpgcard_real_name
   };done
 
-  
+  gpgcard_email_address="$oem_gpg_email"
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
     echo -e "\nEnter your email@adress.org:"
     read -r gpgcard_email_address
   };done
-
+  
+  gpgcard_comment="$oem_gpg_comment"
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z $gpgcard_comment ]]; do
   {
     echo -e "\nEnter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
@@ -160,18 +169,19 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo "$gpgcard_real_name"
     echo "$gpgcard_email_address"
     echo "$gpgcard_comment"
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting real name, emdail address and comment in GPG failed."
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting real name, e-mail address and comment in GPG failed."
 
   #Export and inject public key and trustdb export into extracted rom with current user keys being wiped
   rom=/tmp/gpg-gui.rom
-  #remove invalid kexec_* signed files
+  #remove invalid signsignature file
   mount -o remount,rw /boot
-  rm -f /boot/kexec*
+  #TODO: removing the checksum signature file results in an error if not regenerated!!!! check_global_config and resigning is required
+  rm -f /boot/kexec.sig
   mount -o remount,ro /boot
 
   gpg --home=/.gnupg/ --export --armor "$gpgcard_email_address"  > /media/gpg_keys/public.key || die "Exporting public key to /media/gpg_keys/public.key failed."
   cp -rf /.gnupg/openpgp-revocs.d/* /media/gpg_keys/ 2> /dev/null || die "Copying revocation certificated into /media/gpg_keys/ failed."
-  cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/ 2> /dev/null 
+  cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/ 2> /dev/null || die "Copying secring exported keys to /media/gpg_keys/ failed." 
   cp -rf /.gnupg/pubring.* /.gnupg/trustdb.gpg /media/gpg_keys/ 2> /dev/null || die "Copying public keyring into /media/gpg_keys/ failed."
 
   #Flush changes to external media
@@ -215,15 +225,15 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
       --msgbox "New $rom flashed successfully.\n\nIf your keys have changed, be sure to re-sign all files in /boot\nafter you reboot.\n\nPress Enter to continue" 16 60
     if [ -s /boot/oem ];then
       mount -o remount,rw /boot
-      echo gpg_factory_resetted >> /boot/oem
+      echo "gpg_factory_resetted" >> /boot/oem
       mount -o remount,ro /boot
     fi
-    umount /media
-    else
+    mount -o remount,ro /media
+  else
       exit 0
   fi
 
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Reboot required' --msgbox \
-    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trust database\n included.\n\n Heads will detect the firmware change and react accordingly:\n It will ask you to reseal TOTP/HOTP (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card and it's associated user password (PIN).\n\nHit Enter to reboot." 30 90
+    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trust\n database included.\n\n Heads will detect the firmware change and react accordingly:\n It will ask you to reseal TOTP/HOTP (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card and it's associated user password (PIN).\n\nHit Enter to reboot." 30 90
   /bin/reboot
 fi

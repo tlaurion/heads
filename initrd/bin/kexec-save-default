@@ -73,7 +73,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
     echo
 
     if [ "$add_key_confirm" = "y" ] || [ "$add_key_confirm" = "Y" ] || [ -z "$add_key_confirm" ]; then
-      if [ $num_lvm -gt 1 ]; then
+      if [ "$num_lvm" -gt 1 ]; then
         //untested
         selected_lvmdev_not_existing=1
         while [ $selected_lvmdev_not_existing -ne 0 ];do
@@ -87,7 +87,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
               selected_lvmdev_not_existing=0
             fi
         };done	
-      elif [ $num_lvm -eq 1 ]; then
+      elif [ "$num_lvm" -eq 1 ]; then
         echo "Single Encrypted LVM group found at $lvm_suggest. Using it."
         lvm_volume_group=$lvm_suggest
       else
@@ -162,10 +162,10 @@ if [ "$CONFIG_TPM" = "y" ]; then
           lvm_volume_group="$old_lvm_volume_group"
         fi
       else
-        if [ $num_lvm -eq 1 ]; then
+        if [ "$num_lvm" -eq 1 ]; then
           echo "Single Encrypted LVM group found at $lvm_suggest. Using it."
           lvm_volume_group="$lvm_suggest"
-        elif [ $num_lvm -gt 1 ]; then
+        elif [ "$num_lvm" -gt 1 ]; then
           //untested
           selected_lvmdev_not_existing=1
           while [ $selected_lvmdev_not_existing -ne 0 ];do
