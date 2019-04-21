@@ -175,7 +175,6 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   rom=/tmp/gpg-gui.rom
   #remove invalid signsignature file
   mount -o remount,rw /boot
-  #TODO: removing the checksum signature file results in an error if not regenerated!!!! check_global_config and resigning is required
   rm -f /boot/kexec.sig
   mount -o remount,ro /boot
 

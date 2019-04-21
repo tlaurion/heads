@@ -116,7 +116,7 @@ while true; do
 
           cat "$PUBKEY" | gpg --import
           #update /.gnupg/trustdb.gpg to ultimately trust all user provided public keys
-          gpg --list-keys --fingerprint --with-colons | sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' |gpg --import-ownertrust
+          gpg --list-keys --fingerprint --with-colons |sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' |gpg --import-ownertrust
           gpg --update-trust
           
           cp "$ROM" /tmp/gpg-gui.rom

@@ -69,15 +69,8 @@ if [ -z "$oem_gpg_User_PIN" ]; then
 	  fi
   done
 else
-  #TODO: Make the following work. Doesn't want to!!!
-  debug "oem_gpg_User_PIN:$oem_gpg_User_PIN"
-  #TODO: remove passwdfile if not required
-  #Supposed to work but still prompts for passphrase :
-  # gpg --passphrase $oem_gpg_User_PIN --batch --quiet --yes --no-tty --detach-sign --digest-algo SHA256 -a > $paramsdir/kexec.sig
-  # gpg --passphrase "$oem_gpg_User_PIN" --batch --quiet --yes --no-tty --detach-sign --digest-algo SHA256 -a > $paramsdir/kexec.sig
-  # gpg --passphrase-file /tmp/oem_gpg_User_PIN  --batch --quiet --yes --no-tty --detach-sign --digest-algo SHA256 -a > $paramsdir/kexec.sig
   echo -n "$oem_gpg_User_PIN" > /tmp/oem_gpg_User_PIN
-  if sha256sum $param_files | gpg --pinentry-mode loopback --batch --passphrase $oem_gpg_User_PIN \
+  if sha256sum $param_files | gpg --pinentry-mode loopback --batch --passphrase-file /tmp/oem_gpg_User_PIN \
     --detach-sign \
     --digest-algo SHA256 \
     -a \

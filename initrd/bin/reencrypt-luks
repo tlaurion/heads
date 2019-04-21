@@ -28,7 +28,7 @@ if [ $reownership_state = "luks_reencryption" ]; then
   #if no USB oem-privisioning file provides actual Disk Recovery Key
   if [ -z "$oem_luks_actual_Disk_Recovery_Key" ]; then
     whiptail --title 'Reencrypt actual LUKS container with a new user selected strong passphrase?' \
-      --msgbox "This will replace the actual Disk Recovery Key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk recovery key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
+      --msgbox "This will replace the actual Disk Recovery Key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk Recovery Key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
     select_luks_container
     whiptail --title 'Reencrypting LUKS container!' --msgbox \
       "Please enter current Disk Recovery Key passphrase (slot 0) to reencrypt\n LUKS container with a brand new encryption key\n\nHit Enter to continue." 30 60
@@ -40,7 +40,7 @@ if [ $reownership_state = "luks_reencryption" ]; then
     cryptsetup-reencrypt -B 32 --use-directio "$LUKS" --key-slot 0 --key-file /tmp/oem_luks_actual_Disk_Recovery_Key -h sha256
   fi
   if [ $(echo $?) -ne 0 ]; then
-    whiptail --title 'Invalid LUKS Disk Recovery passphrase?' --msgbox \
+    whiptail --title 'Invalid LUKS Disk Recovery Key passphrase?' --msgbox \
       "The LUKS Disk Recovery Key password was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\n\nTo do so, place ISO file and its signature file on root of USB drive,\n and select Boot from USB\n\nHit Enter to continue." 30 60
     shred -n 10 -z -u /tmp/oem_luks_actual_Disk_Recovery_Key 2> /dev/null
     continue
