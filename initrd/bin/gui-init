@@ -150,7 +150,7 @@ read_oem_file()
   echo "Mounting USB drive to provision OEM reownership from /media/oem-provisioning..."
   /bin/mount-usb || warn "Unable to mount USB device. Continuing"
   if [ -e /media/oem-provisioning ]; then
-    oem_name=$(echo -n $(grep "oem_name" /boot/oem | awk -F '=' {'print $2'}))
+    oem_name=$(grep "oem_name" /boot/oem | awk -F '=' {'print $2'})
     if [ -n "$oem_name" ]; then
       export oem_name="$oem_name"
     else
@@ -158,63 +158,63 @@ read_oem_file()
       export oem_name="$oem_name"
     fi
 
-    oem_gpg_Admin_PIN=$(echo -n $(grep "oem_gpg_Admin_PIN" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_gpg_Admin_PIN=$(grep "oem_gpg_Admin_PIN" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_gpg_Admin_PIN" ]; then
       export oem_gpg_Admin_PIN="$oem_gpg_Admin_PIN"
     else
       unset oem_gpg_Admin_PIN
     fi
   
-    oem_gpg_User_PIN=$(echo -n $(grep "oem_gpg_User_PIN" /media/oem-provisioning | awk -F '=' {'print $2'})) 
+    oem_gpg_User_PIN=$(grep "oem_gpg_User_PIN" /media/oem-provisioning | awk -F '=' {'print $2'}) 
     if [ -n "$oem_gpg_User_PIN" ]; then
       export oem_gpg_User_PIN="$oem_gpg_User_PIN"
     else
       unset oem_gpg_User_PIN 
     fi
 
-    oem_gpg_real_name=$(echo -n $(grep "oem_gpg_real_name" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_gpg_real_name=$(grep "oem_gpg_real_name" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_gpg_real_name" ]; then
       export oem_gpg_real_name="$oem_gpg_real_name"
     else
       unset oem_gpg_real_name
     fi
 
-    oem_gpg_email=$(echo -n $(grep "oem_gpg_email" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_gpg_email=$(grep "oem_gpg_email" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_gpg_email" ]; then
       export oem_gpg_email="$oem_gpg_email"
     else
       unset oem_gpg_email 
     fi
 
-    oem_gpg_comment=$(echo -n $(grep "oem_gpg_comment" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_gpg_comment=$(grep "oem_gpg_comment" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_gpg_comment" ]; then
       export oem_gpg_comment="$oem_gpg_comment"
     else
       unset oem_gpg_comment
     fi
 
-    oem_luks_actual_Disk_Recovery_Key=$(echo -n $(grep "oem_luks_actual_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_luks_actual_Disk_Recovery_Key=$(grep "oem_luks_actual_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_luks_actual_Disk_Recovery_Key" ]; then
       export oem_luks_actual_Disk_Recovery_Key="$oem_luks_actual_Disk_Recovery_Key"
     else
       unset oem_luks_actual_Disk_Recovery_Key
     fi
 
-    oem_luks_new_Disk_Recovery_Key=$(echo -n $(grep "oem_luks_new_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_luks_new_Disk_Recovery_Key=$(grep "oem_luks_new_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_luks_new_Disk_Recovery_Key" ]; then
       export oem_luks_new_Disk_Recovery_Key="$oem_luks_new_Disk_Recovery_Key"
     else
       unset oem_luks_new_Disk_Recovery_Key
     fi
 
-    oem_luks_Disk_Unlock_Key=$(echo -n $(grep "oem_luks_Disk_Unlock_Key" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_luks_Disk_Unlock_Key=$(grep "oem_luks_Disk_Unlock_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_luks_Disk_Unlock_Key" ]; then
       export oem_luks_Disk_Unlock_Key="$oem_luks_Disk_Unlock_Key"
     else
       unset oem_luks_Disk_Unlock_Key
     fi
 
-    oem_TPM_Owner_Password=$(echo -n $(grep "oem_TPM_Owner_Password" /media/oem-provisioning | awk -F '=' {'print $2'}))
+    oem_TPM_Owner_Password=$(grep "oem_TPM_Owner_Password" /media/oem-provisioning | awk -F '=' {'print $2'})
     if [ -n "$oem_TPM_Owner_Password" ]; then
       export oem_TPM_Owner_Password="$oem_TPM_Owner_Password"
     else
