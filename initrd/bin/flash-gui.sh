@@ -8,21 +8,15 @@ mount_usb(){
 # Mount the USB boot device
   if ! grep -q /media /proc/mounts ; then
     mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
-    if [ $USB_FAILED -eq 1 ]; then
+    if [ $USB_FAILED -ne 0 ]; then
       if [ ! -e "$CONFIG_USB_BOOT_DEV" ]; then
         whiptail --title 'USB Drive Missing' \
           --msgbox "Insert your USB drive and press Enter to continue." 16 60 USB_FAILED=0
         mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
       fi
-      if [ $USB_FAILED -eq 1 ]; then
+      if [ $USB_FAILED -ne 0 ]; then
         whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Mounting /media Failed' \
           --msgbox "Unable to mount $CONFIG_USB_BOOT_DEV" 16 60
-      if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Select a new device to flash BIOS image from?' \
-  --yesno "You can select an alternative disk to flash your BIOS image from.\n Choose a different device then:\n Current USB device: $CONFIG_USB_BOOT_DEV\n Current system boot device: $CONFIG_BOOT_DEV \n\n Now is not a good timing to flash those changes permanently.\n PLEASE SELECT EXIT AFTER YOU ARE DONE, DO NOT SAVE CHANGES." 30 90) then
-        /bin/config-gui.sh
-      else
-        die "Please prepare a device that this computer will identify as $CONFIG_USB_BOOT_DEV"
-      fi 
       fi
     fi
   fi
@@ -110,7 +104,7 @@ while true; do
               /bin/flash.sh "$ROM"
             fi
             whiptail --title 'ROM Flashed Successfully' \
-              --msgbox "$ROM flashed successfully.\nPress Enter to reboot" 16 60
+              --msgbox "$ROM flashed successfully. Press Enter to reboot" 16 60
             umount /media
             /bin/reboot
           else
