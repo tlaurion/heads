@@ -26,7 +26,7 @@ if [ ! -d /media ]; then
 fi
 
 if [ -z "$1" ]; then
-	mount -o ro /media || die "Unable to mount /media in Read Only mode"
+	mount -o ro /media || warn "Unable to mount /media in Read Only mode"
 else
-	mount -o ro $1 /media || die "unable to mount $1 on /media in Read Only mode"
+	mount -o ro $1 /media || warn "unable to mount $1 on /media in Read Only mode"
 fi

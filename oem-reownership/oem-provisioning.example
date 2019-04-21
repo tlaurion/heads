@@ -4,7 +4,7 @@
 # To activate OEM reownership wizard, under Heads recovery console, do:
 #   mount /boot
 #   mount -o remount,rw /boot
-#   echo -n "oem_name=COMPANY NAME" > /boot/oem
+#   echo "oem_name=COMPANY NAME" > /boot/oem
 #   mount -o remount,ro /boot
 #   reboot
 #
@@ -14,6 +14,9 @@
 #   Heads will try to mount the first primary partition found on 2nd mounted device.
 # 
 # Replace variables content with your own!
+#   ******* NOTE THAT USING THE '=' CHARACTER IS PROHIBITED IN ALL PROVISIONING SECRETS BELOW!!!! *****
+#     It is used to split variables! You're better with a passphrase anyway! More easy to remember to humans
+#       more difficult to break for computers!
 #
 #The following needs to be put in /boot/oem for OEM name to be shown at OEM Reownership wizard first screen. Else it is going to be "your OEM".
 oem_name=Insurgo Open Technologies
