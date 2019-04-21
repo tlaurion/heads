@@ -77,7 +77,7 @@ else
   # gpg --passphrase "$oem_gpg_User_PIN" --batch --quiet --yes --no-tty --detach-sign --digest-algo SHA256 -a > $paramsdir/kexec.sig
   # gpg --passphrase-file /tmp/oem_gpg_User_PIN  --batch --quiet --yes --no-tty --detach-sign --digest-algo SHA256 -a > $paramsdir/kexec.sig
   echo -n "$oem_gpg_User_PIN" > /tmp/oem_gpg_User_PIN
-  if sha256sum $param_files | gpg --no-tty --batch --yes --passphrase-file /tmp/oem_gpg_User_PIN \
+  if sha256sum $param_files | gpg --pinentry-mode loopback --batch --passphrase $oem_gpg_User_PIN \
     --detach-sign \
     --digest-algo SHA256 \
     -a \
