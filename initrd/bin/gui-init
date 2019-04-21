@@ -158,7 +158,7 @@ read_oem_file()
   echo "Mounting USB drive to provision OEM reownership from /media/oem-provisioning..."
   /bin/mount-usb || warn "Unable to mount USB device. Continuing"
   if [ -e /media/oem-provisioning ]; then
-    oem_name=$(grep "oem_name" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_name=$(grep "oem_name" /boot/oem | awk -F '=' {'print $2'})
     if [ -n "$oem_name" ]; then
       export oem_name="$oem_name"
     else
