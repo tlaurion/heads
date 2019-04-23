@@ -45,10 +45,10 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     gpgcard_admin_pass1=3
     gpgcard_admin_pass2=4
   else
-    gpgcard_user_pass1="$oem_gpg_User_PIN"
-    gpgcard_user_pass2="$oem_gpg_User_PIN"
-    gpgcard_admin_pass1="$oem_gpg_Admin_PIN"
-    gpgcard_admin_pass2="$oem_gpg_Admin_PIN"
+    gpgcard_user_pass1=$oem_gpg_User_PIN
+    gpgcard_user_pass2=$oem_gpg_User_PIN
+    gpgcard_admin_pass1=$oem_gpg_Admin_PIN
+    gpgcard_admin_pass2=$oem_gpg_Admin_PIN
   fi
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
@@ -83,14 +83,14 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     read -r gpgcard_real_name
   };done
 
-  gpgcard_email_address="$oem_gpg_email"
+  gpgcard_email_address=$oem_gpg_email
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
     echo -e "\nEnter your email@adress.org:"
     read -r gpgcard_email_address
   };done
   
-  gpgcard_comment="$oem_gpg_comment"
+  gpgcard_comment=$oem_gpg_comment
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z $gpgcard_comment ]]; do
   {
     echo -e "\nEnter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
