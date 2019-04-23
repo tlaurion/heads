@@ -38,17 +38,17 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
   killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
  
-  if [ -z $oem_gpg_Admin_PIN ] || [ -z $oem_gpg_User_PIN ]; then
+  if [ -z "$oem_gpg_Admin_PIN" ] || [ -z "$oem_gpg_User_PIN" ]; then
     #Setting new passwords
     gpgcard_user_pass1=1
     gpgcard_user_pass2=2
     gpgcard_admin_pass1=3
     gpgcard_admin_pass2=4
   else
-    gpgcard_user_pass1=$oem_gpg_User_PIN
-    gpgcard_user_pass2=$oem_gpg_User_PIN
-    gpgcard_admin_pass1=$oem_gpg_Admin_PIN
-    gpgcard_admin_pass2=$oem_gpg_Admin_PIN
+    gpgcard_user_pass1=$(echo -n "$oem_gpg_User_PIN")
+    gpgcard_user_pass2=$(echo -n "$oem_gpg_User_PIN")
+    gpgcard_admin_pass1=$(echo -n "$oem_gpg_Admin_PIN")
+    gpgcard_admin_pass2=$(echo -n "$oem_gpg_Admin_PIN")
   fi
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
@@ -76,22 +76,22 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   echo -e "We will generate a GnuPG (GPG) keypair identifiable with the following text form:"
   echo -e "Real Name (Comment) email@address.org"
   
-  gpgcard_real_name="$oem_gpg_real_name"
+  gpgcard_real_name=$(echo -n "$oem_gpg_real_name")
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
     echo -e "\nEnter your Real Name (At least 5 characters long):"
     read -r gpgcard_real_name
   };done
 
-  gpgcard_email_address=$oem_gpg_email
+  gpgcard_email_address=$(echo -n "$oem_gpg_email")
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
     echo -e "\nEnter your email@adress.org:"
     read -r gpgcard_email_address
   };done
   
-  gpgcard_comment=$oem_gpg_comment
-  while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z $gpgcard_comment ]]; do
+  gpgcard_comment=$(echo -n "$oem_gpg_comment")
+  while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z "$gpgcard_comment" ]]; do
   {
     echo -e "\nEnter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
     read -r gpgcard_comment

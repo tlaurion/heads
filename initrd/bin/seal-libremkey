@@ -62,7 +62,7 @@ if [ -z "$oem_gpg_Admin_PIN" ]; then
   read -s -p "Enter your LibremKey/NitroKey Admin PIN:" admin_pin
   echo
 else
-  admin_pin=$(echo -n $oem_gpg_Admin_PIN)
+  admin_pin=$(echo -n "$oem_gpg_Admin_PIN")
 fi
 
 libremkey_hotp_initialize "$admin_pin" "$secret" $counter_value 
