@@ -83,7 +83,7 @@ oem_name=Insurgo Open Technologies
 # In Heads, the Admin PIN is required to seal HOTP secret into NitroKey/LibremKey when firmware has been modified.
 # 
 # NOTES: If the GPG card is lost, the user won't be able to seal firmware changes through HOTP.
-# Size constaints: minimum 8 characters, maximum 20 characters. 
+# Size constaints: minimum 8 characters, maximum 20 characters, WITHOUT SPACES 
 #   No need to go crazy here. Remember that 3 bad attempts locks the account. One or two Diceware words are enough.
 #     Use KeepassXC password manager or something like https://www.rempe.us/diceware/#eff
 oem_gpg_Admin_PIN=InsurgoTech
@@ -96,7 +96,7 @@ oem_gpg_Admin_PIN=InsurgoTech
 #   At each boot, the imported public key counterpart is used to validate the checksums of the files signed with the card.
 # 
 # NOTES: If the GPG card is lost, the user won't be able to sign system changes.
-# Size constaints: minimum 6 characters, maximum 20 characters. 
+# Size constaints: minimum 6 characters, maximum 20 characters, WITHOUT SPACES 
 #   No need to go crazy here. Remember that 3 bad attempts locks the account. One or two Diceware words are enough.
 #     Use KeepassXC password manager or something like https://www.rempe.us/diceware/#eff
 oem_gpg_User_PIN=Insurgo
