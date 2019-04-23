@@ -12,9 +12,14 @@
 # 6- Boot your newly received hardware with USB drive connected.
 # 7- Enjoy!
 #
-oem_gpg_Admin_PIN=$(diceware -d " " -n 2)
+while [[ ${#oem_gpg_Admin_PIN} -lt 8 || ${#oem_gpg_Admin_PIN} -gt 20 ]];do
+  oem_gpg_Admin_PIN=$(diceware -d " " -n 2)
+done
 echo "oem_gpg_Admin_PIN=$oem_gpg_Admin_PIN" > ./oem-provisioning.generated
-echo "oem_gpg_User_PIN=$(diceware -d " " -n 2)" >> ./oem-provisioning.generated
+while [[ ${#oem_gpg_User_PIN} -lt 6 || ${#oem_gpg_User_PIN} -gt 20 ]];do
+  oem_gpg_User_PIN=$(diceware -d " " -n 2)
+done
+echo "oem_gpg_User_PIN=$oem_gpg_User_PIN" >> ./oem-provisioning.generated
 echo "oem_gpg_real_name=" >> ./oem-provisioning.generated
 echo "oem_gpg_email=" >> ./oem-provisioning.generated
 echo "oem_gpg_comment=" >> ./oem-provisioning.generated
