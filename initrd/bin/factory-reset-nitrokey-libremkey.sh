@@ -23,7 +23,7 @@ mount_usb(){
 }
 
 if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of GPG card' \
-  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1-Wipe all PRIVATE keys that were previously kept inside GPG card\n 2-Set default key size to 4096 bits (maximum)\n 3-Ask you to choose two passwords to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4-Generate new Encryption, Signing and Authentication keys\n  inside your GPG card\n5-Export associated public key, replace the one being\n  present and trusted inside running BIOS, and reflash\n  the SPI flash with resulting rom image.\n\nAs a result, the running BIOS will be modified.\n\nWould you like to continue?" 30 90) then
+  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1-Wipe all PRIVATE keys that were previously kept inside GPG card\n 2-Set default key size to 4096 bits (maximum)\n 3-Ask you to choose two passwords to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4-Generate new Encryption, Signing and Authentication keys\n  inside your GPG card\n5-Export associated public key, replace the one being\n  present and trusted inside running BIOS, and reflash\n  the SPI flash with resulting rom image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
 
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert A USB Disk' --msgbox \
   "Please insert a USB disk on which you want to store your GPG public key\n and trustdb.\n\nThose will be backuped under the 'gpg_keys' directory.\n\nHit Enter to continue." 30 90
@@ -61,14 +61,14 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   };done
   gpgcard_user_pass=$gpgcard_user_pass1
 
-  while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
+  while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]] || [ "$gpgcard_admin_pass1" != "${gpgcard_admin_pass1% *}" ]; do
   {
-    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
+    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters WHILE NOT CONTAINING SPACES:"
     read -s gpgcard_admin_pass1
     echo -e "\nRetype admin password:"
     read -s gpgcard_admin_pass2
 
-    if [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]]; then echo "Passwords typed were different."; fi
+    if [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [ "$gpgcard_admin_pass1" != "${gpgcard_admin_pass1% *}" ]; then echo "Passwords typed were different or contained spaces."; fi
   };done
   gpgcard_admin_pass=$gpgcard_admin_pass1
 
