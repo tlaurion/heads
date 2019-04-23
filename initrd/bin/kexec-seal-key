@@ -151,7 +151,7 @@ if ! tpm nv_writevalue \
 	  read -s -p "TPM Owner password: " tpm_password
 	  echo
   else
-    tpm_password="$oem_TPM_Owner_Password"
+    tpm_password=$(echo -n "$oem_TPM_Owner_Password")
   fi
 
 	tpm nv_definespace \

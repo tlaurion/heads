@@ -150,71 +150,63 @@ read_oem_file()
   echo "Mounting USB drive to provision OEM reownership from /media/oem-provisioning..."
   /bin/mount-usb || warn "Unable to mount USB device. Continuing"
   if [ -e /media/oem-provisioning ]; then
-    oem_name=$(grep "oem_name" /boot/oem | awk -F '=' {'print $2'})
-    if [ -n "$oem_name" ]; then
-      export oem_name="$oem_name"
-    else
-      oem_name="your OEM"
-      export oem_name="$oem_name"
-    fi
-
-    oem_gpg_Admin_PIN=$(grep "oem_gpg_Admin_PIN" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_gpg_Admin_PIN=$(grep "oem_gpg_Admin_PIN" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_gpg_Admin_PIN" ]; then
       export oem_gpg_Admin_PIN="$oem_gpg_Admin_PIN"
     else
       unset oem_gpg_Admin_PIN
     fi
   
-    oem_gpg_User_PIN=$(grep "oem_gpg_User_PIN" /media/oem-provisioning | awk -F '=' {'print $2'}) 
+    oem_gpg_User_PIN=$(grep "oem_gpg_User_PIN" /media/oem-provisioning | cut -d "=" -f2) 
     if [ -n "$oem_gpg_User_PIN" ]; then
       export oem_gpg_User_PIN="$oem_gpg_User_PIN"
     else
       unset oem_gpg_User_PIN 
     fi
 
-    oem_gpg_real_name=$(grep "oem_gpg_real_name" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_gpg_real_name=$(grep "oem_gpg_real_name" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_gpg_real_name" ]; then
       export oem_gpg_real_name="$oem_gpg_real_name"
     else
       unset oem_gpg_real_name
     fi
 
-    oem_gpg_email=$(grep "oem_gpg_email" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_gpg_email=$(grep "oem_gpg_email" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_gpg_email" ]; then
       export oem_gpg_email="$oem_gpg_email"
     else
       unset oem_gpg_email 
     fi
 
-    oem_gpg_comment=$(grep "oem_gpg_comment" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_gpg_comment=$(grep "oem_gpg_comment" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_gpg_comment" ]; then
       export oem_gpg_comment="$oem_gpg_comment"
     else
       unset oem_gpg_comment
     fi
 
-    oem_luks_actual_Disk_Recovery_Key=$(grep "oem_luks_actual_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_luks_actual_Disk_Recovery_Key=$(grep "oem_luks_actual_Disk_Recovery_Key" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_luks_actual_Disk_Recovery_Key" ]; then
       export oem_luks_actual_Disk_Recovery_Key="$oem_luks_actual_Disk_Recovery_Key"
     else
       unset oem_luks_actual_Disk_Recovery_Key
     fi
 
-    oem_luks_new_Disk_Recovery_Key=$(grep "oem_luks_new_Disk_Recovery_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_luks_new_Disk_Recovery_Key=$(grep "oem_luks_new_Disk_Recovery_Key" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_luks_new_Disk_Recovery_Key" ]; then
       export oem_luks_new_Disk_Recovery_Key="$oem_luks_new_Disk_Recovery_Key"
     else
       unset oem_luks_new_Disk_Recovery_Key
     fi
 
-    oem_luks_Disk_Unlock_Key=$(grep "oem_luks_Disk_Unlock_Key" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_luks_Disk_Unlock_Key=$(grep "oem_luks_Disk_Unlock_Key" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_luks_Disk_Unlock_Key" ]; then
       export oem_luks_Disk_Unlock_Key="$oem_luks_Disk_Unlock_Key"
     else
       unset oem_luks_Disk_Unlock_Key
     fi
 
-    oem_TPM_Owner_Password=$(grep "oem_TPM_Owner_Password" /media/oem-provisioning | awk -F '=' {'print $2'})
+    oem_TPM_Owner_Password=$(grep "oem_TPM_Owner_Password" /media/oem-provisioning | cut -d "=" -f2)
     if [ -n "$oem_TPM_Owner_Password" ]; then
       export oem_TPM_Owner_Password="$oem_TPM_Owner_Password"
     else
@@ -232,7 +224,9 @@ check_onboarding_progress()
     if [ $? -ne 0 ];then
       #Show Onboarding menu once.
       whiptail --title 'Hardware reownership Wizard' --msgbox \
-       "The received hardware is currently owned by $oem_name.\nWe will change that.\n\nOn the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\\nIf it's not, reboot your hardware with your Librem/Nitrokey inserted.\nIf the HOTP code is still invalid, contact your OEM.\n\nThis Wizard will otherwise make you own your own hardware by:\n1-Reencrypting encrypted drive content (LUKS container)\n2-Changing LUKS Disk Recovery Key and it's passphrase\n3-Resetting your LibremKey/Nitrokey Pro v2 to factory defaults\n4-Setting User (PIN) and Admin passwords into your LibremKey/NitroKey\n4-Generating keys in it, exporting public key and\n importing it in the rom prior to reprogramming the SPI flash with it\n5-Owning your Trusted Platform Module (TPM)\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with yourLibremKey/Nitrokey Pro\n\nHit Enter to continue." 20 20
+       "The received hardware is currently owned by $oem_name.\nWe will change that.\n\nThis Wizard will otherwise make you own your own hardware by:\n1-Reencrypting encrypted drive content (LUKS container)\n2-Changing LUKS Disk Recovery Key and it's passphrase\n3-Resetting your LibremKey/Nitrokey Pro v2 to factory defaults\n4-Setting User and Admin PINs into your LibremKey/NitroKey\n4-Generating keys in it, exporting public key and\n importing it in the rom prior to reprogramming the SPI flash with it\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with yourLibremKey/Nitrokey Pro\n6-Owning your Trusted Platform Module (TPM)\n\nScan the QR Code with an OTP app only after Reset the TPM last phase.\n\nHit Enter to continue." 20 20
+      whiptail --title 'Hardware reownership Wizard' --msgbox \
+       "On the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\n\nIf it's not, reboot your hardware with your Librem/Nitrokey inserted.\n\nIf the HOTP code is still invalid, your hardware may been tampered with in\ntransit. Contact $oem_name." 20 20
       totp_confirm="O"
       echo $totp_confirm > /tmp/whiptail
       mount -o remount,rw /boot
@@ -349,8 +343,17 @@ if [ -e /boot/oem ];then
   if [ -z "$oem_configuration_read" ]; then
     #Read /media/oem-provisioning file once to read provisioned secrets
     read_oem_file
+    
+    oem_name=$(grep "oem_name" /boot/oem | awk -F '=' {'print $2'})
+    if [ -n "$oem_name" ]; then
+      export oem_name="$oem_name"
+    else
+      oem_name="your OEM"
+      export oem_name="$oem_name"
+    fi
   fi
 fi
+
 
 #TODO:validate that resetting disk unlock key only happens when /boot/oem doesn't exist anymore. Should happen after TPM reset.
 #Flashing modifies measurements, which should trigger TOTP/HOTP resealing. That happens when inserting gpg public key.
