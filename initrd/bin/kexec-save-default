@@ -87,7 +87,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY" = "y" ]
     if [ "$add_key_confirm" = "y" ] || [ "$add_key_confirm" = "Y" ] || [ -z "$add_key_confirm" ]; then
       save_key="y"
     else
-      warn "User chose to not add Disk Unlock Key to the TPM. It can be done manually later on by selecting a new default boot option."
+      warn "User chose not to add Disk Unlock Key to the TPM. It can be done manually later on by selecting a new default boot option."
     fi
   else
     read \
