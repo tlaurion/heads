@@ -16,7 +16,7 @@ enable_sdcard()
   #Unlock Key consistent.
   mount_boot
   if [ -e /boot/oem ]; then
-    warn "Loading card reader (sdcard) related modules..."
+    warn "Loading card reader (SDCARD) related modules..."
     #TODO: understand why conditional aliases don't work. It works on mount-usb :|
     #alias insmod='busybox insmod'
     #debug "Testing insmod in enable_sdcard just after alias: $(insmod)"
@@ -99,7 +99,7 @@ is_Luks_luksOpen()
   else
     clear
     if [ -e /boot/oem ]; then
-      notify "OEM Reownership Wizard only supports auto-provisioning to/from a LUKS encrypted partition. Provisioning fallsback into manual mode. System will now power reboot."
+      notify "OEM Reownership Wizard only supports auto-provisioning to/from a LUKS encrypted partition. Provisioning fallback into manual mode. System will now reboot."
       mount -o remount,rw /boot
       echo "no_automatic_provisioning" >> /boot/oem
       mount -o remount,ro /boot
