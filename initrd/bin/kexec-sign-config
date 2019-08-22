@@ -28,15 +28,15 @@ if [ "$rollback" = "y" ]; then
 	if [ -n "$counter" ]; then
 		# use existing counter
 		read_tpm_counter $counter \
-		|| die "$paramsdir: Unable to read tpm counter '$counter'"
+		|| die "$paramsdir: Unable to read TPM counter '$counter'"
 	else
 		# increment counter
 		check_tpm_counter $rollback_file \
-		|| die "$paramsdir: Unable to find/create tpm counter"
+		|| die "$paramsdir: Unable to find/create TPM counter"
 		counter="$TPM_COUNTER"
 
 		increment_tpm_counter $counter \
-		|| die "$paramsdir: Unable to increment tpm counter"
+		|| die "$paramsdir: Unable to increment TPM counter"
 	fi
 
 	sha256sum /tmp/counter-$counter > $rollback_file \
