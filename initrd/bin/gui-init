@@ -132,7 +132,7 @@ if [ -e /boot/oem ];then
       #Read /media/oem-provisioning file once to read provisioned secrets
       read_oem_files
     else
-      notify "You must run the Reownership Wizard from a safe place with power outlet connected. OEM Reownership will require around an hour. Sytem will now power off."
+      notify "You must run the Reownership Wizard from a safe place with power outlet connected. Reownership will take around an hour. Sytem will now power off."
       poweroff
     fi
   fi
@@ -143,7 +143,7 @@ if [ -e /boot/reset_disk_unlock_key ] && [ ! -e /boot/oem ]; then
         --yesno "You just updated the ROM, which requires resealing TOTP/HOTP secrets.\nTPM released Disk Unlock Key stored in LUKS header must also be regenerated.\n\nIf you did not modify the ROM, this might be a sign of system compromise.\nIn that case, you should say No here and investigate." 30 90) then
     reset_disk_unlock_key
   else
-    recovery "User refused to update TOTP/HOTP following what seemed to be a ROM update. Time to investigate changes manually."
+    recovery "User refused to update TOTP/HOTP following what seemed to be a ROM update. Please investigate these changes manually."
   fi
 fi
 
@@ -346,7 +346,7 @@ while true; do
 
   if [ "$totp_confirm" = "p" ]; then
     if (whiptail --title 'Reset the TPM' \
-        --yesno "This will clear the TPM and TPM password, replace them with new ones!\n\nDo you want to proceed?" 16 90) then
+        --yesno "This will clear the TPM and TPM passphrase, replace them with new ones!\n\nDo you want to proceed?" 16 90) then
       /bin/tpm-reset
       
       #set flag in oem file
