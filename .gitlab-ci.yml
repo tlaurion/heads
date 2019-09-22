@@ -14,14 +14,9 @@ build:
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
     - make BOARD=x230-flash-libremkey
-    - make BOARD=x230-libremkey
     - echo "x230-flash hashes:"
     - cat ./build/x230-flash-libremkey/hashes.txt
-    - echo "x230 hashes:"
-    - cat ./build/x230-libremkey/hashes.txt
   artifacts:
     paths:
       - ./build/x230-flash-libremkey/x230-flash-libremkey.rom
       - ./build/x230-flash-libremkey/hashes.txt
-      - ./build/x230-libremkey/coreboot.rom
-      - ./build/x230-libremkey/hashes.txt
