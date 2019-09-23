@@ -44,7 +44,7 @@ enable_sdcard()
       || die "sdhci-pci: module load failed"
     fi
     #Realtek
-    if ! lsmod | grep -q mfd-core; then
+    if ! lsmod | grep -q mfd_core; then
       busybox insmod /lib/modules/mfd-core.ko \
       || die "mfd-core: module load failed"
     fi
@@ -82,7 +82,7 @@ enable_sdcard()
         || die "sdhci-pci: module load failed"
       fi
       #Realtek specifics
-      if ! lsmod | grep -q mfd-core; then
+      if ! lsmod | grep -q mfd_core; then
         insmod /lib/modules/mfd-core.ko \
         || die "mfd-core: module load failed"
       fi
