@@ -1,0 +1,22 @@
+image: insurgotech/fedora-29_heads-ci
+
+stages:
+  - build
+
+build:
+  stage: build
+  cache:
+    paths:
+      - ./
+    key: "$CI_COMMIT_REF_SLUG"
+  script:
+    - git fetch origin 
+    - git reset --hard origin/$CI_COMMIT_REF_NAME
+    - make BOARD=kgpe-d16
+    - echo "kgpe-d16 hashes:"
+    - cat ./build/kgpe-d16/hashes.txt
+  artifacts:
+    paths:
+      - ./build/kgpe-d16/coreboot.rom
+      - ./build/kgpe-d16/hashes.txt
+
