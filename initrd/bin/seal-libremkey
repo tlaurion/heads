@@ -16,28 +16,19 @@ mount_boot()
   fi
 }
 
-if [ "$CONFIG_TPM" = "y" ]; then
-  tpm nv_readvalue \
-    -in 4d47 \
-    -sz 312 \
-    -of "$HOTP_SEALED" \
-  || die "Unable to retrieve sealed file from TPM NV"
+tpm nv_readvalue \
+	-in 4d47 \
+	-sz 312 \
+	-of "$HOTP_SEALED" \
+|| die "Unable to retrieve sealed file from TPM NV"
 
-  tpm unsealfile  \
-    -hk 40000000 \
-    -if "$HOTP_SEALED" \
-    -of "$HOTP_SECRET" \
-  || die "Unable to unseal HOTP secret"
+tpm unsealfile  \
+	-hk 40000000 \
+	-if "$HOTP_SEALED" \
+	-of "$HOTP_SECRET" \
+|| die "Unable to unseal HOTP secret"
 
-  rm -f "$HOTP_SEALED"
-else
-# without a TPM, use the first 20 characters of the ROM SHA256sum 
-  echo "TPM not configured, measuring ROM directly"
-  flash.sh -s /tmp/coreboot.rom | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
-fi
-
-secret="`cat $HOTP_SECRET`"
-rm -f "$HOTP_SECRET"
+shred -n 10 -z -u "$HOTP_SEALED" 2> /dev/null
 
 # Store counter in file instead of TPM for now, as it conflicts with Heads
 # config TPM counter as TPM 1.2 can only increment one counter between reboots
@@ -61,21 +52,31 @@ enable_usb
 if ! libremkey_hotp_verification info ; then
   echo "Insert your Librem Key and press Enter to configure it"
   read
-  libremkey_hotp_verification info \
-  || die "Unable to find Librem Key"
+  if ! libremkey_hotp_verification info ; then
+    # don't leak key on failure
+    shred -n 10 -z -u "$HOTP_SECRET" 2> /dev/null
+    die "Unable to find Librem Key"
+  fi
 fi
 
-read -s -p "Enter your Librem Key Admin PIN" admin_pin
-echo
+echo -e ""
+read -s -p "Enter your Librem Key Admin PIN: " admin_pin
+echo -e "\n"
 
-libremkey_hotp_initialize $admin_pin $secret $counter_value 
+libremkey_hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value 
 if [ $? -ne 0 ]; then
-  read -s -p "Error setting HOTP secret, re-enter Admin PIN and try again:" admin_pin
-  libremkey_hotp_initialize $admin_pin $secret $counter_value \
-  || die "Setting HOTP secret failed"
+  echo -e "\n"
+  read -s -p "Error setting HOTP secret, re-enter Admin PIN and try again: " admin_pin
+  echo -e "\n"
+  if ! libremkey_hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value ; then
+    # don't leak key on failure
+    shred -n 10 -z -u "$HOTP_SECRET" 2> /dev/null
+    die "Setting HOTP secret failed"
+  fi
 fi
 
-secret=""
+# HOTP key no longer needed
+shred -n 10 -z -u "$HOTP_SECRET" 2> /dev/null
 
 # Make sure our counter is incremented ahead of the next check
 #increment_tpm_counter $counter > /dev/null \
@@ -93,7 +94,7 @@ echo $counter_value > $HOTP_COUNTER \
 #|| die "Unable to create hotp counter file"
 mount -o remount,ro /boot
 
-echo "Librem Key initialized successfully. Press Enter to continue."
+echo -e "\nLibrem Key initialized successfully. Press Enter to continue."
 read
 
 exit 0

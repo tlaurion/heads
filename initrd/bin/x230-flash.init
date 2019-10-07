@@ -3,7 +3,7 @@
 # invoke a recovery shell and prompt the user for how to proceed
 
 . /etc/functions
-. /etc/config
+. /tmp/config
 
 insmod /lib/modules/ehci-hcd.ko
 insmod /lib/modules/ehci-pci.ko
@@ -20,7 +20,7 @@ echo ''
 echo 'To install from flash drive:'
 echo ''
 echo '  mount -o ro /dev/sdb1 /media'
-echo '  flashrom-x230.sh /media/x230.rom'
+echo '  flash.sh /media/x230.rom'
 echo ''
 
 exec /bin/ash

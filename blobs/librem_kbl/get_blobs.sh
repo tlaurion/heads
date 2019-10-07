@@ -5,13 +5,13 @@
 RELEASES_GIT_HASH="ced905accd065df3de6561ee7278400f320f14f7"
 PURISM_SOURCE="https://source.puri.sm/coreboot/releases/raw/${RELEASES_GIT_HASH}"
 
-# Librem 13 v2/v3 and Librem 15 v3 binary blob hashes
-SKL_UCODE_SHA="6c6e420fe0490de51a504303d4c5d12ef8832ffb98a2d5327a9a07f05e62b01f"
-SKL_DESCRIPTOR_SHA="642ca36f52aabb5198b82e013bf64a73a5148693a58376fffce322a4d438b524"
-SKL_ME_SHA="cf06d3eb8b24490a1ab46fd988b6cef822e5347cd6a2e92bc332cb4a376eb8bc"
-SKL_FSPM_SHA="5da3ad7718eb3f6700fb9d97be988d9c8bdd2d8b5910273a80928c49122d5b2d"
-SKL_FSPS_SHA="c81ffa40df0b6cd6cfde4f476d452a1f6f2217bc96a3b98a4fa4a037ee7039cf"
-SKL_VBT_SHA="0ba40c1b8c0fb030a0e1a789eda8b2a7369339a410ad8c4620719e451ea69b98"
+# Librem 13 v4 and Librem 15 v4 binary blob hashes
+KBL_UCODE_SHA="0e3a06d8949a1d7df2c75b414765b98181766e3bd5bc7c317fad65bfcf7c276b"
+KBL_DESCRIPTOR_SHA="642ca36f52aabb5198b82e013bf64a73a5148693a58376fffce322a4d438b524"
+KBL_ME_SHA="0eec2e1135193941edd39d0ec0f463e353d0c6c9068867a2f32a72b64334fb34"
+KBL_FSPM_SHA="5da3ad7718eb3f6700fb9d97be988d9c8bdd2d8b5910273a80928c49122d5b2d"
+KBL_FSPS_SHA="c81ffa40df0b6cd6cfde4f476d452a1f6f2217bc96a3b98a4fa4a037ee7039cf"
+KBL_VBT_SHA="0ba40c1b8c0fb030a0e1a789eda8b2a7369339a410ad8c4620719e451ea69b98"
 
 # cbfstool, ifdtool, coreboot image from Purism repo
 CBFSTOOL_FILE="cbfstool.gz"
@@ -24,10 +24,10 @@ IFDTOOL_URL="$PURISM_SOURCE/tools/$IFDTOOL_FILE"
 IFDTOOL_SHA="08228ece4968794499ebd49a851f7d3f7f1b81352da8cd6e0c7916ac931a7d72"
 IFDTOOL_BIN="./ifdtool"
 
-COREBOOT_IMAGE="coreboot-l13v3.rom"
+COREBOOT_IMAGE="coreboot-l13v4.rom"
 COREBOOT_IMAGE_FILE="$COREBOOT_IMAGE.gz"
-COREBOOT_IMAGE_URL="$PURISM_SOURCE/librem_13v3/$COREBOOT_IMAGE_FILE"
-COREBOOT_IMAGE_SHA="f20b999457205f033bf122a436f906172bc53ff718034a32f931d9e1712a1033"
+COREBOOT_IMAGE_URL="$PURISM_SOURCE/librem_13v4/$COREBOOT_IMAGE_FILE"
+COREBOOT_IMAGE_SHA="147b911aad362bc67084d1591950e22557ffaba056f42484b521aa48a617c5b0"
 
 die () {
     local msg=$1
@@ -108,12 +108,12 @@ check_and_get_tools() {
 #check_and_get_tools
 
 # get/verify blobs
-check_and_get_blob descriptor.bin $SKL_DESCRIPTOR_SHA "Intel Flash Descriptor"
-check_and_get_blob me.bin $SKL_ME_SHA "Intel ME firmware"
-check_and_get_blob fspm.bin $SKL_FSPM_SHA "FSP-M"
-check_and_get_blob fsps.bin $SKL_FSPS_SHA "FSP-S"
-check_and_get_blob vbt.bin $SKL_VBT_SHA "Video BIOS Table"
-check_and_get_blob cpu_microcode_blob.bin $SKL_UCODE_SHA "Intel Microcode Update"
+check_and_get_blob descriptor.bin $KBL_DESCRIPTOR_SHA "Intel Flash Descriptor"
+check_and_get_blob me.bin $KBL_ME_SHA "Intel ME firmware"
+check_and_get_blob fspm.bin $KBL_FSPM_SHA "FSP-M"
+check_and_get_blob fsps.bin $KBL_FSPS_SHA "FSP-S"
+check_and_get_blob vbt.bin $KBL_VBT_SHA "Video BIOS Table"
+check_and_get_blob cpu_microcode_blob.bin $KBL_UCODE_SHA "Intel Microcode Update"
 
 #clean up after ourselves
 rm -f $CBFSTOOL_BIN >/dev/null 2>&1
