@@ -21,20 +21,31 @@ mount_boot_or_die()
 # get current value of HOTP counter in TPM, create if absent
 mount_boot_or_die
 
-tpm nv_readvalue \
-	-in 4d47 \
-	-sz 312 \
-	-of "$HOTP_SEALED" \
-|| die "Unable to retrieve sealed file from TPM NV"
+if [ "$CONFIG_TPM" = "y" ]; then
+  tpm nv_readvalue \
+    -in 4d47 \
+    -sz 312 \
+    -of "$HOTP_SEALED" \
+  || die "Unable to retrieve sealed file from TPM NV"
 
-tpm unsealfile  \
-	-hk 40000000 \
-	-if "$HOTP_SEALED" \
-	-of "$HOTP_SECRET" \
-|| die "Unable to unseal HOTP secret"
+  tpm unsealfile  \
+    -hk 40000000 \
+    -if "$HOTP_SEALED" \
+    -of "$HOTP_SECRET" \
+  || die "Unable to unseal HOTP secret"
 
-shred -n 10 -z -u "$HOTP_SEALED" 2> /dev/null
-
+  shred -n 10 -z -u "$HOTP_SEALED" 2> /dev/null
+else
+# without a TPM, use the first 20 characters of the ROM SHA256sum 
+  echo "TPM not configured, measuring ROM directly" 1>&2
+  # use a previously-copied image if it exists
+  #if [ -f ${ROM_IMAGE} ]; then
+  #  sha256sum ${ROM_IMAGE} | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
+  #else
+    #flash.sh -s ${ROM_IMAGE} | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
+  cbfs --list | grep -E 'fallback|heads|microcode|bootblock' | while read CBFS_FILES; do cbfs -r $CBFS_FILES; done | sha256sum | cut -f1 -d ' ' | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET 
+  #fi
+fi
 
 #check_tpm_counter $HOTP_COUNTER hotp \
 #|| die "Unable to find/create TPM counter"
