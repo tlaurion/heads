@@ -36,9 +36,6 @@ else
   flash.sh -s /tmp/coreboot.rom | cut -c 1-20 | tr -d '\n' > $HOTP_SECRET
 fi
 
-secret="`cat $HOTP_SECRET`"
-rm -f "$HOTP_SECRET"
-
 # Store counter in file instead of TPM for now, as it conflicts with Heads
 # config TPM counter as TPM 1.2 can only increment one counter between reboots
 # get current value of HOTP counter in TPM, create if absent
