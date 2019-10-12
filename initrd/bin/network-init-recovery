@@ -14,9 +14,11 @@ if [ -e /sys/class/net/eth0 ]; then
 	# Set up static IP
 	if [ ! -z "$CONFIG_BOOT_STATIC_IP" ]; then
 		ifconfig eth0 $CONFIG_BOOT_STATIC_IP
+	else
+	  udhcp -n
 	fi
-	# TODO: Set up DHCP if available
-	ifconfig eth0 > /dev/ttyprintk
+
+  ifconfig eth0 > /dev/ttyprintk
 
 	# Set up the ssh server, allow root logins and log to stderr
 	if [ ! -d /etc/dropbear ]; then
