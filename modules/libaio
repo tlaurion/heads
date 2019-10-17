@@ -1,0 +1,18 @@
+CONFIG_BOOST ?= y
+modules-$(CONFIG_BOOST) += libaio
+
+libaio_version := 0.3.112
+libaio_dir := libaio-$(libaio_version)
+libaio_tar := libaio-$(libaio_version).tar.gz
+libaio_url := https://releases.pagure.org/libaio/$(libaio_tar)
+libaio_hash := ab0462f2c9d546683e5147b1ce9c195fe95d07fac5bf362f6c01637955c3b492
+
+libaio_target := \
+	$(MAKE_JOBS) \
+	$(CROSS_TOOLS) \
+	DESTDIR="$(INSTALL)" \
+	install \
+
+libaio_libraries := src/libaio.so.1.0.1
+
+libaio_depends := $(musl_dep)

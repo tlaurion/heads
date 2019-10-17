@@ -1,0 +1,66 @@
+# thin-provisioning-tools is always included, unless explicitly turned off
+CONFIG_THIN-PROVISIONING-TOOLS ?= y
+modules-$(CONFIG_THIN-PROVISIONING-TOOLS) += thin-provisioning-tools
+
+thin-provisioning-tools_version := 0.8.5
+thin-provisioning-tools_dir := thin-provisioning-tools-$(thin-provisioning-tools_version)
+thin-provisioning-tools_tar := $(thin-provisioning-tools_version).tar.gz
+thin-provisioning-tools_url := https://codeload.github.com/jthornber/thin-provisioning-tools/tar.gz/v$(thin-provisioning-tools_version)
+thin-provisioning-tools_hash := 377f40ba6331ecee025e0f39942a5d33f8eadc4d68b484f5fce189f03dd9f662
+
+thin-provisioning-tools_configure := \
+  autoconf \
+  && ./configure \
+    $(CROSS_TOOLS) \
+    --host i386-elf-linux \
+    --prefix="/" \
+  && $(MAKE) clean
+
+thin-provisioning-tools_target := \
+  $(MAKE_JOBS) \
+  && $(MAKE) \
+    -C $(build)/$(thin-provisioning-tools_dir) \
+    CFLAGS="-I$(INSTALL)/include" \
+    LDFLAGS="-L$(INSTALL)/lib" \
+    prefix="$(INSTALL)" \
+    DESTDIR="$(INSTALL)" \
+    install
+
+#thin-provisioning-tools_target := \
+#  $(CROSS_TOOLS) \
+#  CFLAGS="-I$(INSTALL)/include" \
+#  LDFLAGS="-L$(INSTALL)/lib" \
+#  DESTDIR="$(INSTALL)" \
+#  install \
+
+
+thin-provisioning-tools_output := \
+bin/cache_check \
+bin/cache_dump \
+bin/cache_metadata_size \
+bin/cache_repair \
+bin/cache_restore \
+bin/era_check \
+bin/era_dump \
+bin/era_invalidate \
+bin/era_restore \
+bin/pdata_tools \
+bin/thin_check \
+bin/thin_delta \
+bin/thin_dump \
+bin/thin_generate_metadata \
+bin/thin_journal_check \
+bin/thin_ll_dump \
+bin/thin_ll_restore \
+bin/thin_ls \
+bin/thin_metadata_size \
+bin/thin_repair \
+bin/thin_restore \
+bin/thin_rmap \
+bin/thin_scan \
+bin/thin_show_duplicates \
+bin/thin_show_metadata \
+bin/txt2man \
+
+thin-provisioning-tools_depends := libaio $(musl_dep)
+
