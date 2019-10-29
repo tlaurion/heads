@@ -11,7 +11,7 @@ case "$CONFIG_BOARD" in
     FLASHROM_OPTIONS='-p internal:laptop=force_I_want_a_brick,ich_spi_mode=hwseq' 
   ;;
   x230* )
-    FLASHROM_OPTIONS='--force --noverify-all --programmer internal --ifd --image bios'
+    FLASHROM_OPTIONS='--force --noverify-all --programmer internal'
   ;;
   "kgpe-d16" )
     FLASHROM_OPTIONS='--force --noverify --programmer internal'
