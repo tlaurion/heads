@@ -1,4 +1,3 @@
-# thin-provisioning-tools is always included, unless explicitly turned off
 CONFIG_THIN-PROVISIONING-TOOLS ?= y
 modules-$(CONFIG_THIN-PROVISIONING-TOOLS) += thin-provisioning-tools
 
@@ -10,10 +9,12 @@ thin-provisioning-tools_hash := 377f40ba6331ecee025e0f39942a5d33f8eadc4d68b484f5
 
 thin-provisioning-tools_configure := \
   autoconf \
-  && ./configure \
+  && $(CROSS_TOOLS) \
+  ./configure \
     $(CROSS_TOOLS) \
     --host i386-elf-linux \
     --prefix="/" \
+    --bindir="/" \
   && $(MAKE) clean
 
 thin-provisioning-tools_target := \
@@ -25,14 +26,6 @@ thin-provisioning-tools_target := \
     prefix="$(INSTALL)" \
     DESTDIR="$(INSTALL)" \
     install
-
-#thin-provisioning-tools_target := \
-#  $(CROSS_TOOLS) \
-#  CFLAGS="-I$(INSTALL)/include" \
-#  LDFLAGS="-L$(INSTALL)/lib" \
-#  DESTDIR="$(INSTALL)" \
-#  install \
-
 
 thin-provisioning-tools_output := \
 bin/cache_check \
@@ -60,7 +53,5 @@ bin/thin_rmap \
 bin/thin_scan \
 bin/thin_show_duplicates \
 bin/thin_show_metadata \
-bin/txt2man \
 
-thin-provisioning-tools_depends := libaio $(musl_dep)
-
+thin-provisioning-tools_depends := libexpat libaio $(musl_dep)
