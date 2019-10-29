@@ -1,5 +1,5 @@
-CONFIG_BOOST ?= y
-modules-$(CONFIG_BOOST) += libaio
+CONFIG_LIBAIO ?= y
+modules-$(CONFIG_LIBAIO) += libaio
 
 libaio_version := 0.3.112
 libaio_dir := libaio-$(libaio_version)
