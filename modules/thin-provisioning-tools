@@ -14,7 +14,9 @@ thin-provisioning-tools_configure := \
     $(CROSS_TOOLS) \
     --host i386-elf-linux \
     --prefix="/" \
-    --bindir="/" \
+    --bindir="/bin" \
+    --sbindir="/sbin" \
+    --libdir="/lib" \
   && $(MAKE) clean
 
 thin-provisioning-tools_target := \
