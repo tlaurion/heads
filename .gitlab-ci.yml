@@ -16,6 +16,7 @@ build:
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
     - rm -rf ./build/x230-libremkey/*
+    - rm -rf ./install/*
     - make BOARD=x230-libremkey || (find ./build/log/ -cmin 1|xargs tail; exit 1)
     - echo "x230 hashes:"
     - cat ./build/x230-libremkey/hashes.txt
