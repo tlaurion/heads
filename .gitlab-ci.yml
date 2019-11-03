@@ -13,7 +13,7 @@ build:
   script:
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
-    - make BOARD=x230-flash-libremkey
+    - make BOARD=x230-flash-libremkey V=1
     - echo "x230-flash hashes:"
     - cat ./build/x230-flash-libremkey/hashes.txt
   artifacts:
