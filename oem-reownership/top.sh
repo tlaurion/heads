@@ -1,0 +1,2 @@
+#MX25L3273E
+echo -e "Backuping top SPI flash into top.rom\n" && sudo flashrom -r ./top.rom --programmer ch341a_spi -c MX25L3273E && echo -e "Verifying top SPI flash\n" && sudo flashrom -v ./top.rom --programmer ch341a_spi -c MX25L3273E && echo -e "Flashing top SPI flash\n" && sudo flashrom -w  /home/user/QubesIncoming/Insurgo/build/x230-flash-libremkey/x230-flash-libremkey.rom --programmer ch341a_spi -c MX25L3273E 
