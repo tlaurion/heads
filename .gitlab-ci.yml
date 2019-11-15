@@ -16,7 +16,7 @@ build:
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
     - make -j4 bootstrap
-    - ./build/make-4.2.1/make -j4 V=1 BOARD=x230
+    - ./build/make-4.2.1/make -j4 BOARD=x230
     - echo "x230 hashes:"
     - cat ./build/x230/hashes.txt
   artifacts:
