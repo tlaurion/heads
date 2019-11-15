@@ -15,10 +15,10 @@ build:
     - apt update && apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
-    - make BOARD=x230-libremkey
+    - make BOARD=x230
     - echo "x230 hashes:"
-    - cat ./build/x230-libremkey/hashes.txt
+    - cat ./build/x230/hashes.txt
   artifacts:
     paths:
-      - ./build/x230-libremkey/coreboot.rom
-      - ./build/x230-libremkey/hashes.txt
+      - ./build/x230/coreboot.rom
+      - ./build/x230/hashes.txt
