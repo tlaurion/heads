@@ -34,6 +34,13 @@ index ec3c1ce..844fb3d 100644
 +GCC_BUILTIN_PREREQS=yes
 +
  # uncomment these to get smaller/stripped binaries
+ #export CFLAGS="-Os -g0 -s"
+ #export CXXFLAGS="-Os -g0"
+
+@@ -26,9 +26,9 @@
+ GCC_STAGE1_NOOPT=1
+ 
+ # uncomment these to get smaller/stripped binaries
 -#export CFLAGS="-Os -g0 -s"
 -#export CXXFLAGS="-Os -g0"
 -#export LDFLAGS="-s"
@@ -43,7 +50,6 @@ index ec3c1ce..844fb3d 100644
  
  # uncomment if you want docs and other unneeded stuff removed
  #REMOVE_JUNK=yes
-
 --- /dev/null	2019-10-28 16:42:28.211999999 +0100
 +++ musl-cross/hashes/gmp-6.1.0.tar.bz2.sha256	2019-10-29 13:08:53.288687684 +0100
 @@ -0,0 +1 @@
