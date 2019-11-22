@@ -12,7 +12,7 @@ jobs:
       - checkout
 
       - run:
-          name: x230-librekey
+          name: x230-libremkey
           command: |
                 make \
                 V=1 \
