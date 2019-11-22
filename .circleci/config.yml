@@ -17,8 +17,8 @@ jobs:
                 make \
                 V=1 \
                 -j4 \
-                BOARD=x230-libremkey \
-                no_output_timeout: 3h
+                BOARD=x230-libremkey
+          no_output_timeout: 3h
       - store-artifacts:
           path: build/x230-libremkey/coreboot.rom
       - store-artifacts:
