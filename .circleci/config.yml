@@ -8,89 +8,21 @@ jobs:
           name: Install dependencies
           command: |
             apt update
-            apt install -y \
-              build-essential \
-              zlib1g-dev \
-              uuid-dev \
-              libdigest-sha-perl \
-              libelf-dev \
-              bc \
-              bzip2 \
-              bison \
-              flex \
-              git \
-              gnupg \
-              iasl \
-              m4 \
-              nasm \
-              patch \
-              python \
-              wget \
-              gnat \
-              cpio \
-              ccache \
-              lzma \
-
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf 
       - checkout
 
       - run:
-          name: Bootstrap make
+          name: x230-librekey
           command: |
-            make -j4 bootstrap
-
-      - run:
-          name: Bootstrap coreboot-gcc
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/root/project \
-                V=1 \
-                BOARD=qemu-coreboot \
-                coreboot-gcc
-
-
-      - run:
-          name: qemu-coreboot
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/root/project \
-                V=1 \
-                -j4 \
-                BOARD=qemu-coreboot \
-
-      - store-artifacts:
-          path: build/qemu-coreboot/coreboot.rom
-      - store-artifacts:
-          path: build/qemu-coreboot/hashes.txt
-
-
-      - run:
-          name: qemu-linuxboot
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/root/project \
-                V=1 \
-                -j4 \
-                BOARD=qemu-linuxboot \
-
-      - store-artifacts:
-          path: build/qemu-linuxboot/linuxboot.rom
-      - store-artifacts:
-          path: build/qemu-linuxboot/hashes.txt
-
-
-      - run:
-          name: x230
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/root/project \
+                make \
                 -j4 \
                 V=1 \
-                BOARD=x230 \
+                BOARD=x230-librekey \
 
       - store-artifacts:
-          path: build/x230/coreboot.rom
+          path: build/x230-librekey/coreboot.rom
       - store-artifacts:
-          path: build/x230/hashes.txt
+          path: build/x230-libremkey/hashes.txt
 
 
 workflows:
