@@ -17,10 +17,10 @@ jobs:
                 make \
                 -j4 \
                 V=1 \
-                BOARD=x230-librekey \
+                BOARD=x230-libremkey \
 
       - store-artifacts:
-          path: build/x230-librekey/coreboot.rom
+          path: build/x230-libremkey/coreboot.rom
       - store-artifacts:
           path: build/x230-libremkey/hashes.txt
 
