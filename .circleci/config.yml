@@ -42,7 +42,7 @@ jobs:
           name: Bootstrap coreboot-gcc
           command: |
             ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
+                TOOLCHAIN=/root/project \
                 V=1 \
                 BOARD=qemu-coreboot \
                 coreboot-gcc
@@ -52,7 +52,7 @@ jobs:
           name: qemu-coreboot
           command: |
             ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
+                TOOLCHAIN=/root/project \
                 V=1 \
                 -j4 \
                 BOARD=qemu-coreboot \
@@ -67,7 +67,7 @@ jobs:
           name: qemu-linuxboot
           command: |
             ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
+                TOOLCHAIN=/root/project \
                 V=1 \
                 -j4 \
                 BOARD=qemu-linuxboot \
@@ -82,7 +82,7 @@ jobs:
           name: x230
           command: |
             ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
+                TOOLCHAIN=/root/project \
                 -j4 \
                 V=1 \
                 BOARD=x230 \
