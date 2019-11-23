@@ -10,13 +10,12 @@ jobs:
             apt update
             apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf 
       - checkout
-
       - run:
           name: x230-libremkey
           command: |
                 make \
                 V=1 \
-                BOARD=x230-libremkey || (find ./ -name *.log -cmin 1|xargs tail; exit 1)
+                BOARD=x230-libremkey || (find ./ -name *.log -cmin 2|xargs tail; exit 10)
           no_output_timeout: 3h
       - store-artifacts:
           path: build/x230-libremkey/coreboot.rom
