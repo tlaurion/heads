@@ -1,5 +1,5 @@
 #image: insurgotech/fedora-29_heads-ci
-image: fedora:29
+image: ubuntu:18.04
 
 stages:
   - build
@@ -12,10 +12,10 @@ build:
       - ./
     key: "$CI_COMMIT_REF_SLUG"
   script:
-    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool expat-devel boost-devel libaio-devel cpio diceware
+    - apt update && apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf 
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
-    - make BOARD=x230-libremkey || (find ./build/log/ -cmin 1|xargs tail; exit 1)
+    - make BOARD=x230-libremkey || (find ./ -name "*.log" -mmin -1 | xargs tail; exit 10)
     - echo "x230 hashes:"
     - cat ./build/x230-libremkey/hashes.txt
   artifacts:
