@@ -15,7 +15,7 @@ jobs:
           command: |
                 make \
                 V=1 \
-                BOARD=x230-libremkey || (find ./ -name *.log -cmin 2|xargs tail; exit 10)
+                BOARD=x230-libremkey || (find ./ -name "*.log" -mmin -1 | xargs tail; exit 10)
           no_output_timeout: 3h
       - store-artifacts:
           path: build/x230-libremkey/coreboot.rom
