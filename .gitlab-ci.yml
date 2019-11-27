@@ -1,5 +1,5 @@
 #image: insurgotech/fedora-29_heads-ci
-image: fedora:29
+image: fedora:30
 
 stages:
   - build
