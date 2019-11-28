@@ -36,17 +36,3 @@ index ec3c1ce..844fb3d 100644
  # uncomment these to get smaller/stripped binaries
  #export CFLAGS="-Os -g0 -s"
  #export CXXFLAGS="-Os -g0"
-
-@@ -26,9 +26,9 @@
- GCC_STAGE1_NOOPT=1
- 
- # uncomment these to get smaller/stripped binaries
--#export CFLAGS="-Os -g0 -s"
--#export CXXFLAGS="-Os -g0"
--#export LDFLAGS="-s"
-+export CFLAGS="-Os -g0 -s"
-+export CXXFLAGS="-Os -g0"
-+export LDFLAGS="-s"
- 
- # uncomment if you want docs and other unneeded stuff removed
- #REMOVE_JUNK=yes
