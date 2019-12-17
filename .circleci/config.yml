@@ -2,96 +2,54 @@ version: 2
 jobs:
   build:
     docker:
-      - image: osresearch/heads-ubuntu:16.04
+      - image: ubuntu:18.04
     steps:
       - run:
           name: Install dependencies
           command: |
             apt update
             apt install -y \
-              build-essential \
-              zlib1g-dev \
-              uuid-dev \
-              libdigest-sha-perl \
-              libelf-dev \
-              bc \
-              bzip2 \
-              bison \
-              flex \
-              git \
-              gnupg \
-              iasl \
-              m4 \
-              nasm \
-              patch \
-              python \
-              wget \
-              gnat \
-              cpio \
-              ccache \
-              lzma \
+	    build-essential \
+            zlib1g-dev uuid-dev libdigest-sha-perl \
+            libelf-dev \
+            bc \
+            bzip2 \
+            bison \
+            flex \
+            git \
+            gnupg \
+            iasl \
+            m4 \
+            nasm \
+            patch \
+            python \
+            wget \
+            gnat \
+            cpio \
+            ccache \
+            lzma \
+            pkg-config \
+            cmake \
+            libusb-1.0-0-dev \
+            pkg-config \
 
       - checkout
 
       - run:
-          name: Bootstrap make
+          name: x230-libremkey
           command: |
-            make -j4 bootstrap
-
-      - run:
-          name: Bootstrap coreboot-gcc
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
+                make \
                 V=1 \
-                BOARD=qemu-coreboot \
-                coreboot-gcc
-
-
-      - run:
-          name: qemu-coreboot
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
-                V=1 \
-                -j4 \
-                BOARD=qemu-coreboot \
+                BOARD=x230-libremkey \
 
       - store-artifacts:
-          path: build/qemu-coreboot/coreboot.rom
+          path: build/x230-libremkey/coreboot.rom
       - store-artifacts:
-          path: build/qemu-coreboot/hashes.txt
-
-
-      - run:
-          name: qemu-linuxboot
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
-                V=1 \
-                -j4 \
-                BOARD=qemu-linuxboot \
-
+          path: build/x230-libremkey/x230-libremkey-bottom.rom
       - store-artifacts:
-          path: build/qemu-linuxboot/linuxboot.rom
+          path: build/x230-libremkey/x230-libremkey-top.rom	
       - store-artifacts:
-          path: build/qemu-linuxboot/hashes.txt
-
-
-      - run:
-          name: x230
-          command: |
-            ./build/make-4.2.1/make \
-                TOOLCHAIN=/home/builder/heads \
-                -j4 \
-                V=1 \
-                BOARD=x230 \
-
-      - store-artifacts:
-          path: build/x230/coreboot.rom
-      - store-artifacts:
-          path: build/x230/hashes.txt
-
+          path: build/x230-libremkey/hashes.txt
 
 workflows:
   version: 2
