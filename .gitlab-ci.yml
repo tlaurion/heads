@@ -16,6 +16,7 @@ build:
     - git reset --hard origin/$CI_COMMIT_REF_NAME
     - make BOARD=x230-libremkey || (find ./build/log/ -cmin 1|xargs tail; exit 1)
     - echo "x230 hashes:"
+    - LOGS=$(find ./ -name "*.log") && tar zcvf logs.tar.gz $LOGS
     - cat ./build/x230-libremkey/hashes.txt
   artifacts:
     paths:
@@ -23,3 +24,4 @@ build:
       - ./build/x230-libremkey/x230-libremkey-bottom.rom
       - ./build/x230-libremkey/x230-libremkey-top.rom
       - ./build/x230-libremkey/hashes.txt
+      - ./logs.tar.gz
