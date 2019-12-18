@@ -127,6 +127,15 @@ update_totp()
 mount_boot
 if [ -e /boot/oem ];then
   if [ -z "$oem_configuration_read" ]; then
+    #make sure that the attached battery is more then 65% designed factory capacity
+    batt_charge_full_design=$(cat /sys/class/power_supply/BAT0/charge_full_design)
+    batt_charge_full=$(cat /sys/class/power_supply/BAT0/charge_full_design)
+    batt_full_charge_capacity_pct=$(calc $batt_charge_full/$batt_charge_full_design) * 100 | awk -F "." {'print $1'}
+
+    if [ $batt_full_charge_capacity_pct -lt 65 ]; then
+      notify "Battery is less then 65% of factory capacity."    
+    fi
+    
     #make sure the system is powered by AC outlet
     if [ $(cat /sys/class/power_supply/AC/online) -eq 1 ]; then
       #Read /media/oem-provisioning file once to read provisioned secrets
