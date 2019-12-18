@@ -56,8 +56,8 @@ if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_reencryption" ]
   
   #Validate past cryptsetup attempts
   if [ $(echo $?) -ne 0 ]; then
-    whiptail --title 'Invalid Actual LUKS Disk Recovery Key passphrase?' --msgbox \
-      "The LUKS Disk Recovery Key passphrase was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a an external drive.\n\nTo do so, place ISO file and its signature file on root of external drive,\n and select Settings-> Boot from \n\nHit Enter to continue." 30 60
+    whiptail --title 'Invalid actual LUKS Disk Recovery Key passphrase?' --msgbox \
+      "The LUKS Disk Recovery Key passphrase was communicated to you by the OEM over\n a secure channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from an external drive.\n\nTo do so, place the OS ISO file and its signature file on the root of the external drive,\n and select Settings-> Boot from \n\nHit Enter to continue." 30 60
     shred -n 10 -z -u /tmp/oem_luks_actual_Disk_Recovery_Key 2> /dev/null
     #unsetting oem_luks_actual_Disk_Recovery_Key will prompt user for Disk Recovery Key passphrase prompt on next round
     unset oem_luks_actual_Disk_Recovery_Key
@@ -117,7 +117,7 @@ if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_password_change
   if [ $(echo $?) -ne 0 ]; then
     #Cryptsetup was unsuccessful
     whiptail --title 'Invalid LUKS passphrase?' --msgbox \
-      "The LUKS Disk Recovery Key passphrase was provided to you by the OEM over\n secure communication channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\nTo do so, put OS ISO file and it's signature file on root of USB drive,\n And select Boot from USB\n\nHit Enter to continue." 30 60
+      "The LUKS Disk Recovery Key passphrase was communicated to you by the OEM over\n a secure channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from a USB drive.\nTo do so, put the OS ISO file and its signature file on the root of the USB drive,\n and select Boot from USB\n\nHit Enter to continue." 30 60
   else
     #Cryptsetup was successful
     if [ -e /boot/oem ]; then
@@ -138,7 +138,7 @@ if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_password_change
   shred -n 10 -z -u /tmp/oem_luks_actual_Disk_Recovery_Key 2> /dev/null
   unset oem_luks_actual_Disk_Recovery_Key
   unset oem_luks_new_Disk_Recovery_Key
-  notify "Your new Disk Recovery Key and its passphrase is now effective and replaced old ones. The system will now reboot."
+  notify "Your new Disk Recovery Key passphrase is now active. The system will now reboot."
   #TODO: Shall we set marker to set disk unlock key here?
   reboot
   continue

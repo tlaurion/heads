@@ -87,7 +87,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY" = "y" ]
     if [ "$add_key_confirm" = "y" ] || [ "$add_key_confirm" = "Y" ] || [ -z "$add_key_confirm" ]; then
       save_key="y"
     else
-      warn "User chose to not add Disk Unlock Key to the TPM. It can be done manually later on by selecting a new default boot option."
+      warn "User chose not to add Disk Unlock Key to the TPM. It can be done manually later on by selecting a new default boot option."
     fi
   else
     read \
@@ -113,7 +113,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY" = "y" ]
       devices_suggest="$old_key_devices"
       save_key="y"
     else
-      echo -e "\n\nTo set a new Disk Unlock Key passphrase, different then Disk Recovery Key passphrase, resealing the Disk Unlock key to the TPM is needed.\n\nThe actual default boot option have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, prompted from TPM measurements mismatches.\n\nIt is strongly advised to set a new default boot option, which will add the Disk Unlock Key to the TPM.\n\nThe Disk Unlock Key passphrase you will choose at this step will be required of you at each machine startup and will protect the Disk Recovery Key passphrase from interested eyes.\n\nBy selecting a Disk Unlock Key passphrase, a camera that would see you type your Disk Unlock Key passphrase will only be able to access the content of your hard drive on this computer.\n\nMore critically, someone knowing your Disk Recovery Key passphrase would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
+      echo -e "\n\nTo set a new Disk Unlock Key passphrase, different than Disk Recovery Key passphrase, resealing the Disk Unlock key to the TPM is needed.\n\nThe actual default boot option have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, prompted from TPM measurements mismatches.\n\nIt is strongly advised to set a new default boot option, which will add the Disk Unlock Key to the TPM.\n\nThe Disk Unlock Key passphrase you will choose at this step will be required at each machine startup rather than you needing to type the Disk Recovery Key passphrase.\n\nBy selecting a Disk Unlock Key passphrase, a camera or person that sees you type your Disk Unlock Key passphrase will only be able to access the content of your hard drive on this particular computer.\n\nWithout a Disk Unlock Key passphrase, someone seeing you type your Disk Recovery Key passphrase would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
       die "User refused to reseal the Disk Unlock Key to the TPM"
     fi
   fi
