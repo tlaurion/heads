@@ -64,7 +64,7 @@ gpg_post_gen_mgmt() {
     umount /media
   fi
   if (whiptail --title 'Add Public Key to Running BIOS?' \
-      --yesno "Would you like to add the GPG public key you generated to the BIOS?\n\nThis makes it a trusted key used to sign files in /boot\n\n" 16 90) then
+      --yesno "Would you like to add the GPG Public Key you generated to the BIOS?\n\nThis makes it a trusted key used to sign files in /boot\n\n" 16 90) then
       /bin/flash.sh -r /tmp/gpg-gui.rom
       if [ ! -s /tmp/gpg-gui.rom ]; then
         whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: BIOS Read Failed!' \
@@ -108,7 +108,7 @@ while true; do
     'l' ' List GPG keys in your keyring' \
     'm' ' Manually generate GPG keys on a USB security token' \
     'o' ' OEM Factory reset + auto keygen USB security token' \
-    'F' ' Factory Reset HOTP-enabled USB security token GPG Card + keygen + flash' \
+    'F' ' Factory Reset USB security token GPG Card + keygen + flash' \
     'x' ' Exit' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -119,8 +119,8 @@ while true; do
       exit 0
     ;;
     "a" )
-      if (whiptail --title 'ROM and GPG public key required' \
-          --yesno "This requires you insert a USB drive containing:\n1. Your GPG public key (*.key or *.asc)\n2. Your BIOS image (*.rom)\n\nAfter you select these files, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
+      if (whiptail --title 'ROM and GPG Public Key required' \
+          --yesno "This requires you insert a USB drive containing:\n1. Your GPG Public Key (*.key or *.asc)\n2. Your BIOS image (*.rom)\n\nAfter you select these files, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount-usb || die "Unable to mount USB device."
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
@@ -151,7 +151,7 @@ while true; do
       fi
     ;;
     "r" )
-      if (whiptail --title 'GPG public key required' \
+      if (whiptail --title 'GPG Public Key required' \
           --yesno "This requires you insert a USB drive containing:\n1. Your GPG Public Key (*.key or *.asc)\n\nAfter you select this file, this program will copy and reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount-usb || die "Unable to mount USB device."
         if grep -q /media /proc/mounts ; then

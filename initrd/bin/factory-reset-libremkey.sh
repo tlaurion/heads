@@ -4,8 +4,8 @@ set -e -o pipefail
 . /etc/functions
 . /tmp/config
 
-if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of GPG card' \
-  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1. Wipe all PRIVATE keys that were previously kept inside GPG card\n 2. Set default key size to 4096 bits (maximum)\n 3. Set two passphrases to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4. Generate new Encryption, Signing and Authentication keys\n  inside your GPG smartcard\n5. Export associated public key into mounted /media/gpg_keys/, replace the\n  one being present and trusted inside running BIOS, and reflash\n  ROM with resulting image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
+if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of USB security token' \
+  --yesno "You are about to factory reset your USB security token!\n\nThis will:\n 1. Wipe all PRIVATE keys that were previously kept inside USB security token\n 2. Set default key size to 4096 bits (maximum)\n 3. Set two passphrases to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4. Generate new Encryption, Signing and Authentication keys\n  inside your USB security token\n5. Export associated public key into mounted /media/gpg_keys/, replace the\n  one being present and trusted inside running BIOS, and reflash\n  ROM with resulting image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
 
   mount-usb || die "Unable to mount USB device."
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
@@ -32,7 +32,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
   {
-    echo -e "\nChoose your new GPG card PIN. You will type this when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
+    echo -e "\nChoose your new USB security token's GPG PIN. You will type this when using USB security token (signing files, encrypting emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
     read -s gpgcard_user_pass1
     echo -e "\nRetype user passphrase:"
     read -s gpgcard_user_pass2
@@ -42,35 +42,35 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
   {
-    echo -e "\nChoose your new GPG card admin password. You will type this when managing the GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
+    echo -e "\nChoose your new GPG admin password. You will type this when managing the USB security token (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
     read -s gpgcard_admin_pass1
-    echo -e "\nRetype admin password:"
+    echo -e "\nRetype GPG admin password:"
     read -s gpgcard_admin_pass2
   };done
   gpgcard_admin_pass=$gpgcard_admin_pass1
 
   echo -e "\n\n"
-  echo -e "Next, we will generate a GnuPG (GPG) keypair of the form:"
+  echo -e "Next, we will generate a GPG keypair identifiable by the template:"
   echo -e "Real Name (Comment) email@address.org"
   
   gpgcard_real_name=$(echo -n "$oem_gpg_real_name")
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
-    echo -e "\nEnter your real name (At least 5 characters long):"
+    echo -e "\nEnter your GPG real name (At least 5 characters long):"
     read -r gpgcard_real_name
   };done
 
   gpgcard_email_address=$(echo -n "$oem_gpg_email")
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
-    echo -e "\nEnter your email@adress.org:"
+    echo -e "\nEnter your GPG email (email@adress.org):"
     read -r gpgcard_email_address
   };done
   
   gpgcard_comment=$(echo -n "$oem_gpg_comment")
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z "$gpgcard_comment" ]]; do
   {
-    echo -e "\nEnter comment (distinguishes this key from others with same name and email address. Must be smaller then 60 characters):"
+    echo -e "\nEnter GPG comment (distinguishes this key from others with same name and email address. Must be smaller then 60 characters):"
     read -r gpgcard_comment
   };done
 
@@ -87,7 +87,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   mkdir -p /media/gpg_keys
 
   #Generate Encryption, Signing and Authentication keys
-  whiptail --clear --title 'GPG card key generation' --msgbox \
+  whiptail --clear --title 'USB security token GPG key generation' --msgbox \
   "Generating 4096 bits for encryption, signing and authentication keys.\nPLEASE BE PATIENT! This step takes around 15 minutes.\n\nHit Enter to continue" 30 90
 
   confirm_gpg_card
@@ -98,7 +98,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo factory-reset
     echo y
     echo yes
-  } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Factory resetting the GPG card failed."
+  } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Factory resetting the USB security token failed."
 
   #Setting new admin and user passwords in GPG card
   {
@@ -113,7 +113,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo "$gpgcard_admin_pass"
     echo "$gpgcard_admin_pass"
     echo Q
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting new admin and user PINs in GPG card failed."
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting new GPG admin and user PINs in USB security token failed."
 
   #Set GPG card key attributes key sizes to 4096 bits
   {
@@ -128,7 +128,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo 1 # RSA
     echo 4096 #Authentication key size set to maximum supported by SmartCard
     echo "$gpgcard_admin_pass"
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting key attributed to RSA 4096 bits in GPG card failed."
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting key attributed to RSA 4096 bits in USB security token failed."
 
   {
     echo admin
@@ -140,7 +140,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo "$gpgcard_real_name"
     echo "$gpgcard_email_address"
     echo "$gpgcard_comment"
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting real name, email address and comment in GPG failed."
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting GPG real name, GPG email and GPG comment failed."
 
   #Export and inject public key and trustdb export into extracted rom with current user keys being wiped
   rom=/tmp/gpg-gui.rom

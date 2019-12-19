@@ -48,7 +48,7 @@ flash_rom() {
     || die "$ROM: Flash failed"
     
     if [ -e /boot/kexec_key_devices.txt ] || [ -e /boot/kexec_key_lvm.txt ]; then
-      echo -e "\n\nMeasured boot integrity chagned. Both your TOTP/HOTP codes and TPM released Disk Unlock Key were invalidated."
+      echo -e "\n\nMeasured boot integrity changed. Both your TOTP/HOTP codes and TPM released Disk Unlock Key were invalidated."
       notify "You will be requested to reseal TOTP/HOTP secrets, to set a new default boot option and define a new Disk Unlock Key passphrase."
       mount_boot
       mount -o remount,rw /boot
