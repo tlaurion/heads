@@ -40,8 +40,8 @@ select_luks_container()
 if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_reencryption" ]; then
   #if no oem-privisioning file provides actual Disk Recovery Key
   if [ -z "$oem_luks_actual_Disk_Recovery_Key" ]; then
-    whiptail --title 'Reencrypt actual LUKS container with a new user selected strong passphrase?' \
-      --msgbox "This will replace the actual Disk Recovery Key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the actual Disk Recovery Key passphrase\nand will delete the actual Disk unlock key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
+    whiptail --title 'Reencrypt existing LUKS container with a new user selected strong passphrase?' \
+      --msgbox "This will replace the existing Disk Recovery Key.\n\nThe passphrase associated with this key will be asked to the user in the\n following conditions:\n1-Every boot if no Disk unlock key was added to the TPM\n2-If the TPM fails (Hardware failure)\n3-If the firmware has been tampered with/upgraded/modified by the user\n\nThis process requires you to type the existing Disk Recovery Key passphrase\nand will delete the existing Disk Unlock Key released by the TPM into\nLUKS (slot 1) if present.\n\nAt the next prompt, you may be asked to select which file corresponds to\nthe LUKS device container. Normally, it should be /dev/sda2.\n\nHit Enter to continue." 30 90
     select_luks_container
     whiptail --title 'Reencrypting LUKS container!' --msgbox \
       "Please enter current Disk Recovery Key passphrase (slot 0) to reencrypt\n LUKS container with a brand new encryption key\n\nHit Enter to continue." 30 60
@@ -50,13 +50,13 @@ if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_reencryption" ]
     #USB "oem-privisioning" file provides actual Disk Recovery Key
     echo -n "$oem_luks_actual_Disk_Recovery_Key" > /tmp/oem_luks_actual_Disk_Recovery_Key
     select_luks_container
-    warn "Reencrypting "$LUKS" LUKS encrypted drive content with actual Recovery Disk Key passphrase..."
+    warn "Reencrypting "$LUKS" LUKS encrypted drive content with existing Recovery Disk Key passphrase..."
     cryptsetup-reencrypt -B 32 --use-directio "$LUKS" --key-slot 0 --key-file /tmp/oem_luks_actual_Disk_Recovery_Key
   fi
   
   #Validate past cryptsetup attempts
   if [ $(echo $?) -ne 0 ]; then
-    whiptail --title 'Invalid actual LUKS Disk Recovery Key passphrase?' --msgbox \
+    whiptail --title 'Invalid existing LUKS Disk Recovery Key passphrase?' --msgbox \
       "The LUKS Disk Recovery Key passphrase was communicated to you by the OEM over\n a secure channel.\n\nIf you previously changed it and do not remember it,\n you will have to reinstall OS from an external drive.\n\nTo do so, place the OS ISO file and its signature file on the root of the external drive,\n and select Settings-> Boot from \n\nHit Enter to continue." 30 60
     shred -n 10 -z -u /tmp/oem_luks_actual_Disk_Recovery_Key 2> /dev/null
     #unsetting oem_luks_actual_Disk_Recovery_Key will prompt user for Disk Recovery Key passphrase prompt on next round
@@ -77,10 +77,10 @@ if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_reencryption" ]
         #TODO: Would be awesome to thread a watcher that would check in kernel output for sector errors and kill cryptsetup-reencrypt.
         #Otherwise, reencrypting sdcard can take forever, and the result is corrupted LUKS container anyway....
         #For the moment, we catch it only when it fails.
-        warn "An error occured when reencrypting $SDCARD_MOUNT_DEVICE device. Probably sector corruption of unreliable sdcard flash..."
+        warn "An error occured when reencrypting $SDCARD_MOUNT_DEVICE device. Probably sector corruption of unreliable SD card flash..."
         error "Outputing kernel log when ready:"
         dmesg
-        warn "Unfortunately, the one-shot provisioning of OEM Reownership won't be able to provide automatic storing/fetching of credentials."
+        warn "Unfortunately, the one-shot provisioning of OEM Reownership won't be able to provide automatic storing or fetching of credentials."
         mount -o remount,rw /boot
         echo "no_automatic_provisioning" >> /boot/oem
         mount -o remount,ro /boot

@@ -28,7 +28,7 @@ for tries in 1 2 3; do
 	echo
 
 	if [ -z "$tpm_password" ]; then
-		die "Aborting unsealing LUKS Disk Unlock Key since no Disk Unlock Key passphrase was provided."
+    die "No Disk Unlock Key passphrase provided. Aborting unsealing LUKS Disk Unlock Key."
 	fi
 
 	if tpm unsealfile \

@@ -5,11 +5,11 @@ set -e -o pipefail
 . /tmp/config
 
 if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of GPG card' \
-  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1-Wipe all PRIVATE keys that were previously kept inside GPG card\n 2-Set default key size to 4096 bits (maximum)\n 3-Set two passphrases to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4-Generate new Encryption, Signing and Authentication keys\n  inside your GPG smartcard\n5-Export associated public key into mounted /media/gpg_keys/, replace the\n  one being present and trusted inside running BIOS, and reflash\n  ROM with resulting image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
+  --yesno "You are about to factory reset your GPG card!\n\nThis will:\n 1. Wipe all PRIVATE keys that were previously kept inside GPG card\n 2. Set default key size to 4096 bits (maximum)\n 3. Set two passphrases to interact with the card:\n  3.1: An administrative passphrase used to manage the card\n  3.2: A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4. Generate new Encryption, Signing and Authentication keys\n  inside your GPG smartcard\n5. Export associated public key into mounted /media/gpg_keys/, replace the\n  one being present and trusted inside running BIOS, and reflash\n  ROM with resulting image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
 
   mount-usb || die "Unable to mount USB device."
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
-  mount -o remount,rw /media || die "Unable to remount /media into Read Write mode. Is the device write protected?"
+  mount -o remount,rw /media || die "Unable to remount /media into read/write mode. Is the device write-protected?"
   
   #TODO: Circumvent permission bug with mkdir and chmod permitting to use gpg --home=/media/gpg_keys directly. 
   #Cannot create a new gpg homedir with right permissions nor chmod 700 that directory.
@@ -32,7 +32,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
   {
-    echo -e "\nChoose your new GPG card user password (PIN) that will be typed when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
+    echo -e "\nChoose your new GPG card PIN. You will type this when using GPG smartcard (Sign files, encrypt emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
     read -s gpgcard_user_pass1
     echo -e "\nRetype user passphrase:"
     read -s gpgcard_user_pass2
@@ -42,7 +42,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
   {
-    echo -e "\nChoose your new GPG card admin password that will be typed when managing GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
+    echo -e "\nChoose your new GPG card admin password. You will type this when managing the GPG smartcard (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
     read -s gpgcard_admin_pass1
     echo -e "\nRetype admin password:"
     read -s gpgcard_admin_pass2
@@ -50,13 +50,13 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   gpgcard_admin_pass=$gpgcard_admin_pass1
 
   echo -e "\n\n"
-  echo -e "We will generate a GnuPG (GPG) keypair identifiable with the following text form:"
+  echo -e "Next, we will generate a GnuPG (GPG) keypair of the form:"
   echo -e "Real Name (Comment) email@address.org"
   
   gpgcard_real_name=$(echo -n "$oem_gpg_real_name")
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
-    echo -e "\nEnter your Real Name (At least 5 characters long):"
+    echo -e "\nEnter your real name (At least 5 characters long):"
     read -r gpgcard_real_name
   };done
 
@@ -70,12 +70,12 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   gpgcard_comment=$(echo -n "$oem_gpg_comment")
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z "$gpgcard_comment" ]]; do
   {
-    echo -e "\nEnter Comment (To distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
+    echo -e "\nEnter comment (distinguishes this key from others with same name and email address. Must be smaller then 60 characters):"
     read -r gpgcard_comment
   };done
 
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
-  mount -o remount,rw /media || die "Unable to remount /media into Read Write mode. Is the device write protected?" 
+  mount -o remount,rw /media || die "Unable to remount /media into read/write mode. Is the device write protected?" 
 
   #backup existing /media/gpg_keys directory
   if [ -d /media/gpg_keys ];then
@@ -88,7 +88,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   #Generate Encryption, Signing and Authentication keys
   whiptail --clear --title 'GPG card key generation' --msgbox \
-  "BE PATIENT! Generating 4096 bits Encryption, Signing and Authentication\n keys take around 5 minutes each! Be prepared to patient around 15 minutes!\n\nHit Enter to continue" 30 90
+  "Generating 4096 bits for encryption, signing and authentication keys.\nPLEASE BE PATIENT! This step takes around 15 minutes.\n\nHit Enter to continue" 30 90
 
   confirm_gpg_card
 
@@ -140,7 +140,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo "$gpgcard_real_name"
     echo "$gpgcard_email_address"
     echo "$gpgcard_comment"
-  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting real name, e-mail address and comment in GPG failed."
+  } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting real name, email address and comment in GPG failed."
 
   #Export and inject public key and trustdb export into extracted rom with current user keys being wiped
   rom=/tmp/gpg-gui.rom
@@ -204,6 +204,6 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   fi
 
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Reboot required' --msgbox \
-    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trust\n database included.\n\n Heads will detect the firmware change and react accordingly:\n It will ask you to reseal TOTP/HOTP (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card and its associated user password (PIN).\n\nHit Enter to reboot." 30 90
+    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trust\n database included.\n\n Since this step changes the firmware, Heads react as expected:\n It will ask you to reseal TOTP/HOTP (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card and its associated user password (PIN).\nThis is normal.\nHit Enter to reboot." 30 90
   /bin/reboot
 fi

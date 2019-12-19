@@ -113,7 +113,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY" = "y" ]
       devices_suggest="$old_key_devices"
       save_key="y"
     else
-      echo -e "\n\nTo set a new Disk Unlock Key passphrase, different than Disk Recovery Key passphrase, resealing the Disk Unlock key to the TPM is needed.\n\nThe actual default boot option have been invalidated by a firmware upgrade or a firmware tampering.\nIf you are the origin of the change, you have already resealed TOTP/HOTP, prompted from TPM measurements mismatches.\n\nIt is strongly advised to set a new default boot option, which will add the Disk Unlock Key to the TPM.\n\nThe Disk Unlock Key passphrase you will choose at this step will be required at each machine startup rather than you needing to type the Disk Recovery Key passphrase.\n\nBy selecting a Disk Unlock Key passphrase, a camera or person that sees you type your Disk Unlock Key passphrase will only be able to access the content of your hard drive on this particular computer.\n\nWithout a Disk Unlock Key passphrase, someone seeing you type your Disk Recovery Key passphrase would just have to clone your disk (which takes 30 minutes) and be able to access its content from any other computer later on.\nConsider yourself warned.\n"
+      echo -e "\n\nTo set a new Disk Unlock Key passphrase, different from the Disk Recovery Key passphrase, you need to reseal the Disk Unlock key.\n\nThe existing default boot option has been invalidated by a firmware upgrade, or by firmware tampering.\nIf you made this change, you have already resealed TOTP/HOTP, prompted from TPM measurements mismatches.\n\nIt is strongly advised to set a new default boot option, which will add the Disk Unlock Key to the TPM.\n\nThe Disk Unlock Key passphrase you will choose at this step will be required at each machine startup rather than you needing to type the Disk Recovery Key passphrase.\n\nBy selecting a Disk Unlock Key passphrase, a camera or person that sees you type your Disk Unlock Key passphrase will only be able to access the content of your hard drive on this particular computer.\n\nWithout a Disk Unlock Key passphrase, someone seeing you type your Disk Recovery Key passphrase would be able to clone your disk (which takes 30 minutes). They would then be able to access its content from any computer.\nConsider yourself warned.\n"
       die "User refused to reseal the Disk Unlock Key to the TPM"
     fi
   fi
@@ -122,7 +122,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY" = "y" ]
     if [ -n "$old_key_devices" ] || [ -n "$old_lvm_volume_group" ]; then
       read \
         -n 1 \
-        -p "Do you want to reuse configured Encrypted LVM groups/Block devices? (Y/n):" \
+        -p "Do you want to reuse configured encrypted LVM groups/block devices? (Y/n):" \
         reuse_past_devices
        echo
       if [ "$reuse_past_devices" = "y" ] || [ "$reuse_past_devices" = "Y" ] || [ -z "$reuse_past_devices" ]; then
@@ -149,7 +149,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY" = "y" ]
           fi
         };done
       elif [ "$num_lvm" -eq 1 ] && [ -s $lvm_suggest ]; then
-        echo "Single Encrypted LVM group found at $lvm_suggest."
+        echo "Single encrypted LVM group found at $lvm_suggest."
         lvm_volume_group=$lvm_suggest
       else
         echo "No encrypted LVM Group found."

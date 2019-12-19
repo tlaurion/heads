@@ -42,12 +42,12 @@ mkdir -p "$INITRD_DIR/etc"
 unseal_failed="n"
 if ! kexec-unseal-key "$INITRD_DIR/secret.key" ; then
 	unseal_failed="y"
-	echo "!!! Failed to unseal the TPM LUKS Disk Unlock Key"
+	echo "!!! Failed to unseal the TPM LUKS Disk Unlock Key."
 fi
 
 # Override PCR 4 so that user can't read the key
 tpm extend -ix 4 -ic generic \
-	|| die 'Unable to scramble PCR'
+	|| die 'Unable to scramble PCR.'
 
 # Check to continue
 if [ "$unseal_failed" = "y" ]; then
@@ -61,7 +61,7 @@ if [ "$unseal_failed" = "y" ]; then
 		-a "$confirm_boot" != 'Y' \
 		-a -n "$confirm_boot" ] \
 	; then
-		die "!!! Aborting boot due to failure to unseal TPM Disk Unlock Key"
+		die "!!! Failed to unseal TPM Disk Unlock Key. Aborting boot."
 	fi
 fi
 

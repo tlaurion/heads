@@ -106,7 +106,7 @@ is_Luks_luksOpen()
     
     if [ -e /boot/oem ]; then
       if ! grep -q luks_reencrypted /boot/oem ; then
-        echo -e "Please type provided $oem_name actual Disk Recovery Key passphrase at next prompt.\n"
+        echo -e "Please type provided $oem_name existing Disk Recovery Key passphrase at next prompt.\n"
       else
         echo -e "Please type your chosen new Disk Recovery Key passphrase at next prompt.\n"
       fi

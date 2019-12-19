@@ -29,7 +29,7 @@ paramsdir="${paramsdir%%/}"
 
 if [ -n "$lvm_volume_group" ]; then
 	lvm vgchange -a y $lvm_volume_group \
-	|| die "Failed to activate the LVM group"
+	|| die "Failed to activate the LVM group."
 
 	for dev in /dev/$lvm_volume_group/*; do
 		key_devices="$key_devices $dev"
@@ -46,7 +46,7 @@ mount -o rw,remount $paramsdev
 rm -f $paramsdir/kexec_key_lvm.txt || true
 if [ -n "$lvm_volume_group" ]; then
 	echo "$lvm_volume_group" > $paramsdir/kexec_key_lvm.txt \
-	|| die "Failed to write lvm group to key config "
+	|| die "Failed to write LVM group to key config."
 fi
 
 rm -f $paramsdir/kexec_key_devices.txt || true
@@ -58,12 +58,12 @@ for dev in $key_devices; do
 done
 
 kexec-seal-key $paramsdir \
-|| die "Failed to save and generate key in TPM"
+|| die "Failed to save and generate key in TPM."
 
 if [ "$skip_sign" != "y" ]; then
 	# sign and auto-roll config counter
 	kexec-sign-config -p $paramsdir -u \
-	|| die "Failed to sign updated config"
+	|| die "Failed to sign updated config."
 fi
 
 # switch back to ro mode

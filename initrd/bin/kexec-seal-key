@@ -22,7 +22,7 @@ KEY_DEVICES="$paramsdir/kexec_key_devices.txt"
 KEY_LVM="$paramsdir/kexec_key_lvm.txt"
 
 if [ ! -r "$KEY_DEVICES" ]; then
-	die "No devices defined for disk encryption"
+	die "No devices defined for disk encryption."
 fi
 
 if [ -r "$KEY_LVM" ]; then
@@ -72,7 +72,7 @@ dd \
 	bs=1 \
 	count=128 \
 	2>/dev/null \
-|| die "Unable to generate 128 random bytes"
+|| die "Unable to generate 128 random bytes."
 
 # Remove all the old keys from slot 1
 for dev in `cat "$KEY_DEVICES" | cut -d\  -f1`; do
@@ -80,14 +80,14 @@ for dev in `cat "$KEY_DEVICES" | cut -d\  -f1`; do
   cryptsetup luksKillSlot \
     --key-file "$RECOVERY_KEY" \
     $dev 1 \
-  || warn "Removing LUKS Disk Unlock Key on $dev (key slot 1) failed. Bad passphrase or key slot 1 not existing. Continuing..."
+  || warn "Removing LUKS Disk Unlock Key on $dev (key slot 1) failed. Bad passphrase or key slot 1 doesn't exist. Continuing..."
 
   echo "++++++ $dev: Adding key"
   cryptsetup luksAddKey \
     --key-file "$RECOVERY_KEY" \
     --key-slot 1 \
     $dev "$KEY_FILE" \
-  || die "Unable to add key to $dev key slot 1. Please try again with actual LUKS Disk Recovery Key passphrase."
+  || die "Unable to add key to $dev key slot 1. Please try again with existing LUKS Disk Recovery Key passphrase."
 done
 
 # Now that we have setup the new keys, measure the PCRs
@@ -98,8 +98,8 @@ cat "$KEY_DEVICES" | cut -d\  -f1 | xargs /bin/qubes-measure-luks \
 	|| die "Unable to measure the LUKS headers"
 luks_pcr=`tpm calcfuturepcr -ix 16 -if /tmp/luksDump.txt`
 
-# Librem Key loads USB modules which changes PCR5.
-# In the event Librem Key is enabled, skip verification of PCR5
+# HOTP-enabled USB security token loads USB modules which changes PCR5.
+# In the event HOTP-enabled USB security token is enabled, skip verification of PCR5
 if [ -x /bin/libremkey_hotp_verification ]; then
   pcr_5="X"
 else
@@ -132,7 +132,7 @@ tpm sealfile2 \
 || die "Unable to seal secret"
 
 shred -n 10 -z -u "$KEY_FILE" 2> /dev/null \
-|| die "Failed to delete key file"
+|| die "Failed to delete key file."
 
 # try it without the owner password first
 if ! tpm nv_writevalue \
@@ -145,7 +145,7 @@ if ! tpm nv_writevalue \
 	# The permissions are 0 since there is nothing special
 	# about the sealed file
 	tpm physicalpresence -s \
-	|| warn "Warning: Unable to assert physical presence"
+	|| warn "Warning: Unable to assert physical presence."
   
   if [ -z "$oem_TPM_Owner_Password" ]; then
 	  read -s -p "TPM Owner passphrase: " tpm_password
@@ -159,7 +159,7 @@ if ! tpm nv_writevalue \
 		-sz $TPM_SIZE \
 		-pwdo "$tpm_password" \
 		-per 0 \
-	|| warn "Warning: Unable to define NVRAM space; trying anyway"
+	|| warn "Warning: Unable to define NVRAM space. Trying anyway."
 
 
 	tpm nv_writevalue \

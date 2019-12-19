@@ -10,4 +10,4 @@ if [ "$CONFIG_TPM" = "y" ]; then
 fi
 
 usb-scan
-recovery "Something failed during USB boot"
+recovery "Something failed during USB boot."

@@ -7,13 +7,13 @@ set -e -o pipefail
 # Unmount any previous boot device
 if grep -q /boot /proc/mounts ; then
 	umount /boot \
-		|| die "Unable to unmount /boot"
+		|| die "Unable to unmount /boot."
 fi
 
 # Mount the USB boot device
 if ! grep -q /media /proc/mounts ; then
 	mount-usb \
-		|| die "Unable to mount /media"
+		|| die "Unable to mount /media."
 fi
 
 # Check for ISO first
@@ -28,10 +28,10 @@ get_menu_option() {
 			MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
 		done < /tmp/iso_menu.txt
 
-		whiptail --clear --title "Select your ISO boot option" \
+		whiptail --clear --title "Select your ISO boot option." \
 			--menu "Choose the ISO boot option [1-$n, s for standard boot, a to abort]:" 20 120 8 \
 			-- $MENU_OPTIONS \
-			2>/tmp/whiptail || die "Aborting boot attempt"
+			2>/tmp/whiptail || die "Aborting boot attempt."
 
 		option_index=$(cat /tmp/whiptail)
 	else
@@ -49,7 +49,7 @@ get_menu_option() {
 	fi
 
 	if [ "$option_index" = "a" ]; then
-		die "Aborting boot attempt"
+		die "Aborting boot attempt."
 	fi
 
 	if [ "$option_index" = "s" ]; then
@@ -74,7 +74,7 @@ if [ `cat /tmp/iso_menu.txt | wc -l` -gt 0 ]; then
 		ISO=${option:7} # remove /media/ to get device relative path
 		kexec-iso-init $MOUNTED_ISO $ISO $(grep "/media" /proc/mounts | awk -F " " '{print $1}')
 
-		die "Something failed in iso init"
+		die "Something failed in ISO init."
 	fi
 fi
 
@@ -86,4 +86,4 @@ else
 	kexec-select-boot -b /media -c "*.cfg" -u -s
 fi
 
-die "Something failed in selecting boot"
+die "Something failed in selecting boot."

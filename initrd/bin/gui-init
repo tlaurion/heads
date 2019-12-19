@@ -39,7 +39,7 @@ verify_global_hashes()
     return 0
   elif [ ! -f $TMP_HASH_FILE ]; then
     if (whiptail $CONFIG_ERROR_BG_COLOR --clear --title 'ERROR: Missing Hash File!' \
-      --yesno "The file containing hashes for /boot is missing!\n\nIf you are setting this system up for the first time, select Yes to update\nyour list of checksums.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to update your checksums now?" 30 90) then
+      --yesno "The file containing hashes for /boot is missing!\n\nIf you are following the reownership wizard, select Yes to update\nyour list of checksums.\n\nOtherwise, this could indicate a compromise. You should select No to\nreturn to the main menu.\n\nWould you like to update your checksums now?" 30 90) then
       update_checksums
     fi
     return 1
@@ -57,9 +57,9 @@ verify_global_hashes()
       UPDATE_INITRAMFS_PACKAGE=$(grep '^UPDATE_INITRAMFS_PACKAGE' $TMP_PACKAGE_TRIGGER_POST | cut -f 2 -d '=' | tr -d '"')
 
       if [ "$UPDATE_INITRAMFS_PACKAGE" != "" ]; then
-        TEXT="The following files failed the verification process AFTER package updates ran:\n${CHANGED_FILES}\n\nThis is likely due to package triggers in$UPDATE_INITRAMFS_PACKAGE.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
+        TEXT="The following files failed the verification process after package updates ran:\n${CHANGED_FILES}\n\nThis is likely due to package triggers in$UPDATE_INITRAMFS_PACKAGE.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
       else
-        TEXT="The following files failed the verification process AFTER package updates ran:\n${CHANGED_FILES}\n\nThis might be due to the following package updates:\n$LAST_PACKAGE_LIST.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
+        TEXT="The following files failed the verification process after package updates ran:\n${CHANGED_FILES}\n\nThis might be due to the following package updates:\n$LAST_PACKAGE_LIST.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
       fi
 
     else
@@ -99,7 +99,7 @@ update_checksums()
     # switch back to ro mode
     mount -o ro,remount /boot
   else
-    echo "Returning to the main menu"
+    echo "Returning to the main menu..."
   fi
 }
 update_totp()
@@ -107,12 +107,12 @@ update_totp()
   echo "Scan the QR code to add the new TOTP secret"
   /bin/seal-totp $CONFIG_BOARD
   if [ -x /bin/libremkey_hotp_verification ]; then
-    echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
+    echo "Once you have scanned the QR code, hit Enter to configure your HOTP-enabled USB security token."
     read
     /bin/seal-libremkey
 		#Sometimes HOTP sealing fails. We do until it works.
     while [ $? -ne 0 ];do
-      echo -e "\n\nSealing HOTP secret into Librem Key failed. Let's try again by resealing both TOTP and HOTP."
+      echo -e "\n\nSealing HOTP secret into HOTP-enabled USB security token failed. Let's try again by resealing both TOTP and HOTP."
       update_totp
       /bin/seal-libremkey
     done
@@ -141,7 +141,7 @@ if [ -e /boot/oem ];then
       #Read /media/oem-provisioning file once to read provisioned secrets
       read_oem_files
     else
-      notify "You must run the Reownership Wizard from a safe place with power outlet connected. Reownership will take around an hour. Sytem will now power off."
+      notify "You must run the Reownership Wizard from a safe place with power outlet connected. Reownership will take around an hour. System will now power off."
       poweroff
     fi
   fi
@@ -152,7 +152,7 @@ if [ -e /boot/reset_disk_unlock_key ] && [ ! -e /boot/oem ]; then
         --yesno "You just updated the ROM, which requires resealing TOTP/HOTP secrets.\nTPM released Disk Unlock Key stored in LUKS header must also be regenerated.\n\nIf you did not modify the ROM, this might be a sign of system compromise.\nIn that case, you should say No here and investigate." 30 90) then
     reset_disk_unlock_key
   else
-    recovery "User refused to update TOTP/HOTP following what seemed to be a ROM update. Time to investigate changes manually."
+    recovery "User refused to update TOTP/HOTP following what seemed to be a ROM update. Please investigate changes manually."
   fi
 fi
 
@@ -205,7 +205,7 @@ while true; do
       HOTP=`unseal-hotp`
       enable_usb
       if ! libremkey_hotp_verification info ; then
-        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Librem Key' --msgbox "Your Librem Key was not detected.\n\nPlease insert your Librem Key" 30 90
+        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please insert your HOTP-enabled USB security token.' --msgbox "Your HOTP-enabled USB security token was not detected.\n\nPlease insert your HOTP-Enabled USB security token." 30 90
         fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
       libremkey_hotp_verification check $HOTP
@@ -218,7 +218,7 @@ while true; do
           MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
         ;;
         * )
-          HOTP="Error checking code, Insert Librem Key and retry"
+          HOTP="Error checking code. Insert HOTP-enabled USB security token and retry."
           MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
         ;;
       esac

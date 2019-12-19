@@ -2,7 +2,7 @@
 . /etc/functions
 
 echo '*****'
-echo '***** WARNING: This will erase all keys and secrets from the TPM'
+echo '***** WARNING: This will erase all keys and secrets from the TPM.'
 echo '*****'
 
 if [ -z "$oem_TPM_Owner_Password" ]; then
@@ -15,18 +15,18 @@ fi
 
 while [ "$key_password" != "$key_password2" ]; do
 {
-  read -r -s -p "New TPM owner password: " key_password
+  read -r -s -p "New TPM Owner Password: " key_password
   echo
 
   if [ -z "$key_password" ]; then
-	  die "Empty TPM Owner password is not allowed"
+	  die "Empty TPM Owner Password is not allowed."
   fi
 
-  read -r -s -p "Repeat TPM owner password: " key_password2
+  read -r -s -p "Repeat TPM Owner Password: " key_password2
   echo
 
   if [ "$key_password" != "$key_password2" ]; then
-	  die "TPM Owner passwords did not match"
+	  die "TPM Owner Passwords did not match."
   fi
 };done
 

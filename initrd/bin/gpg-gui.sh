@@ -50,12 +50,12 @@ gpg_post_gen_mgmt() {
   GPG_GEN_KEY=`grep -A1 pub /tmp/gpg_card_edit_output | tail -n1 | sed -nr 's/^([ ])*//p'`
   gpg --export --armor $GPG_GEN_KEY > "/tmp/${GPG_GEN_KEY}.asc"
   if (whiptail --title 'Add Public Key to USB disk?' \
-      --yesno "Would you like to copy the GPG public key you generated to a USB disk?\n\nOtherwise you will not be able to copy it outside of Heads later\n\nThe file will show up as ${GPG_GEN_KEY}.asc" 16 90) then
+      --yesno "Would you like to copy the GPG public key you generated to a USB disk?\n\nIf you don't, you will not be able to copy your key outside of Heads later.\n\nThe file will show up as ${GPG_GEN_KEY}.asc" 16 90) then
     mount-usb || die "Unable to mount USB device."
-    mount -o remount,rw /media || die "Unable to remount /media in Read-Write mode. Is the device Write protected?"
+    mount -o remount,rw /media || die "Unable to remount /media in read/write mode. Is the device Write protected?"
     cp "/tmp/${GPG_GEN_KEY}.asc" "/media/${GPG_GEN_KEY}.asc"
     if [ $? -eq 0 ]; then
-      whiptail --title "The GPG Key Copied Successfully" \
+      whiptail --title "The GPG Key copied Successfully" \
         --msgbox "${GPG_GEN_KEY}.asc copied successfully." 16 60
     else
       whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Copy Failed' \
@@ -108,7 +108,7 @@ while true; do
     'l' ' List GPG keys in your keyring' \
     'm' ' Manually generate GPG keys on a USB security token' \
     'o' ' OEM Factory reset + auto keygen USB security token' \
-    'F' ' Factory Reset Librem Key GPG Card + keygen + flash' \
+    'F' ' Factory Reset HOTP-enabled USB security token GPG Card + keygen + flash' \
     'x' ' Exit' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -120,12 +120,12 @@ while true; do
     ;;
     "a" )
       if (whiptail --title 'ROM and GPG public key required' \
-          --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n* Your BIOS image (*.rom)\n\nAfter you select these files, this program will reflash your BIOS\n\nDo you want to proceed?" 16 90) then
+          --yesno "This requires you insert a USB drive containing:\n1. Your GPG public key (*.key or *.asc)\n2. Your BIOS image (*.rom)\n\nAfter you select these files, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount-usb || die "Unable to mount USB device."
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose your GPG public key"
+          file_selector "/tmp/filelist.txt" "Choose your GPG Public Key"
           if [ "$FILE" == "" ]; then
             return
           else
@@ -133,7 +133,7 @@ while true; do
           fi
 
           find /media -name '*.rom' > /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose the ROM to load your key onto"
+          file_selector "/tmp/filelist.txt" "Choose the ROM to load your key on to."
           if [ "$FILE" == "" ]; then
             return
           else
@@ -152,23 +152,23 @@ while true; do
     ;;
     "r" )
       if (whiptail --title 'GPG public key required' \
-          --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n\nAfter you select this file, this program will copy and reflash your BIOS\n\nDo you want to proceed?" 16 90) then
+          --yesno "This requires you insert a USB drive containing:\n1. Your GPG Public Key (*.key or *.asc)\n\nAfter you select this file, this program will copy and reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount-usb || die "Unable to mount USB device."
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose your GPG public key"
+          file_selector "/tmp/filelist.txt" "Choose your GPG Public Key"
           PUBKEY=$FILE
 
           /bin/flash.sh -r /tmp/gpg-gui.rom
           if [ ! -s /tmp/gpg-gui.rom ]; then
-            whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: BIOS Read Failed!' \
+            whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: BIOS read failed!' \
               --msgbox "Unable to read BIOS" 16 60
             exit 1
           fi
 
           if (whiptail --title 'Update ROM?' \
-              --yesno "This will reflash your BIOS with the updated version\n\nDo you want to proceed?" 16 90) then
+              --yesno "This will reflash your BIOS with the updated version.\n\nDo you want to proceed?" 16 90) then
             gpg_flash_rom
           else
             exit 0
@@ -198,18 +198,18 @@ while true; do
     ;;
     "o" )
       if (whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Factory Reset USB Security Token?' \
-          --yesno "This will perform a FACTORY RESET of the USB security token!\n\nThis will:\n* Reset all security token passwords to default\n* Erase any keys on the security token\n* Generate new automated GPG keys on the token\n\nAny data now on the USB security token will be LOST!\n\nDo you want to proceed?" 16 120) then
+          --yesno "This will perform a FACTORY RESET of the USB security token!\n\nThis will:\n1. Reset all security token passwords to default\n2. Erase any keys on the security token\n3. Generate new automated GPG keys on the token\n\nPLEASE NOTE: Any data now on the USB security token will be lost!\n\nDo you want to proceed?" 16 120) then
         confirm_gpg_card
         gpg_sc_oem_reset
         if [ $? -eq 0 ]; then
           gpg_post_gen_mgmt
         elif [ $? -eq 1 ]; then
           GPG_OUTPUT=`cat /tmp/gpg_card_edit_output`
-          whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Factory Reset Failed!' \
+          whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Factory reset failed!' \
             --msgbox "Factory Reset Failed!\n\n$GPG_OUTPUT" 16 120
         elif [ $? -eq 2 ]; then
           GPG_OUTPUT=`cat /tmp/gpg_card_edit_output`
-          whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Automatic Keygen Failed!' \
+          whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Automatic keygen failed!' \
             --msgbox "Automatic Keygen Failed!\n\n$GPG_OUTPUT" 16 120
         fi
       fi

@@ -12,7 +12,7 @@ mount_boot_or_die()
   # Mount local disk if it is not already mounted
   if ! grep -q /boot /proc/mounts ; then
     mount -o ro /boot \
-      || die "Unable to mount /boot"
+      || die "Unable to mount /boot."
   fi
 }
 
@@ -25,13 +25,13 @@ tpm nv_readvalue \
 	-in 4d47 \
 	-sz 312 \
 	-of "$HOTP_SEALED" \
-|| die "Unable to retrieve sealed file from TPM NV"
+|| die "Unable to retrieve sealed file from TPM NV."
 
 tpm unsealfile  \
 	-hk 40000000 \
 	-if "$HOTP_SEALED" \
 	-of "$HOTP_SECRET" \
-|| die "Unable to unseal HOTP secret"
+|| die "Unable to unseal HOTP secret."
 
 shred -n 10 -z -u "$HOTP_SEALED" 2> /dev/null
 
@@ -46,7 +46,7 @@ shred -n 10 -z -u "$HOTP_SEALED" 2> /dev/null
 counter_value=$(cat $HOTP_COUNTER)
 
 if [ "$counter_value" == "" ]; then
-  die "Unable to read HOTP counter"
+  die "Unable to read HOTP counter."
 fi
 
 #counter_value=$(printf "%d" 0x${counter_value})
@@ -65,7 +65,7 @@ mount -o remount,rw /boot
 
 counter_value=`expr $counter_value + 1`
 echo $counter_value > $HOTP_COUNTER \
-|| die "Unable to create HOTP counter file"
+|| die "Unable to create HOTP counter file."
 
 #sha256sum /tmp/counter-$counter > $HOTP_COUNTER \
 #|| die "Unable to create HOTP counter file"

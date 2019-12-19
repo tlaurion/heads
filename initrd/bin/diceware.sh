@@ -28,7 +28,7 @@ main() {
     wordcount=$(cat $source | tr -cs A-Za-z '\n' | tr A-Z a-z | sort | uniq | wc -l)
 
     if [ $wordcount -lt 7776 ]; then
-        echo "Warning: source contains only $wordcount unique words, which is below the limit of 7776 to ensure a strong passphrase"
+        echo "Warning: source contains only $wordcount unique words, which is below the limit of 7776 to ensure a strong passphrase."
     fi
 
     passphrase=$(cat $source | tr -cs A-Za-z '\n' | tr A-Z a-z | sort | uniq | shuf -n$select_count)
