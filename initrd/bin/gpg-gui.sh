@@ -106,9 +106,9 @@ while true; do
     'r' ' Add GPG key to running BIOS + reflash' \
     'a' ' Add GPG key to standalone BIOS image + flash' \
     'l' ' List GPG keys in your keyring' \
-    'm' ' Manually generate GPG keys on a USB security token' \
-    'o' ' OEM Factory reset + auto keygen USB security token' \
-    'F' ' Factory Reset USB security token GPG Card + keygen + flash' \
+    'm' ' Manually generate GPG keys on a USB security dongle' \
+    'o' ' OEM Factory reset + auto keygen USB security dongle' \
+    'F' ' Factory Reset USB security dongle GPG Card + keygen + flash' \
     'x' ' Exit' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -198,7 +198,7 @@ while true; do
     ;;
     "o" )
       if (whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Factory Reset USB Security Token?' \
-          --yesno "This will perform a FACTORY RESET of the USB security token!\n\nThis will:\n1. Reset all security token passwords to default\n2. Erase any keys on the security token\n3. Generate new automated GPG keys on the token\n\nPLEASE NOTE: Any data now on the USB security token will be lost!\n\nDo you want to proceed?" 16 120) then
+          --yesno "This will perform a FACTORY RESET of the USB security dongle!\n\nThis will:\n1. Reset all security token passwords to default\n2. Erase any keys on the security token\n3. Generate new automated GPG keys on the token\n\nPLEASE NOTE: Any data now on the USB security dongle will be lost!\n\nDo you want to proceed?" 16 120) then
         confirm_gpg_card
         gpg_sc_oem_reset
         if [ $? -eq 0 ]; then

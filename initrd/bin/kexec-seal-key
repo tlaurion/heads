@@ -98,8 +98,8 @@ cat "$KEY_DEVICES" | cut -d\  -f1 | xargs /bin/qubes-measure-luks \
 	|| die "Unable to measure the LUKS headers"
 luks_pcr=`tpm calcfuturepcr -ix 16 -if /tmp/luksDump.txt`
 
-# HOTP-enabled USB security token loads USB modules which changes PCR5.
-# In the event HOTP-enabled USB security token is enabled, skip verification of PCR5
+# HOTP-enabled USB security dongle loads USB modules which changes PCR5.
+# In the event HOTP-enabled USB security dongle is enabled, skip verification of PCR5
 if [ -x /bin/libremkey_hotp_verification ]; then
   pcr_5="X"
 else

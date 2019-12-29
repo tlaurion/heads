@@ -107,12 +107,12 @@ update_totp()
   echo "Scan the QR code to add the new TOTP secret"
   /bin/seal-totp $CONFIG_BOARD
   if [ -x /bin/libremkey_hotp_verification ]; then
-    echo "Once you have scanned the QR code, hit Enter to configure your USB security token."
+    echo "Once you have scanned the QR code, hit Enter to configure your USB security dongle."
     read
     /bin/seal-libremkey
 		#Sometimes HOTP sealing fails. We do until it works.
     while [ $? -ne 0 ];do
-      echo -e "\n\nSealing HOTP secret into USB security token failed. Let's try again by resealing both TOTP and HOTP."
+      echo -e "\n\nSealing HOTP secret into USB security dongle failed. Let's try again by resealing both TOTP and HOTP."
       update_totp
       /bin/seal-libremkey
     done
@@ -205,7 +205,7 @@ while true; do
       HOTP=`unseal-hotp`
       enable_usb
       if ! libremkey_hotp_verification info ; then
-        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please insert your USB security token.' --msgbox "Your USB security token was not detected.\n\nPlease insert your USB security token." 30 90
+        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please insert your USB security dongle.' --msgbox "Your USB security dongle was not detected.\n\nPlease insert your USB security dongle." 30 90
         fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
       libremkey_hotp_verification check $HOTP
@@ -218,7 +218,7 @@ while true; do
           MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
         ;;
         * )
-          HOTP="Error checking code. Insert USB security token and retry."
+          HOTP="Error checking code. Insert USB security dongle and retry."
           MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
         ;;
       esac
