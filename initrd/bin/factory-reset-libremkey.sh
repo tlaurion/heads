@@ -204,6 +204,6 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   fi
 
   whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Reboot required' --msgbox \
-    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trust\n database included.\n\n Since this step changes the firmware, Heads react as expected:\n It will ask you to reseal TOTP/HOTP (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted GPG card and its associated user password (PIN).\nThis is normal.\nHit Enter to reboot." 30 90
+    "A reboot is required.\n\n Your firmware has been reflashed with your own public key and trust\n database included.\n\n Since this step changes the firmware, Heads react as expected:\n It will ask you to reseal TOTP/HOTP (seal BIOS integrity),\n take /boot integrity measures and sign them with your freshly\n factory resetted USB security dongle (OpenPGP card) and its associated user password (PIN).\nThis is normal.\nHit Enter to reboot." 30 90
   /bin/reboot
 fi
