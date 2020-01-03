@@ -197,7 +197,7 @@ while true; do
       fi
     ;;
     "o" )
-      if (whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Factory Reset USB Security Token?' \
+      if (whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Factory Reset USB security dongle?' \
           --yesno "This will perform a FACTORY RESET of the USB security dongle!\n\nThis will:\n1. Reset all security token passwords to default\n2. Erase any keys on the security token\n3. Generate new automated GPG keys on the token\n\nPLEASE NOTE: Any data now on the USB security dongle will be lost!\n\nDo you want to proceed?" 16 120) then
         confirm_gpg_card
         gpg_sc_oem_reset

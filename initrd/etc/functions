@@ -495,14 +495,14 @@ read_oem_files()
                 clear
                 echo "$to_provision: GPG Admin PIN"
                 echo
-                echo "Here chosen GPG Admin PIN will be requested from you under Heads to visually attest integrity measurements on your Librem Key (HOTP)."
-                echo "Outside of Heads, your GPG Admin PIN will be prompted from you to manage your Librem Key. (e.g: Change user PIN.)" 
+                echo "Here chosen GPG Admin PIN will be requested from you under Heads to visually attest integrity measurements on your USB security dongle (HOTP)."
+                echo "Outside of Heads, your GPG Admin PIN will be prompted from you to manage your USB security dongle. (e.g: Change user PIN.)" 
                 echo "IMPORTANT: GPG Admin PIN is required to unlock GPG User PIN locked from 3 consecutive bad User PINs."
                 echo "If you mistyped your GPG Admin PIN 2 times in a subsequently, MAKE SURE YOUR THIRD ATTEMPT IS VALID by checking oem-provisioning file, created from this Wizard on OEM provided sdcard's encrypted container."
                 echo
                 echo "IMPORTANT: If the GPG Admin PIN becomes locked in smartcard THE CARD WILL NEED TO BE FACTORY RESETTED!"
                 echo "Factory reset of the GPG card deletes everything on it, including your private keys stored in its embedded GPG smartcard."
-                echo "Consequently, you won't be able to decrypt previous files and emails with your Librem Key like prior to the reset."
+                echo "Consequently, you won't be able to decrypt previous files and emails with your USB security dongle like prior to the reset."
                 echo
                 echo "There is no need to have a super strong passphrase here, it will be locked after 3 bad attempts in the GPG smartcard itself."
                 echo "Better choose a simple, short passphrase that you'll remember forever then one long that would lock yourself off because forgotten."
@@ -669,9 +669,9 @@ check_onboarding_progress()
     if [ $? -ne 0 ];then
       #Show Onboarding menu once.
       whiptail --title 'Hardware reownership Wizard' --msgbox \
-       "The received hardware is currently owned by $oem_name.\nWe will change that.\n\nThis Wizard will otherwise make you own your own hardware by:\n1-Reencrypting encrypted drives content (LUKS containers)\n2-Changing their LUKS Disk Recovery Keys and their passphrases\n3-Resetting your Librem Key to factory defaults\n4-Setting User and Admin PINs into your Librem Key\n5-Generating keys into its smartcard, exporting public key and\n importing it in the ROM prior to reprogramming the SPI flash with it\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with your Librem Key\n7-Reowning your Trusted Platform Module (TPM)\n\nScan the QR Code with an OTP app only after Reset the TPM last phase.\n\nHit Enter to continue." 20 20
+       "The received hardware is currently owned by $oem_name.\nWe will change that.\n\nThis Wizard will otherwise make you own your own hardware by:\n1-Reencrypting encrypted drives content (LUKS containers)\n2-Changing their LUKS Disk Recovery Keys and their passphrases\n3-Resetting your USB security dongle to factory defaults\n4-Setting User and Admin PINs into your USB security dongle\n5-Generating keys into its smartcard, exporting public key and\n importing it in the ROM prior to reprogramming the SPI flash with it\n6-Taking integrity measures of all /boot files and sign the resulting\n checksum file with your USB security dongle\n7-Reowning your Trusted Platform Module (TPM)\n\nScan the QR Code with an OTP app only after Reset the TPM last phase.\n\nHit Enter to continue." 20 20
       whiptail --title 'Hardware reownership Wizard' --msgbox \
-       "On the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\n\nIf it's not, reboot your hardware with your Librem Key inserted.\n\nIf the HOTP code is still invalid, your hardware may been tampered with in\ntransit. Contact $oem_name." 20 20
+       "On the next screen, MAKE SURE THAT THE HOTP CODE IS: 'Success'\n\nIf it's not, reboot your hardware with your USB security dongle inserted.\n\nIf the HOTP code is still invalid, your hardware may been tampered with in\ntransit. Contact $oem_name." 20 20
       totp_confirm="O"
       echo $totp_confirm > /tmp/whiptail
       mount -o remount,rw /boot
@@ -752,7 +752,7 @@ reset_disk_unlock_key()
       HOTP=`unseal-hotp`
       enable_usb
       if ! libremkey_hotp_verification info ; then
-        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Librem Key' --msgbox "Your Librem Key was not detected.\n\nPlease insert your Librem Key" 30 90
+        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your USB Security Dongle' --msgbox "Your USB security dongle was not detected.\n\nPlease insert your USB security dongle" 30 90
       fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
       libremkey_hotp_verification check "$HOTP"
@@ -765,7 +765,7 @@ reset_disk_unlock_key()
           MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
         ;;
         * )
-          HOTP="Error checking code, Insert Librem Key and retry"
+          HOTP="Error checking code. Insert USB security dongle and retry"
           MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
         ;;
       esac
