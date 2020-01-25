@@ -7,12 +7,11 @@ npth_hash := 1393abd9adcf0762d34798dc34fdcf4d0d22a8410721e76f1e3afcd1daa4e2d1
 
 npth_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--host x86_64-linux-musl \
+	--build i386-elf-linux \
+	--host=x86_64-linux-musl \
 	--prefix "/" \
 	--disable-static \
-	--disable-nls \
 	--with-libgpg-error-prefix="$(INSTALL)" \
-	--disable-asm \
 
 npth_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \

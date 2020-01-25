@@ -6,7 +6,7 @@ pinentry_version := 1.1.0
 pinentry_dir := pinentry-$(pinentry_version)
 pinentry_tar := pinentry-$(pinentry_version).tar.bz2
 pinentry_url := https://www.gnupg.org/ftp/gcrypt/pinentry/$(pinentry_tar)
-pinentry_hash := 68076686fa724a290ea49cdf0d1c0c1500907d1b759a3bcbfbec0293e8f56570
+pinentry_hash := babd98437208c163175c29453f8681094bcaf92968a15cafb1a276076b33c97c
 
 # For reproducibility reasons we have to override the exec_prefix
 # and datarootdir on the configure line so that the Makefiles will
@@ -15,8 +15,10 @@ pinentry_hash := 68076686fa724a290ea49cdf0d1c0c1500907d1b759a3bcbfbec0293e8f5657
 # location.
 pinentry_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--host x86_64-linux-musl \
+	--build i386-elf-linux \
+	--host=x86_64-linux-musl \
 	--prefix "/" \
+	--libexecdir "/bin" \
 	--enable-pinentry-tty \
 	--disable-libsecret \
 	--disable-fallback-curses \

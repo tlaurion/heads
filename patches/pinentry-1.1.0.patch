@@ -1,0 +1,11 @@
+--- clean/pinentry-1.1.0/configure		2017-12-03 12:43:24.000000000 -0500
++++ pinentry-1.1.0/configure		2020-01-25 12:04:19.737000000 -0500
+@@ -572,7 +572,7 @@
+ ac_clean_files=
+ ac_config_libobj_dir=.
+ LIBOBJS=
+-cross_compiling=no
++cross_compiling=yes
+ subdirs=
+ MFLAGS=
+ MAKEFLAGS=
