@@ -8,7 +8,7 @@ libgpg-error_hash := babd98437208c163175c29453f8681094bcaf92968a15cafb1a276076b3
 libgpg-error_configure := ./configure \
 	$(CROSS_TOOLS) \
 	--prefix "/" \
-	--build i386-elf-linux \
+	--host i386-elf-linux \
 	--host=x86_64-linux-musl \
 	--disable-static \
 	--disable-nls \

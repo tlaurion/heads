@@ -14,8 +14,7 @@ gpg2_hash := 242554c0e06f3a83c420b052f750b65ead711cc3fddddb5e7274fcdbb4e9dec0
 gpg2_configure := ./configure \
 	$(CROSS_TOOLS) \
 	CPPFLAGS="-I$(INSTALL)/include/libusb-1.0" \
-	--build i386-elf-linux \
-	--host=x86_64-linux-musl \
+	--host i386-elf-linux \
 	--with-libusb="$(INSTALL)" \
 	--with-libgpg-error-prefix="$(INSTALL)" \
 	--with-libgcrypt-prefix="$(INSTALL)" \

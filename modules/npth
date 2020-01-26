@@ -7,8 +7,7 @@ npth_hash := 1393abd9adcf0762d34798dc34fdcf4d0d22a8410721e76f1e3afcd1daa4e2d1
 
 npth_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--build i386-elf-linux \
-	--host=x86_64-linux-musl \
+	--host i386-elf-linux \
 	--prefix "/" \
 	--disable-static \
 	--with-libgpg-error-prefix="$(INSTALL)" \
