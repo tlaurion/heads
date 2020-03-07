@@ -45,6 +45,10 @@ jobs:
                 --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
+      - run:
+          name: Output qemu-coreboot hashes
+          command: |
+             cat build/qemu-coreboot/hashes.txt \
 
       - store-artifacts:
           path: build/qemu-coreboot/coreboot.rom
@@ -52,13 +56,18 @@ jobs:
           path: build/qemu-coreboot/hashes.txt
 
       - run:
-          name: x230
+          name: x230-libremkey
           command: |
             ./build/make-4.2.1/make \
                 CROSS=/cross/bin/x86_64-linux-musl- \
                 --load 2 \
                 V=1 \
                 BOARD=x230-libremkey \
+
+      - run:
+          name: Ouput x230-libremkey hashes
+          command: |
+            cat build/x230-libremkey/hashes.txt \
 
       - store-artifacts:
           path: build/x230-libremkey/coreboot.rom
