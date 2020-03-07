@@ -17,61 +17,61 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   rm -rf .gnupg/* 2> /dev/null || true 2> /dev/null
   killall gpg-agent gpg scdaemon 2> /dev/null || true 2> /dev/null
  
-  if [ -z "$oem_gpg_Admin_PIN" ] || [ -z "$oem_gpg_User_PIN" ]; then
+  if [ -z "$oem_usb_security_dongle_Admin_PIN" ] || [ -z "$oem_usb_security_dongle_User_PIN" ]; then
     #Setting new passwords
-    gpgcard_user_pass1=1
-    gpgcard_user_pass2=2
-    gpgcard_admin_pass1=3
-    gpgcard_admin_pass2=4
+    oem_usb_security_dongle_user_pass1=1
+    oem_usb_security_dongle_user_pass2=2
+    oem_usb_security_dongle_admin_pass1=3
+    oem_usb_security_dongle_admin_pass2=4
   else
-    gpgcard_user_pass1=$(echo -n "$oem_gpg_User_PIN")
-    gpgcard_user_pass2=$(echo -n "$oem_gpg_User_PIN")
-    gpgcard_admin_pass1=$(echo -n "$oem_gpg_Admin_PIN")
-    gpgcard_admin_pass2=$(echo -n "$oem_gpg_Admin_PIN")
+    oem_usb_security_dongle_user_pass1=$(echo -n "$oem_usb_security_dongle_User_PIN")
+    oem_usb_security_dongle_user_pass2=$(echo -n "$oem_usb_security_dongle_User_PIN")
+    oem_usb_security_dongle_admin_pass1=$(echo -n "$oem_usb_security_dongle_Admin_PIN")
+    oem_usb_security_dongle_admin_pass2=$(echo -n "$oem_usb_security_dongle_Admin_PIN")
   fi
 
-  while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
+  while [[ "$oem_usb_security_dongle_user_pass1" != "$oem_usb_security_dongle_user_pass2" ]] || [[ ${#oem_usb_security_dongle_user_pass1} -lt 6 || ${#oem_usb_security_dongle_user_pass1} -gt 20 ]];do
   {
     echo -e "\nChoose your new USB security dongle's User PIN. You will type this when using USB security dongle (signing files, encrypting emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
-    read -s gpgcard_user_pass1
+    read -s oem_usb_security_dongle_user_pass1
     echo -e "\nRetype user passphrase:"
-    read -s gpgcard_user_pass2
-    if [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]]; then echo "Passwords typed were different."; fi
+    read -s oem_usb_security_dongle_user_pass2
+    if [[ "$oem_usb_security_dongle_user_pass1" != "$oem_usb_security_dongle_user_pass2" ]]; then echo "Passwords typed were different."; fi
   };done
-  gpgcard_user_pass=$gpgcard_user_pass1
+  oem_usb_security_dongle_user_pass=$oem_usb_security_dongle_user_pass1
 
-  while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
+  while [[ "$oem_usb_security_dongle_admin_pass1" != "$oem_usb_security_dongle_admin_pass2" ]] || [[ ${#oem_usb_security_dongle_admin_pass1} -lt 8 || ${#oem_usb_security_dongle_admin_pass1} -gt 20 ]]; do
   {
     echo -e "\nChoose your new USB security dongle's Admin PIN. You will type this when managing the USB security dongle (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
-    read -s gpgcard_admin_pass1
+    read -s oem_usb_security_dongle_admin_pass1
     echo -e "\nRetype your new USB security dongle's Admin PIN:"
-    read -s gpgcard_admin_pass2
+    read -s oem_usb_security_dongle_admin_pass2
   };done
-  gpgcard_admin_pass=$gpgcard_admin_pass1
+  oem_usb_security_dongle_admin_pass=$oem_usb_security_dongle_admin_pass1
 
   echo -e "\n\n"
   echo -e "Next, we will generate a GPG keypair identifiable by the template:"
   echo -e "Real Name (Comment) email@address.org"
   
-  gpgcard_real_name=$(echo -n "$oem_gpg_real_name")
-  while [[ ${#gpgcard_real_name} -lt 5 ]]; do
+  oem_usb_security_dongle_real_name=$(echo -n "$oem_usb_security_dongle_real_name")
+  while [[ ${#oem_usb_security_dongle_real_name} -lt 5 ]]; do
   {
     echo -e "\nEnter desired GPG real name (At least 5 characters long):"
-    read -r gpgcard_real_name
+    read -r oem_usb_security_dongle_real_name
   };done
 
-  gpgcard_email_address=$(echo -n "$oem_gpg_email")
-  while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
+  oem_usb_security_dongle_email_address=$(echo -n "$oem_usb_security_dongle_email")
+  while ! $(expr "$oem_usb_security_dongle_email_address" : '.*@' >/dev/null); do
   {
     echo -e "\nEnter desired GPG email (email@adress.org):"
-    read -r gpgcard_email_address
+    read -r oem_usb_security_dongle_email_address
   };done
   
-  gpgcard_comment=$(echo -n "$oem_gpg_comment")
-  while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z "$gpgcard_comment" ]]; do
+  oem_usb_security_dongle_comment=$(echo -n "$oem_usb_security_dongle_comment")
+  while [[ ${#oem_usb_security_dongle_comment} -gt 60 ]] || [[ -z "$oem_usb_security_dongle_comment" ]]; do
   {
     echo -e "\nEnter desired GPG comment (distinguishes this key from others with same name and email address. Must be smaller then 60 characters):"
-    read -r gpgcard_comment
+    read -r oem_usb_security_dongle_comment
   };done
 
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
@@ -106,12 +106,12 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo passwd
     echo 1
     echo 123456 #Default user password after factory reset of card
-    echo "$gpgcard_user_pass"
-    echo "$gpgcard_user_pass"
+    echo "$oem_usb_security_dongle_user_pass"
+    echo "$oem_usb_security_dongle_user_pass"
     echo 3
     echo 12345678 #Default administrator password after factory reset of card
-    echo "$gpgcard_admin_pass"
-    echo "$gpgcard_admin_pass"
+    echo "$oem_usb_security_dongle_admin_pass"
+    echo "$oem_usb_security_dongle_admin_pass"
     echo Q
   } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting new GPG admin and user PINs in USB security dongle failed."
 
@@ -121,25 +121,25 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo key-attr
     echo 1 # RSA
     echo 4096 #Signing key size set to maximum supported by SmartCard
-    echo "$gpgcard_admin_pass"
+    echo "$oem_usb_security_dongle_admin_pass"
     echo 1 # RSA
     echo 4096 #Encryption key size set to maximum supported by SmartCard
-    echo "$gpgcard_admin_pass"
+    echo "$oem_usb_security_dongle_admin_pass"
     echo 1 # RSA
     echo 4096 #Authentication key size set to maximum supported by SmartCard
-    echo "$gpgcard_admin_pass"
+    echo "$oem_usb_security_dongle_admin_pass"
   } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting key attributed to RSA 4096 bits in USB security dongle failed."
 
   {
     echo admin
     echo generate
     echo n
-    echo "$gpgcard_admin_pass"
-    echo "$gpgcard_user_pass"
+    echo "$oem_usb_security_dongle_admin_pass"
+    echo "$oem_usb_security_dongle_user_pass"
     echo 1y
-    echo "$gpgcard_real_name"
-    echo "$gpgcard_email_address"
-    echo "$gpgcard_comment"
+    echo "$oem_usb_security_dongle_real_name"
+    echo "$oem_usb_security_dongle_email_address"
+    echo "$oem_usb_security_dongle_comment"
   } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting GPG real name, GPG email and GPG comment failed."
 
   #Export and inject public key and trustdb export into extracted rom with current user keys being wiped
@@ -149,7 +149,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   rm -f /boot/kexec.sig
   mount -o remount,ro /boot
 
-  gpg --home=/.gnupg/ --export --armor "$gpgcard_email_address"  > /media/gpg_keys/public.key || die "Exporting public key to /media/gpg_keys/public.key failed."
+  gpg --home=/.gnupg/ --export --armor "$oem_usb_security_dongle_email_address"  > /media/gpg_keys/public.key || die "Exporting public key to /media/gpg_keys/public.key failed."
   cp -rf /.gnupg/openpgp-revocs.d/* /media/gpg_keys/ 2> /dev/null || die "Copying revocation certificated into /media/gpg_keys/ failed."
   cp -rf /.gnupg/private-keys-v1.d/* /media/gpg_keys/ 2> /dev/null || die "Copying secring exported keys to /media/gpg_keys/ failed." 
   cp -rf /.gnupg/pubring.* /.gnupg/trustdb.gpg /media/gpg_keys/ 2> /dev/null || die "Copying public keyring into /media/gpg_keys/ failed."

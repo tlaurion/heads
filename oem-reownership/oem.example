@@ -18,15 +18,15 @@ luks_reencrypted
 #When not present in this file, changes oem_luks_actual_Disk_Recovery_Key with oem_luks_new_Disk_Recovery_Key defined under /media/oem-provisioning
 luks_passwd_changed
 #When not present in this file, factory resets Librem Key/NitroKey with: 
-# oem_gpg_Admin_PIN, oem_gpg_User_PIN, oem_gpg_real_name, oem_gpg_email, oem_gpg_comment, defined under /media/oem-provisioning.
+# oem_usb_security_dongle_Admin_PIN, oem_usb_security_dongle_User_PIN, oem_usb_security_dongle_real_name, oem_usb_security_dongle_email, oem_usb_security_dongle_comment, defined under /media/oem-provisioning.
 #The wizard generates new keypairs, injects the public key and trust database into the ROM and reboots. 
-#Upon reboot, the oem_gpg_Admin_PIN is used to automatically seal HOTP secret into the Librem Key/NitroKey
+#Upon reboot, the oem_usb_security_dongle_Admin_PIN is used to automatically seal HOTP secret into the Librem Key/NitroKey
 gpg_factory_resetted
-#When not present in this file, reown the TPM with oem_TPM_Owner_Password, which is recommended to be the same as oem_gpg_Admin_PIN
+#When not present in this file, reown the TPM with oem_TPM_Owner_Password, which is recommended to be the same as oem_usb_security_dongle_Admin_PIN
 tpm_reowned
-#Once all stages are done, the Wizard removes /boot/oem, and ensures that /boot file checksum file is generated and signed with oem_gpg_User_PIN.
+#Once all stages are done, the Wizard removes /boot/oem, and ensures that /boot file checksum file is generated and signed with oem_usb_security_dongle_User_PIN.
 #
 #Then the wizard finally launches the selection of a new boot default, and asks the user if he wants to modify the disk by defining a Disk Unlock Key
 # (depends on the following x230-libremkey board config: "CONFIG_OFFER_TPM_LUKS_DISK_UNLOCK_KEY=y"). 
-#   In such case, oem_TPM_Owner_Password is used to seal a new TOTP secret, oem_gpg_Admin_PIN is used to seal a new HOTP secret, 
-#   and oem_gpg_User_PIN is used to sign configuration files checksums digest (kexec_hashes.txt) for which signature is found under /boot/kexec.sig. 
+#   In such case, oem_TPM_Owner_Password is used to seal a new TOTP secret, oem_usb_security_dongle_Admin_PIN is used to seal a new HOTP secret, 
+#   and oem_usb_security_dongle_User_PIN is used to sign configuration files checksums digest (kexec_hashes.txt) for which signature is found under /boot/kexec.sig. 

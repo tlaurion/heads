@@ -335,78 +335,78 @@ read_oem_files()
     mount-sdcard || $(mount -o remount,rw /boot && echo "no_automatic_provisioning" >> /boot/oem && mount -o remount,ro /boot && reboot)
     if [ -e /media/oem-provisioning ]; then
       echo "Found /media/oem-provisioning. Parsing..."
-      oem_gpg_Admin_PIN=$(grep "^oem_gpg_Admin_PIN=" /media/oem-provisioning | cut -d "=" -f2)
-      oem_gpg_Admin_PIN_count=$(echo "$oem_gpg_Admin_PIN" | wc -l )
-      if [ -n "$oem_gpg_Admin_PIN" ]; then
-        if [ $oem_gpg_Admin_PIN_count -eq 1 ]; then
-          export oem_gpg_Admin_PIN="$oem_gpg_Admin_PIN"
-        elif [ $oem_gpg_Admin_PIN_count -gt 1 ]; then
-          warn "Multiple 'oem_gpg_Admin_PIN=' statements found. None retained."
-          unset oem_gpg_Admin_PIN
+      oem_usb_security_dongle_Admin_PIN=$(grep "^oem_usb_security_dongle_Admin_PIN=" /media/oem-provisioning | cut -d "=" -f2)
+      oem_usb_security_dongle_Admin_PIN_count=$(echo "$oem_usb_security_dongle_Admin_PIN" | wc -l )
+      if [ -n "$oem_usb_security_dongle_Admin_PIN" ]; then
+        if [ $oem_usb_security_dongle_Admin_PIN_count -eq 1 ]; then
+          export oem_usb_security_dongle_Admin_PIN="$oem_usb_security_dongle_Admin_PIN"
+        elif [ $oem_usb_security_dongle_Admin_PIN_count -gt 1 ]; then
+          warn "Multiple 'oem_usb_security_dongle_Admin_PIN=' statements found. None retained."
+          unset oem_usb_security_dongle_Admin_PIN
           error=1
         fi
       else
-        warn "No 'oem_gpg_Admin_PIN=' statement found."
+        warn "No 'oem_usb_security_dongle_Admin_PIN=' statement found."
         prompt_user_provisioning=1
       fi
 
-      oem_gpg_User_PIN=$(grep "^oem_gpg_User_PIN=" /media/oem-provisioning | cut -d "=" -f2) 
-      oem_gpg_User_PIN_count=$(echo "$oem_gpg_User_PIN" | wc -l )
-      if [ -n "$oem_gpg_User_PIN" ]; then
-        if [ $oem_gpg_User_PIN_count -eq 1 ]; then
-          export oem_gpg_User_PIN="$oem_gpg_User_PIN"
-        elif [ $oem_gpg_User_PIN_count -gt 1 ]; then
-          warn "Multiple 'oem_gpg_Admin_PIN=' statements found. None retained."
-          unset oem_gpg_User_PIN
+      oem_usb_security_dongle_User_PIN=$(grep "^oem_usb_security_dongle_User_PIN=" /media/oem-provisioning | cut -d "=" -f2) 
+      oem_usb_security_dongle_User_PIN_count=$(echo "$oem_usb_security_dongle_User_PIN" | wc -l )
+      if [ -n "$oem_usb_security_dongle_User_PIN" ]; then
+        if [ $oem_usb_security_dongle_User_PIN_count -eq 1 ]; then
+          export oem_usb_security_dongle_User_PIN="$oem_usb_security_dongle_User_PIN"
+        elif [ $oem_usb_security_dongle_User_PIN_count -gt 1 ]; then
+          warn "Multiple 'oem_usb_security_dongle_Admin_PIN=' statements found. None retained."
+          unset oem_usb_security_dongle_User_PIN
           error=1
         fi
       else
-        warn "No 'oem_gpg_User_PIN=' statement found."
+        warn "No 'oem_usb_security_dongle_User_PIN=' statement found."
         prompt_user_provisioning=1
       fi
 
-      oem_gpg_real_name=$(grep "^oem_gpg_real_name=" /media/oem-provisioning | cut -d "=" -f2)
-      oem_gpg_real_name_count=$(echo "$oem_gpg_real_name" | wc -l )
-      if [ -n "$oem_gpg_real_name" ]; then
-        if [ $oem_gpg_real_name_count -eq 1 ]; then
-          export oem_gpg_real_name="$oem_gpg_real_name"
-        elif [ $oem_gpg_real_name_count -gt 1 ]; then
-          warn "Multiple 'oem_gpg_real_name=' statements found. None retained."
-          unset oem_gpg_real_name
+      oem_usb_security_dongle_real_name=$(grep "^oem_usb_security_dongle_real_name=" /media/oem-provisioning | cut -d "=" -f2)
+      oem_usb_security_dongle_real_name_count=$(echo "$oem_usb_security_dongle_real_name" | wc -l )
+      if [ -n "$oem_usb_security_dongle_real_name" ]; then
+        if [ $oem_usb_security_dongle_real_name_count -eq 1 ]; then
+          export oem_usb_security_dongle_real_name="$oem_usb_security_dongle_real_name"
+        elif [ $oem_usb_security_dongle_real_name_count -gt 1 ]; then
+          warn "Multiple 'oem_usb_security_dongle_real_name=' statements found. None retained."
+          unset oem_usb_security_dongle_real_name
           error=1
         fi
       else
-        warn "No 'oem_gpg_real_name=' statement found."
+        warn "No 'oem_usb_security_dongle_real_name=' statement found."
         prompt_user_provisioning=1
       fi
 
-      oem_gpg_email=$(grep "^oem_gpg_email=" /media/oem-provisioning | cut -d "=" -f2)
-      oem_gpg_email_count=$(echo "$oem_gpg_email" | wc -l )
-      if [ -n "$oem_gpg_email" ]; then
-        if [ $oem_gpg_email_count -eq 1 ]; then
-          export oem_gpg_email="$oem_gpg_email"
-        elif [ $oem_gpg_email_count -gt 1 ]; then
-          warn "Multiple 'oem_gpg_email=' statements found. None retained."
-          unset oem_gpg_email
+      oem_usb_security_dongle_email=$(grep "^oem_usb_security_dongle_email=" /media/oem-provisioning | cut -d "=" -f2)
+      oem_usb_security_dongle_email_count=$(echo "$oem_usb_security_dongle_email" | wc -l )
+      if [ -n "$oem_usb_security_dongle_email" ]; then
+        if [ $oem_usb_security_dongle_email_count -eq 1 ]; then
+          export oem_usb_security_dongle_email="$oem_usb_security_dongle_email"
+        elif [ $oem_usb_security_dongle_email_count -gt 1 ]; then
+          warn "Multiple 'oem_usb_security_dongle_email=' statements found. None retained."
+          unset oem_usb_security_dongle_email
           error=1
         fi
       else
-        warn "No 'oem_gpg_email=' statement found."
+        warn "No 'oem_usb_security_dongle_email=' statement found."
         prompt_user_provisioning=1
       fi
 
-      oem_gpg_comment=$(grep "^oem_gpg_comment=" /media/oem-provisioning | cut -d "=" -f2)
-      oem_gpg_comment_count=$(echo "$oem_gpg_comment" | wc -l )
-      if [ -n "$oem_gpg_comment" ]; then
-        if [ $oem_gpg_comment_count -eq 1 ]; then
-          export oem_gpg_comment="$oem_gpg_comment"
-        elif [ $oem_gpg_comment -gt 1 ]; then
-          warn "Multiple 'oem_gpg_comment=' statements found. None retained."
-          unset oem_gpg_comment
+      oem_usb_security_dongle_comment=$(grep "^oem_usb_security_dongle_comment=" /media/oem-provisioning | cut -d "=" -f2)
+      oem_usb_security_dongle_comment_count=$(echo "$oem_usb_security_dongle_comment" | wc -l )
+      if [ -n "$oem_usb_security_dongle_comment" ]; then
+        if [ $oem_usb_security_dongle_comment_count -eq 1 ]; then
+          export oem_usb_security_dongle_comment="$oem_usb_security_dongle_comment"
+        elif [ $oem_usb_security_dongle_comment -gt 1 ]; then
+          warn "Multiple 'oem_usb_security_dongle_comment=' statements found. None retained."
+          unset oem_usb_security_dongle_comment
           error=1
         fi
       else
-        warn "No 'oem_gpg_comment=' statement found."
+        warn "No 'oem_usb_security_dongle_comment=' statement found."
         prompt_user_provisioning=1
       fi
 
@@ -486,12 +486,12 @@ read_oem_files()
 
         if (whiptail $CONFIG_WARNING_BG_COLOR --title "OEM Reownership Wizard lacks some provisioning information" \
           --yesno "Would you like to feed the OEM Reownership Wizard once with all required\ninformation to automate its process?\n\n Those will be saved securely on OEM provided sdcard disk encrypted container.\n\n Provisioning those secrets here will automate Reownership Wizard process.\n  Those information will be stored under /media/oem-provisioning.\n\nOtherwise, you will be prompted to enter them several times manually.\nYou won't either have an external backup of those information in case\nthey were forgotten.\n\nContinue with one time OEM Reownership information provisioning?" 30 90) then
-          for to_provision in oem_gpg_Admin_PIN oem_gpg_User_PIN oem_gpg_real_name oem_gpg_email oem_gpg_comment oem_luks_actual_Disk_Recovery_Key oem_luks_new_Disk_Recovery_Key oem_luks_Disk_Unlock_Key oem_TPM_Owner_Password
+          for to_provision in oem_usb_security_dongle_Admin_PIN oem_usb_security_dongle_User_PIN oem_usb_security_dongle_real_name oem_usb_security_dongle_email oem_usb_security_dongle_comment oem_luks_actual_Disk_Recovery_Key oem_luks_new_Disk_Recovery_Key oem_luks_Disk_Unlock_Key oem_TPM_Owner_Password
           do
             provisioned_value=$(eval echo \$$to_provision)
             if [ -z "$provisioned_value" ];then
               echo "$to_provision is not set."
-              if [ "$to_provision" == "oem_gpg_Admin_PIN" ]; then
+              if [ "$to_provision" == "oem_usb_security_dongle_Admin_PIN" ]; then
                 clear
                 echo "$to_provision: GPG Admin PIN"
                 echo
@@ -512,10 +512,10 @@ read_oem_files()
                   echo "We have limitations on Admin PIN: minimal 8 and maximal length of 20 characters"
                   validate_input_passphrases_are_equal
                 done
-                notify "oem_gpg_Admin_PIN=$passphrase"
-                export oem_gpg_Admin_PIN="$passphrase"
+                notify "oem_usb_security_dongle_Admin_PIN=$passphrase"
+                export oem_usb_security_dongle_Admin_PIN="$passphrase"
               fi
-              if [ "$to_provision" == "oem_gpg_User_PIN" ] ;then
+              if [ "$to_provision" == "oem_usb_security_dongle_User_PIN" ] ;then
                 clear
                 echo "$to_provision: GPG User PIN"
                 echo
@@ -529,10 +529,10 @@ read_oem_files()
                   echo "We have limitations for GPG User PIN: minimal 6 and maximal length of 20 characters"
                   validate_input_passphrases_are_equal
                 done
-                notify "oem_gpg_User_PIN=$passphrase"
-                export oem_gpg_User_PIN="$passphrase"
+                notify "oem_usb_security_dongle_User_PIN=$passphrase"
+                export oem_usb_security_dongle_User_PIN="$passphrase"
               fi
-              if [ "$to_provision" == "oem_gpg_real_name" ]; then
+              if [ "$to_provision" == "oem_usb_security_dongle_real_name" ]; then
                 clear
                 echo "$to_provision: GPG public key associated Real Name"
                 echo
@@ -541,9 +541,9 @@ read_oem_files()
                   echo "We have limitations for GPG Real Name: minimal 5 and maximal length of 255 characters"
                   validate_input_passphrases_are_equal
                 done
-                export oem_gpg_real_name="$passphrase"
+                export oem_usb_security_dongle_real_name="$passphrase"
               fi
-              if [ "$to_provision" == "oem_gpg_email" ]; then
+              if [ "$to_provision" == "oem_usb_security_dongle_email" ]; then
                 clear
                 echo "$to_provision: GPG public key associated primary E-Mail"
                 echo
@@ -552,9 +552,9 @@ read_oem_files()
                   echo "Please provide a valid GPG E-Mail format adress (name@domain), even if public key will not associated with any."
                   validate_input_passphrases_are_equal
                 done
-                export oem_gpg_email="$passphrase"
+                export oem_usb_security_dongle_email="$passphrase"
               fi
-              if [ "$to_provision" == "oem_gpg_comment" ]; then
+              if [ "$to_provision" == "oem_usb_security_dongle_comment" ]; then
                 clear
                 echo "$to_provision: GPG public key associated comment" 
                 echo
@@ -564,7 +564,7 @@ read_oem_files()
                   echo "We have limitations for GPG public key associated comment: maximal length of 60 characters. Cannot be empty."
                   validate_input_passphrases_are_equal
                 done
-                export oem_gpg_comment="$passphrase"
+                export oem_usb_security_dongle_comment="$passphrase"
               fi
               if [ "$to_provision" == "oem_luks_actual_Disk_Recovery_Key" ]; then
                 clear
@@ -633,8 +633,8 @@ read_oem_files()
                 echo "A diceware randomly selected passphrase of 2 words is enough."
                 echo "It is recommended to reuse GPG Admin Passphrase/Password here, to not unecessarily multiply secrets to remember."
                 echo "We reused the GPG Admin PIN to set the TPM Owner Passphrase."
-                oem_TPM_Owner_Password="$oem_gpg_Admin_PIN"
-                notify "oem_TPM_Owner_Password=$oem_gpg_Admin_PIN"
+                oem_TPM_Owner_Password="$oem_usb_security_dongle_Admin_PIN"
+                notify "oem_TPM_Owner_Password=$oem_usb_security_dongle_Admin_PIN"
                 export oem_TPM_Owner_Password="$oem_TPM_Owner_Password"
               fi
             else

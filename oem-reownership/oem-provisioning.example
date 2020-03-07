@@ -133,7 +133,7 @@
 #     (Else HOTP cannot be sealed. It's a seal-libremkey limitation)
 #   No need to go crazy here. Remember that 3 bad attempts locks the account. One or two Diceware words are enough.
 #     Use KeepassXC password manager or something like https://www.rempe.us/diceware/#eff
-oem_gpg_Admin_PIN=InsurgoTech
+oem_usb_security_dongle_Admin_PIN=InsurgoTech
 #
 #GPG SmartCard desired User PIN to provision GPG factory reset.
 # User PIN manages user functions of the card. It is used to encrypt files and e-mails, sign files and e-mails 
@@ -146,21 +146,21 @@ oem_gpg_Admin_PIN=InsurgoTech
 # Size constaints: minimum 6 characters, maximum 20 characters 
 #   No need to go crazy here. Remember that 3 bad attempts locks the account. One or two Diceware words are enough.
 #     Use KeepassXC password manager or something like https://www.rempe.us/diceware/#eff
-oem_gpg_User_PIN=Insurgo
+oem_usb_security_dongle_User_PIN=Insurgo
 #GPG SmartCard desired Real Name to provision GPG factory reset. 
 # This will be used to construct the ID of the public key: "Real Name (Comment) email@address.org" 
 # 
 # Size constaints: minimum 5 characters. 
-oem_gpg_real_name=Insurgo Shipped Integrity Attestation Librem Key
+oem_usb_security_dongle_real_name=Insurgo Shipped Integrity Attestation Librem Key
 #GPG SmartCard desired E-mail address to provision GPG factory reset. 
 # This will be used to construct the ID of the public key: "Real Name (Comment) email@address.org" 
 #   Note that some services requires that e-mail address to be real and will send an e-mail to validate it.
 #     If you intend to use the GPG card to encrypt/sign e-mails, this is a good idea to provide main e-mail account here. 
-oem_gpg_email=insurgo@riseup.net
+oem_usb_security_dongle_email=insurgo@riseup.net
 #GPG SmartCard desired Comment to provision GPG factory reset. 
 # This will be used to construct the ID of the public key: "Real Name (Comment) email@address.org" 
 #   If you have multiple cards associated with the same E-mail address, this is a good place to name it's usage difference 
-oem_gpg_comment=FACTORY RESET ME
+oem_usb_security_dongle_comment=FACTORY RESET ME
 
 ##########
 #  LUKS  #

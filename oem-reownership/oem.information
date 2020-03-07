@@ -3,11 +3,11 @@
 #
 #   To modify them, please replace the values between the quotes
 #
-# oem_gpg_real_name: Real Name to be set inside of shipped Integrity Attestation Security Key (OEM Security Key Ownership)
-export oem_gpg_real_name="Insurgo Shipped Integrity Attestation Librem Key"
-# oem_gpg_email: E-Mail address to be set inside of shipped Integrity Attestation Security Key (OEM Security Key Ownership)
-export oem_gpg_email="insurgo@riseup.net"
-# oem_gpg_gpg_comment: Comment differenciating security cards bound to the same E-Mail address to be set inside of shipped Integrity Attestation Security Key (OEM Security Key Ownership) 
-export oem_gpg_comment="FACTORY RESET ME"
+# oem_usb_security_dongle_real_name: Real Name to be set inside of shipped Integrity Attestation Security Key (OEM Security Key Ownership)
+export oem_usb_security_dongle_real_name="Insurgo Shipped Integrity Attestation Librem Key"
+# oem_usb_security_dongle_email: E-Mail address to be set inside of shipped Integrity Attestation Security Key (OEM Security Key Ownership)
+export oem_usb_security_dongle_email="insurgo@riseup.net"
+# oem_usb_security_dongle_gpg_comment: Comment differenciating security cards bound to the same E-Mail address to be set inside of shipped Integrity Attestation Security Key (OEM Security Key Ownership) 
+export oem_usb_security_dongle_comment="FACTORY RESET ME"
 # oem_luks_actual_Disk_Recovery_Key: Actual SSD/sdcard LUKS decryption key passphrase (Disk Recovery Key passphrase)
 export oem_luks_actual_Disk_Recovery_Key="Insurgo Open Technologies"
