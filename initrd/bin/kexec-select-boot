@@ -190,7 +190,8 @@ save_default_option() {
 		default_confirm
 	echo
 
-	if [ "$default_confirm" = "y" ] || [ "$default_confirm" = "Y" ] || [ -z "$default_confirm" ]; then
+	[ "$default_confirm" = "" ] && default_confirm="y"
+	if [[ "$default_confirm" = "y" || "$default_confirm" = "Y" ]]; then
 		if kexec-save-default \
 			-b "$bootdir" \
 			-d "$paramsdev" \
