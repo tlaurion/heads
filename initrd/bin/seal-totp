@@ -44,7 +44,7 @@ if ! tpm sealfile2 \
 	-ix 7 X \
 ; then
 	shred -n 10 -z -u "$TOTP_SECRET" 2> /dev/null
-	die "Unable to seal secret."
+	die "Unable to seal secret with TPM."
 fi
 
 shred -n 10 -z -u "$TOTP_SECRET" 2> /dev/null
@@ -56,7 +56,7 @@ shred -n 10 -z -u "$TOTP_SECRET" 2> /dev/null
 # The permissions are 0 since there is nothing special
 # about the sealed file
 tpm physicalpresence -s \
-|| warn "Warning: Unable to assert physical presence."
+|| warn "Warning: Unable to assert TPM physical presence."
 
 # Try to write it without the password first, and then create
 # the NVRAM space using the owner password if it fails for some reason.
@@ -64,7 +64,7 @@ if ! tpm nv_writevalue \
 	-in $TPM_NVRAM_SPACE \
 	-if "$TOTP_SEALED" \
 ; then
-	warn 'NVRAM space does not exist? Owner password is required.'
+	warn 'NVRAM space does not exist? TPM Owner password is required.'
 	read -s -p "TPM Owner password: " tpm_password
 	echo
 
@@ -73,12 +73,12 @@ if ! tpm nv_writevalue \
 		-sz 312 \
 		-pwdo "$tpm_password" \
 		-per 0 \
-	|| die "Unable to define NVRAM space."
+	|| die "Unable to define TPM NVRAM space."
 
 	tpm nv_writevalue \
 		-in $TPM_NVRAM_SPACE \
 		-if "$TOTP_SEALED" \
-	|| die "Unable to write sealed secret to NVRAM."
+	|| die "Unable to write sealed secret to TPM NVRAM."
 fi
 
 shred -n 10 -z -u "$TOTP_SEALED" 2> /dev/null

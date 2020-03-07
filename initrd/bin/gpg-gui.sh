@@ -55,7 +55,7 @@ gpg_post_gen_mgmt() {
     mount -o remount,rw /media || die "Unable to remount /media in read/write mode. Is the device Write protected?"
     cp "/tmp/${GPG_GEN_KEY}.asc" "/media/${GPG_GEN_KEY}.asc"
     if [ $? -eq 0 ]; then
-      whiptail --title "The GPG Key copied Successfully" \
+      whiptail --title "GPG Public Key copied successfully to USB Disk" \
         --msgbox "${GPG_GEN_KEY}.asc copied successfully." 16 60
     else
       whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Copy Failed' \
@@ -133,7 +133,7 @@ while true; do
           fi
 
           find /media -name '*.rom' > /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose the ROM to load your key on to."
+          file_selector "/tmp/filelist.txt" "Choose the ROM to insert your Public Key into."
           if [ "$FILE" == "" ]; then
             return
           else

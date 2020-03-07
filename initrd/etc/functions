@@ -495,7 +495,7 @@ read_oem_files()
                 clear
                 echo "$to_provision: GPG Admin PIN"
                 echo
-                echo "Here chosen GPG Admin PIN will be requested from you under Heads to visually attest integrity measurements on your USB security dongle (HOTP)."
+                echo "Here chosen USB security dongle's Admin PIN will be requested from you under Heads to visually attest integrity measurements on your USB security dongle (HOTP)."
                 echo "Outside of Heads, your GPG Admin PIN will be prompted from you to manage your USB security dongle. (e.g: Change user PIN.)" 
                 echo "IMPORTANT: GPG Admin PIN is required to unlock GPG User PIN locked from 3 consecutive bad User PINs."
                 echo "If you mistyped your GPG Admin PIN 2 times in a subsequently, MAKE SURE YOUR THIRD ATTEMPT IS VALID by checking oem-provisioning file, created from this Wizard on OEM provided sdcard's encrypted container."

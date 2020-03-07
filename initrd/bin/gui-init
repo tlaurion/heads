@@ -39,7 +39,7 @@ verify_global_hashes()
     return 0
   elif [ ! -f $TMP_HASH_FILE ]; then
     if (whiptail $CONFIG_ERROR_BG_COLOR --clear --title 'ERROR: Missing Hash File!' \
-      --yesno "The file containing hashes for /boot is missing!\n\nIf you are following the reownership wizard, select Yes to update\nyour list of checksums.\n\nOtherwise, this could indicate a compromise. You should select No to\nreturn to the main menu.\n\nWould you like to update your checksums now?" 30 90) then
+      --yesno "The file containing hashes for /boot is missing!\n\nIf you are setting this system up for the first time, select Yes to update\nyour list of checksums.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to update your checksums now?" 30 90) then
       update_checksums
     fi
     return 1
@@ -57,9 +57,9 @@ verify_global_hashes()
       UPDATE_INITRAMFS_PACKAGE=$(grep '^UPDATE_INITRAMFS_PACKAGE' $TMP_PACKAGE_TRIGGER_POST | cut -f 2 -d '=' | tr -d '"')
 
       if [ "$UPDATE_INITRAMFS_PACKAGE" != "" ]; then
-        TEXT="The following files failed the verification process after package updates ran:\n${CHANGED_FILES}\n\nThis is likely due to package triggers in$UPDATE_INITRAMFS_PACKAGE.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
+        TEXT="The following files failed the verification process AFTER package updates ran:\n${CHANGED_FILES}\n\nThis is likely due to package triggers in$UPDATE_INITRAMFS_PACKAGE.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
       else
-        TEXT="The following files failed the verification process after package updates ran:\n${CHANGED_FILES}\n\nThis might be due to the following package updates:\n$LAST_PACKAGE_LIST.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
+        TEXT="The following files failed the verification process AFTER package updates ran:\n${CHANGED_FILES}\n\nThis might be due to the following package updates:\n$LAST_PACKAGE_LIST.\n\nYou will need to update your checksums for all files in /boot.\n\nWould you like to update your checksums now?"
       fi
 
     else

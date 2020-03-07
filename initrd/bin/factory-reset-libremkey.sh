@@ -5,7 +5,7 @@ set -e -o pipefail
 . /tmp/config
 
 if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reownership of USB security dongle' \
-  --yesno "You are about to factory reset your USB security dongle!\n\nThis will:\n 1. Wipe all PRIVATE keys that were previously kept inside USB security dongle\n 2. Set default key size to 4096 bits (maximum)\n 3. Set two passphrases to interact with the card:\n  3(a): An administrative passphrase used to manage the card\n  3(b): A user passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4. Generate new Encryption, Signing and Authentication keys\n  inside your USB security dongle\n5. Export associated public key into mounted /media/gpg_keys/, replace the\n  one being present and trusted inside running BIOS, and reflash\n  ROM with resulting image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
+  --yesno "You are about to factory reset your USB security dongle!\n\nThis will:\n 1. Wipe all PRIVATE keys that were previously kept inside USB security dongle\n 2. Set default key size to 4096 bits (maximum)\n 3. Set two passphrases to interact with the card:\n  3(a): An Administrator PIN to manage the card\n  3(b): A User passphrase (PIN) used everytime you sign\n   encrypt/decrypt content\n4. Generate new Encryption, Signing and Authentication keys\n  inside your USB security dongle\n5. Export associated public key into mounted /media/gpg_keys/, replace the\n  one being present and trusted inside running BIOS, and reflash\n  ROM with resulting image.\n\nAs a result, the running BIOS will be modified. Would you like to continue?" 30 90) then
 
   mount-usb || die "Unable to mount USB device."
   #Copy generated public key, private_subkey, trustdb and artifacts to external media for backup:
@@ -32,7 +32,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_user_pass1" != "$gpgcard_user_pass2" ]] || [[ ${#gpgcard_user_pass1} -lt 6 || ${#gpgcard_user_pass1} -gt 20 ]];do
   {
-    echo -e "\nChoose your new USB security dongle's GPG PIN. You will type this when using USB security dongle (signing files, encrypting emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
+    echo -e "\nChoose your new USB security dongle's User PIN. You will type this when using USB security dongle (signing files, encrypting emails and files).\nIt needs to be a least 6 but not more then 20 characters:"
     read -s gpgcard_user_pass1
     echo -e "\nRetype user passphrase:"
     read -s gpgcard_user_pass2
@@ -42,9 +42,9 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   while [[ "$gpgcard_admin_pass1" != "$gpgcard_admin_pass2" ]] || [[ ${#gpgcard_admin_pass1} -lt 8 || ${#gpgcard_admin_pass1} -gt 20 ]]; do
   {
-    echo -e "\nChoose your new GPG admin password. You will type this when managing the USB security dongle (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
+    echo -e "\nChoose your new USB security dongle's Admin PIN. You will type this when managing the USB security dongle (HOTP sealing, managing key, etc).\nIt needs to be a least 8 but not more then 20 characters:"
     read -s gpgcard_admin_pass1
-    echo -e "\nRetype GPG admin password:"
+    echo -e "\nRetype your new USB security dongle's Admin PIN:"
     read -s gpgcard_admin_pass2
   };done
   gpgcard_admin_pass=$gpgcard_admin_pass1
@@ -56,21 +56,21 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
   gpgcard_real_name=$(echo -n "$oem_gpg_real_name")
   while [[ ${#gpgcard_real_name} -lt 5 ]]; do
   {
-    echo -e "\nEnter your GPG real name (At least 5 characters long):"
+    echo -e "\nEnter desired GPG real name (At least 5 characters long):"
     read -r gpgcard_real_name
   };done
 
   gpgcard_email_address=$(echo -n "$oem_gpg_email")
   while ! $(expr "$gpgcard_email_address" : '.*@' >/dev/null); do
   {
-    echo -e "\nEnter your GPG email (email@adress.org):"
+    echo -e "\nEnter desired GPG email (email@adress.org):"
     read -r gpgcard_email_address
   };done
   
   gpgcard_comment=$(echo -n "$oem_gpg_comment")
   while [[ ${#gpgcard_comment} -gt 60 ]] || [[ -z "$gpgcard_comment" ]]; do
   {
-    echo -e "\nEnter GPG comment (distinguishes this key from others with same name and email address. Must be smaller then 60 characters):"
+    echo -e "\nEnter desired GPG comment (distinguishes this key from others with same name and email address. Must be smaller then 60 characters):"
     read -r gpgcard_comment
   };done
 
