@@ -77,7 +77,7 @@ gpg_post_gen_mgmt() {
 }
 gpg_sc_oem_reset() {
   GPG_KEY_NAME=`date +%Y%m%d%H%M%S`
-  # Factory reset GPG card
+  # Factory reset USB security dongle
   {
     echo admin
     echo factory-reset
@@ -108,7 +108,7 @@ while true; do
     'l' ' List GPG keys in your keyring' \
     'm' ' Manually generate GPG keys on a USB security dongle' \
     'o' ' OEM Factory reset + auto keygen USB security dongle' \
-    'F' ' Factory Reset USB security dongle GPG Card + keygen + flash' \
+    'F' ' Factory Reset USB security dongle + keygen + flash' \
     'x' ' Exit' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 

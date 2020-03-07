@@ -195,7 +195,7 @@ confirm_gpg_card()
 {
 	read \
 		-n 1 \
-		-p "Please confirm that your GPG card is inserted [Y/n]: " \
+		-p "Please confirm that your USB security dongle is inserted [Y/n]: " \
 		card_confirm
 	echo
 
@@ -206,7 +206,7 @@ confirm_gpg_card()
 		die "gpg card not confirmed"
 	fi
 
-	# setup the USB so we can reach the GPG card
+	# setup the USB so we can reach the USB security dongle
 	enable_usb
 
 	gpg --card-status \
@@ -493,15 +493,15 @@ read_oem_files()
               echo "$to_provision is not set."
               if [ "$to_provision" == "oem_usb_security_dongle_Admin_PIN" ]; then
                 clear
-                echo "$to_provision: GPG Admin PIN"
+                echo "$to_provision: USB security dongle's Admin PIN"
                 echo
                 echo "Here chosen USB security dongle's Admin PIN will be requested from you under Heads to visually attest integrity measurements on your USB security dongle (HOTP)."
-                echo "Outside of Heads, your GPG Admin PIN will be prompted from you to manage your USB security dongle. (e.g: Change user PIN.)" 
-                echo "IMPORTANT: GPG Admin PIN is required to unlock GPG User PIN locked from 3 consecutive bad User PINs."
-                echo "If you mistyped your GPG Admin PIN 2 times in a subsequently, MAKE SURE YOUR THIRD ATTEMPT IS VALID by checking oem-provisioning file, created from this Wizard on OEM provided sdcard's encrypted container."
+                echo "Outside of Heads, your USB security dongle's Admin PIN will be prompted from you to manage your USB security dongle. (e.g: Change user PIN.)" 
+                echo "IMPORTANT: USB security dongle's Admin PIN is required to unlock USB security dongle's User PIN locked from 3 consecutive bad User PINs."
+                echo "If you mistyped your USB security dongle's Admin PIN 2 times in a subsequently, MAKE SURE YOUR THIRD ATTEMPT IS VALID by checking oem-provisioning file, created from this Wizard on OEM provided sdcard's encrypted container."
                 echo
-                echo "IMPORTANT: If the GPG Admin PIN becomes locked in smartcard THE CARD WILL NEED TO BE FACTORY RESETTED!"
-                echo "Factory reset of the GPG card deletes everything on it, including your private keys stored in its embedded GPG smartcard."
+                echo "IMPORTANT: If the USB security dongle's Admin PIN becomes locked in smartcard THE CARD WILL NEED TO BE FACTORY RESETTED!"
+                echo "Factory reset of the USB security dongle deletes everything on it, including your private keys stored in its embedded GPG smartcard."
                 echo "Consequently, you won't be able to decrypt previous files and emails with your USB security dongle like prior to the reset."
                 echo
                 echo "There is no need to have a super strong passphrase here, it will be locked after 3 bad attempts in the GPG smartcard itself."
@@ -517,16 +517,16 @@ read_oem_files()
               fi
               if [ "$to_provision" == "oem_usb_security_dongle_User_PIN" ] ;then
                 clear
-                echo "$to_provision: GPG User PIN"
+                echo "$to_provision: USB security dongle's User PIN"
                 echo
-                echo "Chosen GPG User PIN will be requested from you from Heads each time a /boot configuration change is detected so you can sign it originated from you. From a QubesOS perspective, upgrading AdminVM (dom0) will most certainly result in Heads requesting you to sign /boot integrity changes."
-                echo "Outside of Heads, the chosen GPG User PIN will be prompted from you to sign/encrypt/authenticate with your GPG card."
+                echo "Chosen USB security dongle's User PIN will be requested from you from Heads each time a /boot configuration change is detected so you can sign it originated from you. From a QubesOS perspective, upgrading AdminVM (dom0) will most certainly result in Heads requesting you to sign /boot integrity changes."
+                echo "Outside of Heads, the chosen USB security dongle's User PIN will be prompted from you to sign/encrypt/authenticate with your USB security dongle."
                 echo 
                 echo "There is no need to have a super strong passphrase here, it will be locked after 3 bad attempts in the GPG smartcard."
                 echo "Suggested length: 2 random words diceware passphrase."
                 randomize_diceware_passphrases_until_chosen_or_manual 2 UpperFirstLetter
                 while [[ ${#passphrase} -lt 6 || ${#passphrase} -gt 20 ]]; do
-                  echo "We have limitations for GPG User PIN: minimal 6 and maximal length of 20 characters"
+                  echo "We have limitations for USB security dongle's User PIN: minimal 6 and maximal length of 20 characters"
                   validate_input_passphrases_are_equal
                 done
                 notify "oem_usb_security_dongle_User_PIN=$passphrase"
@@ -631,8 +631,8 @@ read_oem_files()
                 echo
                 echo "Chosen TPM Owner Passphrase will never be requested from Heads but in the reownership process to initialize it once."
                 echo "A diceware randomly selected passphrase of 2 words is enough."
-                echo "It is recommended to reuse GPG Admin Passphrase/Password here, to not unecessarily multiply secrets to remember."
-                echo "We reused the GPG Admin PIN to set the TPM Owner Passphrase."
+                echo "It is recommended to reuse USB security dongle's Admin Passphrase/Password here, to not unecessarily multiply secrets to remember."
+                echo "We reused the USB security dongle's Admin PIN to set the TPM Owner Passphrase."
                 oem_TPM_Owner_Password="$oem_usb_security_dongle_Admin_PIN"
                 notify "oem_TPM_Owner_Password=$oem_usb_security_dongle_Admin_PIN"
                 export oem_TPM_Owner_Password="$oem_TPM_Owner_Password"

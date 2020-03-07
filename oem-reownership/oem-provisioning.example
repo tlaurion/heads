@@ -64,14 +64,14 @@
 #########
 #  GPG  #
 #########
-# GPG card function in Heads:
-#   The Librem Key/NitroKey Pro is a traditional GPG card added with HMAC-based One-time Password (HOTP) which permits 
-#     to seal integrity measurements into the GPG card memory. 
+# USB security dongle function in Heads:
+#   The Librem Key/NitroKey Pro is a traditional USB security dongle added with HMAC-based One-time Password (HOTP) which permits 
+#     to seal integrity measurements into the USB security dongle memory. 
 #     
 #     As a functional result, at each boot, the card will flash its LED green if the measured boot integrity 
 #       is atttested or red in case of a mismatch. This provable security measure is called tamper-evidence and
 #       informs the user that the Firmware (BIOS chips content) has been tampered with, or modified, and doesn't
-#       match expected measurements expected by the Trusted Platform Module (TPM) and validated by the GPG card.
+#       match expected measurements expected by the Trusted Platform Module (TPM) and validated by the USB security dongle.
 # 
 #     Heads traditionally stores Trusted Module Platform (TPM) Time-based One-time Password (TOTP) code in a 
 #       smartphone through the scanning of a QR code into an OTP authenticator application when the TPM is reowned or
@@ -79,17 +79,17 @@
 #       public PGP key into the firmware, which will invalidate measurements and require the TOTP/HOTP to be resealed.
 #       The TPM itself will be reowned by the user, requesting him to set a passphrase. 
 #
-#     *** You should use both TOTP/HOTP so you can still validate attested integiryt in case your GPG card gets lost ***
+#     *** You should use both TOTP/HOTP so you can still validate attested integiryt in case your USB security dongle gets lost ***
 #
 #     HOTP/TOTP are functionally similar, while the Librem Key/Nitrokey Pro permits to validate integrity visually in an 
 #       instant without having to unlock the smartphone, open the OTP application and verify that a 6 digits code there 
 #       is the same that is shown on the screen. 
 #       HOTP Librem Key / Nitrokey Pro/Storage feature is complementory to the TOTP and shares the same codebase.
 #
-#     Heads also depends on the GPG card to store used private key outside of prying eyes, securely stored on the
+#     Heads also depends on the USB security dongle to store used private key outside of prying eyes, securely stored on the
 #       Smartcard. When factory resetting the card, only the public key is inserted into the rom, which is used
 #       to automatically validate the integiryt of /boot files through checksuming and validating the the result
-#       matches what is signed with the private key on the GPG card.
+#       matches what is signed with the private key on the USB security dongle.
 #
 #     Heads will warn the user each time boot configuration changes. 
 #       That will happen when the Operating System applies core system updates (Xen, Kernel, initrd (drivers) 
@@ -128,7 +128,7 @@
 # Admin PIN manages Admin functions of the card through gpg --edit-card admin functions, 
 # In Heads, the Admin PIN is required to seal HOTP secret into NitroKey Pro/Librem Key when firmware has been modified.
 # 
-# NOTES: If the GPG card is lost, the user won't be able to seal firmware changes through HOTP.
+# NOTES: If the USB security dongle is lost, the user won't be able to seal firmware changes through HOTP.
 # Size constaints: minimum 8 characters, maximum 20 characters, WITHOUT SPACES! 
 #     (Else HOTP cannot be sealed. It's a seal-libremkey limitation)
 #   No need to go crazy here. Remember that 3 bad attempts locks the account. One or two Diceware words are enough.
@@ -142,7 +142,7 @@ oem_usb_security_dongle_Admin_PIN=InsurgoTech
 # In Heads, the User PIN is required to sign boot configuration changes.
 #   At each boot, the imported public key counterpart is used to validate the checksums of the files signed with the card.
 # 
-# NOTES: If the GPG card is lost, the user won't be able to sign system changes.
+# NOTES: If the USB security dongle is lost, the user won't be able to sign system changes.
 # Size constaints: minimum 6 characters, maximum 20 characters 
 #   No need to go crazy here. Remember that 3 bad attempts locks the account. One or two Diceware words are enough.
 #     Use KeepassXC password manager or something like https://www.rempe.us/diceware/#eff
@@ -155,7 +155,7 @@ oem_usb_security_dongle_real_name=Insurgo Shipped Integrity Attestation Librem K
 #GPG SmartCard desired E-mail address to provision GPG factory reset. 
 # This will be used to construct the ID of the public key: "Real Name (Comment) email@address.org" 
 #   Note that some services requires that e-mail address to be real and will send an e-mail to validate it.
-#     If you intend to use the GPG card to encrypt/sign e-mails, this is a good idea to provide main e-mail account here. 
+#     If you intend to use the USB security dongle to encrypt/sign e-mails, this is a good idea to provide main e-mail account here. 
 oem_usb_security_dongle_email=insurgo@riseup.net
 #GPG SmartCard desired Comment to provision GPG factory reset. 
 # This will be used to construct the ID of the public key: "Real Name (Comment) email@address.org" 
@@ -235,7 +235,7 @@ oem_luks_Disk_Unlock_Key=Insurgo
 #  Trusted Platform Module (TPM)  #
 ###################################
 # The TPM passphrase is required when sealing the Disk Unlock Key when selecting a new default boot option, 
-#   combined with the GPG User PIN.
+#   combined with the USB security dongle's User PIN.
 # 
-# It is recommended to reuse GPG Admin Passphrase/Password here, to not unecessarily multiply secrets to remember.
+# It is recommended to reuse USB security dongle's Admin Passphrase/Password here, to not unecessarily multiply secrets to remember.
 oem_TPM_Owner_Password=InsurgoTech

@@ -20,9 +20,9 @@ echo "#############" >> ./oem-provisioning.generated
 echo "# TO REMEMBER: Disk Recovery Key Passphrase (Used at system upgrades to recreate a Disk Unlock Key while setting a new boot default)" >> ./oem-provisioning.generated
 echo "#   !!!! IF YOU LOOSE THIS PASSPHRASE YOU'LL BE LOCKED OUT OF YOUR ENCRYPTED DISK !!!" >> ./oem-provisioning.generated
 echo "# TO REMEMBER: Disk Unlock Key passphrase (Used at every boot, in between system upgrades)" >> ./oem-provisioning.generated
-echo "# TO REMEMBER: GPG User PIN (Used to sign /boot config changes following system upgrades)" >> ./oem-provisioning.generated
+echo "# TO REMEMBER: USB security dongle's User PIN (Used to sign /boot config changes following system upgrades)" >> ./oem-provisioning.generated
 echo "#   After 3 bad attempts, you will need to unlock User PIN from Admin PIN" >> ./oem-provisioning.generated
-echo "# TO REMEMBER: GPG Admin PIN (Used to manage the GPG card and to attest firmware changes you made.)" >> ./oem-provisioning.generated
+echo "# TO REMEMBER: USB security dongle's Admin PIN (Used to manage the USB security dongle and to attest firmware changes you made.)" >> ./oem-provisioning.generated
 echo "#   After 3 bad attempts, YOU WILL BE LOCKED OUT OF THE CARD!" >> ./oem-provisioning.generated
 echo "#" >> ./oem-provisioning.generated
 echo "#" >> ./oem-provisioning.generated

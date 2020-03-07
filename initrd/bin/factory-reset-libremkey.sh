@@ -92,7 +92,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
 
   confirm_gpg_card
 
-  #Factory reset GPG card
+  #Factory reset USB security dongle
   {
     echo admin
     echo factory-reset
@@ -100,7 +100,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo yes
   } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Factory resetting the USB security dongle failed."
 
-  #Setting new admin and user passwords in GPG card
+  #Setting new admin and user passwords in USB security dongle
   {
     echo admin
     echo passwd
@@ -115,7 +115,7 @@ if (whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'Factory Reset and reowner
     echo Q
   } | gpg --command-fd=0 --status-fd=2 --pinentry-mode=loopback --card-edit --home=/.gnupg/ || die "Setting new GPG admin and user PINs in USB security dongle failed."
 
-  #Set GPG card key attributes key sizes to 4096 bits
+  #Set USB security dongle key attributes key sizes to 4096 bits
   {
     echo admin
     echo key-attr
