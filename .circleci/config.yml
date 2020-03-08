@@ -45,6 +45,10 @@ jobs:
                 --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
+      - run:
+          name: Output qemu-coreboot hashes
+          command: |
+             cat build/qemu-coreboot/hashes.txt \
 
       - store-artifacts:
           path: build/qemu-coreboot/coreboot.rom
@@ -59,6 +63,11 @@ jobs:
                 --load 2 \
                 V=1 \
                 BOARD=x230 \
+
+      - run:
+          name: Ouput x230 hashes
+          command: |
+            cat build/x230/hashes.txt \
 
       - store-artifacts:
           path: build/x230/coreboot.rom
