@@ -20,4 +20,6 @@ build:
   artifacts:
     paths:
       - ./build/x230-libremkey/coreboot.rom
+      - ./build/x230-libremkey/x230-libremkey-top.rom
+      - ./build/x230-libremkey/x230-libremkey-bottom.rom
       - ./build/x230-libremkey/hashes.txt

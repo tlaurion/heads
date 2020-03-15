@@ -72,8 +72,11 @@ jobs:
       - store-artifacts:
           path: build/x230-libremkey/coreboot.rom
       - store-artifacts:
+          path: build/x230-libremkey/x230-libremkey-bottom.rom
+      - store-artifacts:
+          path: build/x230-libremkey/x230-libremkey-top.rom
+      - store-artifacts:
           path: build/x230-libremkey/hashes.txt
-
 
 workflows:
   version: 2
