@@ -6,10 +6,13 @@ jobs:
     steps:
       - checkout
 
+      - restore_cache:
+          key: heads-{{ .Branch }}
+
       - run:
-          name: Bootstrap make
+          name: git reset
           command: |
-            make -j4 bootstrap
+            git reset --hard "$CIRCLE_SHA1" \
 
 # linuxboot steps need something to pass in the kernel header path
 # skipping for now
@@ -77,6 +80,13 @@ jobs:
           path: build/x230-hotp_verification/x230-hotp_verification-top.rom
       - store-artifacts:
           path: build/x230-hotp_verification/hashes.txt
+
+      - save_cache:
+          key: heads-{{ .Branch }}
+          paths:
+            - packages
+            - crossgcc
+            - build
 
 workflows:
   version: 2
