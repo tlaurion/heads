@@ -56,27 +56,27 @@ jobs:
           path: build/qemu-coreboot/hashes.txt
 
       - run:
-          name: x230-libremkey
+          name: x230-hotp_verification
           command: |
             ./build/make-4.2.1/make \
                 CROSS=/cross/bin/x86_64-linux-musl- \
                 --load 2 \
                 V=1 \
-                BOARD=x230-libremkey \
+                BOARD=x230-hotp_verification \
 
       - run:
-          name: Ouput x230-libremkey hashes
+          name: Ouput x230-hotp_verification hashes
           command: |
-            cat build/x230-libremkey/hashes.txt \
+            cat build/x230-hotp_verification/hashes.txt \
 
       - store-artifacts:
-          path: build/x230-libremkey/coreboot.rom
+          path: build/x230-hotp_verification/coreboot.rom
       - store-artifacts:
-          path: build/x230-libremkey/x230-libremkey-bottom.rom
+          path: build/x230-hotp_verification/x230-hotp_verification-bottom.rom
       - store-artifacts:
-          path: build/x230-libremkey/x230-libremkey-top.rom
+          path: build/x230-hotp_verification/x230-hotp_verification-top.rom
       - store-artifacts:
-          path: build/x230-libremkey/hashes.txt
+          path: build/x230-hotp_verification/hashes.txt
 
 workflows:
   version: 2
