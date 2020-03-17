@@ -2,8 +2,13 @@ version: 2
 jobs:
   build:
     docker:
-      - image: osresearch/musl-cross:38e52db
+      - image: ubuntu:18.04
     steps:
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo
       - checkout
 
       - restore_cache:
@@ -43,11 +48,10 @@ jobs:
       - run:
           name: qemu-coreboot
           command: |
-            ./build/make-4.2.1/make \
-                CROSS=/cross/bin/x86_64-linux-musl- \
-                --load 2 \
+            make --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
+          no_output_timeout: 3h
       - run:
           name: Output qemu-coreboot hashes
           command: |
@@ -61,12 +65,10 @@ jobs:
       - run:
           name: x230-hotp_verification
           command: |
-            ./build/make-4.2.1/make \
-                CROSS=/cross/bin/x86_64-linux-musl- \
-                --load 2 \
+            make --load 2 \
                 V=1 \
                 BOARD=x230-hotp_verification \
-
+          no_output_timeout: 3h
       - run:
           name: Ouput x230-hotp_verification hashes
           command: |
