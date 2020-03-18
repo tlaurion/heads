@@ -20,6 +20,7 @@ build:
     - make BOARD=x230-hotp_verification || (find ./build/log/ -cmin 1|xargs tail; exit 1)
     - echo "x230-hotp_verification hashes:"
     - cat ./build/x230-hotp_verification/hashes.txt
+    - tar zcvf logs.tar.gz ./build/log/*
   artifacts:
     paths:
       - ./build/x230-hotp_verification/coreboot.rom
@@ -27,3 +28,4 @@ build:
       - ./build/x230-hotp_verification/x230-hotp_verification-bottom.rom
       - ./build/x230-hotp_verification/hashes.txt
       - ./build/x230-hotp_verification/initrd.cpio.xz
+      - ./logs.tar.gz

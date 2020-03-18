@@ -73,6 +73,11 @@ jobs:
           name: Ouput x230-hotp_verification hashes
           command: |
             cat build/x230-hotp_verification/hashes.txt \
+      - run:
+          name: Archiving build logs to bundle in artifacts
+          command: |
+            tar zcvf logs.tar.gz ./build/log/*
+
 
       - store-artifacts:
           path: build/x230-hotp_verification/coreboot.rom
@@ -83,7 +88,7 @@ jobs:
       - store-artifacts:
           path: build/x230-hotp_verification/initrd.cpio.xz
       - store-artifacts:
-          path: build/x230-hotp_verification/hashes.txt
+          path: logs.tar.gz
 
       - save_cache:
           key: heads-{{ .Branch }}
