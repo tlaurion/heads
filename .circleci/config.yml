@@ -48,7 +48,7 @@ jobs:
       - run:
           name: qemu-coreboot
           command: |
-            make --load 2 \
+            rm -rf build/make-4.2.1/ && make --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
           no_output_timeout: 3h
@@ -80,6 +80,8 @@ jobs:
           path: build/x230-hotp_verification/x230-hotp_verification-bottom.rom
       - store-artifacts:
           path: build/x230-hotp_verification/x230-hotp_verification-top.rom
+      - store-artifacts:
+          path: build/x230-hotp_verification/initrd.cpio.xz
       - store-artifacts:
           path: build/x230-hotp_verification/hashes.txt
 

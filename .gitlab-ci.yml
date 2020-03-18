@@ -26,3 +26,4 @@ build:
       - ./build/x230-hotp_verification/x230-hotp_verification-top.rom
       - ./build/x230-hotp_verification/x230-hotp_verification-bottom.rom
       - ./build/x230-hotp_verification/hashes.txt
+      - ./build/x230-hotp_verification/initrd.cpio.xz
