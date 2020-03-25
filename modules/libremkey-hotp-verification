@@ -19,7 +19,7 @@ libremkey-hotp-verification_output := \
 libremkey-hotp-verification_configure := \
   INSTALL="$(INSTALL)" \
   CROSS="$(CROSS)" \
-  cmake -DADD_GIT_INFO=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./Toolchain-heads.cmake -DCMAKE_AR="$(CROSS)ar" . 
+  cmake -DCMAKE_C_FLAGS="-fdebug-prefix-map=$PWD=heads -gno-record-gcc-switches" -DADD_GIT_INFO=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./Toolchain-heads.cmake -DCMAKE_AR="$(CROSS)ar" .
 
 libremkey-hotp-verification_depends  += hidapi
 modules-y += hidapi
