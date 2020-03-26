@@ -22,6 +22,8 @@ build:
     - echo "x230-hotp_verification hashes:"
     - cat ./build/x230-hotp_verification/hashes.txt
     - tar zcvf logs.tar.gz ./build/log/*
+    - tar zcvf libremkey-hotp.tar.gz ./build/libremkey-hotp-verification*
+
   artifacts:
     paths:
       - ./build/x230-hotp_verification/coreboot.rom
@@ -30,3 +32,4 @@ build:
       - ./build/x230-hotp_verification/hashes.txt
       - ./build/x230-hotp_verification/initrd.cpio.xz
       - ./logs.tar.gz
+      - ./libremkey-hotp.tar.gz
