@@ -2,6 +2,7 @@ image: fedora:30
 
 variables:
   DOCKER_DRIVER: overlay2
+  V: 1
 
 stages:
   - build
