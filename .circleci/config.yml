@@ -43,23 +43,12 @@ jobs:
 #          path: build/qemu-linuxboot/linuxboot.rom
 #      - store-artifacts:
 #          path: build/qemu-linuxboot/hashes.txt
-      - run:
-          name: make
-          command: |
-            rm -rf build/make-4.2.1/ && make --load 2 \
-                V=1 \
-                BOARD=qemu-coreboot make \
-      - run:
-          name: cross-musl
-          command: |
-            make --load 2 \
-                V=1 \
-                BOARD=qemu-coreboot musl-cross \
-          no_output_timeout: 3h
+
+
       - run:
           name: qemu-coreboot
           command: |
-            make --load 2 \
+            rm -rf build/make-4.2.1/ && make --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
           no_output_timeout: 3h
