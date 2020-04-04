@@ -14,7 +14,6 @@ enable_sdcard()
   #in OEM mode gives the same measurements then when calling kexec-unseal-key
   #in normal boot mode after OEM reownership, making the release of the Disk
   #Unlock Key consistent.
-  mount_boot
   if [ -e /boot/oem ]; then
     warn "Loading card reader (sdcard) related modules..."
     #TODO: understand why conditional aliases don't work. It works on mount-usb :|
@@ -114,7 +113,6 @@ is_Luks_luksOpen()
 
     cryptsetup luksOpen $SDCARD_MOUNT_DEVICE sdcarddev
     if [ $(echo $?) == 0 ]; then
-      mount_boot
       if [ -e /boot/oem ]; then
         if ! grep -q ^oem_provisioning_partition /boot/oem ; then
           mount -o remount,rw /boot
