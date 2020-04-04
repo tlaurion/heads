@@ -10,6 +10,9 @@ npth_configure := ./configure \
 	--host x86_64-linux-musl \
 	--prefix "/" \
 	--disable-static \
+	--disable-nls \
+	--with-libgpg-error-prefix="$(INSTALL)" \
+	--disable-asm \
 
 npth_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \

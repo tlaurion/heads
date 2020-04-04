@@ -33,6 +33,7 @@ mkdir -p /tmp/secret
 
 # Now it is safe to print a banner
 if [ -r /etc/motd ]; then
+	cat /etc/motd
 	cat /etc/motd > /dev/tty0
 fi
 
@@ -43,15 +44,6 @@ hwclock -l -s
 . /etc/functions
 . /etc/config
 
-# Add our boot devices into the /etc/fstab, if they are defined
-# in the configuration file.
-if [ ! -z "$CONFIG_BOOT_DEV" ]; then
-	echo >> /etc/fstab "$CONFIG_BOOT_DEV /boot auto defaults,ro 0 0"
-fi
-if [ ! -z "$CONFIG_USB_BOOT_DEV" ]; then
-	echo >> /etc/fstab "$CONFIG_USB_BOOT_DEV /media auto defaults,ro 0 0"
-fi
-
 if [ "$CONFIG_COREBOOT" = "y" ]; then
 	/bin/cbfs-init
 fi
@@ -60,7 +52,7 @@ if [ "$CONFIG_LINUXBOOT" = "y" ]; then
 fi
 
 # Set GPG_TTY before calling gpg in key-init
-export GPG_TTY=$(tty)
+export GPG_TTY=/dev/console
 
 /bin/key-init
 
@@ -70,6 +62,11 @@ if [ ! -z "$CONFIG_BOOT_RECOVERY_SERIAL" ]; then
 	pause_recovery 'Console recovery shell' \
 		< "$CONFIG_BOOT_RECOVERY_SERIAL" \
 		> "$CONFIG_BOOT_RECOVERY_SERIAL" 2>&1 &
+fi
+
+# load USB modules for boards using a USB keyboard
+if [ "$CONFIG_USB_KEYBOARD" = "y" ]; then
+	enable_usb
 fi
 
 # If the user has been holding down r, enter a recovery shell
@@ -99,9 +96,6 @@ combine_configs
 # in the configuration file.
 if [ ! -z "$CONFIG_BOOT_DEV" ]; then
 	echo >> /etc/fstab "$CONFIG_BOOT_DEV /boot auto defaults,ro 0 0"
-fi
-if [ ! -z "$CONFIG_USB_BOOT_DEV" ]; then
-	echo >> /etc/fstab "$CONFIG_USB_BOOT_DEV /media auto defaults,ro 0 0"
 fi
 
 if [ ! -x "$CONFIG_BOOTSCRIPT" -a ! -x "$CONFIG_BOOTSCRIPT_NETWORK" ]; then

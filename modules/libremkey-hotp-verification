@@ -2,9 +2,11 @@ modules-$(CONFIG_LIBREMKEY) += libremkey-hotp-verification
 
 libremkey-hotp-verification_depends := libusb $(musl_dep)
 
-libremkey-hotp-verification_version := git
-libremkey-hotp-verification_dir := libremkey-hotp-verification
-libremkey-hotp-verification_repo := --recursive https://github.com/Nitrokey/nitrokey-hotp-verification
+libremkey-hotp-verification_version := d4948fddd617022635129f9b00db3f98de01016f
+libremkey-hotp-verification_dir := libremkey-hotp-verification-$(libremkey-hotp-verification_version)
+libremkey-hotp-verification_tar := nitrokey-hotp-verification-$(libremkey-hotp-verification_version).tar.gz
+libremkey-hotp-verification_url := https://github.com/Nitrokey/nitrokey-hotp-verification/archive/$(libremkey-hotp-verification_version).tar.gz
+libremkey-hotp-verification_hash := 36125fc7986afdfc309e963f767fe8f10de109da022d222b0bd9ac26bf18eb52
 
 libremkey-hotp-verification_target := \
 	$(MAKE_JOBS) \
@@ -16,4 +18,20 @@ libremkey-hotp-verification_output := \
 
 libremkey-hotp-verification_configure := \
   INSTALL="$(INSTALL)" \
-  cmake -DCMAKE_TOOLCHAIN_FILE=./Toolchain-heads.cmake -DCMAKE_AR="$(CROSS)ar" . 
+  CROSS="$(CROSS)" \
+  cmake -DADD_GIT_INFO=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./Toolchain-heads.cmake -DCMAKE_AR="$(CROSS)ar" . 
+
+libremkey-hotp-verification_depends  += hidapi
+modules-y += hidapi
+
+hidapi_version := e5ae0d30a523c565595bdfba3d5f2e9e1faf0bd0
+hidapi_dir := libremkey-hotp-verification-$(libremkey-hotp-verification_version)/hidapi
+hidapi_tar := hidapi-$(hidapi_version).tar.xz
+hidapi_url := https://github.com/Nitrokey/hidapi/archive/$(hidapi_version).tar.gz
+hidapi_hash := acc2a5089a8917085c2b3ebe9446065a21c760ba7e13cb54917043c4122188e0
+
+
+## hidapi will be built as part of libremkey-hotp-verification
+## so nothing to do here (but need make to be happy)
+hidapi_output := .built
+hidapi_configure := echo -e 'all:\n\ttouch .built' > Makefile
