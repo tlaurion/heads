@@ -45,13 +45,13 @@ if [ -n "$reownership_state" ] && [ "$reownership_state" = "luks_reencryption" ]
     select_luks_container
     whiptail --title 'Reencrypting LUKS container!' --msgbox \
       "Please enter current Disk Recovery Key passphrase (slot 0) to reencrypt\n LUKS container with a brand new encryption key\n\nHit Enter to continue." 30 60
-    cryptsetup-reencrypt -B 32 --use-directio "$LUKS" --key-slot 0
+    cryptsetup-reencrypt -B 64 --use-directio "$LUKS" --key-slot 0
   else
     #USB "oem-privisioning" file provides actual Disk Recovery Key
     echo -n "$oem_luks_actual_Disk_Recovery_Key" > /tmp/oem_luks_actual_Disk_Recovery_Key
     select_luks_container
     warn "Reencrypting "$LUKS" LUKS encrypted drive content with actual Recovery Disk Key passphrase..."
-    cryptsetup-reencrypt -B 32 --use-directio "$LUKS" --key-slot 0 --key-file /tmp/oem_luks_actual_Disk_Recovery_Key
+    cryptsetup-reencrypt -B 64 --use-directio "$LUKS" --key-slot 0 --key-file /tmp/oem_luks_actual_Disk_Recovery_Key
   fi
   
   #Validate past cryptsetup attempts
