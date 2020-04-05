@@ -1,6 +1,6 @@
 modules-y += linux
 
-linux_version := 4.14.62
+linux_version := 4.19.63
 linux_base_dir := linux-$(linux_version)
 
 # TODO: fixup the patch process
@@ -18,7 +18,7 @@ linux_url := https://cdn.kernel.org/pub/linux/kernel/v4.x/$(linux_tar)
 linux-4.9.38_hash := 76d789d87dd51d2fd58c095727171984fa4a992f5e25b9e3eb1e5fd5cd129074
 linux-4.9.80_hash := 9e2e83ccc0afc3f23340ed5e58a35d8c6300a7c58aa98ca913848de41226477b
 linux-4.14.62_hash := 51ca4d7e8ee156dc0f19bc7768915cfae41dbb0b4f251e4fa8b178c5674c22ab
-
+linux-4.19.63_hash := 75988760b931864b46292dcfad1dd54b3f4da10168041f48ca6d7f6dd4e5d25d
 linux_hash := $(linux-$(linux_version)_hash)
 
 # Ensure that touching the config file will force a reconfig/rebuild
@@ -94,6 +94,19 @@ linux_modules-$(CONFIG_LINUX_NVME)	+= drivers/nvme/host/nvme-core.ko
 # ME drivers for talking the the management engine
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei-me.ko
+
+# MMC/sdard support through Secure Digital Host Controller Interface support
+#Common
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/core/mmc_core.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/core/mmc_block.ko 
+#Ricoh
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/sdhci.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/cqhci.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/sdhci-pci.ko
+#Realtek
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mfd/mfd-core.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/misc/cardreader/rtsx_pci.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/rtsx_pci_sdmmc.ko
 
 EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
 
