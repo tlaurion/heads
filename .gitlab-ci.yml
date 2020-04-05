@@ -18,7 +18,7 @@ build:
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
     - make BOARD=x230-hotp_verification musl-cross -j2 
-    - make BOARD=x230-hotp_verification -j2 || (find ./build/log/ -cmin 1|xargs cat; exit 1)
+    - make BOARD=x230-hotp_verification || (find ./build/log/ -cmin 1|xargs cat; exit 1)
     - echo "x230-hotp_verification hashes:"
     - cat ./build/x230-hotp_verification/hashes.txt
     - tar zcvf logs.tar.gz ./build/log/*
