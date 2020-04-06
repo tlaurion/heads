@@ -1,0 +1,46 @@
+#!/bin/sh
+format()
+{
+#generating fdisk command between EOF limitators, wiping comments prior to execution
+sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk $dev
+  o # clear the in memory partition table
+  n # new partition
+  p # primary partition
+  1 # partition number 1
+    # default - start at beginning of disk 
+  +64M # 64 MB encrypted LUKS container
+  n # new partition
+  p # primary partition
+  2 # partion number 2
+    # default, start immediately after preceding partition
+    # default, extend partition to end of disk
+  w # write the partition table
+  q # and we're done
+EOF
+
+mke2fs "$dev"1
+}
+
+
+if [ -n "$1" ]; then
+	echo "YOU PASSED $1 AS DRIVE TO BE FORMATTED..."
+	if [ -e "$1" ]; then
+		echo "$1 DEVICE EXISTS..."
+		echo "PLEASE TYPE: CONFIRM TO FORMAT $1 AND DELETE DRIVE CONTENT"
+		read confirm
+		if [ "$confirm" == "CONFIRM" ]; then
+			echo "User typed CONFIRM... Formatting..."
+			dev=$1
+			format
+		else
+			echo "User didn't type CONFIRM. Exiting"
+			exit 1
+		fi
+	else
+		echo "$1 DOESN'T EXIST. EXITING..."
+		exit 1
+	fi
+else
+	echo "You haven't passed a /dev/sdX block device. Exiting."
+	exit 1
+fi
