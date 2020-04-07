@@ -48,7 +48,7 @@ jobs:
       - run:
           name: qemu-coreboot
           command: |
-            rm -rf build/make-4.2.1/ && make --load 2 \
+            rm -rf build/make-4.2.1/ build/qemu-coreboot/* && make --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
           no_output_timeout: 3h
@@ -65,6 +65,7 @@ jobs:
       - run:
           name: x230-hotp_verification
           command: |
+            rm -rf build/x230-hotp_verification/* && \
             make --load 2 \
                 V=1 \
                 BOARD=x230-hotp_verification \
