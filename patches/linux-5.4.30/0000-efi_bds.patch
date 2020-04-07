@@ -1,0 +1,56 @@
+diff -u --recursive linux-5.4.30/arch/x86/boot/compressed/early_serial_console.c linux-5.4.30.patched/arch/x86/boot/compressed/early_serial_console.c
+--- linux-5.4.30/arch/x86/boot/compressed/early_serial_console.c	2020-04-02 09:11:03.000000000 -0400
++++ linux-5.4.30.patched/arch/x86/boot/compressed/early_serial_console.c	2020-04-07 13:30:20.923000000 -0400
+@@ -1,5 +1,5 @@
+ #include "misc.h"
+ 
+-int early_serial_base;
++int early_serial_base = 0x3f8;
+ 
+ #include "../early_serial_console.c"
+diff -u --recursive linux-5.4.30/arch/x86/boot/compressed/eboot.c linux-5.4.30.patched/arch/x86/boot/compressed/eboot.c
+--- linux-5.4.30/arch/x86/boot/compressed/eboot.c	2020-04-02 09:11:03.000000000 -0400
++++ linux-5.4.30.patched/arch/x86/boot/compressed/eboot.c	2020-04-07 13:30:20.922000000 -0400
+@@ -390,8 +390,8 @@
+ 	int options_size = 0;
+ 	efi_status_t status;
+ 	char *cmdline_ptr;
+-	unsigned long ramdisk_addr;
+-	unsigned long ramdisk_size;
++	unsigned long ramdisk_addr = 0;
++	unsigned long ramdisk_size = 0;
+ 
+ 	efi_early = c;
+ 	sys_table = (efi_system_table_t *)(unsigned long)efi_early->table;
+@@ -447,9 +447,6 @@
+ 	/* Fill in upper bits of command line address, NOP on 32 bit  */
+ 	boot_params->ext_cmd_line_ptr = (u64)(unsigned long)cmdline_ptr >> 32;
+ 
+-	hdr->ramdisk_image = 0;
+-	hdr->ramdisk_size = 0;
+-
+ 	/* Clear APM BIOS info */
+ 	memset(bi, 0, sizeof(*bi));
+ 
+@@ -473,10 +470,16 @@
+ 
+ 	if (status != EFI_SUCCESS)
+ 		goto fail2;
+-	hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
+-	hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
+-	boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
+-	boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
++
++	// don't overwrite the bzImage or loader provided ramdisk pointer
++	// unless the kernel command line specified a different one.
++	if (ramdisk_addr != 0)
++	{
++		hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
++		hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
++		boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
++		boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
++	}
+ 
+ 	return boot_params;
+ 
+
