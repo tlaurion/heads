@@ -111,7 +111,7 @@ linux_modules-$(CONFIG_LINUX_MMC) += drivers/mfd/mfd-core.ko
 linux_modules-$(CONFIG_LINUX_MMC) += drivers/misc/cardreader/rtsx_pci.ko
 linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/rtsx_pci_sdmmc.ko
 
-EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
+EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches -DDEBUG
 
 linux_target := \
 	O="$(build)/$(linux_dir)" \
