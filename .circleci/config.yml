@@ -92,7 +92,7 @@ jobs:
           path: logs.tar.gz
 
       - save_cache:
-          key: heads-{{ .Branch }}
+          key: heads-{{ .Branch }}{{ .Environment.CACHE_VERSION }}
           paths:
             - packages
             - crossgcc
