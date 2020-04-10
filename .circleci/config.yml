@@ -63,31 +63,11 @@ jobs:
           path: build/qemu-coreboot/hashes.txt
 
       - run:
-          name: x230-hotp_verification
-          command: |
-            rm -rf build/x230-hotp_verification/* && \
-            make --load 2 \
-                V=1 \
-                BOARD=x230-hotp_verification \
-          no_output_timeout: 3h
-      - run:
-          name: Ouput x230-hotp_verification hashes
-          command: |
-            cat build/x230-hotp_verification/hashes.txt \
-      - run:
           name: Archiving build logs to bundle in artifacts
           command: |
             tar zcvf logs.tar.gz ./build/log/*
 
 
-      - store-artifacts:
-          path: build/x230-hotp_verification/coreboot.rom
-      - store-artifacts:
-          path: build/x230-hotp_verification/x230-hotp_verification-bottom.rom
-      - store-artifacts:
-          path: build/x230-hotp_verification/x230-hotp_verification-top.rom
-      - store-artifacts:
-          path: build/x230-hotp_verification/initrd.cpio.xz
       - store-artifacts:
           path: logs.tar.gz
 
