@@ -8,7 +8,7 @@ jobs:
           name: Install dependencies
           command: |
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev
       - checkout
 
       - restore_cache:
@@ -81,6 +81,10 @@ jobs:
 
       - store-artifacts:
           path: build/x230-debug/coreboot.rom
+      - store-artifacts:
+          path: build/x230-debug/x230-debug-bottom.rom
+      - store-artifacts:
+          path: build/x230-debug/x230-debug-top.rom
       - store-artifacts:
           path: build/x230-debug/initrd.cpio.xz
       - store-artifacts:
