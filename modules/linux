@@ -95,7 +95,7 @@ linux_modules-$(CONFIG_LINUX_NVME)	+= drivers/nvme/host/nvme-core.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei-me.ko
 
-EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
+EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches -DDEBUG
 
 linux_target := \
 	O="$(build)/$(linux_dir)" \
