@@ -95,7 +95,7 @@ linux_modules-$(CONFIG_LINUX_NVME)	+= drivers/nvme/host/nvme-core.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei-me.ko
 
-EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches -DDEBUG
+EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
 
 linux_target := \
 	O="$(build)/$(linux_dir)" \
@@ -135,7 +135,7 @@ $(module_initrd_lib_dir)/$(notdir $1): $(build)/$(linux_dir)/$1
 	$(call do,INSTALL-MODULE,$1, \
 		$(CROSS)strip \
 			--preserve-dates \
-			--strip-dwo \
+			--strip-debug \
 			-o "$$@" \
 			"$$<" \
 	)
