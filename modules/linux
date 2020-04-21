@@ -133,6 +133,11 @@ $(build)/$(BOARD)/modules.cpio: $(module_initrd_lib_dir)/$(notdir $1)
 # Strip the modules when we install them so that they will be extra small
 $(module_initrd_lib_dir)/$(notdir $1): $(build)/$(linux_dir)/$1
 	$(call do,INSTALL-MODULE,$1, \
+		$(CROSS)strip \
+			--preserve-dates \
+			--strip-dwo \
+			-o "$$@" \
+			"$$<" \
 	)
 endef
 
