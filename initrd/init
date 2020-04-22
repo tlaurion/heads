@@ -120,6 +120,12 @@ else
 	fi
 fi
 
+#ADD DEBUGFS if fs is present. TODO: Too late in init?
+if [ -d /sys/kernel/debug ]; then
+	echo >> /etc/fstab "debugfs	/sys/kernel/debug	debugfs	defaults 0 0"
+fi
+ 
+
 # belts and suspenders, just in case...
 if [ "$CONFIG_TPM" = "y" ]; then
 	tpm extend -ix 4 -ic recovery
