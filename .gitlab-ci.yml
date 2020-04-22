@@ -11,18 +11,29 @@ build:
   retry: 2
   cache:
     paths:
-      - ./
+      - ./build
+      - ./crossgcc
+      - ./packages
     key: "$CI_COMMIT_REF_SLUG"
   script:
     - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool expat-devel boost-devel libaio-devel cpio texinfo diceware rsync
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
-    - make BOARD=x230-debug || (find ./build/log/ -cmin 1|xargs tail; exit 1)
-    - echo "x230-debug hashes:"
+    - echo "Building qemu-coreboot..."
+    - rm -rf build/qemu-coreboot/* &&  make BOARD=qemu-coreboot || (find ./build/log/ -cmin 1|xargs tail; exit 1)
+    - echo "Printing qemu-coreboot hashes:"
+    - cat ./build/qemu-coreboot/hashes.txt
+    - echo "Building x230-debug..."
+    - rm -rf build/x230-debug/* && make BOARD=x230-debug || (find ./build/log/ -cmin 1|xargs tail; exit 1)
+    - echo "Printing x230-debug hashes..."
     - cat ./build/x230-debug/hashes.txt
+    - echo "Archiving logs..."
     - tar zcvf logs.tar.gz ./build/log/*
   artifacts:
     paths:
+      - ./build/qemu-coreboot/coreboot.rom
+      - ./build/qemu-coreboot/hashes.txt
+      - ./build/qemu-coreboot/initrd.cpio.xz
       - ./build/x230-debug/coreboot.rom
       - ./build/x230-debug/x230-debug-top.rom
       - ./build/x230-debug/x230-debug-bottom.rom
