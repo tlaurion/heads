@@ -98,6 +98,12 @@ if [ ! -z "$CONFIG_BOOT_DEV" ]; then
 	echo >> /etc/fstab "$CONFIG_BOOT_DEV /boot auto defaults,ro 0 0"
 fi
 
+#ADD DEBUGFS if fs is present. TODO: Too late in init?
+if [ -d /sys/kernel/debug ]; then
+	echo >> /etc/fstab "debugfs /sys/kernel/debug debugfs defaults 0 0"
+	mount debugfs
+fi
+ 
 if [ ! -x "$CONFIG_BOOTSCRIPT" -a ! -x "$CONFIG_BOOTSCRIPT_NETWORK" ]; then
 	recovery 'Boot script missing?  Entering recovery shell'
 else
@@ -119,12 +125,6 @@ else
 		pause_recovery 'Override network boot. Entering recovery shell'
 	fi
 fi
-
-#ADD DEBUGFS if fs is present. TODO: Too late in init?
-if [ -d /sys/kernel/debug ]; then
-	echo >> /etc/fstab "debugfs	/sys/kernel/debug	debugfs	defaults 0 0"
-fi
- 
 
 # belts and suspenders, just in case...
 if [ "$CONFIG_TPM" = "y" ]; then
