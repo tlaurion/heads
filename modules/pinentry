@@ -21,12 +21,18 @@ pinentry_configure := ./configure \
 	--disable-libsecret \
 	--disable-fallback-curses \
 	--disable-pinentry-curses \
-	--disable-pinentry-qt \
 	--disable-pinentry-gtk2 \
 	--disable-pinentry-gnome3 \
 	--disable-pinentry-fltk \
 	--disable-pinentry-emacs \
 	--disable-fallback-curses \
+	--disable-pinentry-qt5   \
+	--disable-pinentry-fltk  \
+	--disable-modular-tests \
+	--disable-qt --disable-ft --disable-fc \
+	--disable-qt \
+	--disable-gtk-doc  \
+	--disable-cups \
 	--with-libgpg-error-prefix="$(INSTALL)" \
 	--with-libassuan-prefix="$(INSTALL)" \
 
