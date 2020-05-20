@@ -82,7 +82,7 @@ jobs:
       - run:
           name: Ouput x230-hotp-verification hashes
           command: |
-            cat build/x230-verification/hashes.txt \
+            cat build/x230-hotp-verification/hashes.txt \
       - run:
           name: Archiving build logs to bundle in artifacts
           command: |
