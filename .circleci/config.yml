@@ -63,6 +63,11 @@ jobs:
           path: build/qemu-coreboot/hashes.txt
 
       - run:
+          name: clear old cache for libremkey-hotp-verification*
+          command: |
+            rm -rf build/libremkey-hotp-verification* -v
+
+      - run:
           name: x230-hotp_verification
           command: |
             make --load 2 \
@@ -77,6 +82,10 @@ jobs:
           name: Archiving build logs to bundle in artifacts
           command: |
             tar zcvf logs.tar.gz ./build/log/*
+      - run:
+          name: Archiving hotp verification build files
+          command: |
+            tar zcvf libremkey-hotp.tar.gz ./build/libremkey-hotp-verification*
 
 
       - store-artifacts:
@@ -89,6 +98,8 @@ jobs:
           path: build/x230-hotp_verification/initrd.cpio.xz
       - store-artifacts:
           path: logs.tar.gz
+      - store-artifacts:
+          path: libremkey-hotp.tar.gz
 
       - save_cache:
           key: heads-{{ .Branch }}
