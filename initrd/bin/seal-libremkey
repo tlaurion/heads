@@ -59,15 +59,16 @@ if ! libremkey_hotp_verification info ; then
   fi
 fi
 
-echo -e ""
-read -s -p "Enter your Librem Key Admin PIN: " admin_pin
-echo -e "\n"
+if [ -z "$oem_gpg_Admin_PIN" ]; then
+  read -s -p "Enter your Librem Key Admin PIN" admin_pin
+  echo
+else
+  admin_pin=$(echo -n "$oem_gpg_Admin_PIN")
+fi
 
 libremkey_hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value 
 if [ $? -ne 0 ]; then
-  echo -e "\n"
-  read -s -p "Error setting HOTP secret, re-enter Admin PIN and try again: " admin_pin
-  echo -e "\n"
+  read -s -p "Error setting HOTP secret, re-enter Admin PIN and try again:" admin_pin
   if ! libremkey_hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value ; then
     # don't leak key on failure
     shred -n 10 -z -u "$HOTP_SECRET" 2> /dev/null
@@ -88,13 +89,13 @@ mount -o remount,rw /boot
 
 counter_value=`expr $counter_value + 1`
 echo $counter_value > $HOTP_COUNTER \
-|| die "Unable to create hotp counter file"
+|| die "Unable to create HOTP counter file"
 
 #sha256sum /tmp/counter-$counter > $HOTP_COUNTER \
-#|| die "Unable to create hotp counter file"
+#|| die "Unable to create HOTP counter file"
 mount -o remount,ro /boot
 
-echo -e "\nLibrem Key initialized successfully. Press Enter to continue."
+echo "Librem Key initialized successfully. Press Enter to continue."
 read
 
 exit 0

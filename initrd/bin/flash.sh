@@ -6,9 +6,15 @@ set -e -o pipefail
 . /etc/functions
 . /tmp/config
 
-case "$CONFIG_FLASHROM_OPTIONS" in
-  -* )
-    echo "Board $CONFIG_BOARD detected, continuing..."
+case "$CONFIG_BOARD" in
+  librem* )
+    FLASHROM_OPTIONS='-p internal:laptop=force_I_want_a_brick,ich_spi_mode=hwseq' 
+  ;;
+  x230* )
+    FLASHROM_OPTIONS='--force --noverify-all --programmer internal --ifd --image bios'
+  ;;
+  "kgpe-d16" )
+    FLASHROM_OPTIONS='--force --noverify --programmer internal'
   ;;
   * )
     die "ERROR: No board has been configured!\n\nEach board requires specific flashrom options and it's unsafe to flash without them.\n\nAborting."
@@ -18,11 +24,11 @@ esac
 flash_rom() {
   ROM=$1
   if [ "$READ" -eq 1 ]; then
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.1" \
+    flashrom $FLASHROM_OPTIONS -r "${ROM}.1" \
     || die "$ROM: Read failed"
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.2" \
+    flashrom $FLASHROM_OPTIONS -r "${ROM}.2" \
     || die "$ROM: Read failed"
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.3" \
+    flashrom $FLASHROM_OPTIONS -r "${ROM}.3" \
     || die "$ROM: Read failed"
     if [ `sha256sum ${ROM}.[123] | cut -f1 -d ' ' | uniq | wc -l` -eq 1 ]; then
       mv ${ROM}.1 $ROM
@@ -37,15 +43,18 @@ flash_rom() {
       preserve_rom /tmp/${CONFIG_BOARD}.rom \
       || die "$ROM: Config preservation failed"
     fi
-    # persist serial number from CBFS
-    if cbfs -r serial_number > /tmp/serial 2>/dev/null; then
-      echo "Persisting system serial"
-      cbfs -o /tmp/${CONFIG_BOARD}.rom -d serial_number 2>/dev/null || true
-      cbfs -o /tmp/${CONFIG_BOARD}.rom -a serial_number -f /tmp/serial
-    fi
 
-    flashrom $CONFIG_FLASHROM_OPTIONS -w /tmp/${CONFIG_BOARD}.rom \
+    flashrom $FLASHROM_OPTIONS -w /tmp/${CONFIG_BOARD}.rom \
     || die "$ROM: Flash failed"
+    
+    if [ -e /boot/kexec_key_devices.txt ] || [ -e /boot/kexec_key_lvm.txt ]; then
+      echo -e "\n\nBoth your TOTP/HOTP codes and TPM released Disk Unlock Key were invalidated since measured boot integrity changed."
+      notify "You will be requested to reseal TOTP/HOTP secrets, to set a new default boot option and define a new Disk Unlock Key passphrase."
+      mount_boot
+      mount -o remount,rw /boot
+      touch /boot/reset_disk_unlock_key
+      mount -o remount,ro /boot
+    fi
   fi
 }
 
