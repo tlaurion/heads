@@ -44,25 +44,6 @@ jobs:
 #      - store-artifacts:
 #          path: build/qemu-linuxboot/hashes.txt
 
-
-      - run:
-          name: qemu-coreboot
-          command: |
-            rm -rf build/make-4.2.1/ build/qemu-coreboot/* build/log/* && make --load 2 \
-                V=1 \
-                BOARD=qemu-coreboot \
-          no_output_timeout: 3h
-      - run:
-          name: Output qemu-coreboot hashes
-          command: |
-             cat build/qemu-coreboot/hashes.txt \
-      - run:
-          name: Archiving build logs for qemu-coreboot
-          command: |
-             tar zcvf build/qemu-coreboot/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/qemu-coreboot
-
       - run:
           name: x230-flash
           command: |
@@ -134,6 +115,24 @@ jobs:
              tar zcvf build/x230-privacybeast/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-privacybeast
+
+      - run:
+          name: qemu-coreboot
+          command: |
+            rm -rf build/qemu-coreboot/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=qemu-coreboot \
+          no_output_timeout: 3h
+      - run:
+          name: Output qemu-coreboot hashes
+          command: |
+             cat build/qemu-coreboot/hashes.txt \
+      - run:
+          name: Archiving build logs for qemu-coreboot
+          command: |
+             tar zcvf build/qemu-coreboot/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/qemu-coreboot
 
       - save_cache:
           key: heads-{{ .Branch }}{{ .Environment.CACHE_VERSION }}
