@@ -12,7 +12,7 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: heads-{{ .Branch }}{{ .Environment.CACHE_VERSION }}
+          key: heads-{{ .Environment.CIRCLE_USERNAME }}-{{ .Environment.CACHE_VERSION }}
 
       - run:
           name: git reset
@@ -61,6 +61,42 @@ jobs:
              tar zcvf build/x230-flash/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-flash
+
+      - run:
+          name: t430-flash
+          command: |
+            rm -rf build/t430-flash/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=t430-flash \
+          no_output_timeout: 3h
+      - run:
+          name: Ouput t430-flash hashes
+          command: |
+            cat build/t430-flash/hashes.txt \
+      - run:
+          name: Archiving build logs for t430-flash
+          command: |
+             tar zcvf build/t430-flash/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/t430-flash
+
+      - run:
+          name: t430
+          command: |
+            rm -rf build/t430/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=t430 \
+          no_output_timeout: 3h
+      - run:
+          name: Ouput t430 hashes
+          command: |
+            cat build/t430/hashes.txt \
+      - run:
+          name: Archiving build logs for t430
+          command: |
+             tar zcvf build/t430/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/t430
 
       - run:
           name: x230
@@ -119,7 +155,7 @@ jobs:
       - run:
           name: qemu-coreboot
           command: |
-            rm -rf build/qemu-coreboot/* build/log/* && make --load 2 \
+            rm -rf build/make-4.2.1/ build/qemu-coreboot/* build/log/* && make --load 2 \
                 V=1 \
                 BOARD=qemu-coreboot \
           no_output_timeout: 3h
@@ -135,7 +171,7 @@ jobs:
           path: build/qemu-coreboot
 
       - save_cache:
-          key: heads-{{ .Branch }}{{ .Environment.CACHE_VERSION }}
+          key: heads-{{ .Environment.CIRCLE_USERNAME }}-{{ .Environment.CACHE_VERSION }}
           paths:
             - packages
             - crossgcc

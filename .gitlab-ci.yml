@@ -14,7 +14,7 @@ build:
       - packages
       - crossgcc
       - build
-    key: "$CI_COMMIT_REF_SLUG"
+    key: "heads-$GITLAB_USER_LOGIN"
   script:
     - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
     - git fetch origin 
@@ -28,6 +28,15 @@ build:
     - cat ./build/x230-flash/hashes.txt
     - echo "Archiving x230-flash logs..."
     - tar zcvf ./build/x230-flash/logs.tar.gz ./build/log/*
+    - echo "Removing old t430-flash artifacts..."
+    - rm -rf ./build/t430-flash/*
+    - rm -rf ./build/log/*
+    - echo "Building BOARD=t430-flash board..."
+    - make BOARD=t430-flash || (find ./build/log/ -cmin 1|xargs tail; exit 1)
+    - echo "t430-flash hashes:"
+    - cat ./build/t430-flash/hashes.txt
+    - echo "Archiving t430-flash logs..."
+    - tar zcvf ./build/t430-flash/logs.tar.gz ./build/log/*
     - echo "Removing old x230-hotp-verification artifacts..."
     - rm -rf ./build/x230-hotp-verification/*
     - rm -rf ./build/log/*
@@ -45,7 +54,7 @@ build:
     - echo "x230-privacybeast hashes:"
     - cat ./build/x230-privacybeast/hashes.txt
     - echo "Archiving x230-privacybeast logs..."
-    - tar zcvf ./build/x230-privacybeast/logs.tar.gz ./build/log/*
+    - tar zcvf ./build/x230-privacybeast/logs.tar.gz ./build/log/*    
     - echo "Removing old x230 artifacts..."
     - rm -rf ./build/x230/*
     - rm -rf ./build/log/*
@@ -55,6 +64,15 @@ build:
     - cat ./build/x230/hashes.txt
     - echo "Archiving x230 logs..."
     - tar zcvf ./build/x230/logs.tar.gz ./build/log/*
+    - echo "Removing old t430 artifacts..."
+    - rm -rf ./build/t430/*
+    - rm -rf ./build/log/*
+    - echo "Building BOARD=t430 board..."
+    - make BOARD=t430 || (find ./build/log/ -cmin 1|xargs tail; exit 1)
+    - echo "t430 hashes:"
+    - cat ./build/t430/hashes.txt
+    - echo "Archiving t430 logs..."
+    - tar zcvf ./build/t430/logs.tar.gz ./build/log/*
     - echo "Removing old qemu-coreboot artifacts..."
     - rm -rf ./build/qemu-coreboot/*
     - rm -rf ./build/log/*
@@ -69,5 +87,8 @@ build:
     paths:
       - ./build/qemu-coreboot
       - ./build/x230-flash
+      - ./build/t430-flash
       - ./build/x230-hotp-verification
+      - ./build/x230-privacybeast
       - ./build/x230
+      - ./build/t430
