@@ -1,0 +1,23 @@
+modules-$(CONFIG_NKSTORECLIKEY) += nkstorecli
+
+#nkstorecli_depends := libusb hidapi $(musl_dep)
+nkstorecli_depends := $(musl_dep)
+
+nkstorecli_version := 0.1
+nkstorecli_dir := nkstorecli-$(nkstorecli_version)
+nkstorecli_tar := nkstorecli-$(nkstorecli_version).tar.gz
+nkstorecli_url := https://github.com/daringer/nkstorecli/releases/download/v$(nkstorecli_version)/nkstorecli-$(nkstorecli_version).tar.gz
+nkstorecli_hash := e65196101b453bd017ed9786e1bf35cf0305c1ef26e9d41e5c92f3e11393c38a
+
+nkstorecli_target := \
+	$(MAKE_JOBS) \
+	$(CROSS_TOOLS) \
+
+nkstorecli_output := \
+	nkstorecli 
+
+nkstorecli_configure := \
+  tar xf $(nkstorecli_tar) \
+	cp $(nkstorecli_dir)/$(nkstorecli_output).upx $(INSTALL)/bin/$(nkstorecli_output) 
+
+
