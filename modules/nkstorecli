@@ -1,4 +1,4 @@
-modules-$(CONFIG_NKSTORECLIKEY) += nkstorecli
+modules-$(CONFIG_NKSTORECLI) += nkstorecli
 
 #nkstorecli_depends := libusb hidapi $(musl_dep)
 nkstorecli_depends := $(musl_dep)
