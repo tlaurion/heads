@@ -9,7 +9,7 @@ libnitrokey_url := https://github.com/Nitrokey/libnitrokey/releases/download/v$(
 libnitrokey_hash := f829280402f29f55237736b060fd41955a701c3828ee1270846b4e57efcf83cf
 
 
-libnitrokey_libraries := build/libnitrokey.so.3.5.0
+libnitrokey_libraries := build/libnitrokey.so.3
 
 cmake_cross := "-DCMAKE_AR=$(CROSS)ar" \
 	-DCMAKE_CXX_COMPILER="$(CROSS)g++" \
@@ -18,6 +18,7 @@ cmake_cross := "-DCMAKE_AR=$(CROSS)ar" \
 	-DCMAKE_CXX_COMPILER_AR="$(CROSS)ar" \
 	-DCMAKE_NM="$(CROSS)nm" \
 	-DCMAKE_OBJDUMP="$(CROSS)objdump" \
+	-DCMAKE_OBCOPY="$(CROSS)obcopy" \
 	-DCMAKE_STRIP="$(CROSS)strip" 
 
 libnitrokey_configure := \
@@ -27,6 +28,7 @@ libnitrokey_configure := \
 
 # install "by-hand" as INSTALL_PREFIX is not working as expected
 libnitrokey_target := $(CROSS_TOOLS) $(MAKE_JOBS) -C build DESTDIR="$(INSTALL)" && \
+	strip --preserve-dates --strip-debug build/$(libnitrokey_dir)/build/libnitrokey.so.3.5.0 && \
 	cp build/$(libnitrokey_dir)/build/libnitrokey.so.3.5.0 $(INSTALL)/lib && \
 	cp build/$(libnitrokey_dir)/build/libnitrokey.so.3 $(INSTALL)/lib && \
 	cp build/$(libnitrokey_dir)/build/libnitrokey.so $(INSTALL)/lib && \
@@ -36,4 +38,5 @@ libnitrokey_target := $(CROSS_TOOLS) $(MAKE_JOBS) -C build DESTDIR="$(INSTALL)" 
 	cp -r build/$(libnitrokey_dir)/libnitrokey/*.h $(INSTALL)/include/libnitrokey 
 
 	
+#upx build/$(libnitrokey_dir)/build/libnitrokey.so.3.5.0 && \
 

@@ -21,5 +21,5 @@ libhidapi-libusb_target := $(MAKE_JOBS) -C libusb \
 	cp $(INSTALL)/../build/$(libhidapi-libusb_dir)/pc/hidapi-libusb.pc $(INSTALL)/lib/pkgconfig/ \
 
 
-libhidapi-libusb_libraries := libusb/.libs/libhidapi-libusb.so.0.0.0
+libhidapi-libusb_libraries := libusb/.libs/libhidapi-libusb.so.0
 
