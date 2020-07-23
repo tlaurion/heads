@@ -1,19 +1,16 @@
 modules-$(CONFIG_NKSTORECLI) += nkstorecli
 
-#nkstorecli_depends := libusb hidapi $(musl_dep)
-#nkstorecli_depends := $(musl_dep)
+nkstorecli_depends := libnitrokey libusb $(musl_dep)
 
-nkstorecli_version := 0.1
+nkstorecli_version := 0.2.2
 nkstorecli_dir := nkstorecli-$(nkstorecli_version)
 nkstorecli_tar := nkstorecli-$(nkstorecli_version).tar.gz
 nkstorecli_url := https://github.com/daringer/nkstorecli/releases/download/v$(nkstorecli_version)/nkstorecli-$(nkstorecli_version).tar.gz
-nkstorecli_hash := e65196101b453bd017ed9786e1bf35cf0305c1ef26e9d41e5c92f3e11393c38a
+nkstorecli_hash := 21ea901725d8c795baa64a26fec4729c94084016871a92accc3a634128e77e55
 
-nkstorecli_target := \
-  ; touch .configured && pwd && \
-	cp build/$(nkstorecli_dir)/nkstorecli.upx install/bin/nkstorecli
+nkstorecli_target := $(MAKE_JOBS) -C src $(CROSS_TOOLS) DESTDIR=$(INSTALL) install 
 
 nkstorecli_output := \
-	nkstorecli 
+	src/nkstorecli 
 
 
