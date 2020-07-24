@@ -9,12 +9,13 @@ libnitrokey_url := https://github.com/Nitrokey/libnitrokey/releases/download/v$(
 libnitrokey_hash := f829280402f29f55237736b060fd41955a701c3828ee1270846b4e57efcf83cf
 
 
-libnitrokey_libraries := build/libnitrokey.so.3
+libnitrokey_libraries := \
+	build/libnitrokey.so.3 
 
 cmake_cross := "-DCMAKE_AR=$(CROSS)ar" \
 	-DCMAKE_CXX_COMPILER="$(CROSS)g++" \
 	-DCMAKE_C_COMPILER="$(CROSS)gcc" \
-	-DCMAKE_CXX_FLAGS="-fdebug-prefix-map=/heads=heads -gno-record-gcc-switches -D__MUSL__ -I$(INSTALL)/include -L$(INSTALL)/lib" \
+	-DCMAKE_CXX_FLAGS="-Os -fdebug-prefix-map=/heads=heads -gno-record-gcc-switches -D__MUSL__ -I$(INSTALL)/include -L$(INSTALL)/lib" \
 	-DCMAKE_CXX_COMPILER_AR="$(CROSS)ar" \
 	-DCMAKE_NM="$(CROSS)nm" \
 	-DCMAKE_OBJDUMP="$(CROSS)objdump" \
@@ -24,7 +25,7 @@ cmake_cross := "-DCMAKE_AR=$(CROSS)ar" \
 libnitrokey_configure := \
 	mkdir build -p && \
 	cd build && \
-	$(CROSS_TOOLS) cmake .. -DBUILD_SHARED_LIBS=ON -DCOMPILE_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_INSTALL_LIBDIR=lib $(cmake_cross) 
+	$(CROSS_TOOLS) cmake .. -DBUILD_SHARED_LIBS=ON -DCOMPILE_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=MinSizeRel $(cmake_cross) 
 
 # install "by-hand" as INSTALL_PREFIX is not working as expected
 libnitrokey_target := $(CROSS_TOOLS) $(MAKE_JOBS) -C build DESTDIR="$(INSTALL)" && \
@@ -36,7 +37,4 @@ libnitrokey_target := $(CROSS_TOOLS) $(MAKE_JOBS) -C build DESTDIR="$(INSTALL)" 
 	mkdir -p $(INSTALL)/include/libnitrokey/ && \
 	cp -r build/$(libnitrokey_dir)/NK_C_API.h $(INSTALL)/include/libnitrokey/ && \
 	cp -r build/$(libnitrokey_dir)/libnitrokey/*.h $(INSTALL)/include/libnitrokey 
-
-	
-#upx build/$(libnitrokey_dir)/build/libnitrokey.so.3.5.0 && \
 
