@@ -17,6 +17,7 @@ libhidapi-libusb_configure := ./bootstrap && \
 libhidapi-libusb_target := $(MAKE_JOBS) -C libusb \
 	DESTDIR="$(INSTALL)" \
 	$(CROSS_TOOLS) \
+	CC="/heads/crossgcc/bin/x86_64-linux-musl-gcc -fdebug-prefix-map=/heads=heads -gno-record-gcc-switches -D__MUSL__ -I/heads/install/include -L/heads/install/lib -Os" \
 	install && \
 	cp $(INSTALL)/../build/$(libhidapi-libusb_dir)/pc/hidapi-libusb.pc $(INSTALL)/lib/pkgconfig/ \
 

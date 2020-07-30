@@ -25,7 +25,7 @@ cmake_cross := "-DCMAKE_AR=$(CROSS)ar" \
 libnitrokey_configure := \
 	mkdir build -p && \
 	cd build && \
-	$(CROSS_TOOLS) cmake .. -DBUILD_SHARED_LIBS=ON -DCOMPILE_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=MinSizeRel $(cmake_cross) 
+	$(CROSS_TOOLS) cmake .. -DNO_LOG=ON -DBUILD_SHARED_LIBS=ON -DCOMPILE_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=MinSizeRel $(cmake_cross) 
 
 # install "by-hand" as INSTALL_PREFIX is not working as expected
 libnitrokey_target := $(CROSS_TOOLS) $(MAKE_JOBS) -C build DESTDIR="$(INSTALL)" && \
