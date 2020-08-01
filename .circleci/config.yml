@@ -152,6 +152,24 @@ jobs:
       - store-artifacts:
           path: build/qemu-coreboot
 
+      - run:
+          name: qemu-coreboot-fbwhiptail
+          command: |
+            rm -rf build/make-4.2.1/ build/qemu-coreboot-fbwhiptail/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=qemu-coreboot \
+          no_output_timeout: 3h
+      - run:
+          name: Output qemu-coreboot-fbwhiptail hashes
+          command: |
+             cat build/qemu-coreboot-fbwhiptail/hashes.txt \
+      - run:
+          name: Archiving build logs for qemu-coreboot-fbwhiptail
+          command: |
+             tar zcvf build/qemu-coreboot-fbwhiptail/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/qemu-coreboot-fbwhiptail
+
       - save_cache:
           key: heads-{{ .Environment.CIRCLE_USERNAME }}-{{ .Environment.CACHE_VERSION }}
           paths:

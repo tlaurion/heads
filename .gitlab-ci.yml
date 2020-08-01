@@ -8,7 +8,7 @@ stages:
 
 build:
   stage: build
-  retry: 1
+  retry: 2
   cache:
     paths:
       - packages
@@ -55,7 +55,6 @@ build:
     - cat ./build/x230/hashes.txt
     - echo "Archiving x230 logs..."
     - tar zcvf ./build/x230/logs.tar.gz ./build/log/*
-
     - echo "Removing old t430 artifacts..."
     - rm -rf ./build/t430/*
     - rm -rf ./build/log/*
@@ -65,7 +64,6 @@ build:
     - cat ./build/t430/hashes.txt
     - echo "Archiving t430 logs..."
     - tar zcvf ./build/t430/logs.tar.gz ./build/log/*
-
     - echo "Removing old qemu-coreboot artifacts..."
     - rm -rf ./build/qemu-coreboot/*
     - rm -rf ./build/log/*
@@ -75,13 +73,23 @@ build:
     - cat ./build/qemu-coreboot/hashes.txt
     - echo "Archiving qemu-coreboot logs..."
     - tar zcvf ./build/qemu-coreboot/logs.tar.gz ./build/log/*
+    - echo "Removing old qemu-coreboot-fbwhiptail artifacts..."
+    - rm -rf ./build/qemu-coreboot-fbwhiptail/*
+    - rm -rf ./build/log/*
+    - echo "Building BOARD=qemu-coreboot-fbwhiptail board..."
+    - make BOARD=qemu-coreboot-fbwhiptail || (find ./build/log/ -cmin 1|xargs tail; exit 1)
+    - echo "qemu-coreboot-fbwhiptail hashes:"
+    - cat ./build/qemu-coreboot-fbwhiptail/hashes.txt
+    - echo "Archiving qemu-coreboot-fbwhiptail logs..."
+    - tar zcvf ./build/qemu-coreboot-fbwhiptail/logs.tar.gz ./build/log/*
     - echo "Calculate used space for cache"
     - du -shc packages crossgcc build
   artifacts:
     paths:
-      - ./build/qemu-coreboot
       - ./build/x230-flash
       - ./build/t430-flash
       - ./build/x230-hotp-verification
       - ./build/x230
       - ./build/t430
+      - ./build/qemu-coreboot
+      - ./build/qemu-coreboot-fbwhiptail
