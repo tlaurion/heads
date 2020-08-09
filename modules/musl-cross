@@ -47,7 +47,11 @@ musl-cross_target := \
 	both
 
 CROSS := $(CROSS_PATH)/bin/x86_64-linux-musl-
-musl-cross_libraries := $(CROSS_PATH)/x86_64-linux-musl/lib/libc.so
+musl-cross_libraries := \
+	$(CROSS_PATH)/x86_64-linux-musl/lib/libc.so 
+
+#	$(CROSS_PATH)/x86_64-linux-musl/lib64/libstdc++.so.6 
+#  $(CROSS_PATH)/x86_64-linux-musl/lib64/libgcc_s.so.1 
 
 endif
 
