@@ -1,0 +1,77 @@
+diff --git a/src/drivers/intel/fsp2_0/memory_init.c b/src/drivers/intel/fsp2_0/memory_init.c
+index 4957bc0f..88350366 100644
+--- a/src/drivers/intel/fsp2_0/memory_init.c
++++ b/src/drivers/intel/fsp2_0/memory_init.c
+@@ -491,9 +491,9 @@ void fsp_memory_init(bool s3wake)
+ 		tlcl_lib_init();
+ 		const void * const bootblock = (const void*) 0xFFFFF800;
+ 		const unsigned bootblock_size = 0x800;
+-		tlcl_measure(0, bootblock, bootblock_size);
++		tlcl_measure(2, bootblock, bootblock_size);
+ 
+-		tlcl_measure(1, _romstage, _eromstage - _romstage);
++		tlcl_measure(2, _romstage, _eromstage - _romstage);
+ 	}
+ 
+ 	/* Signal that FSP component has been loaded. */
+@@ -506,7 +506,7 @@ void fsp_memory_init(bool s3wake)
+ void platform_segment_loaded(uintptr_t start, size_t size, int flags)
+ {
+ 	if (IS_ENABLED(CONFIG_MEASURED_BOOT) && !(flags & SEG_NO_MEASURE)) {
+-		tlcl_measure(1, (const void*) start, size);
++		tlcl_measure(2, (const void*) start, size);
+ 	}
+ }
+ 
+diff --git a/src/drivers/intel/fsp2_0/silicon_init.c b/src/drivers/intel/fsp2_0/silicon_init.c
+index 49568f63..a71a4c30 100644
+--- a/src/drivers/intel/fsp2_0/silicon_init.c
++++ b/src/drivers/intel/fsp2_0/silicon_init.c
+@@ -103,7 +103,7 @@ void fsps_load(bool s3wake)
+ 		die("Failed to read FSPS!\n");
+ 
+ 	if (IS_ENABLED(CONFIG_MEASURED_BOOT)) {
+-		tlcl_measure(1, (const void*) dest, size);
++		tlcl_measure(2, (const void*) dest, size);
+ 	}
+ 
+ 	if (fsp_component_relocate((uintptr_t)dest, dest, size) < 0)
+diff --git a/src/lib/hardwaremain.c b/src/lib/hardwaremain.c
+index b5b7d91b..be14dffd 100644
+--- a/src/lib/hardwaremain.c
++++ b/src/lib/hardwaremain.c
+@@ -547,12 +547,12 @@ void boot_state_current_unblock(void)
+ 	boot_state_unblock(current_phase.state_id, current_phase.seq);
+ }
+ 
+-// ramstage measurements go into PCR3 if we are doing measured boot
++// ramstage measurements go into PCR2 if we are doing measured boot
+ void platform_segment_loaded(uintptr_t start, size_t size, int flags)
+ {
+ 	if (IS_ENABLED(CONFIG_MEASURED_BOOT) && !(flags & SEG_NO_MEASURE))
+ 	{
+-		tlcl_measure(3, (const void*) start, size);
++		tlcl_measure(2, (const void*) start, size);
+ 	}
+ }
+ 
+diff --git a/src/northbridge/intel/sandybridge/romstage.c b/src/northbridge/intel/sandybridge/romstage.c
+index d348b9ef..345a524f 100644
+--- a/src/northbridge/intel/sandybridge/romstage.c
++++ b/src/northbridge/intel/sandybridge/romstage.c
+@@ -81,10 +81,10 @@ void mainboard_romstage_entry(unsigned long bist)
+ 		tlcl_lib_init();
+ 		const void * const bootblock = (const void*) 0xFFFFF800;
+ 		const unsigned bootblock_size = 0x800;
+-		tlcl_measure(0, bootblock, bootblock_size);
++		tlcl_measure(2, bootblock, bootblock_size);
+ 
+ 		extern char _romstage, _eromstage;
+-		tlcl_measure(1, &_romstage, &_eromstage - &_romstage);
++		tlcl_measure(2, &_romstage, &_eromstage - &_romstage);
+ 	}
+ 
+ 	/* USB is initialized in MRC if MRC is used.  */
+-- 
+2.21.3
+
