@@ -168,6 +168,96 @@ jobs:
       - store-artifacts:
           path: build/qemu-coreboot
 
+      - run:
+          name: qemu-coreboot-fbwhiptail
+          command: |
+            rm -rf build/qemu-coreboot-fbwhiptail/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=qemu-coreboot-fbwhiptail \
+          no_output_timeout: 3h
+      - run:
+          name: Output qemu-coreboot-fbwhiptail hashes
+          command: |
+             cat build/qemu-coreboot-fbwhiptail/hashes.txt \
+      - run:
+          name: Archiving build logs for qemu-coreboot-fbwhiptail
+          command: |
+             tar zcvf build/qemu-coreboot-fbwhiptail/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/qemu-coreboot-fbwhiptail
+
+      - run:
+          name: librem13v2
+          command: |
+            rm -rf build/librem13v2/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=librem13v2 \
+          no_output_timeout: 3h
+      - run:
+          name: Output librem13v2 hashes
+          command: |
+             cat build/librem13v2/hashes.txt \
+      - run:
+          name: Archiving build logs for librem13v2
+          command: |
+             tar zcvf build/librem13v2/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem13v2
+
+      - run:
+          name: librem13v4
+          command: |
+            rm -rf build/librem13v4/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=librem13v4 \
+          no_output_timeout: 3h
+      - run:
+          name: Output librem13v4 hashes
+          command: |
+             cat build/librem13v4/hashes.txt \
+      - run:
+          name: Archiving build logs for librem13v4
+          command: |
+             tar zcvf build/librem13v4/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem13v4
+
+      - run:
+          name: librem15v3
+          command: |
+            rm -rf build/librem15v3/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=librem15v3 \
+          no_output_timeout: 3h
+      - run:
+          name: Output librem15v3 hashes
+          command: |
+             cat build/librem15v3/hashes.txt \
+      - run:
+          name: Archiving build logs for librem15v3
+          command: |
+             tar zcvf build/librem15v3/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem15v3
+
+      - run:
+          name: librem15v4
+          command: |
+            rm -rf build/librem15v4/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=librem15v4 \
+          no_output_timeout: 3h
+      - run:
+          name: Output librem15v4 hashes
+          command: |
+             cat build/librem15v4/hashes.txt \
+      - run:
+          name: Archiving build logs for librem15v4
+          command: |
+             tar zcvf build/librem15v4/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem15v4
+
       - save_cache:
           #Generate cache for the same musl-cross module definition if hash is not previously existing
           key: heads-cross-musl-{{ checksum "/tmp/musl-cross_module_and_patches.sha256sums" }}
