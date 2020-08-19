@@ -55,6 +55,7 @@ coreboot_target := \
 coreboot_output := coreboot.rom
 coreboot_depend += linux initrd $(musl_dep)
 
+$(build)/$(coreboot_dir)/.configured: $(COREBOOT_IASL)
 $(COREBOOT_IASL): $(build)/$(coreboot_base_dir)/.canary
 	$(MAKE) -C "$(build)/$(coreboot_base_dir)" CPUS=`nproc` iasl
 
