@@ -60,18 +60,7 @@ coreboot_target := \
 coreboot_output := coreboot.rom
 coreboot_depend += linux initrd $(musl_dep)
 
-ifeq "$(CONFIG_COREBOOT_VERSION)" "4.8.1"
-	$(build)/$(coreboot_dir)/.configured: $(COREBOOT_IASL)
-else
-	$(build)/$(coreboot_dir)/.configured: $(COREBOOT_IASL) $(COREBOOT_TOOLCHAIN)
-endif
-
-ifeq "$(CONFIG_COREBOOT_VERSION)" "4.8.1"
-else
-	COREBOOT_TOOLCHAIN="$(build)/$(coreboot_base_dir)/.xcompile"
-	$(COREBOOT_TOOLCHAIN): $(build)/$(coreboot_base_dir)/.canary
-endif
-
+$(build)/$(coreboot_dir)/.configured: $(COREBOOT_IASL)
 $(COREBOOT_IASL): $(build)/$(coreboot_base_dir)/.canary
 	$(MAKE) -C "$(build)/$(coreboot_base_dir)" CPUS=`nproc` iasl
 
