@@ -170,14 +170,14 @@ jobs:
 
       - save_cache:
           #Generate cache for the same musl-cross module definition if hash is not previously existing
-          key: heads-cross-musl-{{ checksum "/tmp/musl-cross_module_and_patches.sha256sums" }}
+          key: heads-cross-musl-{{ checksum "/tmp/musl-cross_module_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - crossgcc
             - build/musl-cross-*
 
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
-          key: heads-modules-and-patches-{{ checksum "/tmp/all_modules_and_patches.sha256sums" }}
+          key: heads-modules-and-patches-{{ checksum "/tmp/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - packages
             - crossgcc
