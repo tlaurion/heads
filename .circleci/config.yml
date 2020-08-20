@@ -30,9 +30,9 @@ jobs:
       - restore_cache:
           keys:
             #Restore existing cache for modules checksums validated to be exactly the same as in github current commit
-            - heads-modules-and-patches-{{ checksum "/tmp/all_modules_and_patches.sha256sums" }}
+            - heads-modules-and-patches-{{ checksum "/tmp/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
             #If precedent fails. Restore cache for musl-cross module checksum validated to be exactly the same as in github current commit
-            - heads-cross-musl-{{ checksum "/tmp/musl-cross_module_and_patches.sha256sums" }}
+            - heads-cross-musl-{{ checksum "/tmp/musl-cross_module_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
 
 # linuxboot steps need something to pass in the kernel header path
 # skipping for now
