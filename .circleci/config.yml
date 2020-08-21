@@ -169,6 +169,24 @@ jobs:
           path: build/x230-external-flash
 
       - run:
+          name: x230-external-flash_debug
+          command: |
+            make --load 2 \
+                V=1 \
+                BOARD=x230-external-flash_debug \
+          no_output_timeout: 3h
+      - run:
+          name: Ouput x230-external-flash_debug hashes
+          command: |
+            cat build/x230-external-flash_debug/hashes.txt \
+      - run:
+          name: Archiving build logs for x230-external-flash_debug
+          command: |
+            tar zcvf logs.tar.gz ./build/log/*
+      - store-artifacts:
+          path: build/x230-external-flash_debug
+
+      - run:
           name: qemu-coreboot
           command: |
             rm -rf build/qemu-coreboot/* build/log/* && make --load 2 \
