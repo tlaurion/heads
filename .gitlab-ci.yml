@@ -1,4 +1,4 @@
-image: fedora:30
+image: fedora:31
 
 variables:
   DOCKER_DRIVER: overlay2
@@ -16,7 +16,7 @@ build:
       - build
     key: "heads-$GITLAB_USER_LOGIN-2"
   script:
-    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
+    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo ncurses-devel doxygen graphviz udev libgudev libgudev-devel automake libtool
     - git fetch origin 
     - git reset --hard origin/$CI_COMMIT_REF_NAME
 
