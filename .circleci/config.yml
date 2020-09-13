@@ -153,7 +153,7 @@ jobs:
       - run:
           name: librem_mini
           command: |
-            rm -rf build/librem_mini/* build/log/* && make --load 2 \
+            rm -rf build/librem_mini/* build/log/* build/coreboot*/.xcompile && make --load 2 \
                 V=1 \
                 BOARD=librem_mini || (find ./build/log/ -cmin 1|xargs tail; exit 1) \
           no_output_timeout: 3h
