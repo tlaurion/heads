@@ -151,22 +151,40 @@ jobs:
           path: build/x230-hotp-verification
 
       - run:
-          name: librem_mini-NoTPM
+          name: x230-vboot
           command: |
-            rm -rf build/librem_mini-NoTPM/* build/log/* && make --load 2 \
+            rm -rf build/x230-vboot/* build/log/* && make --load 2 \
                 V=1 \
-                BOARD=librem_mini-NoTPM || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1) \
+                BOARD=x230-vboot || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1) \
           no_output_timeout: 3h
       - run:
-          name: Ouput librem_mini-NoTPM hashes
+          name: Ouput x230-vboot hashes
           command: |
-            cat build/librem_mini-NoTPM/hashes.txt \
+            cat build/x230-vboot/hashes.txt \
       - run:
-          name: Archiving build logs for librem_mini-NoTPM
+          name: Archiving build logs for x230-vboot
           command: |
-             tar zcvf build/librem_mini-NoTPM/logs.tar.gz build/log/*
+             tar zcvf build/x230-vboot/logs.tar.gz build/log/*
       - store-artifacts:
-          path: build/librem_mini-NoTPM
+          path: build/x230-vboot
+
+      - run:
+          name: t430-vboot
+          command: |
+            rm -rf build/t430-vboot/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=t430-vboot || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1) \
+          no_output_timeout: 3h
+      - run:
+          name: Ouput t430-vboot hashes
+          command: |
+            cat build/t430-vboot/hashes.txt \
+      - run:
+          name: Archiving build logs for t430-vboot
+          command: |
+             tar zcvf build/t430-vboot/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/t430-vboot
 
       - run:
           name: qemu-coreboot
