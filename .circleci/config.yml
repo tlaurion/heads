@@ -58,12 +58,15 @@ jobs:
 #          path: build/qemu-linuxboot/linuxboot.rom
 #      - store-artifacts:
 #          path: build/qemu-linuxboot/hashes.txt
-
+      - run:
+          name: Setting memory limit to 4Gb of ram
+          command: |
+            ulimit -v $((4*1024*1024))
       - run:
           name: kgpe-d16_workstation
           command: |
             rm -rf build/kgpe-d16_workstation/* build/log/* && \
-            make --load 1 V=1 BOARD=kgpe-d16_workstation ||EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
+            make V=1 BOARD=kgpe-d16_workstation ||EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_workstation hashes
