@@ -63,7 +63,7 @@ jobs:
           name: kgpe-d16_workstation
           command: |
             rm -rf build/kgpe-d16_workstation/* build/log/* && \
-            EXIT_CODE=$(make --load 2 V=1 BOARD=kgpe-d16_workstation) || find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
+            make --load 2 -j 2 V=1 BOARD=kgpe-d16_workstation ||EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_workstation hashes
@@ -232,7 +232,7 @@ jobs:
           name: qemu-coreboot
           command: |
             rm -rf build/qemu-coreboot/* build/log/* && /
-            make --load 2 V=1 BOARD=qemu-coreboot || EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
+            make --load 2 -j 2 V=1 BOARD=qemu-coreboot || EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
           no_output_timeout: 3h
       - run:
           name: Output qemu-coreboot hashes
