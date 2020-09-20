@@ -1,6 +1,6 @@
 version: 2
 environment:
-  OUTPUT_LOG_ON_ERROR_COMMAND : (EXIT_CODE=$?; dmesg; find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE)
+  OUTPUT_LOG_ON_ERROR_COMMAND : dmesg; find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE
 jobs:
   build:
     docker:
@@ -10,7 +10,7 @@ jobs:
           name: Install dependencies
           command: |
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cEXIT_CODE=$(make libusb-1.0-0-dev autoconf texinfo ncurses-dev
       - checkout
 
       - run:
@@ -24,7 +24,7 @@ jobs:
             find ./patches/ ./modules/ -type f | sort -h |xargs sha256sum > /tmp/all_modules_and_patches.sha256sums \
 
       - run:
-          name: Creating musl-cross-make and musl-cross-make patches digest
+          name: Creating musl-cross-EXIT_CODE=$(make and musl-cross-EXIT_CODE=$(make patches digest
           command: |
             find ./patches/musl-cross-* modules/musl-cross* -type f | sort -h | xargs sha256sum > /tmp/musl-cross_module_and_patches.sha256sums \
 
@@ -41,7 +41,7 @@ jobs:
 #      - run:
 #          name: qemu-linuxboot-edk2
 #          command: |
-#            ./build/make-4.2.1/make \
+#            ./build/EXIT_CODE=$(make-4.2.1/EXIT_CODE=$(make \
 #                CROSS=/cross/bin/x86_64-linux-musl- \
 #                BOARD=qemu-linuxboot \
 #                `/bin/pwd`/build/linuxboot-git/build/qemu/.configured \
@@ -50,7 +50,7 @@ jobs:
 #      - run:
 #          name: qemu-linuxboot
 #          command: |
-#            ./build/make-4.2.1/make \
+#            ./build/EXIT_CODE=$(make-4.2.1/EXIT_CODE=$(make \
 #                CROSS=/cross/bin/x86_64-linux-musl- \
 #                --load 2 \
 #                V=1 \
@@ -64,9 +64,9 @@ jobs:
       - run:
           name: kgpe-d16_workstation
           command: |
-            rm -rf build/kgpe-d16_workstation/* build/log/* && make --load 2 \
+            rm -rf build/kgpe-d16_workstation/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=kgpe-d16_workstation || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=kgpe-d16_workstation ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_workstation hashes
@@ -82,9 +82,9 @@ jobs:
       - run:
           name: kgpe-d16_workstation-usb_keyboard
           command: |
-            rm -rf build/kgpe-d16_workstation-usb_keyboard/* build/log/* && make --load 2 \
+            rm -rf build/kgpe-d16_workstation-usb_keyboard/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=kgpe-d16_workstation-usb_keyboard || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=kgpe-d16_workstation-usb_keyboard ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_workstation-usb_keyboard hashes
@@ -100,9 +100,9 @@ jobs:
       - run:
           name: kgpe-d16_server
           command: |
-            rm -rf build/kgpe-d16_server/* build/log/* && make --load 2 \
+            rm -rf build/kgpe-d16_server/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=kgpe-d16_server || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=kgpe-d16_server ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_server hashes
@@ -118,9 +118,9 @@ jobs:
       - run:
           name: kgpe-d16_server-whiptail
           command: |
-            rm -rf build/kgpe-d16_server-whiptail/* build/log/* && make --load 2 \
+            rm -rf build/kgpe-d16_server-whiptail/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=kgpe-d16_server-whiptail || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=kgpe-d16_server-whiptail ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_server-whiptail hashes
@@ -136,9 +136,9 @@ jobs:
       - run:
           name: librem_mini-NoTPM
           command: |
-            rm -rf build/librem_mini-NoTPM/* build/log/* && make --load 2 \
+            rm -rf build/librem_mini-NoTPM/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=librem_mini-NoTPM || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=librem_mini-NoTPM ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput librem_mini-NoTPM hashes
@@ -153,9 +153,9 @@ jobs:
       - run:
           name: x230-flash
           command: |
-            rm -rf build/x230-flash/* build/log/* && make --load 2 \
+            rm -rf build/x230-flash/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=x230-flash || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=x230-flash ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput x230-flash hashes
@@ -171,9 +171,9 @@ jobs:
       - run:
           name: t430-flash
           command: |
-            rm -rf build/t430-flash/* build/log/* && make --load 2 \
+            rm -rf build/t430-flash/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=t430-flash || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=t430-flash ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput t430-flash hashes
@@ -189,9 +189,9 @@ jobs:
       - run:
           name: t430
           command: |
-            rm -rf build/t430/* build/log/* && make --load 2 \
+            rm -rf build/t430/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=t430  || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=t430  ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput t430 hashes
@@ -207,9 +207,9 @@ jobs:
       - run:
           name: x230
           command: |
-            rm -rf build/x230/* build/log/* && make --load 2 \
+            rm -rf build/x230/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=x230 || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=x230 ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput x230 hashes
@@ -225,9 +225,9 @@ jobs:
       - run:
           name: x230-hotp-verification
           command: |
-            rm -rf build/x230-hotp-verification/* build/log/* && make --load 2 \
+            rm -rf build/x230-hotp-verification/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=x230-hotp-verification || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=x230-hotp-verification ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Ouput x230-hotp-verification hashes
@@ -243,9 +243,9 @@ jobs:
       - run:
           name: qemu-coreboot
           command: |
-            rm -rf build/qemu-coreboot/* build/log/* && make --load 2 \
+            rm -rf build/qemu-coreboot/* build/log/* && EXIT_CODE=$(make --load 2 \
                 V=1 \
-                BOARD=qemu-coreboot || ($OUTPUT_LOG_ON_ERROR_COMMAND) \
+                BOARD=qemu-coreboot ) || $(OUTPUT_LOG_ON_ERROR_COMMAND) \
           no_output_timeout: 3h
       - run:
           name: Output qemu-coreboot hashes
