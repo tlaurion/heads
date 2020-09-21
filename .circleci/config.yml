@@ -71,6 +71,7 @@ jobs:
           name: kgpe-d16_workstation
           command: |
             rm -rf build/kgpe-d16_workstation/* build/log/* && \
+            ulimit -v $((4*1024*1024)) && \
             make V=1 BOARD=kgpe-d16_workstation ||EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
           no_output_timeout: 3h
       - run:
