@@ -63,6 +63,11 @@ jobs:
           command: |
             ulimit -v $((4*1024*1024))
       - run:
+          name: Ouput current limits
+          command: |
+            ulimit -a
+
+      - run:
           name: kgpe-d16_workstation
           command: |
             rm -rf build/kgpe-d16_workstation/* build/log/* && \
