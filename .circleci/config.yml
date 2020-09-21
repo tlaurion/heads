@@ -63,7 +63,7 @@ jobs:
           name: kgpe-d16_workstation
           command: |
             rm -rf build/kgpe-d16_workstation/* build/log/* && \
-            make V=1 -j 16 BOARD=kgpe-d16_workstation ||EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
+            make V=1 -j 8 BOARD=kgpe-d16_workstation ||EXIT_CODE=$? && find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit $EXIT_CODE \
           no_output_timeout: 3h
       - run:
           name: Ouput kgpe-d16_workstation hashes
