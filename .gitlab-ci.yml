@@ -100,7 +100,7 @@ build:
     - cat ./build/kgpe-d16_server/hashes.txt
     - echo "Archiving kgpe-d16_server logs..."
     - tar zcvf ./build/kgpe-d16_server/logs.tar.gz ./build/log/*
-   - echo "Removing old qemu-coreboot artifacts..."
+    - echo "Removing old qemu-coreboot artifacts..."
     - rm -rf ./build/qemu-coreboot/*
     - rm -rf ./build/log/*
     - echo "Building BOARD=qemu-coreboot board..."
