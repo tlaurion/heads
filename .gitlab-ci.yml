@@ -17,7 +17,8 @@ cache: &global_cache
     
 stages:
   - musl-cross-make
-  - boards
+  - boards_coreboot_481
+  - boards_coreboot_412
 
 
 heads_reproducible_buildstack:
@@ -30,35 +31,19 @@ heads_reproducible_buildstack:
     - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
     - git fetch origin
     - git reset --hard origin/$CI_COMMIT_REF_NAME
-    #Building one coreboot 4.81 based board so that the cache has musl-cross-make + one specific linux version + coreboot 4.81 cache 
+    #Building cache for coreboot 4.81 based board so that the cache has musl-cross-make + one specific linux version + coreboot 4.81 cache 
     - echo "Buidling x230-hotp-verification..."
     - make BOARD=x230-hotp-verification || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1)
-
-    #Buidling one coreboot 4.12 based board so that the cahce has musl-cross-make + one specific linux version + coreboot 4.12 cache
-    - echo "Removing old librem_mini artifacts..."
-    - rm -rf ./build/librem_mini/*
-    - rm -rf ./build/log/*
-    - echo "Building BOARD=librem_mini board..."
-    - make BOARD=librem_mini || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1)
-    - echo "librem_mini hashes:"
-    - cat ./build/librem_mini/hashes.txt
-    - echo "Archiving librem_mini logs..."
-    - tar zcvf ./build/librem_mini/logs.tar.gz ./build/log/*
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
-
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
   
 
-heads:
+heads_coreboot_481:
   cache:
     # inherit all global cache settings
     <<: *global_cache
     # override the policy with pull only (no push) 
     # since we can't recreate an updated cache (not enough disk space available on GitlabCI)
     policy: pull
-  stage: boards
+  stage: boards_coreboot_481
   script:
     - echo "Installing prerequisites..."
     - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
@@ -136,13 +121,35 @@ heads:
     - echo "Archiving qemu-coreboot logs..."
     - tar zcvf ./build/qemu-coreboot/logs.tar.gz ./build/log/*
 
+heads_coreboot_412:
+  cache:
+    # inherit all global cache settings
+    <<: *global_cache
+    # override the policy with pull only (no push) 
+    # since we can't recreate an updated cache (not enough disk space available on GitlabCI)
+    policy: pull
+  stage: boards_coreboot_412
+  script:
+    - echo "Installing prerequisites..."
+    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
+    - git fetch origin
+    - git reset --hard origin/$CI_COMMIT_REF_NAME
+
+    #Buidling one coreboot 4.12 based board so that the cahce has musl-cross-make + one specific linux version + coreboot 4.12 cache
+    - echo "Removing old librem_mini artifacts..."
+    - rm -rf ./build/librem_mini/*
+    - rm -rf ./build/log/*
+    - echo "Building BOARD=librem_mini board..."
+    - make BOARD=librem_mini || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1)
+    - echo "librem_mini hashes:"
+    - cat ./build/librem_mini/hashes.txt
+    - echo "Archiving librem_mini logs..."
+    - tar zcvf ./build/librem_mini/logs.tar.gz ./build/log/*
+
+    - echo "Calculate used space for cache"
+    - du -shc packages crossgcc build install
+
   artifacts:
     paths:
       #Saving artifacts
-      - ./build/x230-hotp-verification
-      - ./build/x230
-      - ./build/t430
-      - ./build/t430-flash
-      - ./build/x230-flash
       - ./build/librem_mini
-      - ./build/qemu-coreboot
