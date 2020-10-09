@@ -6,14 +6,21 @@ variables:
 cache: &global_cache
   key:
     files:
+      #Cache is going to be recreated from scratch if modules or patches changed
       - ./modules/*
       - ./patches/*
-    prefix: all_modules_and_patches
+    prefix: musl-cross-make
   paths:
+    #Here we cache the minimal required to speed up builds on next runs under 15GB
+    #packages so not redownloaded for same modules hashes
     - ./packages
+    #crossgcc being the output of musl-cross build (install)
     - ./crossgcc
-    - ./build
-    - ./install
+    - ./build/musl-cross-*
+    #coreboot cache of build boards
+    - ./build/coreboot*
+    #linux of build boards dependencies
+    - ./build/linux*
     
 stages:
   - musl-cross-make
@@ -26,6 +33,7 @@ heads_reproducible_buildstack:
     # inherit all global cache settings
     <<: *global_cache
   stage: musl-cross-make
+  #default is push/pull. If we keep it small enough (under 15GB)
   script:
     - echo "Installing prerequisites..."
     - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
@@ -34,6 +42,10 @@ heads_reproducible_buildstack:
     #Building cache for coreboot 4.81 based board so that the cache has musl-cross-make + one specific linux version + coreboot 4.81 cache 
     - echo "Buidling x230-hotp-verification..."
     - make BOARD=x230-hotp-verification || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1)
+    - echo "Building BOARD=librem_mini board..."
+    - make BOARD=librem_mini || (find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1)
+    - echo "Calculate used space for cache"
+    - du -shc packages crossgcc ./build/linux* ./build/musl-cross-* install
   
 
 heads_coreboot_481:
@@ -60,8 +72,6 @@ heads_coreboot_481:
     - cat ./build/x230-hotp-verification/hashes.txt
     - echo "Archiving x230-hotp-verification logs..."
     - tar zcvf ./build/x230-hotp-verification/logs.tar.gz ./build/log/*
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
 
     - echo "Removing old x230 artifacts..."
     - rm -rf ./build/x230/*
@@ -72,8 +82,6 @@ heads_coreboot_481:
     - cat ./build/x230/hashes.txt
     - echo "Archiving x230 logs..."
     - tar zcvf ./build/x230/logs.tar.gz ./build/log/*
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
 
     - echo "Removing old t430 artifacts..."
     - rm -rf ./build/t430/*
@@ -84,8 +92,6 @@ heads_coreboot_481:
     - cat ./build/t430/hashes.txt
     - echo "Archiving t430 logs..."
     - tar zcvf ./build/t430/logs.tar.gz ./build/log/*
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
 
     - echo "Removing old x230-flash artifacts..."
     - rm -rf ./build/x230-flash/*
@@ -96,8 +102,6 @@ heads_coreboot_481:
     - cat ./build/x230-flash/hashes.txt
     - echo "Archiving x230-flash logs..."
     - tar zcvf ./build/x230-flash/logs.tar.gz ./build/log/*
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
 
     - echo "Removing old t430-flash artifacts..."
     - rm -rf ./build/t430-flash/*
@@ -108,8 +112,6 @@ heads_coreboot_481:
     - cat ./build/t430-flash/hashes.txt
     - echo "Archiving t430-flash logs..."
     - tar zcvf ./build/t430-flash/logs.tar.gz ./build/log/*
-    - echo "Calculate used space for cache"
-    - du -shc packages crossgcc build install
 
     - echo "Removing old qemu-coreboot artifacts..."
     - rm -rf ./build/qemu-coreboot/*
@@ -120,6 +122,19 @@ heads_coreboot_481:
     - cat ./build/qemu-coreboot/hashes.txt
     - echo "Archiving qemu-coreboot logs..."
     - tar zcvf ./build/qemu-coreboot/logs.tar.gz ./build/log/*
+
+    - echo "Calculate used space..."
+    - du -shc packages crossgcc build install
+
+  artifacts:
+    paths:
+      #Saving artifacts
+      - ./build/x230-hotp-verification
+      - ./build/x230
+      - ./build/t430
+      - ./build/t430-flash
+      - ./build/x230-flash
+      - ./build/qemu-coreboot
 
 heads_coreboot_412:
   cache:
@@ -146,7 +161,7 @@ heads_coreboot_412:
     - echo "Archiving librem_mini logs..."
     - tar zcvf ./build/librem_mini/logs.tar.gz ./build/log/*
 
-    - echo "Calculate used space for cache"
+    - echo "Calculate used space..."
     - du -shc packages crossgcc build install
 
   artifacts:
