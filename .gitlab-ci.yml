@@ -1,4 +1,4 @@
-image: fedora:30
+image: coreboot/coreboot-sdk:80370ff991
 
 variables:
   DOCKER_DRIVER: overlay2
@@ -36,7 +36,11 @@ heads_reproducible_buildstack:
   #default is push/pull. If we keep it small enough (under 15GB)
   script:
     - echo "Installing prerequisites..."
-    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
+    - apt-get -qq -y update && \
+      apt-get install -y \
+      cpio \
+      texinfo \
+      && apt-get clean \
     - git fetch origin
     - git reset --hard origin/$CI_COMMIT_REF_NAME
     #Building cache for coreboot 4.81 based board so that the cache has musl-cross-make + one specific linux version + coreboot 4.81 cache 
@@ -58,7 +62,11 @@ heads_coreboot_481:
   stage: boards_coreboot_481
   script:
     - echo "Installing prerequisites..."
-    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
+    - apt-get -qq -y update && \
+      apt-get install -y \
+      cpio \
+      texinfo \
+      && apt-get clean \
     - git fetch origin
     - git reset --hard origin/$CI_COMMIT_REF_NAME
 
@@ -146,7 +154,11 @@ heads_coreboot_412:
   stage: boards_coreboot_412
   script:
     - echo "Installing prerequisites..."
-    - dnf install -y @development-tools gcc-c++ gcc-gnat zlib-devel perl-Digest-MD5 perl-Digest-SHA uuid-devel pcsc-tools ncurses-devel lbzip2 libuuid-devel lzma elfutils-libelf-devel bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget libusb-devel cmake automake pv bsdiff autoconf libtool cpio texinfo
+    - apt-get -qq -y update && \
+      apt-get install -y \
+      cpio \
+      texinfo \
+      && apt-get clean \
     - git fetch origin
     - git reset --hard origin/$CI_COMMIT_REF_NAME
 
