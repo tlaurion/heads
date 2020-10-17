@@ -1,0 +1,23 @@
+[PATCH] security/vboot: Boot to Recovery Mode if no RW slot present
+
+Original credit: Bill XIE <persmule@hardenedlinux.org>
+Available at: https://review.coreboot.org/c/coreboot/+/34977
+
+Modified for Coreboot 4.11 compatibility.
+---
+
+diff --git a/src/security/vboot/vboot_logic.c b/src/security/vboot/vboot_logic.c
+index 5facd283ee..65e9900ef0 100644
+--- a/src/security/vboot/vboot_logic.c
++++ b/src/security/vboot/vboot_logic.c
+@@ -355,7 +355,9 @@ void verstage_main(void)
+ 				"Initializing measured boot mode failed!");
+ 	}
+ 
+-	if (get_recovery_mode_switch()) {
++	/* Boot to Recovery Mode if no RW slot present */
++	if (!CONFIG(VBOOT_SLOTS_RW_A) ||
++	    get_recovery_mode_switch()) {
+ 		ctx->flags |= VB2_CONTEXT_FORCE_RECOVERY_MODE;
+ 		if (CONFIG(VBOOT_DISABLE_DEV_ON_RECOVERY))
+ 			ctx->flags |= VB2_CONTEXT_DISABLE_DEVELOPER_MODE;
