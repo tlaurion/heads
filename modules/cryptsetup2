@@ -5,7 +5,7 @@ cryptsetup2_depends := util-linux popt lvm2 json-c $(musl_dep)
 cryptsetup2_version := 2.2.2
 cryptsetup2_dir := cryptsetup-$(cryptsetup2_version)
 cryptsetup2_tar := cryptsetup-$(cryptsetup2_version).tar.xz
-cryptsetup2_url := https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/cryptsetup-$(cryptsetup_version).tar.xz
+cryptsetup2_url := https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/cryptsetup-$(cryptsetup2_version).tar.xz
 cryptsetup2_hash := 2af0ec9551ab9c870074cae9d3f68d82cab004f4095fa89db0e4413713424a46
 
 # Use an empty prefix so that the executables will not include the
