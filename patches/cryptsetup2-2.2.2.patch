@@ -1,6 +1,6 @@
-diff -u -r cryptsetup-2.3.3-clean/configure cryptsetup-2.3.3/configure
---- cryptsetup-2.3.3-clean/configure	2020-06-10 14:05:45.784925972 +0200
-+++ cryptsetup-2.3.3/configure	2020-06-10 14:12:03.811651237 +0200
+diff -u -r cryptsetup-2.2.2-clean/configure cryptsetup-2.2.2/configure
+--- cryptsetup-2.2.2-clean/configure	2020-06-10 14:05:45.784925972 +0200
++++ cryptsetup-2.2.2/configure	2020-06-10 14:12:03.811651237 +0200
 @@ -10206,7 +10206,7 @@
    hardcode_automatic=no
    hardcode_direct=no
@@ -504,9 +504,9 @@ diff -u -r cryptsetup-2.3.3-clean/configure cryptsetup-2.3.3/configure
  
  # Whether we need a single "-rpath" flag with a separated argument.
  hardcode_libdir_separator=$lt_hardcode_libdir_separator
-diff -u -r cryptsetup-2.3.3-clean/Makefile.in cryptsetup-2.3.3/Makefile.in
---- cryptsetup-2.3.3-clean/Makefile.in	2020-06-10 14:05:45.781594282 +0200
-+++ cryptsetup-2.3.3/Makefile.in	2020-06-10 14:30:09.512375745 +0200
+diff -u -r cryptsetup-2.2.2-clean/Makefile.in cryptsetup-2.2.2/Makefile.in
+--- cryptsetup-2.2.2-clean/Makefile.in	2020-06-10 14:05:45.781594282 +0200
++++ cryptsetup-2.2.2/Makefile.in	2020-06-10 14:30:09.512375745 +0200
 @@ -1032,6 +1032,8 @@
  @CRYPTSETUP_TRUE@cryptsetup_LDADD = $(LDADD)	\
  @CRYPTSETUP_TRUE@	libcryptsetup.la	\
@@ -516,15 +516,13 @@ diff -u -r cryptsetup-2.3.3-clean/Makefile.in cryptsetup-2.3.3/Makefile.in
  @CRYPTSETUP_TRUE@	@PWQUALITY_LIBS@	\
  @CRYPTSETUP_TRUE@	@PASSWDQC_LIBS@		\
  @CRYPTSETUP_TRUE@	@UUID_LIBS@		\
-@@ -1060,6 +1062,9 @@
+@@ -1060,4 +1062,7 @@
  @VERITYSETUP_TRUE@veritysetup_LDADD = $(LDADD)	\
  @VERITYSETUP_TRUE@	libcryptsetup.la	\
  @VERITYSETUP_TRUE@	@POPT_LIBS@		\
 +@VERITYSETUP_TRUE@	@UUID_LIBS@		\
 +@VERITYSETUP_TRUE@	@DEVMAPPER_LIBS@	\
 +@VERITYSETUP_TRUE@	@JSON_C_LIBS@		\
- @VERITYSETUP_TRUE@	@PWQUALITY_LIBS@	\
- @VERITYSETUP_TRUE@	@PASSWDQC_LIBS@		\
  @VERITYSETUP_TRUE@	@BLKID_LIBS@
 @@ -1093,6 +1093,8 @@
  @INTEGRITYSETUP_TRUE@	libcryptsetup.la	\

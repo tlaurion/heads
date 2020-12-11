@@ -1,0 +1,30 @@
+diff -u -r cryptsetup-2.2.2-clean/lib/luks2/luks2_internal.h cryptsetup-2.2.2/lib/luks2/luks2_internal.h
+--- cryptsetup-2.2.2-clean/lib/luks2/luks2_internal.h	1970-01-01 00:00:00.0 +0000
++++ cryptsetup-2.2.2/lib/luks2/luks2_internal.h	1970-01-01 00:00:00.0 +0000
+@@ -59,7 +59,8 @@
+ void hexprint_base64(struct crypt_device *cd, json_object *jobj,
+ 		     const char *sep, const char *line_sep);
+ 
+-uint64_t json_object_get_uint64(json_object *jobj);
++#define FALSE 0
++#define TRUE 1
+ uint32_t json_object_get_uint32(json_object *jobj);
+ json_object *json_object_new_uint64(uint64_t value);
+ 
+diff -u -r cryptsetup-2.2.2-clean/lib/luks2/luks2_json_metadata.c cryptsetup-2.2.2/lib/luks2/luks2_json_metadata.c
+--- cryptsetup-2.2.2-clean/lib/luks2/luks2_json_metadata.c	1970-01-01 00:00:00.0 +0000
++++ cryptsetup-2.2.2/lib/luks2/luks2_json_metadata.c	1970-01-01 00:00:00.0 +0000
+@@ -241,13 +241,6 @@
+ 	return TRUE;
+ }
+ 
+-uint64_t json_object_get_uint64(json_object *jobj)
+-{
+-	uint64_t r;
+-	json_str_to_uint64(jobj, &r);
+-	return r;
+-}
+-
+ json_object *json_object_new_uint64(uint64_t value)
+ {
+ 	/* 18446744073709551615 */
