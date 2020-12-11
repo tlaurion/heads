@@ -59,146 +59,7 @@ jobs:
 #      - store-artifacts:
 #          path: build/qemu-linuxboot/hashes.txt
 
-      - run:
-          name: kgpe-d16_workstation
-          command: |
-            rm -rf build/kgpe-d16_workstation/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_workstation || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
-      - run:
-          name: Ouput kgpe-d16_workstation hashes
-          command: |
-            cat build/kgpe-d16_workstation/hashes.txt \
-      - run:
-          name: Archiving build logs for kgpe-d16_workstation
-          command: |
-             tar zcvf build/kgpe-d16_workstation/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/kgpe-d16_workstation
-
-      - run:
-          name: kgpe-d16_workstation-usb_keyboard
-          command: |
-            rm -rf build/kgpe-d16_workstation-usb_keyboard/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_workstation-usb_keyboard || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
-      - run:
-          name: Ouput kgpe-d16_workstation-usb_keyboard hashes
-          command: |
-            cat build/kgpe-d16_workstation-usb_keyboard/hashes.txt \
-      - run:
-          name: Archiving build logs for kgpe-d16_workstation-usb_keyboard
-          command: |
-             tar zcvf build/kgpe-d16_workstation-usb_keyboard/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/kgpe-d16_workstation-usb_keyboard
-
-      - run:
-          name: kgpe-d16_server
-          command: |
-            rm -rf build/kgpe-d16_server/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_server || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
-      - run:
-          name: Ouput kgpe-d16_server hashes
-          command: |
-            cat build/kgpe-d16_server/hashes.txt \
-      - run:
-          name: Archiving build logs for kgpe-d16_server
-          command: |
-             tar zcvf build/kgpe-d16_server/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/kgpe-d16_server
-
-      - run:
-          name: kgpe-d16_server-whiptail
-          command: |
-            rm -rf build/kgpe-d16_server-whiptail/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_server-whiptail || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
-      - run:
-          name: Ouput kgpe-d16_server-whiptail hashes
-          command: |
-            cat build/kgpe-d16_server-whiptail/hashes.txt \
-      - run:
-          name: Archiving build logs for kgpe-d16_server-whiptail
-          command: |
-             tar zcvf build/kgpe-d16_server-whiptail/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/kgpe-d16_server-whiptail
-
-      - run:
-          name: librem_l1um
-          command: |
-            rm -rf build/librem_l1um/* build/log/* && make CPUS=4 V=1 BOARD=librem_l1um || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
-      - run:
-          name: Output librem_l1um hashes
-          command: |
-            cat build/librem_l1um/hashes.txt \
-      - run:
-          name: Archiving build logs for librem_l1um
-          command: |
-             tar zcvf build/librem_l1um/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/librem_l1um
-
-      - run:
-          name: librem_mini
-          command: |
-            rm -rf build/librem_mini/* build/log/* && make CPUS=4 V=1 BOARD=librem_mini || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
-      - run:
-          name: Output librem_mini hashes
-          command: |
-            cat build/librem_mini/hashes.txt \
-      - run:
-          name: Archiving build logs for librem_mini
-          command: |
-             tar zcvf build/librem_mini/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/librem_mini
-
-      - run:
-          name: librem_mini_v2
-          command: |
-            rm -rf build/librem_mini_v2/* build/log/* && make CPUS=4 V=1 BOARD=librem_mini_v2 || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
-      - run:
-          name: Output librem_mini_v2 hashes
-          command: |
-            cat build/librem_mini_v2/hashes.txt \
-      - run:
-          name: Archiving build logs for librem_mini_v2
-          command: |
-             tar zcvf build/librem_mini_v2/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/librem_mini_v2
-
+# Coreboot 4.8.1 boards first (space constrained boards first to fail as fast for regression testing)
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -348,26 +209,6 @@ jobs:
           path: build/x230-hotp-verification
 
       - run:
-          name: x230-nkstorecli
-          command: |
-            rm -rf build/x230-nkstorecli/* build/log/* && make CPUS=4 V=1 BOARD=x230-nkstorecli || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
-      - run:
-          name: Output x230-nkstorecli hashes
-          command: |
-            cat build/x230-nkstorecli/hashes.txt \
-      - run:
-          name: Archiving build logs for x230-nkstorecli
-          command: |
-             tar zcvf build/x230-nkstorecli/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/x230-nkstorecli
-
-      - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
             ./blobs/xx30/download_clean_me.sh
@@ -463,7 +304,6 @@ jobs:
       - store-artifacts:
           path: build/x230-hotp-maximized
 
-
       - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -488,6 +328,149 @@ jobs:
       - store-artifacts:
           path: build/t430-maximized
 
+#Coreboot 4.12+
+      - run:
+          name: librem_l1um
+          command: |
+            rm -rf build/librem_l1um/* build/log/* && make CPUS=4 V=1 BOARD=librem_l1um || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+      - run:
+          name: Output librem_l1um hashes
+          command: |
+            cat build/librem_l1um/hashes.txt \
+      - run:
+          name: Archiving build logs for librem_l1um
+          command: |
+             tar zcvf build/librem_l1um/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem_l1um
+
+      - run:
+          name: librem_mini
+          command: |
+            rm -rf build/librem_mini/* build/log/* && make CPUS=4 V=1 BOARD=librem_mini || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
+      - run:
+          name: Output librem_mini hashes
+          command: |
+            cat build/librem_mini/hashes.txt \
+      - run:
+          name: Archiving build logs for librem_mini
+          command: |
+             tar zcvf build/librem_mini/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem_mini
+
+      - run:
+          name: librem_mini_v2
+          command: |
+            rm -rf build/librem_mini_v2/* build/log/* && make CPUS=4 V=1 BOARD=librem_mini_v2 || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
+      - run:
+          name: Output librem_mini_v2 hashes
+          command: |
+            cat build/librem_mini_v2/hashes.txt \
+      - run:
+          name: Archiving build logs for librem_mini_v2
+          command: |
+             tar zcvf build/librem_mini_v2/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/librem_mini_v2
+
+#Coreboot 4.11
+      - run:
+          name: kgpe-d16_workstation
+          command: |
+            rm -rf build/kgpe-d16_workstation/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_workstation || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+      - run:
+          name: Ouput kgpe-d16_workstation hashes
+          command: |
+            cat build/kgpe-d16_workstation/hashes.txt \
+      - run:
+          name: Archiving build logs for kgpe-d16_workstation
+          command: |
+             tar zcvf build/kgpe-d16_workstation/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/kgpe-d16_workstation
+
+      - run:
+          name: kgpe-d16_workstation-usb_keyboard
+          command: |
+            rm -rf build/kgpe-d16_workstation-usb_keyboard/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_workstation-usb_keyboard || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+      - run:
+          name: Ouput kgpe-d16_workstation-usb_keyboard hashes
+          command: |
+            cat build/kgpe-d16_workstation-usb_keyboard/hashes.txt \
+      - run:
+          name: Archiving build logs for kgpe-d16_workstation-usb_keyboard
+          command: |
+             tar zcvf build/kgpe-d16_workstation-usb_keyboard/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/kgpe-d16_workstation-usb_keyboard
+
+      - run:
+          name: kgpe-d16_server
+          command: |
+            rm -rf build/kgpe-d16_server/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_server || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+      - run:
+          name: Ouput kgpe-d16_server hashes
+          command: |
+            cat build/kgpe-d16_server/hashes.txt \
+      - run:
+          name: Archiving build logs for kgpe-d16_server
+          command: |
+             tar zcvf build/kgpe-d16_server/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/kgpe-d16_server
+
+      - run:
+          name: kgpe-d16_server-whiptail
+          command: |
+            rm -rf build/kgpe-d16_server-whiptail/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_server-whiptail || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+      - run:
+          name: Ouput kgpe-d16_server-whiptail hashes
+          command: |
+            cat build/kgpe-d16_server-whiptail/hashes.txt \
+      - run:
+          name: Archiving build logs for kgpe-d16_server-whiptail
+          command: |
+             tar zcvf build/kgpe-d16_server-whiptail/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/kgpe-d16_server-whiptail
+
+#Manually configurable SPI (Emulated boards)
       - run:
           name: qemu-coreboot
           command: |
