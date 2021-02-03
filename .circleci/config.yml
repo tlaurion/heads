@@ -3,7 +3,6 @@ jobs:
   prep:
     docker:
       - image: debian:10
-    working_directory: ~/heads
     steps:
       - run:
           name: Install dependencies
@@ -44,6 +43,22 @@ jobs:
             #If precedent cache not found. Restore cache for musl-cross-make module digest (rarely modified).
             #Otherwise, we build cleanly.
             - heads-musl-cross-{{ checksum "/tmp/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  boards:
+    docker:
+      - image: debian:10
+    steps:
+
+    attach_workspace:
+      at: .
+
+
 # linuxboot steps need something to pass in the kernel header path
 # skipping for now
 #      - run:
@@ -70,11 +85,6 @@ jobs:
 #          path: build/qemu-linuxboot/hashes.txt
 
 
-  boards:
-    docker:
-      - image: debian:10
-    working_directory: ~/heads
-    steps:
       - run:
           name: kgpe-d16_workstation
           command: |
