@@ -1025,8 +1025,30 @@ workflows:
 
       - save_cache:
           requires:
+            - qemu-coreboot
+            - kgpe-d16_workstation
+            - kgpe-d16_workstation-usb_keyboard
+            - kgpe-d16_server
+            - kgpe-d16_server-whiptail
+            - librem_l1um
+            - librem_mini
+            - librem_mini_v2
+            - x220-hotp-maximized
+            - x220-maximized
+            - t420-hotp-maximized
+            - t420-maximized
+            - x230-flash
+            - t430-flash
+            - t430
+            - x230
+            - x230-hotp-verification
+            - x230-nkstorecli
+            - x230-maximized
+            - t430-hotp-maximized
+            - x230-maximized
+            - x230-hotp-maximized
+            - t430-maximized
             - qemu-coreboot-fbwhiptail
-
 
 
 
