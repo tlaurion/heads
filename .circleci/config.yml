@@ -618,3 +618,5 @@ workflows:
     jobs:
       - prep
       - boards
+          requires:
+            - prep
