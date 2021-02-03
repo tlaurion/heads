@@ -133,10 +133,6 @@ jobs:
              tar zcvf build/kgpe-d16_workstation-usb_keyboard/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_workstation-usb_keyboard
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   kgpe-d16_server:
     docker:
@@ -168,10 +164,6 @@ jobs:
              tar zcvf build/kgpe-d16_server/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_server
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   kgpe-d16_server-whiptail:
     docker:
@@ -203,10 +195,6 @@ jobs:
              tar zcvf build/kgpe-d16_server-whiptail/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_server-whiptail
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   librem_l1um:
     docker:
@@ -238,10 +226,6 @@ jobs:
              tar zcvf build/librem_l1um/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/librem_l1um
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   librem_mini:
     docker:
@@ -277,6 +261,7 @@ jobs:
           root: .
           paths:
             - .
+
   librem_mini_v2:
     docker:
       - image: debian:10
@@ -307,10 +292,6 @@ jobs:
              tar zcvf build/librem_mini_v2/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/librem_mini_v2
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x220-hotp-maximized:
     docker:
@@ -346,10 +327,6 @@ jobs:
             tar zcvf build/x220-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x220-hotp-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x220-maximized:
     docker:
@@ -385,10 +362,6 @@ jobs:
             tar zcvf build/x220-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x220-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   t420-hotp-maximized:
     docker:
@@ -424,10 +397,6 @@ jobs:
             tar zcvf build/t420-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t420-hotp-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   t420-maximized:
     docker:
@@ -463,10 +432,6 @@ jobs:
             tar zcvf build/t420-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t420-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x230-flash:
     docker:
@@ -498,10 +463,6 @@ jobs:
              tar zcvf build/x230-flash/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-flash
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   t430-flash:
     docker:
@@ -533,10 +494,6 @@ jobs:
              tar zcvf build/t430-flash/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/t430-flash
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   t430:
     docker:
@@ -568,10 +525,6 @@ jobs:
              tar zcvf build/t430/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/t430
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x230:
     docker:
@@ -603,10 +556,6 @@ jobs:
              tar zcvf build/x230/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x230-hotp-verification:
     docker:
@@ -638,10 +587,6 @@ jobs:
              tar zcvf build/x230-hotp-verification/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-hotp-verification
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x230-nkstorecli:
     docker:
@@ -673,10 +618,6 @@ jobs:
              tar zcvf build/x230-nkstorecli/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-nkstorecli
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x230-maximized:
     docker:
@@ -712,10 +653,6 @@ jobs:
             tar zcvf build/x230-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x230-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   t430-hotp-maximized:
     docker:
@@ -751,10 +688,6 @@ jobs:
             tar zcvf build/t430-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t430-hotp-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   x230-hotp-maximized:
     docker:
@@ -790,10 +723,6 @@ jobs:
             tar zcvf build/x230-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x230-hotp-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   t430-maximized:
     docker:
@@ -829,10 +758,6 @@ jobs:
             tar zcvf build/t430-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t430-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   qemu-coreboot-fbwhiptail:
     docker:
@@ -864,10 +789,6 @@ jobs:
              tar zcvf build/qemu-coreboot-fbwhiptail/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/qemu-coreboot-fbwhiptail
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
 
   save_cache:
     docker:
@@ -1027,40 +948,7 @@ workflows:
           requires:
             - qemu-coreboot
             - kgpe-d16_workstation
-            - kgpe-d16_workstation-usb_keyboard
-            - kgpe-d16_server
-            - kgpe-d16_server-whiptail
-            - librem_l1um
             - librem_mini
-            - librem_mini_v2
-            - x220-hotp-maximized
-            - x220-maximized
-            - t420-hotp-maximized
-            - t420-maximized
-            - x230-flash
-            - t430-flash
-            - t430
-            - x230
-            - x230-hotp-verification
-            - x230-nkstorecli
-            - x230-maximized
-            - t430-hotp-maximized
-            - x230-maximized
-            - x230-hotp-maximized
-            - t430-maximized
-            - qemu-coreboot-fbwhiptail
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
