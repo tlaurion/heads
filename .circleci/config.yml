@@ -55,8 +55,8 @@ jobs:
       - image: debian:10
     steps:
 
-    attach_workspace:
-      at: .
+      attach_workspace:
+        at: .
 
 
 # linuxboot steps need something to pass in the kernel header path
