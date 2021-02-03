@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  prep:
+  qemu-coreboot:
     docker:
       - image: debian:10
     steps:
@@ -43,62 +43,37 @@ jobs:
             #If precedent cache not found. Restore cache for musl-cross-make module digest (rarely modified).
             #Otherwise, we build cleanly.
             - heads-musl-cross-{{ checksum "/tmp/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
-
+      - run:
+          name: qemu-coreboot
+          command: |
+            rm -rf build/qemu-coreboot/* build/log/* && make CPUS=4 V=1 BOARD=qemu-coreboot || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
+      - run:
+          name: Output qemu-coreboot hashes
+          command: |
+             cat build/qemu-coreboot/hashes.txt \
+      - run:
+          name: Archiving build logs for qemu-coreboot
+          command: |
+             tar zcvf build/qemu-coreboot/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/qemu-coreboot
 
       - persist_to_workspace:
-          root: /
+          root: .
           paths:
-            - bin
-            - etc
-            - home
-            - lib
-            - lib32
-            - lib64
-            - libx32
-            - opt
-            - root
-            - run
-            - sbin
-            - srv
-            - usr
-            - var
+            - .
 
-
-
-  boards:
+  kgpe-d16:
     docker:
       - image: debian:10
     steps:
-
       - attach_workspace:
-          at: /
-
-
-# linuxboot steps need something to pass in the kernel header path
-# skipping for now
-#      - run:
-#          name: qemu-linuxboot-edk2
-#          command: |
-#            ./build/make-4.2.1/make \
-#                CROSS=/cross/bin/x86_64-linux-musl- \
-#                BOARD=qemu-linuxboot \
-#                `/bin/pwd`/build/linuxboot-git/build/qemu/.configured \
-#                # Run first to avoid too many processes
-#
-#      - run:
-#          name: qemu-linuxboot
-#          command: |
-#            ./build/make-4.2.1/make \
-#                CROSS=/cross/bin/x86_64-linux-musl- \
-#                CPUS=4 \
-#                V=1 \
-#                BOARD=qemu-linuxboot \
-#
-#      - store-artifacts:
-#          path: build/qemu-linuxboot/linuxboot.rom
-#      - store-artifacts:
-#          path: build/qemu-linuxboot/hashes.txt
-
+          at: .
 
       - run:
           name: kgpe-d16_workstation
@@ -180,6 +155,31 @@ jobs:
       - store-artifacts:
           path: build/kgpe-d16_server-whiptail
 
+
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+
+
+
+
+
+
+
+
+
+
+
+
+  librem:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
       - run:
           name: librem_l1um
           command: |
@@ -239,6 +239,25 @@ jobs:
              tar zcvf build/librem_mini_v2/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/librem_mini_v2
+
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+
+
+
+
+
+  rest:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+
 
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
@@ -577,25 +596,10 @@ jobs:
       - store-artifacts:
           path: build/t430-maximized
 
-      - run:
-          name: qemu-coreboot
-          command: |
-            rm -rf build/qemu-coreboot/* build/log/* && make CPUS=4 V=1 BOARD=qemu-coreboot || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
-      - run:
-          name: Output qemu-coreboot hashes
-          command: |
-             cat build/qemu-coreboot/hashes.txt \
-      - run:
-          name: Archiving build logs for qemu-coreboot
-          command: |
-             tar zcvf build/qemu-coreboot/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/qemu-coreboot
+
+
+
+
 
       - run:
           name: qemu-coreboot-fbwhiptail
@@ -643,7 +647,61 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - prep
-      - boards:
+      - qemu-coreboot
+      - kgpe-d16:
           requires:
-            - prep
+            - qemu-coreboot
+      - librem:
+          requires:
+            - kgpe-d16
+      - rest:
+          requires:
+            - librem
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# linuxboot steps need something to pass in the kernel header path
+# skipping for now
+#      - run:
+#          name: qemu-linuxboot-edk2
+#          command: |
+#            ./build/make-4.2.1/make \
+#                CROSS=/cross/bin/x86_64-linux-musl- \
+#                BOARD=qemu-linuxboot \
+#                `/bin/pwd`/build/linuxboot-git/build/qemu/.configured \
+#                # Run first to avoid too many processes
+#
+#      - run:
+#          name: qemu-linuxboot
+#          command: |
+#            ./build/make-4.2.1/make \
+#                CROSS=/cross/bin/x86_64-linux-musl- \
+#                CPUS=4 \
+#                V=1 \
+#                BOARD=qemu-linuxboot \
+#
+#      - store-artifacts:
+#          path: build/qemu-linuxboot/linuxboot.rom
+#      - store-artifacts:
+#          path: build/qemu-linuxboot/hashes.txt
