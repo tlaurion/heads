@@ -3,6 +3,7 @@ jobs:
   prep:
     docker:
       - image: debian:10
+    working_directory: ~/heads
     steps:
       - run:
           name: Install dependencies
@@ -72,6 +73,7 @@ jobs:
   boards:
     docker:
       - image: debian:10
+    working_directory: ~/heads
     steps:
       - run:
           name: kgpe-d16_workstation
