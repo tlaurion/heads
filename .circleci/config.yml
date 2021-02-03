@@ -68,20 +68,17 @@ jobs:
           paths:
             - .
 
-  kgpe-d16:
+  kgpe-d16_workstation:
     docker:
       - image: debian:10
     steps:
       - attach_workspace:
           at: .
-
       - run:
           name: Install dependencies
           command: |
             apt update
             apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
-
-
       - run:
           name: kgpe-d16_workstation
           command: |
@@ -101,7 +98,22 @@ jobs:
              tar zcvf build/kgpe-d16_workstation/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_workstation
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  kgpe-d16_workstation-usb_keyboard:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: kgpe-d16_workstation-usb_keyboard
           command: |
@@ -121,7 +133,22 @@ jobs:
              tar zcvf build/kgpe-d16_workstation-usb_keyboard/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_workstation-usb_keyboard
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  kgpe-d16_server:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: kgpe-d16_server
           command: |
@@ -141,7 +168,22 @@ jobs:
              tar zcvf build/kgpe-d16_server/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_server
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  kgpe-d16_server-whiptail:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: kgpe-d16_server-whiptail
           command: |
@@ -161,40 +203,22 @@ jobs:
              tar zcvf build/kgpe-d16_server-whiptail/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/kgpe-d16_server-whiptail
-
-
-
       - persist_to_workspace:
           root: .
           paths:
             - .
 
-
-
-
-
-
-
-
-
-
-
-
-
-  librem:
+  librem_l1um:
     docker:
       - image: debian:10
     steps:
       - attach_workspace:
           at: .
-
       - run:
           name: Install dependencies
           command: |
             apt update
             apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
-
-
       - run:
           name: librem_l1um
           command: |
@@ -214,7 +238,22 @@ jobs:
              tar zcvf build/librem_l1um/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/librem_l1um
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  librem_mini:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: librem_mini
           command: |
@@ -234,7 +273,21 @@ jobs:
              tar zcvf build/librem_mini/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/librem_mini
-
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  librem_mini_v2:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: librem_mini_v2
           command: |
@@ -254,32 +307,22 @@ jobs:
              tar zcvf build/librem_mini_v2/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/librem_mini_v2
-
-
       - persist_to_workspace:
           root: .
           paths:
             - .
 
-
-
-
-
-
-  rest:
+  x220-hotp-maximized:
     docker:
       - image: debian:10
     steps:
       - attach_workspace:
           at: .
-
       - run:
           name: Install dependencies
           command: |
             apt update
             apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
-
-
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -303,7 +346,22 @@ jobs:
             tar zcvf build/x220-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x220-hotp-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x220-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -327,7 +385,22 @@ jobs:
             tar zcvf build/x220-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x220-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  t420-hotp-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -351,7 +424,22 @@ jobs:
             tar zcvf build/t420-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t420-hotp-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  t420-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -375,7 +463,22 @@ jobs:
             tar zcvf build/t420-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t420-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230-flash:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: x230-flash
           command: |
@@ -395,7 +498,22 @@ jobs:
              tar zcvf build/x230-flash/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-flash
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  t430-flash:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: t430-flash
           command: |
@@ -415,7 +533,22 @@ jobs:
              tar zcvf build/t430-flash/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/t430-flash
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  t430:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: t430
           command: |
@@ -435,7 +568,22 @@ jobs:
              tar zcvf build/t430/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/t430
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: x230
           command: |
@@ -455,7 +603,22 @@ jobs:
              tar zcvf build/x230/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230-hotp-verification:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: x230-hotp-verification
           command: |
@@ -475,7 +638,22 @@ jobs:
              tar zcvf build/x230-hotp-verification/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-hotp-verification
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230-nkstorecli:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: x230-nkstorecli
           command: |
@@ -495,7 +673,22 @@ jobs:
              tar zcvf build/x230-nkstorecli/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/x230-nkstorecli
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -519,7 +712,22 @@ jobs:
             tar zcvf build/x230-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x230-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  t430-hotp-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -543,7 +751,22 @@ jobs:
             tar zcvf build/t430-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t430-hotp-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -567,7 +790,22 @@ jobs:
             tar zcvf build/x230-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x230-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  x230-hotp-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -591,8 +829,22 @@ jobs:
             tar zcvf build/x230-hotp-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/x230-hotp-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
-
+  t430-maximized:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -616,12 +868,22 @@ jobs:
             tar zcvf build/t430-maximized/logs.tar.gz ./build/log/*
       - store-artifacts:
           path: build/t430-maximized
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
-
-
-
-
-
+  qemu-coreboot-fbwhiptail:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: qemu-coreboot-fbwhiptail
           command: |
@@ -641,7 +903,17 @@ jobs:
              tar zcvf build/qemu-coreboot-fbwhiptail/logs.tar.gz build/log/*
       - store-artifacts:
           path: build/qemu-coreboot-fbwhiptail
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
+  save_cache:
+    docker:
+      - image: debian:10
+    steps:
+      - attach_workspace:
+          at: .
       - save_cache:
           #Generate cache for the same musl-cross module definition if hash is not previously existing
           key: heads-musl-cross-{{ checksum "/tmp/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
@@ -669,18 +941,78 @@ workflows:
   build_and_test:
     jobs:
       - qemu-coreboot
-      - kgpe-d16:
+      - kgpe-d16_workstation:
           requires:
             - qemu-coreboot
-      - librem:
+      - kgpe-d16_workstation-usb_keyboard:
           requires:
-            - kgpe-d16
-      - rest:
+            - kgpe-d16_workstation
+      - kgpe-d16_server:
           requires:
-            - librem
-
-
-
+            - kgpe-d16_workstation-usb_keyboard
+      - kgpe-d16_server-whiptail:
+          requires:
+            - kgpe-d16_server
+      - librem_l1um:
+          requires:
+            - kgpe-d16_server-whiptail
+      - librem_mini:
+          requires:
+            - librem_l1um
+      - librem_mini_v2:
+          requires:
+            - librem_mini
+      - x220-hotp-maximized:
+          requires:
+            - librem_mini_v2
+      - x220-maximized:
+          requires:
+            - x220-hotp-maximized
+      - t420-hotp-maximized:
+          requires:
+            - x220-maximized
+      - t420-maximized:
+          requires:
+            - t420-hotp-maximized
+      - x230-flash:
+          requires:
+            - t420-maximized
+      - t430-flash:
+          requires:
+            - x230-flash
+      - t430:
+          requires:
+            - t430-flash
+      - x230:
+          requires:
+            - t430
+      - x230-hotp-verification:
+          requires:
+            - x230
+      - x230-nkstorecli:
+          requires:
+            - x230-hotp-verification
+      - x230-maximized:
+          requires:
+            - x230-nkstorecli
+      - t430-hotp-maximized:
+          requires:
+            - x230-maximized
+      - x230-maximized:
+          requires:
+            - t430-hotp-maximized
+      - x230-hotp-maximized:
+          requires:
+            - x230-maximized
+      - t430-maximized:
+          requires:
+            - x230-hotp-maximized
+      - qemu-coreboot-fbwhiptail:
+          requires:
+            - t430-maximized
+      - save_cache:
+          requires:
+            - qemu-coreboot-fbwhiptail
 
 
 
