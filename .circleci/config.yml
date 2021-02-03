@@ -70,6 +70,8 @@ jobs:
 
 
   boards:
+    docker:
+      - image: debian:10
     steps:
       - run:
           name: kgpe-d16_workstation
@@ -614,4 +616,4 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - build
+      - prep boards
