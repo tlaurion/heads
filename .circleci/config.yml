@@ -902,72 +902,127 @@ workflows:
   build_and_test:
     jobs:
       - qemu-coreboot
+        # 4.8.1
       - kgpe-d16_workstation:
+        # 4.11
           requires:
             - qemu-coreboot
+      - librem_mini:
+        # 4.13
+          requires:
+            - qemu-coreboot
+
+
+
+
+      - x220-hotp-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x220-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - t420-hotp-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - t420-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x230-flash:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - t430-flash:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - t430:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x230:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x230-hotp-verification:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x230-nkstorecli:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x230-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - t430-hotp-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - x230-hotp-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - t430-maximized:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+      - qemu-coreboot-fbwhiptail:
+        # 4.8.1
+          requires:
+            - qemu-coreboot
+
+
       - kgpe-d16_workstation-usb_keyboard:
+        # 4.11
           requires:
             - kgpe-d16_workstation
+
       - kgpe-d16_server:
+        # 4.11
           requires:
-            - kgpe-d16_workstation-usb_keyboard
+            - kgpe-d16_workstation
+
       - kgpe-d16_server-whiptail:
+        # 4.11
           requires:
-            - kgpe-d16_server
+            - kgpe-d16_workstation
+
       - librem_l1um:
+        # 4.11
           requires:
-            - kgpe-d16_server-whiptail
-      - librem_mini:
-          requires:
-            - librem_l1um
+            - kgpe-d16_workstation
+
+
       - librem_mini_v2:
+        # 4.13
           requires:
             - librem_mini
-      - x220-hotp-maximized:
-          requires:
-            - librem_mini_v2
-      - x220-maximized:
-          requires:
-            - x220-hotp-maximized
-      - t420-hotp-maximized:
-          requires:
-            - x220-maximized
-      - t420-maximized:
-          requires:
-            - t420-hotp-maximized
-      - x230-flash:
-          requires:
-            - t420-maximized
-      - t430-flash:
-          requires:
-            - x230-flash
-      - t430:
-          requires:
-            - t430-flash
-      - x230:
-          requires:
-            - t430
-      - x230-hotp-verification:
-          requires:
-            - x230
-      - x230-nkstorecli:
-          requires:
-            - x230-hotp-verification
-      - x230-maximized:
-          requires:
-            - x230-nkstorecli
-      - t430-hotp-maximized:
-          requires:
-            - x230-maximized
-      - x230-hotp-maximized:
-          requires:
-            - t430-hotp-maximized
-      - t430-maximized:
-          requires:
-            - x230-hotp-maximized
-      - qemu-coreboot-fbwhiptail:
-          requires:
-            - t430-maximized
+
+
+
+
+
+
+
       - save_cache:
           requires:
             - qemu-coreboot-fbwhiptail
