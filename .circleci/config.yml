@@ -756,45 +756,6 @@ jobs:
           paths:
             - .
 
-  x230-maximized:
-    docker:
-      - image: debian:10
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install dependencies
-          command: |
-            apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
-      - run:
-          name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
-          command: |
-            ./blobs/xx30/download_clean_me.sh
-      - run:
-          name: x230-maximized
-          command: |
-            rm -rf build/x230-maximized/* build/log/* && make CPUS=4 V=1 BOARD=x230-maximized || touch /tmp/failed_build
-          no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
-      - run:
-          name: Output x230-maximized hashes
-          command: |
-            cat build/x230-maximized/hashes.txt \
-      - run:
-          name: Archiving build logs for x230-maximized
-          command: |
-            tar zcvf build/x230-maximized/logs.tar.gz ./build/log/*
-      - store-artifacts:
-          path: build/x230-maximized
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
-
   x230-hotp-maximized:
     docker:
       - image: debian:10
@@ -998,12 +959,9 @@ workflows:
       - t430-hotp-maximized:
           requires:
             - x230-maximized
-      - x230-maximized:
-          requires:
-            - t430-hotp-maximized
       - x230-hotp-maximized:
           requires:
-            - x230-maximized
+            - t430-hotp-maximized
       - t430-maximized:
           requires:
             - x230-hotp-maximized
