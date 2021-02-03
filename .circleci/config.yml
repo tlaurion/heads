@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  prep:
     docker:
       - image: debian:10
     steps:
@@ -68,6 +68,9 @@ jobs:
 #      - store-artifacts:
 #          path: build/qemu-linuxboot/hashes.txt
 
+
+  boards:
+    steps:
       - run:
           name: kgpe-d16_workstation
           command: |
