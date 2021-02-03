@@ -48,7 +48,23 @@ jobs:
       - persist_to_workspace:
           root: /
           paths:
-            - .
+            - bin
+            - etc
+            - home
+            - lib
+            - lib32
+            - lib64
+            - libx32
+            - opt
+            - root
+            - run
+            - sbin
+            - srv
+            - tmp
+            - usr
+            - var
+
+
 
   boards:
     docker:
