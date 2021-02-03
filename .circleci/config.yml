@@ -46,7 +46,7 @@ jobs:
 
 
       - persist_to_workspace:
-          root: .
+          root: /
           paths:
             - .
 
@@ -56,7 +56,7 @@ jobs:
     steps:
 
       - attach_workspace:
-          at: .
+          at: /
 
 
 # linuxboot steps need something to pass in the kernel header path
