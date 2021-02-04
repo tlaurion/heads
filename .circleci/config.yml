@@ -46,7 +46,7 @@ jobs:
       - run:
           name: qemu-coreboot
           command: |
-            rm -rf build/qemu-coreboot/* build/log/* && make CPUS=4 V=1 BOARD=qemu-coreboot || touch /tmp/failed_build
+            rm -rf build/qemu-coreboot/* build/log/* && make CPUS=16 V=1 BOARD=qemu-coreboot || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -82,7 +82,7 @@ jobs:
       - run:
           name: kgpe-d16_workstation
           command: |
-            rm -rf build/kgpe-d16_workstation/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_workstation || touch /tmp/failed_build
+            rm -rf build/kgpe-d16_workstation/* build/log/* && make CPUS=16 V=1 BOARD=kgpe-d16_workstation || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -117,7 +117,7 @@ jobs:
       - run:
           name: kgpe-d16_workstation-usb_keyboard
           command: |
-            rm -rf build/kgpe-d16_workstation-usb_keyboard/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_workstation-usb_keyboard || touch /tmp/failed_build
+            rm -rf build/kgpe-d16_workstation-usb_keyboard/* build/log/* && make CPUS=16 V=1 BOARD=kgpe-d16_workstation-usb_keyboard || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -148,7 +148,7 @@ jobs:
       - run:
           name: kgpe-d16_server
           command: |
-            rm -rf build/kgpe-d16_server/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_server || touch /tmp/failed_build
+            rm -rf build/kgpe-d16_server/* build/log/* && make CPUS=16 V=1 BOARD=kgpe-d16_server || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -179,7 +179,7 @@ jobs:
       - run:
           name: kgpe-d16_server-whiptail
           command: |
-            rm -rf build/kgpe-d16_server-whiptail/* build/log/* && make CPUS=4 V=1 BOARD=kgpe-d16_server-whiptail || touch /tmp/failed_build
+            rm -rf build/kgpe-d16_server-whiptail/* build/log/* && make CPUS=16 V=1 BOARD=kgpe-d16_server-whiptail || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -210,7 +210,7 @@ jobs:
       - run:
           name: librem_l1um
           command: |
-            rm -rf build/librem_l1um/* build/log/* && make CPUS=4 V=1 BOARD=librem_l1um || touch /tmp/failed_build
+            rm -rf build/librem_l1um/* build/log/* && make CPUS=16 V=1 BOARD=librem_l1um || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -241,7 +241,7 @@ jobs:
       - run:
           name: librem_mini
           command: |
-            rm -rf build/librem_mini/* build/log/* && make CPUS=4 V=1 BOARD=librem_mini || touch /tmp/failed_build
+            rm -rf build/librem_mini/* build/log/* && make CPUS=16 V=1 BOARD=librem_mini || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -276,7 +276,7 @@ jobs:
       - run:
           name: librem_mini_v2
           command: |
-            rm -rf build/librem_mini_v2/* build/log/* && make CPUS=4 V=1 BOARD=librem_mini_v2 || touch /tmp/failed_build
+            rm -rf build/librem_mini_v2/* build/log/* && make CPUS=16 V=1 BOARD=librem_mini_v2 || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -311,7 +311,7 @@ jobs:
       - run:
           name: x220-hotp-maximized
           command: |
-            rm -rf build/x220-hotp-maximized/* build/log/* && make CPUS=4 V=1 BOARD=x220-hotp-maximized || touch /tmp/failed_build
+            rm -rf build/x220-hotp-maximized/* build/log/* && make CPUS=16 V=1 BOARD=x220-hotp-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -346,7 +346,7 @@ jobs:
       - run:
           name: x220-maximized
           command: |
-            rm -rf build/x220-maximized/* build/log/* && make CPUS=4 V=1 BOARD=x220-maximized || touch /tmp/failed_build
+            rm -rf build/x220-maximized/* build/log/* && make CPUS=16 V=1 BOARD=x220-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -381,7 +381,7 @@ jobs:
       - run:
           name: t420-hotp-maximized
           command: |
-            rm -rf build/t420-hotp-maximized/* build/log/* && make CPUS=4 V=1 BOARD=t420-hotp-maximized || touch /tmp/failed_build
+            rm -rf build/t420-hotp-maximized/* build/log/* && make CPUS=16 V=1 BOARD=t420-hotp-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -416,7 +416,7 @@ jobs:
       - run:
           name: t420-maximized
           command: |
-            rm -rf build/t420-maximized/* build/log/* && make CPUS=4 V=1 BOARD=t420-maximized || touch /tmp/failed_build
+            rm -rf build/t420-maximized/* build/log/* && make CPUS=16 V=1 BOARD=t420-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -447,7 +447,7 @@ jobs:
       - run:
           name: x230-flash
           command: |
-            rm -rf build/x230-flash/* build/log/* && make CPUS=4 V=1 BOARD=x230-flash || touch /tmp/failed_build
+            rm -rf build/x230-flash/* build/log/* && make CPUS=16 V=1 BOARD=x230-flash || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -478,7 +478,7 @@ jobs:
       - run:
           name: t430-flash
           command: |
-            rm -rf build/t430-flash/* build/log/* && make CPUS=4 V=1 BOARD=t430-flash || touch /tmp/failed_build
+            rm -rf build/t430-flash/* build/log/* && make CPUS=16 V=1 BOARD=t430-flash || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -509,7 +509,7 @@ jobs:
       - run:
           name: t430
           command: |
-            rm -rf build/t430/* build/log/* && make CPUS=4 V=1 BOARD=t430 || touch /tmp/failed_build
+            rm -rf build/t430/* build/log/* && make CPUS=16 V=1 BOARD=t430 || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -540,7 +540,7 @@ jobs:
       - run:
           name: x230
           command: |
-            rm -rf build/x230/* build/log/* && make CPUS=4 V=1 BOARD=x230 || touch /tmp/failed_build
+            rm -rf build/x230/* build/log/* && make CPUS=16 V=1 BOARD=x230 || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -571,7 +571,7 @@ jobs:
       - run:
           name: x230-hotp-verification
           command: |
-            rm -rf build/x230-hotp-verification/* build/log/* && make CPUS=4 V=1 BOARD=x230-hotp-verification || touch /tmp/failed_build
+            rm -rf build/x230-hotp-verification/* build/log/* && make CPUS=16 V=1 BOARD=x230-hotp-verification || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -602,7 +602,7 @@ jobs:
       - run:
           name: x230-nkstorecli
           command: |
-            rm -rf build/x230-nkstorecli/* build/log/* && make CPUS=4 V=1 BOARD=x230-nkstorecli || touch /tmp/failed_build
+            rm -rf build/x230-nkstorecli/* build/log/* && make CPUS=16 V=1 BOARD=x230-nkstorecli || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -637,7 +637,7 @@ jobs:
       - run:
           name: x230-maximized
           command: |
-            rm -rf build/x230-maximized/* build/log/* && make CPUS=4 V=1 BOARD=x230-maximized || touch /tmp/failed_build
+            rm -rf build/x230-maximized/* build/log/* && make CPUS=16 V=1 BOARD=x230-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -672,7 +672,7 @@ jobs:
       - run:
           name: t430-hotp-maximized
           command: |
-            rm -rf build/t430-hotp-maximized/* build/log/* && make CPUS=4 V=1 BOARD=t430-hotp-maximized || touch /tmp/failed_build
+            rm -rf build/t430-hotp-maximized/* build/log/* && make CPUS=16 V=1 BOARD=t430-hotp-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -707,7 +707,7 @@ jobs:
       - run:
           name: x230-hotp-maximized
           command: |
-            rm -rf build/x230-hotp-maximized/* build/log/* && make CPUS=4 V=1 BOARD=x230-hotp-maximized || touch /tmp/failed_build
+            rm -rf build/x230-hotp-maximized/* build/log/* && make CPUS=16 V=1 BOARD=x230-hotp-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -742,7 +742,7 @@ jobs:
       - run:
           name: t430-maximized
           command: |
-            rm -rf build/t430-maximized/* build/log/* && make CPUS=4 V=1 BOARD=t430-maximized || touch /tmp/failed_build
+            rm -rf build/t430-maximized/* build/log/* && make CPUS=16 V=1 BOARD=t430-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -773,7 +773,7 @@ jobs:
       - run:
           name: qemu-coreboot-fbwhiptail
           command: |
-            rm -rf build/qemu-coreboot-fbwhiptail/* build/log/* && make CPUS=4 V=1 BOARD=qemu-coreboot-fbwhiptail || touch /tmp/failed_build
+            rm -rf build/qemu-coreboot-fbwhiptail/* build/log/* && make CPUS=16 V=1 BOARD=qemu-coreboot-fbwhiptail || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -973,7 +973,7 @@ workflows:
 #          command: |
 #            ./build/make-4.2.1/make \
 #                CROSS=/cross/bin/x86_64-linux-musl- \
-#                CPUS=4 \
+#                CPUS=16 \
 #                V=1 \
 #                BOARD=qemu-linuxboot \
 #
