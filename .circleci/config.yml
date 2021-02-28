@@ -270,6 +270,12 @@ workflows:
             - librem_mini
 
       - build:
+          name: x230-maximized-fhd
+          target: x230-maximized-fhd
+          requires:
+            - librem_mini
+
+      - build:
           name: t430-maximized
           target: t430-maximized
           requires:
