@@ -59,7 +59,7 @@ jobs:
 #          command: |
 #            ./build/make-4.2.1/make \
 #                CROSS=/cross/bin/x86_64-linux-musl- \
-#                CPUS=24 \
+#                -j24 \
 #                V=1 \
 #                BOARD=qemu-linuxboot \
 #
@@ -79,7 +79,7 @@ jobs:
       - run:
           name: x230-hotp-maximized
           command: |
-            rm -rf build/x230-hotp-maximized/* build/log/* && make CPUS=24 V=1 BOARD=x230-hotp-maximized || touch /tmp/failed_build
+            rm -rf build/x230-hotp-maximized/* build/log/* && make -j24 V=1 BOARD=x230-hotp-maximized || touch /tmp/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
