@@ -172,24 +172,9 @@ workflows:
           requires:
             - prep_env
 
-      # Coreboot 4.11
-      - build_and_persist:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
-          requires:
-            - qemu-coreboot
-
-      # Coreboot 4.13
-      - build_and_persist:
-          name: librem_mini
-          target: librem_mini
-          requires:
-            - kgpe-d16_workstation
-
-
       - save_cache:
           requires:
-            - librem_mini
+            - qemu-coreboot
 
 #
 #
@@ -201,7 +186,7 @@ workflows:
           name: x230-hotp-maximized
           target: x230-hotp-maximized
           requires:
-            - librem_mini
+            - qemu-coreboot
 
 ########################
 ########################
