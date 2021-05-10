@@ -311,6 +311,12 @@ workflows:
           requires:
             - librem_mini
 
+      - build:
+          name: safeboot
+          target: safeboot
+          requires:
+            - librem_mini
+
 
 ########################
 ########################
