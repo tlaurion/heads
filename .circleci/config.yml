@@ -252,6 +252,13 @@ workflows:
             - librem_mini
 
       - build:
+          name: t430-hotp-verification
+          target: t430-hotp-verification
+          requires:
+            - librem_mini
+
+
+      - build:
           name: x230-maximized
           target: x230-maximized
           requires:
