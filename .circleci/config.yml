@@ -15,7 +15,7 @@ commands:
           command: |
             ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo libssl-dev device-tree-compiler u-boot-tools
       - run:
           name: Make Board
           command: |
@@ -223,11 +223,21 @@ workflows:
 #          requires:
 #            - librem_14
 
+      # Coreboot for Talos
+      - build_and_persist:
+          name: talos-2_workstation
+          arch: ppc64
+          target: talos-2_workstation
+          subcommand: ""
+          requires:
+            - librem_14
+
+
       #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
       #Below, 4.11, 4.13, 4.15
       - save_cache:
           requires:
-            - librem_15v4
+            - talos-2_workstation
 
 #
 #
@@ -499,6 +509,14 @@ workflows:
 #          subcommand: ""
 #          requires:
 #            - librem_14
+
+      - build:
+          name: talos-2_server
+          arch: ppc64
+          target: talos-2_server
+          subcommand: ""
+          requires:
+            - talos-2_workstation
 
 ########################
 ########################
