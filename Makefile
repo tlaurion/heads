@@ -25,17 +25,12 @@ endif
 modules-y 	:=
 pwd 		:= $(shell pwd)
 packages 	?= $(pwd)/packages
-build		:= $(pwd)/build
 config		:= $(pwd)/config
 INSTALL		:= $(pwd)/install
-log_dir		:= $(build)/log
 
 # Controls how many parallel jobs are invoked in subshells
 CPUS		?= $(shell nproc)
 MAKE_JOBS	?= -j$(CPUS) --max-load 16
-
-# Create the log directory if it doesn't already exist
-BUILD_LOG := $(shell mkdir -p "$(log_dir)" )
 
 WGET ?= wget
 
@@ -49,13 +44,24 @@ ifneq "y" "$(shell [ -r '$(CONFIG)' ] && echo y)"
 $(error $(CONFIG): board configuration does not exist)
 endif
 
-# This is to be used in board configuration, must not expand right here
-board_build = $(build)/$(CONFIG_TARGET)/$(BOARD)
+# By default, we are building for x86
+CONFIG_TARGET := x86
+
+# These can be used in board configuration, must not expand right here
+build		= $(pwd)/build/$(CONFIG_TARGET)
+board_build	= $(build)/$(BOARD)
 
 include $(CONFIG)
 
 # Unless otherwise specified, we are building for heads
 CONFIG_HEADS	?= y
+
+# Use target-specific install directory
+INSTALL := $(INSTALL)/$(CONFIG_TARGET)
+
+# Create target-specific log directory if it doesn't already exist
+log_dir		:= $(build)/log
+BUILD_LOG	:= $(shell mkdir -p "$(log_dir)" )
 
 # record the build date / git hashes and other files here
 HASHES		:= $(build)/$(BOARD)/hashes.txt
