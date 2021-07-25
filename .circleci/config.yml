@@ -167,8 +167,8 @@ workflows:
 
       # Coreboot 4.8.1
       - build_and_persist:
-          name: qemu-coreboot
-          target: qemu-coreboot
+          name: qemu-coreboot-fbwhiptail
+          target: qemu-coreboot-fbwhiptail
           requires:
             - prep_env
 
@@ -177,7 +177,7 @@ workflows:
           name: kgpe-d16_workstation
           target: kgpe-d16_workstation
           requires:
-            - qemu-coreboot
+            - qemu-coreboot-fbwhiptail
 
       # Coreboot 4.13
       - build_and_persist:
@@ -276,10 +276,10 @@ workflows:
             - librem_mini
 
       - build:
-          name: qemu-coreboot-fbwhiptail
-          target: qemu-coreboot-fbwhiptail
+          name: qemu-coreboot
+          target: qemu-coreboot
           requires:
-            - librem_mini
+            - qemu-coreboot-fbwhiptail
 
       - build:
           name: kgpe-d16_workstation-usb_keyboard
