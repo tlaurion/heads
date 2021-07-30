@@ -29,8 +29,12 @@ lvm2_configure := \
 	--disable-use-lvmpolld \
 	--disable-blkid_wiping \
 	--disable-cmirrord \
-	--disable-cache_check_needs_check \
-	--disable-thin_check_needs_check \
+	--with-thin=internal \
+	--with-snapshots=internal \
+        --with-thin-check=/bin/thin_check \
+        --with-thin-dump=/bin/thin_dump \
+        --with-thin-repair=/bin/thin_repair \
+        --with-thin-restore=/bin/thin_restore \
 	--with-cluster=none \
 
 # not sure why LIB_SUFFIX is not defined in the cross build
