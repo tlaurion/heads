@@ -18,12 +18,16 @@ commands:
       - run:
           name: Make Board
           command: |
-            rm -rf build/<<parameters.target>>/* build/log/* && make -j16 V=1 BOARD=<<parameters.target>> bootstrap && make -j16 V=1 BOARD=<<parameters.target>> musl-cross && make -j8 V=1 BOARD=<<parameters.target>>  || dmesg && touch ./tmpDir/failed_build
+            rm -rf build/<<parameters.target>>/* build/log/* && make -j16 V=1 BOARD=<<parameters.target>> bootstrap && make -j16 V=1 BOARD=<<parameters.target>> musl-cross && make -j8 V=1 BOARD=<<parameters.target>>  || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
           command: |
             if [[ -f ./tmpDir/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+      - run:
+          name: Maximum memory consumption of last commands
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          when: always
       - run:
           name: Output hashes
           command: |
