@@ -18,7 +18,7 @@ commands:
       - run:
           name: Make Board
           command: |
-            rm -rf build/<<parameters.target>>/* build/log/* && make -j16 V=1 BOARD=<<parameters.target>> bootstrap && make -j16 V=1 BOARD=<<parameters.target>> musl-cross && make -j8 V=1 BOARD=<<parameters.target>>  || touch ./tmpDir/failed_build
+            rm -rf build/<<parameters.target>>/* build/log/* && make -j16 V=1 BOARD=<<parameters.target>> bootstrap && make -j16 V=1 BOARD=<<parameters.target>> musl-cross && make -j4 V=1 BOARD=<<parameters.target>>  || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
