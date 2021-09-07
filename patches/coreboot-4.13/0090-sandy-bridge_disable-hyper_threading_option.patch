@@ -1,0 +1,386 @@
+From b094439159fd9a204db72c4e5b13fddd8ecdea51 Mon Sep 17 00:00:00 2001
+From: Nico Huber <nico.h@gmx.de>
+Date: Sat, 17 Nov 2018 16:14:31 +0100
+Subject: [PATCH] cpu/intel/sandybridge: Add `hyper_threading` option
+
+More and more people request an option to disable HT. To implement that
+we have to toggle a bit in a `soft reset` register in the PCH that can
+override certain default settings of the CPU when it comes out of reset.
+
+The `soft reset` register is already used for other settings. So we have
+to take care that all settings are gathered before we issue the reset.
+
+Note, the current code using `soft reset` for flex ratio selection seems
+incomplete.
+
+Tested on ThinkPad X220 (i5-2520M) and ThinkPad W530 (i7-3940XM).
+
+Change-Id: I2b73e32ff5af8ea64a47e8aa706e27648aaf0993
+Signed-off-by: Nico Huber <nico.h@gmx.de>
+Signed-off-by: Evgeny Zinoviev <me@ch1p.io>
+---
+
+diff --git a/src/cpu/intel/model_206ax/bootblock.c b/src/cpu/intel/model_206ax/bootblock.c
+index 6d2e486..0e77e00 100644
+--- a/src/cpu/intel/model_206ax/bootblock.c
++++ b/src/cpu/intel/model_206ax/bootblock.c
+@@ -5,6 +5,7 @@
+ #include <arch/cpu.h>
+ #include <cpu/x86/msr.h>
+ #include <arch/io.h>
++#include <option.h>
+ #include <halt.h>
+ 
+ #include "model_206ax.h"
+@@ -17,34 +18,29 @@
+ #error "CPU must be paired with Intel BD82X6X or C216 southbridge"
+ #endif
+ 
+-static void set_flex_ratio_to_tdp_nominal(void)
++static u32 set_flex_ratio_to_tdp_nominal(u32 soft_reset)
+ {
+ 	msr_t flex_ratio, msr;
+-	u32 soft_reset;
+ 	u8 nominal_ratio;
+ 
+ 	/* Minimum CPU revision for configurable TDP support */
+ 	if (cpuid_eax(1) < IVB_CONFIG_TDP_MIN_CPUID)
+-		return;
++		return soft_reset;
+ 
+ 	/* Check for Flex Ratio support */
+ 	flex_ratio = rdmsr(MSR_FLEX_RATIO);
+ 	if (!(flex_ratio.lo & FLEX_RATIO_EN))
+-		return;
++		return soft_reset;
+ 
+ 	/* Check for >0 configurable TDPs */
+ 	msr = rdmsr(MSR_PLATFORM_INFO);
+ 	if (((msr.hi >> 1) & 3) == 0)
+-		return;
++		return soft_reset;
+ 
+ 	/* Use nominal TDP ratio for flex ratio */
+ 	msr = rdmsr(MSR_CONFIG_TDP_NOMINAL);
+ 	nominal_ratio = msr.lo & 0xff;
+ 
+-	/* See if flex ratio is already set to nominal TDP ratio */
+-	if (((flex_ratio.lo >> 8) & 0xff) == nominal_ratio)
+-		return;
+-
+ 	/* Set flex ratio to nominal TDP ratio */
+ 	flex_ratio.lo &= ~0xff00;
+ 	flex_ratio.lo |= nominal_ratio << 8;
+@@ -53,22 +49,60 @@
+ 
+ 	/* Set flex ratio in soft reset data register bits 11:6.
+ 	 * RCBA region is enabled in southbridge bootblock */
+-	soft_reset = RCBA32(SOFT_RESET_DATA);
+ 	soft_reset &= ~(0x3f << 6);
+ 	soft_reset |= (nominal_ratio & 0x3f) << 6;
+-	RCBA32(SOFT_RESET_DATA) = soft_reset;
++	return soft_reset;
++}
+ 
+-	/* Set soft reset control to use register value */
+-	RCBA32_OR(SOFT_RESET_CTRL, 1);
++static u32 set_hyperthreading_option(u32 soft_reset)
++{
++	int ht_requested = 0;
++	int cmos_result;
++	struct cpuid_result result;
+ 
+-	/* Issue warm reset, will be "CPU only" due to soft reset data */
+-	outb(0x0, 0xcf9);
+-	outb(0x6, 0xcf9);
+-	halt();
++	cmos_result = get_option(&ht_requested, "hyper_threading");
++	if (cmos_result != CB_SUCCESS)
++		return soft_reset;
++
++	/* Make sure the CPU has more than one logical processor per core */
++	result = cpuid_ext(0xb, 1);
++	if ((result.ebx & 0xff) == 1)
++		return soft_reset;
++
++	soft_reset &= ~1;
++	soft_reset |= !ht_requested; /* Bit 0 is HT disable */
++	return soft_reset;
++}
++
++static void soft_reset_settings(void)
++{
++	int need_reset;
++	u32 soft_reset;
++
++	soft_reset = RCBA32(SOFT_RESET_DATA);
++	soft_reset = set_flex_ratio_to_tdp_nominal(soft_reset);
++	soft_reset = set_hyperthreading_option(soft_reset);
++
++	/* Check if we didn't already request these settings */
++	need_reset = !(RCBA32(SOFT_RESET_CTRL) & 1) ||
++		     RCBA32(SOFT_RESET_DATA) != soft_reset;
++
++	if (need_reset) {
++		/* Set current requests */
++		RCBA32(SOFT_RESET_DATA) = soft_reset;
++
++		/* Use them instead of defaults */
++		RCBA32_OR(SOFT_RESET_CTRL, 1);
++
++		outb(0x0, 0xcf9);
++		outb(0x6, 0xcf9);
++		halt();
++	} else {
++		RCBA32_OR(SOFT_RESET_LOCK, 1);
++	}
+ }
+ 
+ void bootblock_early_cpu_init(void)
+ {
+-	/* Set flex ratio and reset if needed */
+-	set_flex_ratio_to_tdp_nominal();
++	soft_reset_settings();
+ }
+diff --git a/src/mainboard/lenovo/l520/cmos.default b/src/mainboard/lenovo/l520/cmos.default
+index 979f132..b7c0120 100644
+--- a/src/mainboard/lenovo/l520/cmos.default
++++ b/src/mainboard/lenovo/l520/cmos.default
+@@ -14,3 +14,4 @@
+ trackpoint=Enable
+ backlight=Both
+ usb_always_on=Disable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/l520/cmos.layout b/src/mainboard/lenovo/l520/cmos.layout
+index aecd7f3..8f83f12 100644
+--- a/src/mainboard/lenovo/l520/cmos.layout
++++ b/src/mainboard/lenovo/l520/cmos.layout
+@@ -58,7 +58,8 @@
+ 422         2       e       10       backlight
+ 
+ # coreboot config options: cpu
+-#424        8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432         3        e      11        gfx_uma_size
+diff --git a/src/mainboard/lenovo/t420/cmos.default b/src/mainboard/lenovo/t420/cmos.default
+index 467f965..843e20d 100644
+--- a/src/mainboard/lenovo/t420/cmos.default
++++ b/src/mainboard/lenovo/t420/cmos.default
+@@ -14,3 +14,4 @@
+ trackpoint=Enable
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/t420/cmos.layout b/src/mainboard/lenovo/t420/cmos.layout
+index ce5f04d..14c7afd 100644
+--- a/src/mainboard/lenovo/t420/cmos.layout
++++ b/src/mainboard/lenovo/t420/cmos.layout
+@@ -58,7 +58,8 @@
+ 422          2       e       13       usb_always_on
+ 
+ # coreboot config options: cpu
+-#424          8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432          3       e       11       gfx_uma_size
+diff --git a/src/mainboard/lenovo/t420s/cmos.default b/src/mainboard/lenovo/t420s/cmos.default
+index 467f965..843e20d 100644
+--- a/src/mainboard/lenovo/t420s/cmos.default
++++ b/src/mainboard/lenovo/t420s/cmos.default
+@@ -14,3 +14,4 @@
+ trackpoint=Enable
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/t420s/cmos.layout b/src/mainboard/lenovo/t420s/cmos.layout
+index ce5f04d..14c7afd 100644
+--- a/src/mainboard/lenovo/t420s/cmos.layout
++++ b/src/mainboard/lenovo/t420s/cmos.layout
+@@ -58,7 +58,8 @@
+ 422          2       e       13       usb_always_on
+ 
+ # coreboot config options: cpu
+-#424          8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432          3       e       11       gfx_uma_size
+diff --git a/src/mainboard/lenovo/t430/cmos.default b/src/mainboard/lenovo/t430/cmos.default
+index e65869b..3a3f102 100644
+--- a/src/mainboard/lenovo/t430/cmos.default
++++ b/src/mainboard/lenovo/t430/cmos.default
+@@ -15,3 +15,4 @@
+ backlight=Both
+ usb_always_on=Disable
+ hybrid_graphics_mode=Integrated Only
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/t430/cmos.layout b/src/mainboard/lenovo/t430/cmos.layout
+index b38a91b..a76b0f1 100644
+--- a/src/mainboard/lenovo/t430/cmos.layout
++++ b/src/mainboard/lenovo/t430/cmos.layout
+@@ -58,7 +58,8 @@
+ 422          2       e       10       backlight
+ 
+ # coreboot config options: cpu
+-#424          8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432          3       e       11       gfx_uma_size
+diff --git a/src/mainboard/lenovo/t430s/cmos.default b/src/mainboard/lenovo/t430s/cmos.default
+index a30c90d..8868e93 100644
+--- a/src/mainboard/lenovo/t430s/cmos.default
++++ b/src/mainboard/lenovo/t430s/cmos.default
+@@ -16,3 +16,4 @@
+ enable_dual_graphics=Disable
+ usb_always_on=Disable
+ f1_to_f12_as_primary=Enable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/t430s/cmos.layout b/src/mainboard/lenovo/t430s/cmos.layout
+index 1697806a..a0d7903 100644
+--- a/src/mainboard/lenovo/t430s/cmos.layout
++++ b/src/mainboard/lenovo/t430s/cmos.layout
+@@ -59,7 +59,8 @@
+ 424          1       e       1        f1_to_f12_as_primary
+ 
+ # coreboot config options: cpu
+-#424          8       r       0        unused
++425          1       e       1        hyper_threading
++#426          6       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432          3       e       11       gfx_uma_size
+diff --git a/src/mainboard/lenovo/t520/cmos.default b/src/mainboard/lenovo/t520/cmos.default
+index 6e61dae..deee496 100644
+--- a/src/mainboard/lenovo/t520/cmos.default
++++ b/src/mainboard/lenovo/t520/cmos.default
+@@ -15,3 +15,4 @@
+ backlight=Both
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/t520/cmos.layout b/src/mainboard/lenovo/t520/cmos.layout
+index 2dfd682..2260402 100644
+--- a/src/mainboard/lenovo/t520/cmos.layout
++++ b/src/mainboard/lenovo/t520/cmos.layout
+@@ -58,7 +58,8 @@
+ 422         2       e       10       backlight
+ 
+ # coreboot config options: cpu
+-#424        8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432         3        e      11        gfx_uma_size
+diff --git a/src/mainboard/lenovo/t530/cmos.default b/src/mainboard/lenovo/t530/cmos.default
+index 6e61dae..deee496 100644
+--- a/src/mainboard/lenovo/t530/cmos.default
++++ b/src/mainboard/lenovo/t530/cmos.default
+@@ -15,3 +15,4 @@
+ backlight=Both
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/t530/cmos.layout b/src/mainboard/lenovo/t530/cmos.layout
+index 4130b5f..72785d2 100644
+--- a/src/mainboard/lenovo/t530/cmos.layout
++++ b/src/mainboard/lenovo/t530/cmos.layout
+@@ -58,7 +58,8 @@
+ 422         2       e       10       backlight
+ 
+ # coreboot config options: cpu
+-#424        8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432         3        e      11        gfx_uma_size
+diff --git a/src/mainboard/lenovo/x1_carbon_gen1/cmos.default b/src/mainboard/lenovo/x1_carbon_gen1/cmos.default
+index 979f132..b7c0120 100644
+--- a/src/mainboard/lenovo/x1_carbon_gen1/cmos.default
++++ b/src/mainboard/lenovo/x1_carbon_gen1/cmos.default
+@@ -14,3 +14,4 @@
+ trackpoint=Enable
+ backlight=Both
+ usb_always_on=Disable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/x1_carbon_gen1/cmos.layout b/src/mainboard/lenovo/x1_carbon_gen1/cmos.layout
+index a3d2a0f..9613496 100644
+--- a/src/mainboard/lenovo/x1_carbon_gen1/cmos.layout
++++ b/src/mainboard/lenovo/x1_carbon_gen1/cmos.layout
+@@ -58,7 +58,8 @@
+ 422         2       e      10        backlight
+ 
+ # coreboot config options: cpu
+-#424        8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432         3        e      11        gfx_uma_size
+diff --git a/src/mainboard/lenovo/x220/cmos.default b/src/mainboard/lenovo/x220/cmos.default
+index 42720a2..171532b 100644
+--- a/src/mainboard/lenovo/x220/cmos.default
++++ b/src/mainboard/lenovo/x220/cmos.default
+@@ -13,3 +13,4 @@
+ fn_ctrl_swap=Disable
+ sticky_fn=Disable
+ trackpoint=Enable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/x220/cmos.layout b/src/mainboard/lenovo/x220/cmos.layout
+index 740f57a..a00b1b1 100644
+--- a/src/mainboard/lenovo/x220/cmos.layout
++++ b/src/mainboard/lenovo/x220/cmos.layout
+@@ -59,7 +59,8 @@
+ #423        1       r       1        unused
+ 
+ # coreboot config options: cpu
+-#424        8       r       0        unused
++424          1       e       1        hyper_threading
++#425          7       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432         3        e      11        gfx_uma_size
+diff --git a/src/mainboard/lenovo/x230/cmos.default b/src/mainboard/lenovo/x230/cmos.default
+index 5c19d0f..58bb710 100644
+--- a/src/mainboard/lenovo/x230/cmos.default
++++ b/src/mainboard/lenovo/x230/cmos.default
+@@ -15,3 +15,4 @@
+ backlight=Both
+ usb_always_on=Disable
+ f1_to_f12_as_primary=Enable
++hyper_threading=Disable
+diff --git a/src/mainboard/lenovo/x230/cmos.layout b/src/mainboard/lenovo/x230/cmos.layout
+index 6a6cdd5..9485538 100644
+--- a/src/mainboard/lenovo/x230/cmos.layout
++++ b/src/mainboard/lenovo/x230/cmos.layout
+@@ -59,7 +59,8 @@
+ 424         1       e       1        f1_to_f12_as_primary
+ 
+ # coreboot config options: cpu
+-#424        8       r       0        unused
++425          1       e       1        hyper_threading
++#426          6       r       0        unused
+ 
+ # coreboot config options: northbridge
+ 432         3        e      11        gfx_uma_size
+diff --git a/src/southbridge/intel/bd82x6x/pch.h b/src/southbridge/intel/bd82x6x/pch.h
+index a8c14c9..4b73924 100644
+--- a/src/southbridge/intel/bd82x6x/pch.h
++++ b/src/southbridge/intel/bd82x6x/pch.h
+@@ -374,6 +374,7 @@
+ #define D22IR		0x315c	/* 16bit */
+ #define D20IR		0x3160	/* 16bit */
+ #define OIC		0x31fe	/* 16bit */
++#define SOFT_RESET_LOCK 0x38f0
+ #define SOFT_RESET_CTRL 0x38f4
+ #define SOFT_RESET_DATA 0x38f8
+ 
