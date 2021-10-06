@@ -34,7 +34,7 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: debian:11
+      - image: debian:10
     steps:
       - run:
           name: Install dependencies
@@ -101,7 +101,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:11
+      - image: debian:10
     parameters:
       target:
         type: string
@@ -117,7 +117,7 @@ jobs:
 
   build:
     docker:
-      - image: debian:11
+      - image: debian:10
     parameters:
       target:
         type: string
@@ -129,7 +129,7 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:11
+      - image: debian:10
     steps:
       - attach_workspace:
           at: ~/
