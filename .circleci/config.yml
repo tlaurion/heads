@@ -167,20 +167,12 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
-      # Coreboot 4.11
-      - build_and_persist:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
-          requires:
-            - prep_env
-
       # Coreboot 4.13
       - build_and_persist:
           name: x230-hotp-maximized
           target: x230-hotp-maximized
           requires:
-            - kgpe-d16_workstation
-
+            - prep_env
 
       - save_cache:
           requires:
@@ -267,24 +259,6 @@ workflows:
       - build:
           name: qemu-coreboot-fbwhiptail
           target: qemu-coreboot-fbwhiptail
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: kgpe-d16_workstation-usb_keyboard
-          target: kgpe-d16_workstation-usb_keyboard
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: kgpe-d16_server
-          target: kgpe-d16_server
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: kgpe-d16_server-whiptail
-          target: kgpe-d16_server-whiptail
           requires:
             - x230-hotp-maximized
 
