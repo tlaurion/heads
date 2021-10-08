@@ -269,12 +269,6 @@ workflows:
             - x230-hotp-maximized
 
       - build:
-          name: librem_l1um
-          target: librem_l1um
-          requires:
-            - x230-hotp-maximized
-
-      - build:
           name: librem_mini_v2
           target: librem_mini_v2
           requires:
