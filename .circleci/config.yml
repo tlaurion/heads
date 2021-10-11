@@ -9,8 +9,9 @@ commands:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
+            DEBIAN_FRONTEND=noninteractive apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Make Board
           command: |
@@ -34,13 +35,14 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     steps:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime 
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
+            DEBIAN_FRONTEND=noninteractive apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - checkout
 
       - run:
@@ -101,7 +103,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     parameters:
       target:
         type: string
@@ -117,7 +119,7 @@ jobs:
 
   build:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     parameters:
       target:
         type: string
@@ -129,7 +131,7 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     steps:
       - attach_workspace:
           at: ~/
