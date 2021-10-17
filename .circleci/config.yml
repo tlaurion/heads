@@ -138,14 +138,14 @@ jobs:
           key: heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - crossgcc
-            - build/musl-cross-*
+            - $(find build/ -maxdepth 1 -name "musl-cross-*" -type d)
       - save_cache:
           #Generate cache for the same coreboot mnd musl-cross-make modules definition if hash is not previously existing
           key: heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
-            - build/coreboot-*
+            - $(find build/coreboot-* -maxdepth 1 -name "musl-cross-*" -type d)
             - crossgcc
-            - build/musl-cross-*
+            - $(find build/ -maxdepth 1 -name "musl-cross-*" -type d) 
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
           key: heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
