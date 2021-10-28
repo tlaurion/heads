@@ -9,8 +9,9 @@ commands:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
+            DEBIAN_FRONTEND=noninteractive apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - run:
           name: Make Board
           command: |
@@ -34,13 +35,14 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     steps:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime 
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
+            DEBIAN_FRONTEND=noninteractive apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
       - checkout
 
       - run:
@@ -101,7 +103,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     parameters:
       target:
         type: string
@@ -117,7 +119,7 @@ jobs:
 
   build:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     parameters:
       target:
         type: string
@@ -129,7 +131,7 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     steps:
       - attach_workspace:
           at: ~/
@@ -165,31 +167,24 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
-      # Coreboot 4.8.1
-      - build_and_persist:
-          name: qemu-coreboot
-          target: qemu-coreboot
-          requires:
-            - prep_env
-
       # Coreboot 4.11
       - build_and_persist:
           name: kgpe-d16_workstation
           target: kgpe-d16_workstation
           requires:
-            - qemu-coreboot
+            - prep_env
 
-      # Coreboot 4.14
+      # Coreboot 4.13
       - build_and_persist:
-          name: librem_mini
-          target: librem_mini
+          name: x230-hotp-maximized
+          target: x230-hotp-maximized
           requires:
             - kgpe-d16_workstation
 
 
       - save_cache:
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
 #
 #
@@ -201,115 +196,103 @@ workflows:
           name: x220-hotp-maximized
           target: x220-hotp-maximized
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: x220-maximized
           target: x220-maximized
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: t420-hotp-maximized
           target: t420-hotp-maximized
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: t420-maximized
           target: t420-maximized
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: x230-flash
           target: x230-flash
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: t430-flash
           target: t430-flash
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: t430
           target: t430
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: x230
           target: x230
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: x230-hotp-verification
           target: x230-hotp-verification
           requires:
-            - librem_mini
-
-      - build:
-          name: x230-maximized
-          target: x230-maximized
-          requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: t430-hotp-maximized
           target: t430-hotp-maximized
           requires:
-            - librem_mini
-
-      - build:
-          name: x230-hotp-maximized
-          target: x230-hotp-maximized
-          requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: t430-maximized
           target: t430-maximized
           requires:
-            - librem_mini
+            - x230-hotp-maximized
+
+      - build:
+          name: qemu-coreboot
+          target: qemu-coreboot
+          requires:
+            - x230-hotp-maximized
 
       - build:
           name: qemu-coreboot-fbwhiptail
           target: qemu-coreboot-fbwhiptail
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: kgpe-d16_workstation-usb_keyboard
           target: kgpe-d16_workstation-usb_keyboard
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: kgpe-d16_server
           target: kgpe-d16_server
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: kgpe-d16_server-whiptail
           target: kgpe-d16_server-whiptail
           requires:
-            - librem_mini
+            - x230-hotp-maximized
 
       - build:
           name: librem_l1um
           target: librem_l1um
           requires:
-            - librem_mini
-
-      - build:
-          name: librem_mini_v2
-          target: librem_mini_v2
-          requires:
-            - librem_mini
+            - x230-hotp-maximized
 
 
 ########################
