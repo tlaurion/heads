@@ -74,13 +74,13 @@ jobs:
           keys:
             #Restore existing cache for matching modules digest, validated to be exactly the same as in github current commit.
             #This cache was made on top of below caches, if previously existing. If no module definition changed, we reuse this one. Otherwise...
-            - heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-linuxboot
             #If precedent cache not found, restore cache for coreboot module (and patches) and musl-cross-make digests (bi-yearly modified)
             #Otehrwise....
-            - heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}-linuxboot
             #If precedent cache not found. Restore cache for musl-cross-make module digest (rarely modified).
             #Otherwise, we build cleanly.
-            - heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}-linuxboot
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -137,20 +137,20 @@ jobs:
           at: ~/
       - save_cache:
           #Generate cache for the same musl-cross module definition if hash is not previously existing
-          key: heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}-linuxboot
           paths:
             - crossgcc
             - build/musl-cross-*
       - save_cache:
           #Generate cache for the same coreboot mnd musl-cross-make modules definition if hash is not previously existing
-          key: heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}-linuxboot
           paths:
             - build/coreboot-*
             - crossgcc
             - build/musl-cross-*
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
-          key: heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-linuxboot
           paths:
             - packages
             - crossgcc
@@ -167,133 +167,22 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
-      # Coreboot 4.11
+      # Only test for qemu-linuxboot
       - build_and_persist:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
+          name: qemu-linuxboot
+          target: qemu-linuxboot
           requires:
             - prep_env
 
-      # Coreboot 4.13
-      - build_and_persist:
-          name: x230-hotp-maximized
-          target: x230-hotp-maximized
-          requires:
-            - kgpe-d16_workstation
-
-
       - save_cache:
           requires:
-            - x230-hotp-maximized
+            - qemu-linuxboot
 
 #
 #
 # Those onboarding new boards should add their entries below.
 #
 #
-
-      - build:
-          name: x220-hotp-maximized
-          target: x220-hotp-maximized
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x220-maximized
-          target: x220-maximized
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t420-hotp-maximized
-          target: t420-hotp-maximized
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t420-maximized
-          target: t420-maximized
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230-flash
-          target: x230-flash
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430-flash
-          target: t430-flash
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430
-          target: t430
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230
-          target: x230
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230-hotp-verification
-          target: x230-hotp-verification
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430-hotp-maximized
-          target: t430-hotp-maximized
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430-maximized
-          target: t430-maximized
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: qemu-coreboot
-          target: qemu-coreboot
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: qemu-coreboot-fbwhiptail
-          target: qemu-coreboot-fbwhiptail
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: kgpe-d16_workstation-usb_keyboard
-          target: kgpe-d16_workstation-usb_keyboard
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: kgpe-d16_server
-          target: kgpe-d16_server
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: kgpe-d16_server-whiptail
-          target: kgpe-d16_server-whiptail
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: librem_l1um
-          target: librem_l1um
-          requires:
-            - x230-hotp-maximized
-
 
 ########################
 ########################
