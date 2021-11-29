@@ -16,7 +16,7 @@ commands:
       - run:
           name: Make Board
           command: |
-            rm -rf build/<<parameters.target>>/* build/log/* && make CPUS=32 V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
+            rm -rf build/<<parameters.target>>/* build/log/* && make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -202,18 +202,11 @@ workflows:
 
       # Coreboot 4.13
       - build_and_persist:
-          name: coreboot_413_buildstack
-          target: x230-hotp-maximized
-          subcommand: coreboot
-          requires:
-            - heads_musl-cross
-      # Coreboot 4.13
-      - build_and_persist:
           name: x230-hotp-maximized
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - coreboot_413_buildstack
+            - heads_musl-cross
 
       - save_cache:
           requires:
