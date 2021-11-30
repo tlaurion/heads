@@ -185,20 +185,12 @@ workflows:
             - prep_env
 
       # Coreboot 4.11
-      #- build_and_persist:
-      #    name: coreboot_411_buildstack
-      #    target: kgpe-d16_workstation
-      #    subcommand: coreboot 
-      #    requires:
-      #      - heads_musl-cross
-
-      # Coreboot 4.11
-      #- build_and_persist:
-      #    name: kgpe-d16_workstation
-      #    target: kgpe-d16_workstation
-      #    subcommand: coreboot
-      #    requires:
-      #      - coreboot_411_buildstack
+      - build_and_persist:
+          name: kgpe-d16_workstation
+          target: kgpe-d16_workstation
+          subcommand: ""
+          requires:
+            - heads_musl-cross
 
       # Coreboot 4.13
       - build_and_persist:
@@ -206,7 +198,7 @@ workflows:
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - heads_musl-cross
+            - kgpe-d16_workstation
 
       - save_cache:
           requires:
@@ -316,33 +308,33 @@ workflows:
           requires:
             - x230-hotp-maximized
 
-              #- build:
-              #name: kgpe-d16_workstation-usb_keyboard
-              #target: kgpe-d16_workstation-usb_keyboard
-              #subcommand: ""
-              #requires:
-              #- x230-hotp-maximized
+      - build:
+          name: kgpe-d16_workstation-usb_keyboard
+          target: kgpe-d16_workstation-usb_keyboard
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
 
-              #- build:
-              #name: kgpe-d16_server
-              #target: kgpe-d16_server
-              #subcommand: ""
-              #requires:
-              #- x230-hotp-maximized
+      - build:
+          name: kgpe-d16_server
+          target: kgpe-d16_server
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
 
-              #- build:
-              #name: kgpe-d16_server-whiptail
-              #target: kgpe-d16_server-whiptail
-              #subcommand: ""
-              #requires:
-              #- x230-hotp-maximized
+      - build:
+          name: kgpe-d16_server-whiptail
+          target: kgpe-d16_server-whiptail
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
 
-              #- build:
-              #name: librem_l1um
-              #target: librem_l1um
-              #subcommand: ""
-              #requires:
-              #- x230-hotp-maximized
+      - build:
+          name: librem_l1um
+          target: librem_l1um
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
 
 ########################
 ########################
