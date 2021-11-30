@@ -113,6 +113,7 @@ linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei-me.ko
 EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
 
 linux_target := \
+	$(MAKE_JOBS) \
 	O="$(build)/$(linux_dir)" \
 	CROSS_COMPILE="$(CROSS)" \
 	AFLAGS_KERNEL="$(EXTRA_FLAGS)" \
@@ -122,7 +123,6 @@ linux_target := \
 	KBUILD_BUILD_HOST=linuxboot \
 	KBUILD_BUILD_TIMESTAMP="1970-00-00" \
 	KBUILD_BUILD_VERSION=0 \
-	$(MAKE_JOBS) \
 
 # We cross compile linux now
 linux_depends := musl-cross
