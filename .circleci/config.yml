@@ -184,25 +184,25 @@ workflows:
           requires:
             - prep_env
 
-      # Coreboot 4.11
-      - build_and_persist:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
-          subcommand: ""
-          requires:
-            - heads_musl-cross
-
       # Coreboot 4.13
       - build_and_persist:
           name: x230-hotp-maximized
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - kgpe-d16_workstation
+            - heads_musl-cross
+
+      # Coreboot 4.11
+      - build_and_persist:
+          name: librem_l1um
+          target: librem_l1um
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
 
       - save_cache:
           requires:
-            - x230-hotp-maximized
+            - librem_l1um
 
 #
 #
@@ -313,28 +313,28 @@ workflows:
           target: kgpe-d16_workstation-usb_keyboard
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - librem_l1um
 
       - build:
           name: kgpe-d16_server
           target: kgpe-d16_server
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - librem_l1um
 
       - build:
           name: kgpe-d16_server-whiptail
           target: kgpe-d16_server-whiptail
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - librem_l1um
 
       - build:
-          name: librem_l1um
-          target: librem_l1um
+          name: kgpe-d16_workstation
+          target: kgpe-d16_workstation
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - librem_l1um
 
 ########################
 ########################
