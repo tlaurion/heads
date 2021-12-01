@@ -16,7 +16,7 @@ commands:
       - run:
           name: Make Board
           command: |
-            rm -rf build/<<parameters.target>>/* build/log/* && make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
+            rm -rf build/<<parameters.target>>/* build/log/* && make V=1 -j36 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
