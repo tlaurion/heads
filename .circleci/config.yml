@@ -193,16 +193,16 @@ workflows:
             - heads_musl-cross
 
       # Coreboot 4.11
-      - build_and_persist:
-          name: librem_l1um
-          target: librem_l1um
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
+      #- build_and_persist:
+      #    name: librem_l1um
+      #    target: librem_l1um
+      #    subcommand: ""
+      #    requires:
+      #      - x230-hotp-maximized
 
       - save_cache:
           requires:
-            - librem_l1um
+            - x230-hotp-maximized
 
 #
 #
@@ -307,34 +307,34 @@ workflows:
           subcommand: ""
           requires:
             - x230-hotp-maximized
+      #KGPE-D16 turned off because CircleCI built time needs to be optimized. Kernel doesn't seem to enforce MAKE_JOBS properly
+      #- build:
+      #    name: kgpe-d16_workstation-usb_keyboard
+      #    target: kgpe-d16_workstation-usb_keyboard
+      #    subcommand: ""
+      #    requires:
+      #      - librem_l1um
 
-      - build:
-          name: kgpe-d16_workstation-usb_keyboard
-          target: kgpe-d16_workstation-usb_keyboard
-          subcommand: ""
-          requires:
-            - librem_l1um
+      #- build:
+      #    name: kgpe-d16_server
+      #    target: kgpe-d16_server
+      #    subcommand: ""
+      #    requires:
+      #      - librem_l1um
 
-      - build:
-          name: kgpe-d16_server
-          target: kgpe-d16_server
-          subcommand: ""
-          requires:
-            - librem_l1um
+      #- build:
+      #    name: kgpe-d16_server-whiptail
+      #    target: kgpe-d16_server-whiptail
+      #    subcommand: ""
+      #    requires:
+      #      - librem_l1um
 
-      - build:
-          name: kgpe-d16_server-whiptail
-          target: kgpe-d16_server-whiptail
-          subcommand: ""
-          requires:
-            - librem_l1um
-
-      - build:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
-          subcommand: ""
-          requires:
-            - librem_l1um
+      #- build:
+      #    name: kgpe-d16_workstation
+      #    target: kgpe-d16_workstation
+      #    subcommand: ""
+      #    requires:
+      #      - librem_l1um
 
 ########################
 ########################
