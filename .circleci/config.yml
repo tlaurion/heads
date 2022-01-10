@@ -131,6 +131,7 @@ jobs:
   build:
     docker:
       - image: debian:10
+    resource_class: large
     parameters:
       target:
         type: string
@@ -146,6 +147,7 @@ jobs:
   save_cache:
     docker:
       - image: debian:10
+    resource_class: large
     steps:
       - attach_workspace:
           at: ~/
