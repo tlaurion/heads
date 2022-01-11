@@ -11,8 +11,9 @@ commands:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
+            apt install -y build-essential gawk zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - run:
           name: Make Board
           command: |
@@ -36,14 +37,15 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     resource_class: large
     steps:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime 
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
+            apt install -y build-essential gawk zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - checkout
 
       - run:
@@ -110,7 +112,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     resource_class: large
     parameters:
       target:
@@ -130,7 +132,8 @@ jobs:
 
   build:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
+    resource_class: large
     parameters:
       target:
         type: string
@@ -145,7 +148,8 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
+    resource_class: large
     steps:
       - attach_workspace:
           at: ~/
@@ -187,12 +191,31 @@ workflows:
 # for the parallel boards built at the end, and also save_cache.
 
       # Prerequisites
+      # bootstrap and musl-cross targets being called individually break the builds as in https://app.circleci.com/pipelines/github/tlaurion/heads/902/workflows/f7c8dfba-0f59-4f27-88ab-ee8156c1fb38/jobs/2778
+      # Reverting to smallest board build to have musl-cross cache, and then reuse that workspace in other builds to have musl-cross...
+      #- build_and_persist:
+      #    name: heads_bootstrap
+      #    target: x230-hotp-maximized
+      #    subcommand: bootstrap
+      #    requires:
+      #      - prep_env
+
+      #We use x230-flash as a base to have musl-cross and coreboot musl-cross toolchain and minimal tools to create workspace passed to other builds
+      #Coreboot 4.13
       - build_and_persist:
-          name: heads_musl-cross
-          target: x230-hotp-maximized
-          subcommand: musl-cross
+          name: x230-flash
+          target: x230-flash
+          subcommand: ""
           requires:
             - prep_env
+
+      # Coreboot 4.11
+      - build_and_persist:
+          name: kgpe-d16_server
+          target: kgpe-d16_server
+          subcommand: ""
+          requires:
+            - x230-flash
 
       # Coreboot 4.13
       - build_and_persist:
@@ -200,7 +223,7 @@ workflows:
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - heads_musl-cross
+            - kgpe-d16_server
 
       # Coreboot 4.15
       - build_and_persist:
@@ -270,12 +293,12 @@ workflows:
           requires:
             - x230-hotp-maximized
 
-      - build:
-          name: x230-flash
-          target: x230-flash
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
+      #- build:
+      #    name: x230-flash
+      #    target: x230-flash
+      #    subcommand: ""
+      #    requires:
+      #      - x230-hotp-maximized
 
       - build:
           name: t430-flash

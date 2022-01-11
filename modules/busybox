@@ -13,7 +13,9 @@ busybox_config := config/busybox.config
 busybox_output := busybox
 busybox_target := \
 	$(CROSS_TOOLS) \
-	$(MAKE_JOBS) \
+	#We remove Makefile passed number of jobs to only pass one job, otherwise fails to build
+        #$(MAKE_JOBS) \
+        -j1 \
 
 # Install symlinks when the busybox program is installed
 

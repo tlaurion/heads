@@ -19,8 +19,9 @@ dropbear_configure := ./configure \
 	--disable-wtmpx \
 	
 dropbear_output := ssh scp dropbear
+#MAKE_JOBS breaks builds here. Replaced with -j1 so only one job is building dropbear target
 dropbear_target := \
-	$(MAKE_JOBS) \
+	-j1 \
 	$(CROSS_TOOLS) \
 	DESTDIR="$(INSTALL)" \
 	dbclient scp dropbear \
