@@ -37,7 +37,7 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: ubuntu:21.04
+      - image: debian:11
     resource_class: large
     steps:
       - run:
@@ -112,7 +112,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: ubuntu:21.04
+      - image: debian:11
     resource_class: large
     parameters:
       target:
@@ -132,7 +132,7 @@ jobs:
 
   build:
     docker:
-      - image: ubuntu:21.04
+      - image: debian:11
     resource_class: large
     parameters:
       target:
@@ -148,7 +148,7 @@ jobs:
 
   save_cache:
     docker:
-      - image: ubuntu:21.04
+      - image: debian:11
     resource_class: large
     steps:
       - attach_workspace:
