@@ -39,58 +39,17 @@ BUILD_LOG := $(shell mkdir -p "$(log_dir)" )
 
 WGET ?= wget
 
-# Timestamps should be in ISO format
-DATE=`date --rfc-3339=seconds`
-
 # Check that we have a correct version of make
 # that matches at least the major version
 LOCAL_MAKE_VERSION := $(shell $(MAKE) --version | head -1 | cut -d' ' -f3)
 include modules/make
 
-ifeq "" "$(filter $(make_version)%,$(LOCAL_MAKE_VERSION))"
-# Wrong make version detected -- build our local version
-# and re-invoke the Makefile with it instead.
-$(eval $(shell echo >&2 "$(DATE) Wrong make detected: $(LOCAL_MAKE_VERSION)". Building $(make_version)... ))
-HEADS_MAKE := $(build)/$(make_dir)/make
+ifneq "" "$(filter $(make_version)%,$(LOCAL_MAKE_VERSION))"
 
-# Once we have a proper Make, we can just pass arguments into it
-all linux cpio run: $(HEADS_MAKE)
-	LANG=C MAKE=$(HEADS_MAKE) $(HEADS_MAKE) $(MAKE_JOBS) $@
-%.clean %.vol %.menuconfig: $(HEADS_MAKE)
-	LANG=C MAKE=$(HEADS_MAKE) $(HEADS_MAKE) $@
+# Timestamps should be in ISO format
+DATE=`date --rfc-3339=seconds`
 
-bootstrap: $(HEADS_MAKE)
-
-# How to download and build the correct version of make
-$(packages)/$(make_tar):
-	$(WGET) -O "$@.tmp" "$(make_url)"
-	if ! echo "$(make_hash)  $@.tmp" | sha256sum --check -; then \
-		exit 1 ; \
-	fi
-	mv "$@.tmp" "$@"
-
-$(build)/$(make_dir)/.extract: $(packages)/$(make_tar)
-	tar xf "$<" -C "$(build)"
-	touch "$@"
-
-$(build)/$(make_dir)/.patch: $(build)/$(make_dir)/.extract
-	( cd "$(dir $@)" ; patch -p1 ) < "patches/make-$(make_version).patch"
-	touch "$@"
-
-$(build)/$(make_dir)/.configured: $(build)/$(make_dir)/.patch
-	cd "$(dir $@)" ; \
-	./configure 2>&1 \
-	| tee "$(log_dir)/make.configure.log" \
-	$(VERBOSE_REDIRECT)
-	touch "$@"
-
-$(HEADS_MAKE): $(build)/$(make_dir)/.configured
-	make -C "$(dir $@)" $(MAKE_JOBS) \
-		2>&1 \
-		| tee "$(log_dir)/make.log" \
-		$(VERBOSE_REDIRECT)
-
-endif
+# This is the correct version of Make
 
 # Check we have a suitable version of gawk
 # that's at least the same major version
@@ -102,7 +61,7 @@ include modules/gawk
 ifeq "" "$(filter $(LOCAL_GAWK_MAJOR_VERSION).%,$(gawk_version))"
 # Wrong gawk version detected -- build our local version
 # and re-invoke the Makefile with it instead.
-$(eval $(shell echo >&2 "$(DATE) Wrong gawk detected: $(LOCAL_GAWK_VERSION)". Building $(gawk_version)...))
+$(eval $(shell echo >&2 "$(DATE) Wrong gawk detected: $(LOCAL_GAWK_VERSION)"))
 HEADS_GAWK := $(build)/$(gawk_dir)/gawk
 
 # Once we have a suitable version of gawk, we can rerun make
@@ -229,11 +188,6 @@ CROSS_TOOLS_NOCC := \
 ifneq "$(HEADS_GAWK)" ""
 CROSS_TOOLS_NOCC += AWK=$(HEADS_GAWK)
 endif
-
-ifneq "$(HEADS_MAKE)" ""
-CROSS_TOOLS_NOCC += MAKE=$(HEADS_MAKE)
-endif
-
 
 CROSS_TOOLS := \
 	CC="$(heads_cc)" \
@@ -701,3 +655,49 @@ real.clean:
 		fi; \
 	done
 	cd install && rm -rf -- *
+
+
+else
+# Wrong make version detected -- build our local version
+# and re-invoke the Makefile with it instead.
+$(eval $(shell echo >&2 "$(DATE) Wrong make detected: $(LOCAL_MAKE_VERSION)"))
+HEADS_MAKE := $(build)/$(make_dir)/make
+
+# Once we have a proper Make, we can just pass arguments into it
+all linux cpio run: $(HEADS_MAKE)
+	LANG=C MAKE=$(HEADS_MAKE) $(HEADS_MAKE) $(MAKE_JOBS) $@
+%.clean %.vol %.menuconfig: $(HEADS_MAKE)
+	LANG=C MAKE=$(HEADS_MAKE) $(HEADS_MAKE) $@
+
+bootstrap: $(HEADS_MAKE)
+
+# How to download and build the correct version of make
+$(packages)/$(make_tar):
+	$(WGET) -O "$@.tmp" "$(make_url)"
+	if ! echo "$(make_hash)  $@.tmp" | sha256sum --check -; then \
+		exit 1 ; \
+	fi
+	mv "$@.tmp" "$@"
+
+$(build)/$(make_dir)/.extract: $(packages)/$(make_tar)
+	tar xf "$<" -C "$(build)"
+	touch "$@"
+
+$(build)/$(make_dir)/.patch: $(build)/$(make_dir)/.extract
+	( cd "$(dir $@)" ; patch -p1 ) < "patches/make-$(make_version).patch"
+	touch "$@"
+
+$(build)/$(make_dir)/.configured: $(build)/$(make_dir)/.patch
+	cd "$(dir $@)" ; \
+	./configure 2>&1 \
+	| tee "$(log_dir)/make.configure.log" \
+	$(VERBOSE_REDIRECT)
+	touch "$@"
+
+$(HEADS_MAKE): $(build)/$(make_dir)/.configured
+	make -C "$(dir $@)" $(MAKE_JOBS) \
+		2>&1 \
+		| tee "$(log_dir)/make.log" \
+		$(VERBOSE_REDIRECT)
+
+endif

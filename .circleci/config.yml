@@ -22,7 +22,7 @@ commands:
       - run:
           name: Output build failing logs
           command: |
-            if [[ -f ./tmpDir/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
+            if [[ -f ./tmpDir/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -5|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
       - run:
           name: Output hashes
           command: |
