@@ -211,8 +211,8 @@ workflows:
 
       # Coreboot 4.11
       - build_and_persist:
-          name: kgpe-d16_server
-          target: kgpe-d16_server
+          name: librem_l1um
+          target: librem_l1um
           subcommand: ""
           requires:
             - x230-flash
@@ -223,7 +223,7 @@ workflows:
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - kgpe-d16_server
+            - librem_l1um
 
       # Coreboot 4.15
       - build_and_persist:
