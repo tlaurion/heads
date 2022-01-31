@@ -11,6 +11,7 @@ commands:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
             apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - run:
@@ -36,12 +37,13 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     resource_class: large
     steps:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime 
             apt update
             apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - checkout
@@ -110,7 +112,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
     resource_class: large
     parameters:
       target:
@@ -130,7 +132,8 @@ jobs:
 
   build:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
+    resource_class: large
     parameters:
       target:
         type: string
@@ -145,7 +148,8 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:10
+      - image: ubuntu:21.04
+    resource_class: large
     steps:
       - attach_workspace:
           at: ~/
@@ -211,16 +215,18 @@ workflows:
             - x230-hotp-maximized
 
       # Coreboot 4.11
-      #- build_and_persist:
-      #    name: librem_l1um
-      #    target: librem_l1um
-      #    subcommand: ""
-      #    requires:
-      #      - x230-hotp-maximized
-
-      - save_cache:
+      - build_and_persist:
+          name: kgpe-d16_workstation
+          target: kgpe-d16_workstation
+          subcommand: ""
           requires:
             - librem_14
+
+      #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
+      #Below, 4.11, 4.13, 4.15
+      - save_cache:
+          requires:
+            - kgpe-d16_workstation
 
 #
 #
@@ -452,34 +458,33 @@ workflows:
           requires:
             - librem_14
 
-      #KGPE-D16 turned off because CircleCI built time needs to be optimized. Kernel doesn't seem to enforce MAKE_JOBS properly
-      #- build:
-      #    name: kgpe-d16_workstation-usb_keyboard
-      #    target: kgpe-d16_workstation-usb_keyboard
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: kgpe-d16_workstation-usb_keyboard
+          target: kgpe-d16_workstation-usb_keyboard
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
 
-      #- build:
-      #    name: kgpe-d16_server
-      #    target: kgpe-d16_server
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: kgpe-d16_server
+          target: kgpe-d16_server
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
 
-      #- build:
-      #    name: kgpe-d16_server-whiptail
-      #    target: kgpe-d16_server-whiptail
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: kgpe-d16_server-whiptail
+          target: kgpe-d16_server-whiptail
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
 
-      #- build:
-      #    name: kgpe-d16_workstation
-      #    target: kgpe-d16_workstation
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: librem_l1um
+          target: librem_l1um
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
 
 ########################
 ########################
