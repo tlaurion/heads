@@ -13,7 +13,7 @@ commands:
           command: |
             ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - run:
           name: Make Board
           command: |
@@ -192,9 +192,9 @@ workflows:
 
       # Prerequisites
       - build_and_persist:
-          name: heads_musl-cross
+          name: bootstrap_musl-cross-make
           target: x230-hotp-maximized
-          subcommand: musl-cross
+          subcommand: bootstrap musl-cross
           requires:
             - prep_env
 
@@ -204,7 +204,7 @@ workflows:
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - heads_musl-cross
+            - bootstrap_musl-cross-make
 
       # Coreboot 4.15
       - build_and_persist:
