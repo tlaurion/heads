@@ -407,7 +407,7 @@ endef
 define initrd_bin_add =
 $(initrd_bin_dir)/$(notdir $1): $1
 	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a "$$<" "$$@")
-	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
+	@$(CROSS)strip --preserve-dates --strip-debug "$$@" 2>&-; true
 initrd_bins += $(initrd_bin_dir)/$(notdir $1)
 endef
 
