@@ -5,5 +5,5 @@
  esac
  
 -exec xz --check=crc32 $BCJ --lzma2=$LZMA2OPTS,dict=32MiB
-+exec xz -9e --check=crc32 $BCJ --lzma2=$LZMA2OPTS,dict=1MiB
++exec xz -9e --check=crc32 $BCJ --lzma2=$LZMA2OPTS
 
