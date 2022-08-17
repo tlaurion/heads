@@ -505,7 +505,7 @@ $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 		$^ \
 	| xz \
 		--check=crc32 \
-		--lzma2=dict=1MiB \
+		--lzma2=dict=32MiB \
 		-9e \
 	| dd bs=512 conv=sync status=none > "$@.tmp" \
 	)
