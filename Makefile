@@ -505,8 +505,8 @@ $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 		$^ \
 	| xz \
 		--check=crc32 \
-		--lzma2=dict=1MiB \
-		-9 \
+		--lzma2=dict=100MiB \
+		-9e \
 	| dd bs=512 conv=sync status=none > "$@.tmp" \
 	)
 	@if ! cmp --quiet "$@.tmp" "$@" ; then \
