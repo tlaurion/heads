@@ -1,7 +1,7 @@
 modules-$(CONFIG_UTIL_LINUX) += util-linux
 
 ifeq "$(CONFIG_TARGET)" "x86"
-	UTIL_LINUX_TARGET := i386-elf-linux
+	UTIL_LINUX_TARGET := x86_64-elf-linux
 else ifeq "$(CONFIG_TARGET)" "ppc64"
 	UTIL_LINUX_TARGET := powerpc64le-elf-linux
 else
