@@ -19,7 +19,7 @@ gpg_hash := 6b47a3100c857dcab3c60e6152e56a997f2c7862c1b8b2b25adf3884a1ae2276
 #
 gpg_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--build $(MUSL_ARCH)-elf-linux \
+	--build $(MUSL_ARCH)-linux-musl \
 	--host $(MUSL_ARCH)-linux-musl \
 	--with-libusb="$(INSTALL)" \
 	--prefix "/" \

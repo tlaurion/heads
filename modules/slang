@@ -10,7 +10,7 @@ slang_configure := ./configure \
 	$(CROSS_TOOLS) \
 	ac_cv_path_nc5config=no \
 	--prefix "/" \
-	--host $(MUSL_ARCH)-elf-linux \
+	--host $(MUSL_ARCH)-linux-musl \
 	--with-z=no \
 	--with-png=no \
 	--with-pcre=no \

@@ -8,7 +8,7 @@ kexec_hash := 40623d4321be2865ef9ea2cd6ec998d31dcf93d0f74353cbd3aa06d8821e3e41
 
 kexec_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--host $(MUSL_ARCH)-elf-linux \
+	--host $(MUSL_ARCH)-linux-musl \
 	--target $(MUSL_ARCH) \
 	--prefix="/" \
 	--without-lzma \
