@@ -134,7 +134,9 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - .
+            - build/<<parameters.arch>>
+            - crossgcc/<<parameters.arch>>
+            - install/<<parameters.arch>>
 
   build:
     docker:
@@ -236,12 +238,13 @@ workflows:
           target: talos-2_workstation
           subcommand: ""
           requires:
-            - librem_14
+            - prep_env
 
       #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
       #Below, 4.11, 4.13, 4.15
       - save_cache:
           requires:
+            - librem_14
             - talos-2_workstation
 
 #
@@ -521,9 +524,7 @@ workflows:
           target: talos-2_server
           subcommand: ""
           requires:
-            # waiting for talos-2_workstation isn't worth it,
-            # "attaching workspace" kills all gains it can possibly have
-            - librem_14
+            - talos-2_workstation
 
 ########################
 ########################
