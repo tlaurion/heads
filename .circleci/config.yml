@@ -131,9 +131,9 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - build/x86
-            - crossgcc/x86
-            - install/x86
+            - project/build/x86
+            - project/crossgcc/x86
+            - project/install/x86
 
   build_and_persist_ppc64:
     docker:
@@ -154,9 +154,9 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - build/ppc64
-            - crossgcc/ppc64
-            - install/ppc64
+            - project/build/ppc64
+            - project/crossgcc/ppc64
+            - project/install/ppc64
 
   build:
     docker:
