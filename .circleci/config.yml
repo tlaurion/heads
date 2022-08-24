@@ -264,7 +264,7 @@ workflows:
       - save_cache:
           requires:
             - librem_14
-            - talos-2_workstation
+            - talos-2_server 
 
 #
 #
