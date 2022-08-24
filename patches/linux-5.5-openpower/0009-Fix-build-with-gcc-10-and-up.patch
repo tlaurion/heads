@@ -2,9 +2,9 @@ GCC 10+ defaults to `-fno-common`, breaking build of dtc binary.
 
 Signed-off-by: Sergii Dmytruk <sergii.dmytruk@3mdeb.com>
 
-diff --git a/scripts/dtc/Makefile.orig b/scripts/dtc/Makefile
+diff --git a/scripts/dtc/Makefile b/scripts/dtc/Makefile
 index b5a5b1c..5c2f139 100644
---- a/scripts/dtc/Makefile.orig
+--- a/scripts/dtc/Makefile
 +++ b/scripts/dtc/Makefile
 @@ -11,6 +11,9 @@ dtc-objs	+= dtc-lexer.lex.o dtc-parser.tab.o
  # Source files need to get at the userspace version of libfdt_env.h to compile
