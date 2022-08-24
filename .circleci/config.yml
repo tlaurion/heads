@@ -134,9 +134,9 @@ jobs:
       - persist_to_workspace:
           root: ~/
           paths:
-            - build/<<parameters.arch>>
-            - crossgcc/<<parameters.arch>>
-            - install/<<parameters.arch>>
+            - ./build/<<parameters.arch>>*
+            - ./crossgcc/<<parameters.arch>>*
+            - ./install/<<parameters.arch>>*
 
   build:
     docker:
