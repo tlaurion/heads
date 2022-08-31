@@ -10,7 +10,9 @@ cryptsetup2_hash := 3bca4ffe39e2f94cef50f6ea65acb873a6dbce5db34fc6bcefe38b6d095e
 
 # Use an empty prefix so that the executables will not include the
 # build path.
-cryptsetup2_configure := ./configure \
+cryptsetup2_configure := \
+	CFLAGS="-Oz" \
+	./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
