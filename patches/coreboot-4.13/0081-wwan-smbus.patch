@@ -1,0 +1,199 @@
+From a25a94dcfad6199da2939025aa8ccdd422106661 Mon Sep 17 00:00:00 2001
+From: Patrick Rudolph <patrick.rudolph@9elements.com>
+Date: Fri, 21 Feb 2020 10:45:16 +0100
+Subject: [PATCH] lenovo/*: Fix DRAM init when WWAN card is present
+
+The WWAN slot isn't powered by default. In case a WWAN card, that
+support SMBus, is installed it pulls the lines low.
+
+Enable power on WWAN on those devices that connect SMBus to the
+WWAN slot.
+
+Resolves an issue where DRAM init fails as no EEPROM could be
+found on the bus and the SPD couldn't be read.
+
+Tested on X220: Boots with WWAN card inserted.
+
+Change-Id: Ia7a2ca370124ecf743b000998b56855d5ed8f573
+Signed-off-by: Patrick Rudolph <patrick.rudolph@9elements.com>
+---
+
+diff --git a/src/ec/lenovo/h8/Makefile.inc b/src/ec/lenovo/h8/Makefile.inc
+index 51c11be..b51afee 100644
+--- a/src/ec/lenovo/h8/Makefile.inc
++++ b/src/ec/lenovo/h8/Makefile.inc
+@@ -18,6 +18,8 @@
+ ramstage-y += panic.c
+ endif
+ 
++romstage-y += wwan.c
++
+ ramstage-y += h8.c
+ ramstage-y += bluetooth.c
+ ramstage-y += wwan.c
+diff --git a/src/ec/lenovo/h8/wwan.c b/src/ec/lenovo/h8/wwan.c
+index e79cb61..eea1137 100644
+--- a/src/ec/lenovo/h8/wwan.c
++++ b/src/ec/lenovo/h8/wwan.c
+@@ -37,7 +37,7 @@
+  */
+ bool h8_has_wwan(struct device *dev)
+ {
+-	struct ec_lenovo_h8_config *conf = dev->chip_info;
++	DEVTREE_CONST struct ec_lenovo_h8_config *conf = dev->chip_info;
+ 
+ 	if (!conf->has_wwan_detection) {
+ 		printk(BIOS_INFO, "H8: WWAN detection not implemented. "
+diff --git a/src/mainboard/lenovo/t420/early_init.c b/src/mainboard/lenovo/t420/early_init.c
+index 2e39885..a04cebf 100644
+--- a/src/mainboard/lenovo/t420/early_init.c
++++ b/src/mainboard/lenovo/t420/early_init.c
+@@ -16,6 +16,7 @@
+  */
+ 
+ #include <device/pci_ops.h>
++#include <ec/lenovo/h8/h8.h>
+ #include <northbridge/intel/sandybridge/raminit_native.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+ #include <drivers/lenovo/hybrid_graphics/hybrid_graphics.h>
+@@ -75,4 +76,10 @@
+ void mainboard_early_init(int s3resume)
+ {
+ 	hybrid_graphics_init();
++	/*
++	 * The WWAN slot has SMBus connected. Turn on power to make sure
++	 * SMBus is usable and DRAM init will succeed.
++	 * ramstage will turn it off, in case it's not needed.
++	 */
++	h8_wwan_enable(true);
+ }
+diff --git a/src/mainboard/lenovo/t430/early_init.c b/src/mainboard/lenovo/t430/early_init.c
+index 27258a3..5e760d3 100644
+--- a/src/mainboard/lenovo/t430/early_init.c
++++ b/src/mainboard/lenovo/t430/early_init.c
+@@ -15,6 +15,7 @@
+ 
+ #include <device/pci_ops.h>
+ #include <device/pci_def.h>
++#include <ec/lenovo/h8/h8.h>
+ #include <northbridge/intel/sandybridge/raminit_native.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+ #include <ec/lenovo/pmh7/pmh7.h>
+@@ -69,6 +70,12 @@
+ void mainboard_early_init(int s3resume)
+ {
+ 	hybrid_graphics_init();
++	/*
++	 * The WWAN slot has SMBus connected. Turn on power to make sure
++	 * SMBus is usable and DRAM init will succeed.
++	 * ramstage will turn it off, in case it's not needed.
++	 */
++	h8_wwan_enable(true);
+ }
+ 
+ void mainboard_get_spd(spd_raw_data *spd, bool id_only)
+diff --git a/src/mainboard/lenovo/t520/early_init.c b/src/mainboard/lenovo/t520/early_init.c
+index 8e5bf2a..e913acc 100644
+--- a/src/mainboard/lenovo/t520/early_init.c
++++ b/src/mainboard/lenovo/t520/early_init.c
+@@ -18,6 +18,7 @@
+ #include <stdint.h>
+ #include <device/pci_ops.h>
+ #include <device/pci_def.h>
++#include <ec/lenovo/h8/h8.h>
+ #include <northbridge/intel/sandybridge/sandybridge.h>
+ #include <northbridge/intel/sandybridge/raminit_native.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+@@ -70,4 +71,10 @@
+ void mainboard_early_init(int s3resume)
+ {
+ 	hybrid_graphics_init();
++	/*
++	 * The WWAN slot has SMBus connected. Turn on power to make sure
++	 * SMBus is usable and DRAM init will succeed.
++	 * ramstage will turn it off, in case it's not needed.
++	 */
++	h8_wwan_enable(true);
+ }
+diff --git a/src/mainboard/lenovo/t530/early_init.c b/src/mainboard/lenovo/t530/early_init.c
+index c6ff7e7..390540f 100644
+--- a/src/mainboard/lenovo/t530/early_init.c
++++ b/src/mainboard/lenovo/t530/early_init.c
+@@ -18,6 +18,7 @@
+ #include <stdint.h>
+ #include <device/pci_ops.h>
+ #include <device/pci_def.h>
++#include <ec/lenovo/h8/h8.h>
+ #include <northbridge/intel/sandybridge/raminit_native.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+ #include <northbridge/intel/sandybridge/sandybridge.h>
+@@ -53,4 +54,10 @@
+ void mainboard_early_init(int s3resume)
+ {
+ 	hybrid_graphics_init();
++	/*
++	 * The WWAN slot has SMBus connected. Turn on power to make sure
++	 * SMBus is usable and DRAM init will succeed.
++	 * ramstage will turn it off, in case it's not needed.
++	 */
++	h8_wwan_enable(true);
+ }
+diff --git a/src/mainboard/lenovo/x220/early_init.c b/src/mainboard/lenovo/x220/early_init.c
+index 3429c1b..34713be 100644
+--- a/src/mainboard/lenovo/x220/early_init.c
++++ b/src/mainboard/lenovo/x220/early_init.c
+@@ -18,6 +18,7 @@
+ #include <stdint.h>
+ #include <cpu/x86/lapic.h>
+ #include <arch/acpi.h>
++#include <ec/lenovo/h8/h8.h>
+ #include <northbridge/intel/sandybridge/sandybridge.h>
+ #include <northbridge/intel/sandybridge/raminit.h>
+ #include <northbridge/intel/sandybridge/raminit_native.h>
+@@ -74,6 +75,17 @@
+ 	*pei_data = pei_data_template;
+ }
+ 
++void mainboard_early_init(int s3_resume)
++{
++	/*
++	 * The WWAN slot has SMBus connected. Turn on power to make sure
++	 * SMBus is usable and DRAM init will succeed.
++	 * ramstage will turn it off, in case it's not needed.
++	 */
++	if (CONFIG(BOARD_LENOVO_X220))
++		h8_wwan_enable(true);
++}
++
+ void mainboard_get_spd(spd_raw_data *spd, bool id_only)
+ {
+ 	read_spd (&spd[0], 0x50, id_only);
+diff --git a/src/mainboard/lenovo/x230/early_init.c b/src/mainboard/lenovo/x230/early_init.c
+index 70240a7..54513fe 100644
+--- a/src/mainboard/lenovo/x230/early_init.c
++++ b/src/mainboard/lenovo/x230/early_init.c
+@@ -17,6 +17,7 @@
+ 
+ #include <stdint.h>
+ #include <cpu/x86/lapic.h>
++#include <ec/lenovo/h8/h8.h>
+ #include <northbridge/intel/sandybridge/sandybridge.h>
+ #include <northbridge/intel/sandybridge/raminit_native.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+@@ -39,6 +40,16 @@
+ 	{ 1, 1, -1 }, /* P13: webcam, no OC */
+ };
+ 
++void mainboard_early_init(int s3_resume)
++{
++	/*
++	 * The WWAN slot has SMBus connected. Turn on power to make sure
++	 * SMBus is usable and DRAM init will succeed.
++	 * ramstage will turn it off, in case it's not needed.
++	 */
++	h8_wwan_enable(true);
++}
++
+ void mainboard_get_spd(spd_raw_data *spd, bool id_only)
+ {
+ 	read_spd (&spd[0], 0x50, id_only);
