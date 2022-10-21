@@ -1,0 +1,21 @@
+diff --git a/util/crossgcc/buildgcc b/util/crossgcc/buildgcc
+index d5cca6cd6e..a23026ea86 100755
+--- a/util/crossgcc/buildgcc
++++ b/util/crossgcc/buildgcc
+@@ -298,8 +298,14 @@ hostcc_has_gnat1() {
+ }
+ 
+ have_gnat() {
+-	hostcc_has_gnat1 && \
+-	searchtool gnatbind "Free Software Foundation" nofail > /dev/null
++	if ! searchtool gnatbind "Free Software Foundation" nofail >/dev/null; then
++		if ! searchtool gnat "Free Software Foundation" nofail >/dev/null; then
++			if ! hostcc_has_gnat1; then
++				please_install gnatbind gnat gcc-ada
++				exit 1
++			fi
++		fi
++	fi
+ }
+ 
+ ada_requested() {
