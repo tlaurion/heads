@@ -16,14 +16,9 @@ case "$CONFIG_FLASHROM_OPTIONS" in
 esac
 
 flashrom_progress() {
-    local current=0
     local total_bytes=0
     local percent=0
     local IN=''
-    local spin='-\|/'
-    local spin_idx=0
-    local progressbar=''
-    local progressbar2=''
     local status='init'
     local prev_word=''
     local prev_prev_word=''
@@ -33,29 +28,15 @@ flashrom_progress() {
     while true ; do
         prev_prev_word=$prev_word
         prev_word=$IN
-        read -r -d' ' IN || break
+        read -r -d' ' IN
         if [ "$total_bytes" != "0" ]; then
-            current=$(echo "$IN" | grep -E -o '0x[0-9a-f]+-0x[0-9a-f]+:.*' | grep -E -o "0x[0-9a-f]+" | tail -n 1)
-            if [ "${current}" != "" ]; then
-                percent=$((100 * (current + 1) / total_bytes))
-                pct1=$((percent / 2))
-                pct2=$((49 - percent / 2))
-                progressbar=$(for i in `seq $pct1 2>/dev/null` ; do echo -ne '#' ; done)
-                progressbar2=$(for i in `seq $pct2 2>/dev/null` ; do echo -ne ' ' ; done)
-            fi
+            percent=$(echo "$IN" |grep -E -o '[0-9]+%')
         else
-            if [ "$prev_prev_word"  == "Reading" ] && [ "$IN" == "bytes" ]; then
-                # flashrom may read the descriptor first, so ensure total_bytes is at least 4MB
-                if [[ $prev_word -gt  4194303 ]]; then
-                    total_bytes=$prev_word
-                    echo "Total flash size : $total_bytes bytes"
-                fi
+            if [ "$IN"  == "kB," ]; then
+                # Previous is is total size in kB
+                total_bytes=$(echo "$prev_word" | grep -E -o '[0-9]+')
+                echo "Total flash size : $total_bytes kB"
             fi
-        fi
-        if [ "$percent" -gt 99 ]; then
-            spin_idx=4
-        else
-            spin_idx=$(( (spin_idx+1) %4 ))
         fi
         if [ "$status" == "init" ]; then
             if [ "$IN" == "contents..." ]; then
@@ -67,25 +48,32 @@ flashrom_progress() {
             if echo "${IN}" | grep "done." > /dev/null ; then
                 status="writing"
             fi
+            echo -ne "Reading: $percent\\r"
         fi
         if [ "$status" == "writing" ]; then
-            echo -ne "Flashing: [${progressbar}${spin:$spin_idx:1}${progressbar2}] (${percent}%)\\r"
             if echo "$IN" | grep "Verifying" > /dev/null ; then
                 status="verifying"
-                echo ""
-                echo "Verifying flash contents. Please wait..."
             fi
             if echo "$IN" | grep "identical" > /dev/null ; then
                 status="done"
-		        echo ""
+                echo ""
                 echo "The flash contents are identical to the image being flashed."
+                break
             fi
+            echo -ne "Flashing: $percent\\r"
         fi
         if [ "$status" == "verifying" ]; then
             if echo "${IN}" | grep "VERIFIED." > /dev/null ; then
                 status="done"
                 echo "The flash contents were verified and the image was flashed correctly."
+                break
+            elif echo "${IN}" | grep "FAILED" > /dev/null ; then
+                echo 'Error while verifying flash content'
+                break
             fi
+            echo ""
+            echo "Verifying flash contents. Please wait..."
+            echo -ne "Verifying: $percent\\r"
         fi
     done
     echo ""
@@ -101,18 +89,8 @@ flashrom_progress() {
 flash_rom() {
   ROM=$1
   if [ "$READ" -eq 1 ]; then
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.1" \
-    || die "$ROM: Read failed"
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.2" \
-    || die "$ROM: Read failed"
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.3" \
-    || die "$ROM: Read failed"
-    if [ `sha256sum ${ROM}.[123] | cut -f1 -d ' ' | uniq | wc -l` -eq 1 ]; then
-      mv ${ROM}.1 $ROM
-      rm ${ROM}.[23]
-    else
-      die "$ROM: Read inconsistent"
-    fi
+    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}" \
+    || die "Backup to $ROM failed"     
   else
     cp "$ROM" /tmp/${CONFIG_BOARD}.rom
     sha256sum /tmp/${CONFIG_BOARD}.rom
@@ -136,7 +114,7 @@ flash_rom() {
     fi
 
     flashrom $CONFIG_FLASHROM_OPTIONS -w /tmp/${CONFIG_BOARD}.rom \
-      -V -o "/tmp/flashrom-$(date '+%Y%m%d-%H%M%S').log" 2>&1 | flashrom_progress \
+      --progress -o "/tmp/flashrom-$(date '+%Y%m%d-%H%M%S').log" 2>&1 | flashrom_progress \
       || die "$ROM: Flash failed"
   fi
 }
