@@ -33,7 +33,7 @@ flashrom_progress() {
     while true ; do
         prev_prev_word=$prev_word
         prev_word=$IN
-        read -r -d' ' IN || break
+        read -r -d' ' IN
         if [ "$total_bytes" != "0" ]; then
             current=$(echo "$IN" | grep -E -o '0x[0-9a-f]+-0x[0-9a-f]+:.*' | grep -E -o "0x[0-9a-f]+" | tail -n 1)
             if [ "${current}" != "" ]; then
@@ -50,6 +50,11 @@ flashrom_progress() {
                     total_bytes=$prev_word
                     echo "Total flash size : $total_bytes bytes"
                 fi
+            fi
+            if [ "$prev_word"  == "total_size:" ]; then
+                # Next is total size in bytes
+                total_bytes=$(echo "$IN" | grep -E -o '[0-9]+')
+                echo "Total flash size : $total_bytes bytes"
             fi
         fi
         if [ "$percent" -gt 99 ]; then
@@ -77,14 +82,19 @@ flashrom_progress() {
             fi
             if echo "$IN" | grep "identical" > /dev/null ; then
                 status="done"
-		        echo ""
+                echo ""
                 echo "The flash contents are identical to the image being flashed."
+                break
             fi
         fi
         if [ "$status" == "verifying" ]; then
             if echo "${IN}" | grep "VERIFIED." > /dev/null ; then
                 status="done"
                 echo "The flash contents were verified and the image was flashed correctly."
+                break
+            elif echo "${IN}" | grep "FAILED" > /dev/null ; then
+                echo 'Error while verifying flash content'
+                break
             fi
         fi
     done
@@ -101,18 +111,8 @@ flashrom_progress() {
 flash_rom() {
   ROM=$1
   if [ "$READ" -eq 1 ]; then
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.1" \
-    || die "$ROM: Read failed"
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.2" \
-    || die "$ROM: Read failed"
-    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}.3" \
-    || die "$ROM: Read failed"
-    if [ `sha256sum ${ROM}.[123] | cut -f1 -d ' ' | uniq | wc -l` -eq 1 ]; then
-      mv ${ROM}.1 $ROM
-      rm ${ROM}.[23]
-    else
-      die "$ROM: Read inconsistent"
-    fi
+    flashrom $CONFIG_FLASHROM_OPTIONS -r "${ROM}" \
+    || die "Backup to $ROM failed"
   else
     cp "$ROM" /tmp/${CONFIG_BOARD}.rom
     sha256sum /tmp/${CONFIG_BOARD}.rom
