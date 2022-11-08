@@ -24,7 +24,7 @@ mount_boot()
     BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
     whiptail $BG_COLOR_ERROR --clear --title "ERROR: No Bootable OS Found!" \
         --menu "    No bootable OS was found on the default boot device $CONFIG_BOOT_DEV.
-    How would you like to proceed?" 30 90 4 \
+    How would you like to proceed?" 20 90 4 \
         'b' ' Select a new boot device' \
         'u' ' Boot from USB' \
         'm' ' Continue to the main menu' \
@@ -67,7 +67,7 @@ verify_global_hashes()
     return 0
   elif [ ! -f $TMP_HASH_FILE ]; then
     if (whiptail $BG_COLOR_ERROR --clear --title 'ERROR: Missing Hash File!' \
-        --yesno "The file containing hashes for /boot is missing!\n\nIf you are setting this system up for the first time, select Yes to update\nyour list of checksums.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to update your checksums now?" 30 90) then
+        --yesno "The file containing hashes for /boot is missing!\n\nIf you are setting this system up for the first time, select Yes to update\nyour list of checksums.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to update your checksums now?" 20 90) then
       if update_checksums ; then
         BG_COLOR_MAIN_MENU=""
         return 0;
@@ -114,7 +114,7 @@ verify_global_hashes()
       fi
     fi
 
-    if (whiptail $BG_COLOR_ERROR --clear --title 'ERROR: Boot Hash Mismatch' --yesno "$TEXT" 30 90) then
+    if (whiptail $BG_COLOR_ERROR --clear --title 'ERROR: Boot Hash Mismatch' --yesno "$TEXT" 20 90) then
       if update_checksums ; then
         BG_COLOR_MAIN_MENU=""
         return 0;
@@ -170,7 +170,7 @@ update_totp()
   If this is the first time the system has booted, you should
   reset the TPM and set your own password.\n
   If you have not just reflashed your BIOS, THIS COULD INDICATE TAMPERING!\n
-  How would you like to proceed?" 30 90 4 \
+  How would you like to proceed?" 20 90 4 \
         'g' ' Generate new HOTP/TOTP secret' \
         'i' ' Ignore error and continue to main menu' \
         'p' ' Reset the TPM' \
@@ -207,7 +207,7 @@ update_hotp()
       if ! whiptail $BG_COLOR_WARNING --clear \
           --title "WARNING: Please Insert Your $HOTPKEY_BRANDING" \
           --yes-button "Retry" --no-button "Skip" \
-          --yesno "Your $HOTPKEY_BRANDING was not detected.\n\nPlease insert your $HOTPKEY_BRANDING" 30 90 ; then
+          --yesno "Your $HOTPKEY_BRANDING was not detected.\n\nPlease insert your $HOTPKEY_BRANDING" 20 90 ; then
         HOTP="Error checking code, Insert $HOTPKEY_BRANDING and retry"
         BG_COLOR_MAIN_MENU=$BG_COLOR_WARNING
         return
@@ -268,7 +268,7 @@ check_gpg_key()
   if [ $GPG_KEY_COUNT -eq 0 ]; then
     BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
     whiptail $BG_COLOR_ERROR --clear --title "ERROR: GPG keyring empty!" \
-      --menu "ERROR: Heads couldn't find any GPG keys in your keyring.\n\nIf this is the first time the system has booted,\nyou should add a public GPG key to the BIOS now.\n\nIf you just reflashed a new BIOS, you'll need to add at least one\npublic key to the keyring.\n\nIf you have not just reflashed your BIOS, THIS COULD INDICATE TAMPERING!\n\nHow would you like to proceed?" 30 90 4 \
+      --menu "ERROR: Heads couldn't find any GPG keys in your keyring.\n\nIf this is the first time the system has booted,\nyou should add a public GPG key to the BIOS now.\n\nIf you just reflashed a new BIOS, you'll need to add at least one\npublic key to the keyring.\n\nIf you have not just reflashed your BIOS, THIS COULD INDICATE TAMPERING!\n\nHow would you like to proceed?" 20 90 4 \
       'g' ' Add a GPG key to the running BIOS' \
       'F' ' OEM Factory Reset / Re-Ownership' \
       'i' ' Ignore error and continue to main menu' \
@@ -454,7 +454,7 @@ show_tpm_totp_hotp_options_menu()
 prompt_totp_mismatch()
 {
   if (whiptail $BG_COLOR_WARNING --title "TOTP/HOTP code mismatched" \
-    --yesno "TOTP/HOTP code mismatches could indicate either TPM tampering or clock drift:\n\nTo correct clock drift: 'date -s HH:MM:SS'\nand save it to the RTC: 'hwclock -w'\nthen reboot and try again.\n\nWould you like to exit to a recovery console?" 30 90) then
+    --yesno "TOTP/HOTP code mismatches could indicate either TPM tampering or clock drift:\n\nTo correct clock drift: 'date -s HH:MM:SS'\nand save it to the RTC: 'hwclock -w'\nthen reboot and try again.\n\nWould you like to exit to a recovery console?" 20 90) then
     echo ""
     echo "To correct clock drift: 'date -s HH:MM:SS'"
     echo "and save it to the RTC: 'hwclock -w'"
@@ -493,7 +493,7 @@ reset_tpm()
       echo "Returning to the main menu"
     fi
   else
-    whiptail $BG_COLOR_ERROR --clear --title 'ERROR: No TPM Detected' --msgbox "This device does not have a TPM.\n\nPress OK to return to the Main Menu" 30 90
+    whiptail $BG_COLOR_ERROR --clear --title 'ERROR: No TPM Detected' --msgbox "This device does not have a TPM.\n\nPress OK to return to the Main Menu" 20 90
   fi
 }
 
