@@ -521,13 +521,6 @@ workflows:
             - librem_l1um
 
       - build:
-          name: librem_l1um
-          target: librem_l1um
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
           name: talos-2_workstation
           arch: ppc64
           target: talos-2_workstation
