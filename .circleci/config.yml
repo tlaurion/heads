@@ -225,12 +225,12 @@ workflows:
             - x230-hotp-maximized
 
       # Coreboot 4.11
-#      - build_and_persist:
-#          name: librem_l1um 
-#          target: librem_l1um
-#          subcommand: ""
-#          requires:
-#            - librem_14
+      - build_and_persist:
+          name: librem_l1um 
+          target: librem_l1um
+          subcommand: ""
+          requires:
+            - librem_14
 
       # Coreboot for Talos
       - build_and_persist:
@@ -241,11 +241,11 @@ workflows:
           requires:
             - prep_env
 
-      #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
+      #Cache one final workspace per architecture, so that those caches can be merged prior of being saved, otherwise creating conflicts.
       #Below, 4.11, 4.13, 4.15
       - save_cache:
           requires:
-            - librem_14
+            - kgpe-d16_workstation
             - talos-2_server
 
 #
@@ -491,33 +491,41 @@ workflows:
           requires:
             - librem_14
 
-#      - build:
-#          name: kgpe-d16_workstation-usb_keyboard
-#          target: kgpe-d16_workstation-usb_keyboard
-#          subcommand: ""
-#          requires:
-#            - kgpe-d16_workstation
+      #Coreboot 4.11 based boards
+      - build:
+          name: kgpe-d16_workstation-usb_keyboard
+          target: kgpe-d16_workstation-usb_keyboard
+          subcommand: ""
+          requires:
+            - librem_l1um
 
-#      - build:
-#          name: kgpe-d16_server
-#          target: kgpe-d16_server
-#          subcommand: ""
-#          requires:
-#            - kgpe-d16_workstation
+      - build:
+          name: kgpe-d16_server
+          target: kgpe-d16_server
+          subcommand: ""
+          requires:
+            - librem_l1um
 
-#      - build:
-#          name: kgpe-d16_server-whiptail
-#          target: kgpe-d16_server-whiptail
-#          subcommand: ""
-#          requires:
-#            - kgpe-d16_workstation
+      - build:
+          name: kgpe-d16_server-whiptail
+          target: kgpe-d16_server-whiptail
+          subcommand: ""
+          requires:
+            - librem_l1um
 
-#      - build:
-#          name: librem_l1um
-#          target: librem_l1um
-#          subcommand: ""
-#          requires:
-#            - librem_14
+      - build:
+          name: kgpe-d16_workstation
+          target: kgpe-d16_workstation
+          subcommand: ""
+          requires:
+            - librem_l1um
+
+      - build:
+          name: librem_l1um
+          target: librem_l1um
+          subcommand: ""
+          requires:
+            - librem_14
 
       - build:
           name: talos-2_workstation
