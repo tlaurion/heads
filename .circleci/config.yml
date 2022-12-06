@@ -216,7 +216,7 @@ workflows:
           requires:
             - prep_env
 
-      # Coreboot 4.15
+      # Coreboot 4.17
       - build_and_persist:
           name: librem_14
           target: librem_14
@@ -226,11 +226,11 @@ workflows:
 
       # Coreboot 4.11
       - build_and_persist:
-          name: librem_l1um 
-          target: librem_l1um
+          name: kgpe-d16_workstation 
+          target: kgpe-d16_workstation
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - prep_env
 
       # Coreboot for Talos
       - build_and_persist:
@@ -241,8 +241,8 @@ workflows:
           requires:
             - prep_env
 
-      #Cache one final workspace per architecture, so that those caches can be merged prior of being saved, otherwise creating conflicts.
-      #Below, 4.11, 4.13, 4.15
+      #Cache one final workspace per architecture, so that those caches can be merged prior of being saved and reused, otherwise creating conflicts.
+      #Below, 4.11, 4.13, 4.17
       - save_cache:
           requires:
             - kgpe-d16_workstation
@@ -497,28 +497,28 @@ workflows:
           target: kgpe-d16_workstation-usb_keyboard
           subcommand: ""
           requires:
-            - librem_l1um
+            - kgpe-d16_workstation 
 
       - build:
           name: kgpe-d16_server
           target: kgpe-d16_server
           subcommand: ""
           requires:
-            - librem_l1um
+            - kgpe-d16_workstation
 
       - build:
           name: kgpe-d16_server-whiptail
           target: kgpe-d16_server-whiptail
           subcommand: ""
           requires:
-            - librem_l1um
+            - kgpe-d16_workstation
 
       - build:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
+          name: librem_l1um
+          target: librem_l1um
           subcommand: ""
           requires:
-            - librem_l1um
+            - kgpe-d16_workstation
 
       - build:
           name: talos-2_workstation
