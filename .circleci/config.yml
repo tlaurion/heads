@@ -230,7 +230,7 @@ workflows:
           target: librem_l1um
           subcommand: ""
           requires:
-            - librem_14
+            - x230-hotp-maximized
 
       # Coreboot for Talos
       - build_and_persist:
