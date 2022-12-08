@@ -1,0 +1,12 @@
+--- ./Makefile.inc.orig	2022-12-07 20:01:40.792000000 -0500
++++ ./Makefile.inc	2022-12-07 20:03:13.100000000 -0500
+@@ -512,7 +512,7 @@
+ 
+ $(build_h): $$(shell $$(build_h_check))
+ 	@printf "    GEN        build.h\n"
+-	mv $< $@
++	cp $< $@
+ 
+ build-dirs $(objcbfs) $(objgenerated):
+ 	mkdir -p $(objcbfs) $(objgenerated)
+
