@@ -209,45 +209,13 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
-      # Coreboot 4.11
-      - build_and_persist:
-          name: kgpe-d16_workstation 
-          target: kgpe-d16_workstation
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-      
-      # Coreboot 4.13
-      - build_and_persist:
-          name: x230-hotp-maximized
-          target: x230-hotp-maximized
-          subcommand: ""
-          requires:
-            - librem_14
-
-      # Coreboot 4.17
-      - build_and_persist:
-          name: librem_14
-          target: librem_14
-          subcommand: ""
-          requires:
-            - prep_env
-
-      # Coreboot for Talos (PPC)
-      - build_and_persist:
-          name: talos-2_server
-          arch: ppc64
-          target: talos-2_server
-          subcommand: ""
-          requires:
-            - prep_env
-
-      #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
-      #Below, 4.11, 4.13, 4.17
-      - save_cache:
-          requires:
-            - librem_l1um
-            - talos-2_server
+# Coreboot 4.11
+#      - build_and_persist:
+#          name: kgpe-d16_workstation 
+#          target: kgpe-d16_workstation
+#          subcommand: ""
+#          requires:
+#            - prep_env
 
 #
 #
@@ -255,298 +223,42 @@ workflows:
 #
 #
 
-#x86 targets
-## Librems normally use latest kernel and latest coreboot.
-
-## Coreboot 4.17 targets
+      # Coreboot 4.11
       - build:
-          name: librem_13v2
-          target: librem_13v2
-          subcommand: ""
+          name: kgpe-d16_workstation
+          target: kgpe-d16_workstation
+          subcommand: "CPUS=4"
           requires:
-            - librem_14
+            - prep_env
 
-      - build:
-          name: librem_15v3
-          target: librem_15v3
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_13v4
-          target: librem_13v4
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_15v4
-          target: librem_15v4
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_mini
-          target: librem_mini
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_mini_v2
-          target: librem_mini_v2
-          subcommand: ""
-          requires:
-            - librem_14
-
-## Coreboot 4.13 targets
-### We reuse librem_14 cache since all other modules are compiled.
-### First target here build on top of librem_14 will take longer since not same coreboot nor same kernel
-#### Moved into main task so that concurrence happens on top of prep_env, being clean or already cached
-#      - build:
-#          name: x230-hotp-maximized
-#          target: x230-hotp-maximized
-#          subcommand: ""
-#          requires:
-#            - librem_14
-
-### We then reuse x230-hotp-maximized cache to build other same kernel same coreboot version cached
-      - build:
-          name: qemu-coreboot-fbwhiptail
-          target: qemu-coreboot-fbwhiptail
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: qemu-coreboot
-          target: qemu-coreboot
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x220-hotp-maximized
-          target: x220-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x220-maximized
-          target: x220-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t420-hotp-maximized
-          target: t420-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t520-hotp-maximized
-          target: t520-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t420-maximized
-          target: t420-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t520-maximized
-          target: t520-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230-flash
-          target: x230-flash
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430-flash
-          target: t430-flash
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430
-          target: t430
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      #Following target doesn't support fbwhiptail but whiptail so we use it for save_cache
-      - build:
-          name: t430-hotp-verification
-          target: t430-hotp-verification
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230
-          target: x230
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230-hotp-verification
-          target: x230-hotp-verification
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230-hotp-maximized_usb-kb
-          target: x230-hotp-maximized_usb-kb
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t430-hotp-maximized
-          target: t430-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: x230-maximized
-          target: x230-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t530-hotp-maximized
-          target: t530-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t530-dgpu-hotp-maximized
-          target: t530-dgpu-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: w530-hotp-maximized
-          target: w530-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: w530-dgpu-K1000m-hotp-maximized
-          target: w530-dgpu-K1000m-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized  
-
-      - build:
-          name: w530-dgpu-K2000m-hotp-maximized
-          target: w530-dgpu-K2000m-hotp-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized  
-            
-      - build:
-          name: t430-maximized
-          target: t430-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t530-maximized
-          target: t530-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: t530-dgpu-maximized
-          target: t530-dgpu-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: w530-maximized
-          target: w530-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: w530-dgpu-K1000m-maximized
-          target: w530-dgpu-K1000m-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: w530-dgpu-K2000m-maximized
-          target: w530-dgpu-K2000m-maximized
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-## Coreboot 4.11 targets
+      #Coreboot 4.11 based boards
       - build:
           name: kgpe-d16_workstation-usb_keyboard
           target: kgpe-d16_workstation-usb_keyboard
-          subcommand: ""
+          subcommand: "CPUS=4"
           requires:
-            - kgpe-d16_workstation
+            - prep_env 
 
       - build:
           name: kgpe-d16_server
           target: kgpe-d16_server
-          subcommand: ""
+          subcommand: "CPUS=4"
           requires:
-            - kgpe-d16_workstation
+            - prep_env
 
       - build:
           name: kgpe-d16_server-whiptail
           target: kgpe-d16_server-whiptail
-          subcommand: ""
+          subcommand: "CPUS=4"
           requires:
-            - kgpe-d16_workstation
+            - prep_env
 
       - build:
           name: librem_l1um
           target: librem_l1um
-          subcommand: ""
+          subcommand: "CPUS=4"
           requires:
-            - kgpe-d16_workstation
-
-#PPC targets
-      - build:
-          name: talos-2_workstation
-          arch: ppc64
-          target: talos-2_workstation
-          subcommand: ""
-          requires:
-            - talos-2_server
+            - prep_env
 
 ########################
 ########################
