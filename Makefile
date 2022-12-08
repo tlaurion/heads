@@ -30,6 +30,7 @@ board_build	= $(build)/$(BOARD)
 
 # Controls how many parallel jobs are invoked in subshells
 CPUS		?= $(shell nproc)
+COREBOOT_CPUS	?= $(CPUS)
 MAKE_JOBS	?= -j$(CPUS) --max-load 16
 
 WGET ?= wget
