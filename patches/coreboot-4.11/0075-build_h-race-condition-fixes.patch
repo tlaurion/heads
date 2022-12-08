@@ -1,3 +1,5 @@
+For obsecure reasons, without this patch, build.h was sometimes not existing when building romstage
+
 --- ./Makefile.inc.orig	2022-12-07 20:01:40.792000000 -0500
 +++ ./Makefile.inc	2022-12-07 20:03:13.100000000 -0500
 @@ -512,7 +512,7 @@
