@@ -80,7 +80,7 @@ jobs:
             #Restore existing cache for matching modules digest, validated to be exactly the same as in github current commit.
             #This cache was made on top of below caches, if previously existing. If no module definition changed, we reuse this one. Otherwise...
             - heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
-            #If precedent cache not found, restore cache for coreboot module (and patches) and musl-cross-make digests (bi-yearly modified)
+            #If precedent cache not found, restore cache for coreboot module (and patches) and musl-cross-make digests (coreboot: triannual release)
             #Otehrwise....
             - heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
             #If precedent cache not found. Restore cache for musl-cross-make module digest (rarely modified).
@@ -188,6 +188,7 @@ jobs:
             - build/x86/coreboot-4.13
             - build/x86/coreboot-4.14
             - build/x86/coreboot-4.15
+            - build/x86/coreboot-4.17
             - build/ppc64/coreboot-git
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
@@ -208,31 +209,31 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
+      # Coreboot 4.11
+      - build_and_persist:
+          name: kgpe-d16_workstation 
+          target: kgpe-d16_workstation
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+      
       # Coreboot 4.13
       - build_and_persist:
           name: x230-hotp-maximized
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - prep_env
+            - librem_14
 
-      # Coreboot 4.15
+      # Coreboot 4.17
       - build_and_persist:
           name: librem_14
           target: librem_14
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - prep_env
 
-      # Coreboot 4.11
-#      - build_and_persist:
-#          name: librem_l1um 
-#          target: librem_l1um
-#          subcommand: ""
-#          requires:
-#            - librem_14
-
-      # Coreboot for Talos
+      # Coreboot for Talos (PPC)
       - build_and_persist:
           name: talos-2_server
           arch: ppc64
@@ -242,10 +243,10 @@ workflows:
             - prep_env
 
       #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
-      #Below, 4.11, 4.13, 4.15
+      #Below, 4.11, 4.13, 4.17
       - save_cache:
           requires:
-            - librem_14
+            - librem_l1um
             - talos-2_server
 
 #
@@ -253,6 +254,78 @@ workflows:
 # Those onboarding new boards should add their entries below.
 #
 #
+
+#x86 targets
+## Librems normally use latest kernel and latest coreboot.
+
+## Coreboot 4.17 targets
+      - build:
+          name: librem_13v2
+          target: librem_13v2
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_15v3
+          target: librem_15v3
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_13v4
+          target: librem_13v4
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_15v4
+          target: librem_15v4
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_mini
+          target: librem_mini
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_mini_v2
+          target: librem_mini_v2
+          subcommand: ""
+          requires:
+            - librem_14
+
+## Coreboot 4.13 targets
+### We reuse librem_14 cache since all other modules are compiled.
+### First target here build on top of librem_14 will take longer since not same coreboot nor same kernel
+#### Moved into main task so that concurrence happens on top of prep_env, being clean or already cached
+#      - build:
+#          name: x230-hotp-maximized
+#          target: x230-hotp-maximized
+#          subcommand: ""
+#          requires:
+#            - librem_14
+
+### We then reuse x230-hotp-maximized cache to build other same kernel same coreboot version cached
+      - build:
+          name: qemu-coreboot-fbwhiptail
+          target: qemu-coreboot-fbwhiptail
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: qemu-coreboot
+          target: qemu-coreboot
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
 
       - build:
           name: x220-hotp-maximized
@@ -317,6 +390,7 @@ workflows:
           requires:
             - x230-hotp-maximized
 
+      #Following target doesn't support fbwhiptail but whiptail so we use it for save_cache
       - build:
           name: t430-hotp-verification
           target: t430-hotp-verification
@@ -358,6 +432,7 @@ workflows:
           subcommand: ""
           requires:
             - x230-hotp-maximized
+
       - build:
           name: t530-hotp-maximized
           target: t530-hotp-maximized
@@ -435,90 +510,36 @@ workflows:
           requires:
             - x230-hotp-maximized
 
+## Coreboot 4.11 targets
       - build:
-          name: qemu-coreboot
-          target: qemu-coreboot
+          name: kgpe-d16_workstation-usb_keyboard
+          target: kgpe-d16_workstation-usb_keyboard
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - kgpe-d16_workstation
 
       - build:
-          name: qemu-coreboot-fbwhiptail
-          target: qemu-coreboot-fbwhiptail
+          name: kgpe-d16_server
+          target: kgpe-d16_server
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - kgpe-d16_workstation
 
       - build:
-          name: librem_13v2
-          target: librem_13v2
+          name: kgpe-d16_server-whiptail
+          target: kgpe-d16_server-whiptail
           subcommand: ""
           requires:
-            - librem_14
+            - kgpe-d16_workstation
 
       - build:
-          name: librem_15v3
-          target: librem_15v3
+          name: librem_l1um
+          target: librem_l1um
           subcommand: ""
           requires:
-            - librem_14
+            - kgpe-d16_workstation
 
-      - build:
-          name: librem_13v4
-          target: librem_13v4
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_15v4
-          target: librem_15v4
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_mini
-          target: librem_mini
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: librem_mini_v2
-          target: librem_mini_v2
-          subcommand: ""
-          requires:
-            - librem_14
-
-#      - build:
-#          name: kgpe-d16_workstation-usb_keyboard
-#          target: kgpe-d16_workstation-usb_keyboard
-#          subcommand: ""
-#          requires:
-#            - kgpe-d16_workstation
-
-#      - build:
-#          name: kgpe-d16_server
-#          target: kgpe-d16_server
-#          subcommand: ""
-#          requires:
-#            - kgpe-d16_workstation
-
-#      - build:
-#          name: kgpe-d16_server-whiptail
-#          target: kgpe-d16_server-whiptail
-#          subcommand: ""
-#          requires:
-#            - kgpe-d16_workstation
-
-#      - build:
-#          name: librem_l1um
-#          target: librem_l1um
-#          subcommand: ""
-#          requires:
-#            - librem_14
-
+#PPC targets
       - build:
           name: talos-2_workstation
           arch: ppc64
