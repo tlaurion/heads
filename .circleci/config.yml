@@ -227,7 +227,7 @@ workflows:
       - build:
           name: kgpe-d16_workstation
           target: kgpe-d16_workstation
-          subcommand: "CPUS=4"
+          subcommand: "CPUS=1"
           requires:
             - prep_env
 
@@ -235,28 +235,28 @@ workflows:
       - build:
           name: kgpe-d16_workstation-usb_keyboard
           target: kgpe-d16_workstation-usb_keyboard
-          subcommand: "CPUS=4"
+          subcommand: "CPUS=1"
           requires:
             - prep_env 
 
       - build:
           name: kgpe-d16_server
           target: kgpe-d16_server
-          subcommand: "CPUS=4"
+          subcommand: "CPUS=1"
           requires:
             - prep_env
 
       - build:
           name: kgpe-d16_server-whiptail
           target: kgpe-d16_server-whiptail
-          subcommand: "CPUS=4"
+          subcommand: "CPUS=1"
           requires:
             - prep_env
 
       - build:
           name: librem_l1um
           target: librem_l1um
-          subcommand: "CPUS=4"
+          subcommand: "CPUS=1"
           requires:
             - prep_env
 
