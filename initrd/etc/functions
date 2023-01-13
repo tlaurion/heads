@@ -410,7 +410,8 @@ assert_signable() {
 	local del='\001-\037\134\177-\377'
 	LC_ALL=C tr -d "$del" < /tmp/signable.ref > /tmp/signable.del || die "Failed to execute tr."
 	if ! cmp -s "/tmp/signable.ref" "/tmp/signable.del" &> /dev/null ; then
-		die "Some /boot file names contain characters that are currently not supported by heads: $del"$'\n'"Please investigate!"
+		cd /boot
+		recovery "Some /boot file names contain characters that are currently not supported by heads: $del"$'\n'"Please investigate the following relative paths to /boot (where # are sanitized invalid characters):"$'\n'"$(cat /tmp/hash_output_mismatches)"
 	fi
 	rm -f /tmp/signable.*
 }
