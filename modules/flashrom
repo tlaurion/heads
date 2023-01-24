@@ -12,15 +12,13 @@ flashrom_hash := ed36cd80c468f99680092cc009520ab301922b97e63d96936ac0b44831f6573
 flashrom_cfg := \
 	CONFIG_NOTHING=yes \
 	CONFIG_INTERNAL=yes \
-	CONFIG_DUMMY=yes \
 	CONFIG_AST1100=yes \
 
 ifeq "$(CONFIG_TARGET_ARCH)" "ppc64"
 flashrom_cfg := \
 	CONFIG_NOTHING=yes \
-	CONFIG_LINUX_MTD=yes \
-	CONFIG_DUMMY=yes \
-	CONFIG_AST2400=yes
+	CONFIG_LINUX_MTD=yes
+	
 endif
 
 flashrom_target := \
