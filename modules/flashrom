@@ -18,9 +18,8 @@ flashrom_cfg := \
 ifeq "$(CONFIG_TARGET_ARCH)" "ppc64"
 flashrom_cfg := \
 	CONFIG_NOTHING=yes \
-	CONFIG_LINUX_MTD=yes \
-	CONFIG_DUMMY=yes \
-	CONFIG_AST2400=yes
+	CONFIG_LINUX_MTD=yes
+	
 endif
 
 flashrom_target := \
