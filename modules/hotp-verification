@@ -6,7 +6,7 @@ hotp-verification_version := b2b924eabd4d713f73bfaa298cc4c759421caf8f
 hotp-verification_dir := hotp-verification-$(hotp-verification_version)
 hotp-verification_tar := nitrokey-hotp-verification-$(hotp-verification_version).tar.gz
 hotp-verification_url := https://github.com/Nitrokey/nitrokey-hotp-verification/archive/$(hotp-verification_version).tar.gz
-hotp-verification_hash := 424d3e0b0d35d3d9ce16d68fae7d19f23bc0d4317f5ccc879c04e18c3f9bdfc1
+hotp-verification_hash := 2bad93ab84c2ef20f8a2a94611a3cf60d8f134a400e398151e862d532d5dacd8
 
 hotp-verification_target := \
 	$(MAKE_JOBS) \
@@ -28,7 +28,7 @@ hidapi_version := e5ae0d30a523c565595bdfba3d5f2e9e1faf0bd0
 hidapi_dir := hotp-verification-$(hotp-verification_version)/hidapi
 hidapi_tar := hidapi-$(hidapi_version).tar.xz
 hidapi_url := https://github.com/Nitrokey/hidapi/archive/$(hidapi_version).tar.gz
-hidapi_hash := acc2a5089a8917085c2b3ebe9446065a21c760ba7e13cb54917043c4122188e0
+hidapi_hash := f4041bc6d85dad9872d348a493757f0b694d38a3ca463ab0f2f4d0cc206d21e9
 
 
 ## hidapi will be built as part of hotp-verification

@@ -9,7 +9,7 @@ tpmtotp_version := 18b860fdcf5a55537c8395b891f2b2a5c24fc00a
 tpmtotp_dir := tpmtotp-$(tpmtotp_version)
 tpmtotp_tar := tpmtotp-$(tpmtotp_version).tar.gz
 tpmtotp_url := https://github.com/osresearch/tpmtotp/archive/$(tpmtotp_version).tar.gz
-tpmtotp_hash := 1082f2b0e4af833e04220dddedcc21a39eb39ee4dc5668bb010e7bcc795c606c
+tpmtotp_hash := 2225cf546384d1d4d972ad7600284f4fa8a155efac2bc4e929592f4592ca566c
 
 tpmtotp_target := \
 	$(CROSS_TOOLS) \
