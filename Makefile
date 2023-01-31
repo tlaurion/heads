@@ -23,7 +23,7 @@ pwd 		:= $(shell pwd)
 config		:= $(pwd)/config
 # These are dynamic, must not expand right here
 build		= $(pwd)/build/$(CONFIG_TARGET_ARCH)
-packages 	= $(pwd)/packages/$(CONFIG_TARGET_ARCH)
+packages 	= $(pwd)/packages
 INSTALL		= $(pwd)/install/$(CONFIG_TARGET_ARCH)
 log_dir		= $(build)/log
 board_build	= $(build)/$(BOARD)
