@@ -1,6 +1,8 @@
 #!/bin/sh
 # Automated setup of TPM, GPG keys, and disk
 
+DEBUG "Under /bin/oem-factory-reset"
+
 set -o pipefail
 
 # use TERM to exit on error

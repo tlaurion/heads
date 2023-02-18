@@ -1,7 +1,10 @@
 #!/bin/sh
 # get a file and extend a TPM PCR
 
+DEBUG "Under /bin/wget-measure.sh"
+
 die() {
+	DEBUG "Under /bin/wget-measure.sh:die"
         echo >&2 "$@"
         exit 1
 }

@@ -4,6 +4,8 @@
 # It will then need to be bundled into initrd that is booted with Qubes.
 set -e -o pipefail
 
+DEBUG "Under /bin/kexec-unseal-key"
+
 TPM_INDEX=3
 TPM_SIZE=312
 

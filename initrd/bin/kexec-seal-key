@@ -4,6 +4,8 @@
 # It will then need to be bundled into initrd that is booted.
 set -e -o pipefail
 
+DEBUG "Under /bin/kexec-seal-key"
+
 TPM_INDEX=3
 TPM_SIZE=312
 KEY_FILE="/tmp/secret/secret.key"
