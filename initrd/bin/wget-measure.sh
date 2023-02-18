@@ -1,7 +1,6 @@
 #!/bin/sh
 # get a file and extend a TPM PCR
-
-DEBUG "Under /bin/wget-measure.sh"
+. /etc/functions
 
 die() {
 	DEBUG "Under /bin/wget-measure.sh:die"
