@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Boot from a local disk installation
 
 BOARD_NAME=${CONFIG_BOARD_NAME:-${CONFIG_BOARD}} 
@@ -173,7 +173,7 @@ update_totp()
   TRACE "Under /bin/gui-init:update_totp"
   # update the TOTP code
   date=`date "+%Y-%m-%d %H:%M:%S %Z"`
-  if [ "$CONFIG_TPM" = n ]; then
+  if [ "$CONFIG_TPM" != "y" ]; then
     TOTP="NO TPM"
   else
     TOTP=`unseal-totp`
@@ -182,6 +182,12 @@ update_totp()
       if [ "$skip_to_menu" = "true" ]; then
         return 1  # Already asked to skip to menu from a prior error
       fi
+      
+      echo "DEBUG: CONFIG_TPM: $CONFIG_TPM"
+      echo "DEBUG: CONFIG_TPM2_TOOLS: $CONFIG_TPM2_TOOLS"
+      echo "DEBUG: Show PCRs"
+      pcrs
+
       whiptail $BG_COLOR_ERROR --title "ERROR: TOTP Generation Failed!" \
         --menu "    ERROR: Heads couldn't generate the TOTP code.\n
   If you have just completed a Factory Reset, or just reflashed
@@ -516,6 +522,7 @@ reset_tpm()
       mount_boot
       mount -o rw,remount /boot
       rm -f /boot/kexec_rollback.txt
+      rm -f /boot/kexec_primhdl_hash.txt
 
       # create Heads TPM counter before any others
       check_tpm_counter /boot/kexec_rollback.txt \
