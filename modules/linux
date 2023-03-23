@@ -222,6 +222,14 @@ linux.modify_defconfig:
 		savedefconfig && \
 	mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)"
 
+linux.generate_and_save-oldconfig:
+	mkdir -p "$(build)/$(linux_dir)" \
+	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
+	&& $(MAKE) -C "$(build)/$(linux_base_dir)" \
+		O="$(build)/$(linux_dir)" \
+		olddefconfig \
+	&& mv "$(build)/$(linux_dir)/.config" "$(pwd)/$(linux_kconfig)"
+
 # generate_old_config target allows us to copy current in git tree defconfig
 # into decompressed linux directory's .config file. This permits
 # us to edit that .config file and remove unneeded stuff prior
@@ -282,13 +290,13 @@ linux.save_defconfig:
 	$(MAKE) \
 		-C "$(build)/$(linux_base_dir)" \
 		O="$(build)/$(linux_dir)" \
-		savedefconfig
+		savedefconfig \
 	&& mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)"
 #Same as above, but instead of overwriting the board's expected file, we store it in a file versioned by kernel version
 linux.save_versioned_defconfig:
 	$(MAKE) \
 		-C "$(build)/$(linux_base_dir)" \
 		O="$(build)/$(linux_dir)" \
-		savedefconfig
+		savedefconfig \
 	&& mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)_defconfig_$(CONFIG_LINUX_VERSION)"
 
