@@ -29,13 +29,12 @@ gpg2_configure := \
 	--enable-ccid-driver \
 	--disable-tofu \
 	--disable-rpath \
-        --disable-regex \
-        --disable-doc \
+	--disable-regex \
+	--disable-doc \
 	--disable-bzip2 \
 	--disable-exec \
 	--disable-photo-viewers \
 	--disable-ldap \
-	--disable-regex \
 	--disable-nls \
 	--disable-all-tests \
 	--disable-wks-tools \
@@ -44,7 +43,10 @@ gpg2_configure := \
 	--disable-ntbtls \
 	--disable-zip \
 	--disable-sqlite \
-	--disable-gpgsm \
+	--disable-dirmngr-auto-start \
+	--disable-keyboxd \
+	--disable-tpm2d \
+	--disable-gpgtar \
 
 # Run one build to generate the executables with the pre-defined
 # exec_prefix and datarootdir, then a second make to install the binaries
@@ -54,6 +56,6 @@ gpg2_target := $(MAKE_JOBS) \
 		DESTDIR="$(INSTALL)" \
 		install
 
-gpg2_output := g10/gpg agent/gpg-agent scd/scdaemon tools/gpg-connect-agent
+gpg2_output := g10/gpg agent/gpg-agent scd/scdaemon tools/gpg-connect-agent tools/gpg-card sm/gpgsm 
 
 gpg2_depends := libgpg-error libgcrypt libksba libassuan npth libusb-compat $(musl_dep)
