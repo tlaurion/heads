@@ -1,0 +1,13 @@
+--- a/src/soc/intel/common/block/graphics/graphics.c	2023-01-17 04:09:17.000000000 +0000
++++ b/src/soc/intel/common/block/graphics/graphics.c	2023-04-09 12:38:24.139667781 +0100
+@@ -318,6 +318,10 @@
+ 	PCI_DID_INTEL_ADL_P_GT2_8,
+ 	PCI_DID_INTEL_ADL_P_GT2_9,
+ 	PCI_DID_INTEL_ADL_S_GT1,
++	PCI_DID_INTEL_ADL_S_GT1_1,
++	PCI_DID_INTEL_ADL_S_GT2,
++	PCI_DID_INTEL_ADL_S_GT2_1,
++	PCI_DID_INTEL_ADL_S_GT2_2,
+ 	PCI_DID_INTEL_ADL_M_GT1,
+ 	PCI_DID_INTEL_ADL_M_GT2,
+ 	PCI_DID_INTEL_ADL_M_GT3,
