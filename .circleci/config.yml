@@ -533,6 +533,13 @@ workflows:
           requires:
             - librem_14
 
+      - build:
+          name: msi_ms7d25_ddr5-tpm2
+          target: msi_ms7d25_ddr5-tpm2
+          subcommand: ""
+          requires:
+            - librem_14
+
 #      - build:
 #          name: kgpe-d16_workstation-usb_keyboard
 #          target: kgpe-d16_workstation-usb_keyboard
