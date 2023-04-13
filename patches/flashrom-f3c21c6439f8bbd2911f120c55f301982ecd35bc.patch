@@ -1,0 +1,11 @@
+--- flashrom-f3c21c6439f8bbd2911f120c55f301982ecd35bc/Makefile.orig	2023-04-13 10:06:26.384000000 -0400
++++ flashrom-f3c21c6439f8bbd2911f120c55f301982ecd35bc/Makefile	2023-04-13 10:06:37.032000000 -0400
+@@ -958,7 +958,7 @@
+ OBJS = $(CHIP_OBJS) $(PROGRAMMER_OBJS) $(LIB_OBJS)
+ 
+ 
+-all: $(PROGRAM)$(EXEC_SUFFIX) man8/$(PROGRAM).8
++all: $(PROGRAM)$(EXEC_SUFFIX)
+ ifeq ($(ARCH), x86)
+ 	@+$(MAKE) -C util/ich_descriptors_tool/ HOST_OS=$(HOST_OS) TARGET_OS=$(TARGET_OS)
+ endif
