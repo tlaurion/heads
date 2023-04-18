@@ -85,7 +85,7 @@ do
 			DEBUG "kexectype= $kexectype"
 			DEBUG "restval= $restval"
 			DEBUG "filepath= $filepath"
-			kexeccmd="$kexeccmd -l $filepath"
+			kexeccmd="$kexeccmd --noefi -l $filepath"
 			DEBUG "kexeccmd= $kexeccmd"
 		else
 			DEBUG "unknown kexectype!!!!"
