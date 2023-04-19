@@ -206,11 +206,11 @@ $(build)/$(BOARD)/$(LINUX_IMAGE_FILE).bundled: \
 	@touch $@ # force a timestamp update
 	@sha256sum "$@" | tee -a "$(HASHES)"
 
-# modify_and_save_defconfig_in_place target allows us edit current in tree defconfig config
+# modify_defconfig_menuconfig target allows us edit current in tree defconfig config
 # under linux decompressed+patched directory through menuconfig
 # and put it back in git tree to check changes with git difftool iteratively 
-# Useful for development cycle of linux kernel version bumps if stored in defconfig format.
-linux.modify_and_save_defconfig_in_place:
+# Useful for development cycle of linux kernel version bumps in defconfig stored format.
+linux.modify_defconfig_in_place:
 	cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" && \
 	$(MAKE) \
 		-C "$(build)/$(linux_base_dir)" \
@@ -226,10 +226,6 @@ linux.modify_and_save_defconfig_in_place:
 		savedefconfig \
 	&& mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)"
 
-# modify_and_save_oldconfig_in_place target allows us edit current config in oldconfig format
-# under linux decompressed+patched directory through menuconfig
-# and put it back in git tree to check changes with git difftool iteratively
-# Useful for development cycle of linux kernel version bumps if stored in oldconfig format.
 linux.modify_and_save_oldconfig_in_place:
 	mkdir -p "$(build)/$(linux_dir)" \
 	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
@@ -327,3 +323,4 @@ linux.save_versioned_defconfig:
 		CROSS_COMPILE="$(CROSS)" \
 		savedefconfig \
 	&& mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)_defconfig_$(CONFIG_LINUX_VERSION)"
+
