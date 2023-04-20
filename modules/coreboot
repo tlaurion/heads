@@ -148,8 +148,9 @@ coreboot.saveconfig:
 		savedefconfig
 
 coreboot.save_defconfig_in_place:
+	mkdir -p "$(build)/$(coreboot_dir)" && \
 	$(MAKE) \
-                -C "$(build)/$(coreboot_base_dir)" \
+		-C "$(build)/$(coreboot_base_dir)" \
 		DOTCONFIG="$(pwd)/$(CONFIG_COREBOOT_CONFIG)" \
 		DEFCONFIG="$(build)/$(coreboot_dir)/defconfig" \
 		savedefconfig \
@@ -157,17 +158,20 @@ coreboot.save_defconfig_in_place:
 	
 
 coreboot.modify_defconfig_in_place:
+	mkdir -p "$(build)/$(coreboot_dir)" && \
+	cp "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" "$(build)/$(coreboot_dir)/.config" && \
 	$(MAKE) \
 		-C "$(build)/$(coreboot_base_dir)" \
-		DOTCONFIG="$(pwd)/$(CONFIG_COREBOOT_CONFIG)" \
+		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
 		menuconfig \
 	&& $(MAKE) \
 		-C "$(build)/$(coreboot_base_dir)" \
-		DOTCONFIG="$(pwd)/$(CONFIG_COREBOOT_CONFIG)" \
+		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
 		DEFCONFIG="$(pwd)/$(CONFIG_COREBOOT_CONFIG)" \
-		savedefconfig \
+		savedefconfig
 
 coreboot.modify_and_save_oldconfig_in_place:
+	mkdir -p "$(build)/$(coreboot_dir)" && \
 	$(MAKE) menuconfig \
 		-C "$(build)/$(coreboot_base_dir)" \
 		obj="$(build)/$(coreboot_dir)" \
