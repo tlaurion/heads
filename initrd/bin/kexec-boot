@@ -61,6 +61,10 @@ adjust_cmd_line() {
 	adjusted_cmd_line="y"
 }
 
+if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
+	kexeccmd="$kexeccmd -d"
+fi
+
 module_number="1"
 while read line
 do
@@ -139,4 +143,8 @@ if [ "$CONFIG_TPM" = "y" ]; then
 fi
 
 echo "Starting the new kernel"
+if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then 
+	DEBUG "kexeccmd= $kexeccmd"
+	DO_WITH_DEBUG exec kexec -d -e
+fi
 exec kexec -e
