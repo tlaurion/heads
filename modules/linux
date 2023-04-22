@@ -121,6 +121,24 @@ linux_modules-$(CONFIG_LINUX_USB)	+= drivers/usb/storage/usb-storage.ko
 #USB modules when a USB keyboard is defined in board config
 linux_modules-$(CONFIG_USB_KEYBOARD)	+= drivers/hid/usbhid/usbhid.ko
 
+#USB modules for Android USB Internet Tethering
+#Non working https://forums.gentoo.org/viewtopic-t-1095940.html
+#linux_modules-$(CONFIG_ANDROID_TETHERING)	+= drivers/usb/gadget/udc/udc-core.ko
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/function/usb_f_ecm.ko
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/function/u_ether.ko 
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/function/usb_f_ecm_subset.ko 
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/function/usb_f_eem.ko
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/function/usb_f_rndis.ko
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/legacy/g_ether.ko
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/usb/gadget/libcomposite.ko
+#linux_modules-$(CONFIG_ANDROID_TETHERING)       += fs/configfs/configfs.ko
+#Testing https://wiki.gentoo.org/wiki/Android_USB_tethering general instructions:
+linux_modules-$(CONFIG_ANDROID_TETHERING)	+= drivers/net/usb/cdc_eem.ko
+linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/net/usb/rndis_host.ko
+linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/net/usb/cdc_ether.ko
+linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/net/usb/usbnet.ko
+linux_modules-$(CONFIG_ANDROID_TETHERING)       += drivers/net/mii.ko
+
 # NVMe driver for winterfell and other servers
 linux_modules-$(CONFIG_LINUX_NVME)	+= drivers/nvme/host/nvme.ko
 linux_modules-$(CONFIG_LINUX_NVME)	+= drivers/nvme/host/nvme-core.ko
