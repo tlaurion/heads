@@ -14,8 +14,9 @@ commands:
           name: Install dependencies
           command: |
             ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+            echo "deb http://deb.debian.org/debian bullseye-backports main" > /etc/apt/sources.list.d/bullseye-backports.list
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python3 python-is-python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo libssl-dev device-tree-compiler u-boot-tools sharutils e2fsprogs parted curl unzip golang swtpm swtpm-tools
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python-is-python3 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo libssl-dev device-tree-compiler u-boot-tools sharutils e2fsprogs parted curl unzip golang-1.19/bullseye-backports swtpm/bullseye-backports swtpm-tools/bullseye-backports
       - run:
           name: Make Board (FULL ORDERED BUILD LOGS HERE UNTIL JOB FAILED)
           command: |
@@ -39,15 +40,16 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: debian:testing
+      - image: debian:11
     resource_class: large
     steps:
       - run:
           name: Install dependencies
           command: |
-            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime 
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+            echo "deb http://deb.debian.org/debian bullseye-backports main" > /etc/apt/sources.list.d/bullseye-backports.list
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python-is-python3 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo golang swtpm swtpm-tools
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python-is-python3 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo libssl-dev device-tree-compiler u-boot-tools sharutils e2fsprogs parted curl unzip golang-1.19/bullseye-backports swtpm/bullseye-backports swtpm-tools/bullseye-backports
       - checkout
 
       - run:
@@ -114,7 +116,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:testing
+      - image: debian:11
     resource_class: large
     parameters:
       arch:
@@ -141,7 +143,7 @@ jobs:
 
   build:
     docker:
-      - image: debian:testing
+      - image: debian:11
     resource_class: large
     parameters:
       arch:
@@ -161,7 +163,7 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:testing
+      - image: debian:11
     resource_class: large
     steps:
       - attach_workspace:
