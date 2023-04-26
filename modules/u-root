@@ -5,6 +5,10 @@
 #
 u-root_url := https://github.com/u-root/u-root
 u-root_output := $(build)/$(BOARD)/u-root.cpio
+tinycore_lib_path=$(build)/tinycorelibs
+tinycore_core_gz=$(tinycore_lib_path)/rootfs64.gz
+tinycore_rootfs_files=lib/ld-linux-x86-64.so.2 lib/libanl.so.1 lib/libc.so.6 lib/libdl.so.2 lib/libm.so.6 lib/libpthread.so.0 lib/librt.so.1
+#tinycore_rootfs_files=lib/*.so*
 UROOT_CMDS ?= exp/tcz
 
 export GOPATH=$(build)/u-root
@@ -12,6 +16,8 @@ UROOT_PATH=$(GOPATH)/src/github.com/u-root
 UROOT_BUILT_PATH=$(GOPATH)/src/github.com/u-root/u-root
 
 u-root_src_cmds := $(foreach cmd,$(UROOT_CMDS),github.com/u-root/u-root/cmds/$(cmd))
+#tinycore_libs_to_path := $(foreach libfile,$(tinycore_rootfs_files),$(tinycore_lib_path)/$(libfile):$(libfile))
+u-root_files_statement:= $(foreach libfile,$(tinycore_rootfs_files),-files $(tinycore_lib_path)/$(libfile):$(libfile))
 
 u-root_build := $(UROOT_BUILT_PATH)
 
@@ -31,22 +37,25 @@ $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
 	$(call install,boards/$(BOARD)/uinit.go,$@)
 endif
 
-#TODO: clean this up. no init no shell because initcmd and defaultsh are empty, just to build exp/tcz (TinyCore installer)
-#For the moment, nothing installed from TinyCore runs. Guessing ldconfig requirement, LD paths are missing etc.
-# Progress: after savagely injecting ld-linuxld-linux-x86-64.so.2 and libc.so.6, tcz bash works
-#TODO: So much more libraries are missing from a normal host system to run tinycore.... Can't believe those are not packed by tinycore themselves.
-
-$(u-root_output): $(u-root_build) $(u-root_uinit)
+#TODO: put anchor here for rootfs download path to download if not present
+$(tinycore_core_gz): 
+	mkdir -p $(tinycore_lib_path)
+	cd $(tinycore_lib_path) \
+		&& wget http://tinycorelinux.net/14.x/x86_64/release/distribution_files/rootfs64.gz \
+		&& zcat rootfs64.gz | cpio -i > /dev/null 2>&1 || true
+		
+$(u-root_output): $(u-root_build) $(u-root_uinit) $(tinycore_core_gz)
 	$(UROOT_BUILT_PATH) \
 	-uroot-source $(UROOT_PATH) \
 	-initcmd="" \
 	-build=gbb \
 	-defaultsh="" \
-	-files "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2:lib/ld-linux-x86-64.so.2" \
-	-files "/lib/x86_64-linux-gnu/libc.so.6:lib/libc.so.6" \
+	$(u-root_files_statement) \
 	-format=cpio \
 	-o $@  \
 	$(u-root_src_cmds)
+
+#       -files "$(tinycore_libs_to_path)" 
 
 # Override the initrd inputs and add in the kernel modules
 initrd-$(CONFIG_UROOT) += $(u-root_output)
