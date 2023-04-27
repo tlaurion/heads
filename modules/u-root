@@ -7,16 +7,23 @@ u-root_url := https://github.com/u-root/u-root
 u-root_output := $(build)/$(BOARD)/u-root.cpio
 tinycore_lib_path=$(build)/tinycorelibs
 tinycore_core_gz=$(tinycore_lib_path)/rootfs64.gz
-tinycore_rootfs_files=lib/ld-linux-x86-64.so.2 lib/libanl.so.1 lib/libc.so.6 lib/libdl.so.2 lib/libm.so.6 lib/libpthread.so.0 lib/librt.so.1
-#tinycore_rootfs_files=lib/*.so*
+tinycore_rootfs_files=lib/ld-linux-x86-64.so.2 lib/libanl.so.1 lib/libc.so.6 lib/libdl.so.2 lib/libm.so.6 lib/libpthread.so.0 lib/librt.so.1 usr/lib/libgcc_s.so.1 lib/libcrypt.so.1 lib/libutil.so.1
+#
+#
+
+
 UROOT_CMDS ?= exp/tcz
 
 export GOPATH=$(build)/u-root
 UROOT_PATH=$(GOPATH)/src/github.com/u-root
 UROOT_BUILT_PATH=$(GOPATH)/src/github.com/u-root/u-root
 
+#Substitutions
+#translate paths so that user can only specify what is found under u-root/cmds/ directory under UROOT_CMDS from board config to overwrite default above
 u-root_src_cmds := $(foreach cmd,$(UROOT_CMDS),github.com/u-root/u-root/cmds/$(cmd))
+#translate tinycore extracted rootfs real path into initramfs desired path. tinycore embeds lib/xyz already 
 #tinycore_libs_to_path := $(foreach libfile,$(tinycore_rootfs_files),$(tinycore_lib_path)/$(libfile):$(libfile))
+#translate each libs from tinycore_lib_path to usable u-root -files tuple (/real/local/path:desired/initramfs/path)
 u-root_files_statement:= $(foreach libfile,$(tinycore_rootfs_files),-files $(tinycore_lib_path)/$(libfile):$(libfile))
 
 u-root_build := $(UROOT_BUILT_PATH)
@@ -30,7 +37,7 @@ $(UROOT_BUILT_PATH):
 # into the u-root tree so that they will be bundled into the go initrd
 # TODO: generalize this to support more commands
 # TODO: fix this sort that it doesn't leave commands lying around
-#
+# 
 ifeq "y" "$(shell [ -r 'boards/$(BOARD)/uinit.go' ] && echo y)"
 u-root_uinit := $(GOPATH)/src/github.com/u-root/u-root/cmds/uinit/uinit.go
 $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
@@ -53,9 +60,7 @@ $(u-root_output): $(u-root_build) $(u-root_uinit) $(tinycore_core_gz)
 	$(u-root_files_statement) \
 	-format=cpio \
 	-o $@  \
-	$(u-root_src_cmds)
-
-#       -files "$(tinycore_libs_to_path)" 
+	$(u-root_src_cmds) 
 
 # Override the initrd inputs and add in the kernel modules
 initrd-$(CONFIG_UROOT) += $(u-root_output)
