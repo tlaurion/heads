@@ -1,0 +1,9 @@
+network-init-recovery
+#rm wget busybox since we have u-root's version with /etc/ssl added in u-root.cpio per modules/u-root hacks
+#with https://patch-diff.githubusercontent.com/raw/u-root/u-root/pull/2672.patch applied on top of u-root master
+rm /bin/wget
+wget https://install.determinate.systems/nix/tag/v0.8.0/nix-installer-x86_64-linux -O /tmp/nix-installer
+chmod u+x /tmp/nix-installer
+RUST_BACKTRACE=full /tmp/nix-installer install linux --extra-conf "sandbox = false" --init none
+PATH="${PATH}:/nix/var/nix/profiles/default/bin"
+nix run nixpkgs#hello

@@ -529,6 +529,7 @@ initrd-y += $(pwd)/blobs/dev.cpio
 initrd-y += $(build)/$(initrd_dir)/modules.cpio
 initrd-y += $(build)/$(initrd_dir)/tools.cpio
 initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
+initrd-$(CONFIG_UROOT) += $(build)/$(initrd_dir)/u-root.cpio
 
 #$(build)/$(initrd_dir)/.build: $(build)/$(initrd_dir)/initrd.cpio.xz
 

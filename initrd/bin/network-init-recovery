@@ -14,7 +14,24 @@ for module in `echo $network_modules`; do
 	fi
 done
 
-if [ -e /sys/class/net/eth0 ]; then
+#Tethering over Android 11+ PoC
+if [ -e /lib/modules/rndis_host.ko ]; then
+	#first enable USB controllers
+	enable_usb
+	network_modules="mii usbnet cdc_eem cdc_ether rndis_host"
+
+	for module in `echo $network_modules`; do
+        	if [ -f /lib/modules/$module.ko ]; then
+                	insmod /lib/modules/$module.ko
+        	fi
+	done
+	#other prep needed
+fi
+
+if [ -e /sys/class/net/usb0 ]; then
+	echo "Tethering on..."
+	dev=usb0
+elif [ -e /sys/class/net/eth0 ]; then
 	#Randomize eth0 MAC address of maximized boards
 	if echo "$CONFIG_BOARD" | grep -q maximized; then
 		ifconfig eth0 down
@@ -28,15 +45,21 @@ if [ -e /sys/class/net/eth0 ]; then
 	# Set up static IP
 	if [ ! -z "$CONFIG_BOOT_STATIC_IP" ]; then
 		ifconfig eth0 $CONFIG_BOOT_STATIC_IP
-	#Get ip from DHCP
-	elif [ -e /sbin/udhcpc ];then
-		if udhcpc -T 1 -q; then
-			if [ -e /sbin/ntpd ]; then
+	fi
+	dev=eth0
+fi
+
+#Get ip from DHCP
+if [ -e /sbin/udhcpc ];then
+	if udhcpc -T 1 -i $dev -q; then
+		if [ -e /sbin/ntpd ]; then
+			if [ ! "$CONFIG_SYNC_TIME_ON_NETWORK_INIT" == "n" ]; then
 				DNS_SERVER=$(grep nameserver /etc/resolv.conf|awk -F " " {'print $2'})
 				killall ntpd 2&>1 > /dev/null
 		 		if ! ntpd -d -N -n -q -p $DNS_SERVER > /dev/ttyprintk; then
 					if ! ntpd -d -d -N -n -q -p ntp.pool.org> /dev/ttyprintk; then
 						echo "NTP sync unsuccessful." > /dev/tty0
+						#TODO: clean time sync. Not always successful
 					fi
 				fi
 				hwclock -w
@@ -44,18 +67,16 @@ if [ -e /sys/class/net/eth0 ]; then
 				date=`date "+%Y-%m-%d %H:%M:%S %Z"`
 				echo "Time: $date" > /dev/tty0
 			fi
-		fi		 
-	fi
-	
-	ifconfig eth0 > /dev/ttyprintk
-	
-	if [ -e /bin/dropbear ]; then
-		# Set up the ssh server, allow root logins and log to stderr
-		if [ ! -d /etc/dropbear ]; then
-			mkdir /etc/dropbear
 		fi
-		dropbear -B -R 2>/dev/ttyprintk
-	fi
-	echo  "" > /dev/tty0
-	ifconfig eth0 | head -2 > /dev/tty0
+	fi		 
 fi
+	
+if [ -e /bin/dropbear ]; then
+	# Set up the ssh server, allow root logins and log to stderr
+	if [ ! -d /etc/dropbear ]; then
+		mkdir /etc/dropbear
+	fi
+	dropbear -B -R 2>/dev/ttyprintk
+fi
+echo  "" > /dev/tty0
+ifconfig > /dev/tty0
