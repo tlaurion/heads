@@ -62,6 +62,7 @@ adjust_cmd_line() {
 }
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
+	#If expecting debug output, have kexec load (-l) output debug info
 	kexeccmd="$kexeccmd -d"
 fi
 

@@ -38,7 +38,10 @@ check_path() {
 	local checkpath firstval
 	checkpath="$1"
 	firstval="$(echo "$checkpath" | cut -d\  -f1)"
-	if ! [ -r "$bootdir$firstval" ]; then return 1; fi
+	if ! [ -r "$bootdir$firstval" ]; then
+		DEBUG "$bootdir$firstval doesn't exist"
+		return 1; 
+	fi
 	return 0
 }
 

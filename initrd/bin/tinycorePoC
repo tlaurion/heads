@@ -1,0 +1,4 @@
+network-init-recovery
+mount -o remount,rw /boot
+tcz -r /boot/tcz -v 14.x -d bash
+mount -o remount,ro /boot
