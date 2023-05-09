@@ -1,0 +1,21 @@
+--- fbwhiptail-1.0/fbwhiptail.c.orig	2023-05-09 18:10:36.843000000 -0400
++++ fbwhiptail-1.0/fbwhiptail.c	2023-05-09 18:11:07.586000000 -0400
+@@ -711,7 +711,7 @@
+         cairo_restore (cr);
+         if (dri) {
+           if (cairo_dri_flip_buffer (surfaces[i*2 + current_fb], 0) != 0) {
+-            printf ("Flip failed. Cancelling\n");
++            printf ("dri Flip failed. Cancelling\n");
+             break;
+           }
+         } else {
+@@ -721,7 +721,7 @@
+             current_fb = next_fb;
+           else if (cairo_linuxfb_flip_buffer (surfaces[i*2 + current_fb],
+                   1, current_fb) != 0) {
+-            printf ("Flip failed. Cancelling\n");
++            printf ("linuxfb Flip failed. Cancelling\n");
+             break;
+           }
+         }
+
