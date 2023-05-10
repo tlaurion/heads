@@ -18,4 +18,22 @@
              break;
            }
          }
+--- fbwhiptail-1.0/cairo_linuxfb.c.orig	2023-05-09 18:53:24.856000000 -0400
++++ fbwhiptail-1.0/cairo_linuxfb.c	2023-05-09 18:54:44.593000000 -0400
+@@ -48,6 +48,7 @@
+   device = cairo_surface_get_user_data (surface, &user_data_key);
+ 
+   if (device == NULL)
++    perror("device is NULL");
+     return -1;
+ 
+   if (device->buffer_id != bufid && bufid < device->num_buffers) {
+@@ -78,6 +79,7 @@
+   device = cairo_surface_get_user_data (surface, &user_data_key);
+ 
+   if (device == NULL)
++
+     return -1;
+ 
+   *xres = device->fb_vinfo.xres;
 
