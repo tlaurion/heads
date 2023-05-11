@@ -16,6 +16,22 @@
      }
    }
  
+--- ./cairo_linuxfb.c.orig	2023-05-11 14:58:59.480000000 -0400
++++ ./cairo_linuxfb.c	2023-05-11 15:07:28.378000000 -0400
+@@ -71,13 +71,6 @@
+     device->buffer_id = (device->buffer_id+1) % device->num_buffers;
+   }
+ 
+-  if (vsync) {
+-    int dummy = 0;
+-    if (ioctl(device->fb_fd, FBIO_WAITFORVSYNC, &dummy)) {
+-      perror("Error waiting for VSYNC");
+-    }
+-  }
+-
+   return 0;
+ }
+
 --- ./whiptail.orig	2023-05-09 13:57:52.000000000 -0400
 +++ ./whiptail	2023-05-11 14:56:53.086000000 -0400
 @@ -1,2 +1,4 @@
