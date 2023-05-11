@@ -1,0 +1,19 @@
+--- ./cairo_linuxfb.c.orig	2023-05-09 13:57:52.000000000 -0400
++++ ./cairo_linuxfb.c	2023-05-11 13:34:26.013000000 -0400
+@@ -67,7 +67,6 @@
+     device->fb_vinfo.yoffset = device->fb_vinfo.yres * device->buffer_id;
+     if (ioctl(device->fb_fd, FBIOPAN_DISPLAY, &device->fb_vinfo)) {
+       perror("Error panning display");
+-      return -1;
+     }
+     device->buffer_id = (device->buffer_id+1) % device->num_buffers;
+   }
+@@ -76,7 +75,6 @@
+     int dummy = 0;
+     if (ioctl(device->fb_fd, FBIO_WAITFORVSYNC, &dummy)) {
+       perror("Error waiting for VSYNC");
+-      return -1;
+     }
+   }
+ 
+
