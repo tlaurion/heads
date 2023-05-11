@@ -16,4 +16,11 @@
      }
    }
  
-
+--- ./whiptail.orig	2023-05-09 13:57:52.000000000 -0400
++++ ./whiptail	2023-05-11 14:56:53.086000000 -0400
+@@ -1,2 +1,4 @@
+ #!/bin/sh
+-fbwhiptail --notags "$@"
++#fbwhiptail --notags "$@" #gives "Present failed on screen 0" under /tmp/whiptail
++#FBWHIPTAIL_DRI_DEV=/dev/dri fbwhiptail --notags "$@" #Not avail with SYS_FB and libgfxinit providing /dev/fb0
++FBWHIPTAIL_LINUXFB_SINGLE=1 fbwhiptail --notags "$@" # Gives "Error waiting for VSYNC: Not a tty"
