@@ -1,0 +1,9 @@
+network-init-recovery
+rm -f /bin/wget
+echo "Downloading full linux kernel..."
+wget https://gitlab.freedesktop.org/mupuf/boot2container/-/releases/v0.9.9/downloads/linux-x86_64-full -O /tmp/linux-x86_64-full
+echo "Downloading initramfs..."
+wget https://gitlab.freedesktop.org/mupuf/boot2container/-/releases/v0.9.9/downloads/initramfs.linux_amd64.cpio.xz -O /tmp/initramfs.linux_amd64.cpio.xz
+echo "Preparing kexec...."
+kexec -d -l  /tmp/linux-x86_64-full --initrd=/tmp/initramfs.linux_amd64.cpio.xz --append='console=ttyS0 console=tty b2c.run="-ti docker.io/library/alpine:latest"'
+kexec -e
