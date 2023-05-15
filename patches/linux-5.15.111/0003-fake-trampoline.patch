@@ -1,0 +1,17 @@
+diff --recursive -u ./clean/linux-4.9.80/arch/x86/realmode/init.c linux-4.9.80/arch/x86/realmode/init.c
+--- ./clean/linux-4.9.80/arch/x86/realmode/init.c	2018-02-03 11:05:43.000000000 -0500
++++ linux-4.9.80/arch/x86/realmode/init.c	2018-02-07 15:51:28.538500435 -0500
+@@ -138,7 +138,12 @@
+ static int __init init_real_mode(void)
+ {
+ 	if (!real_mode_header)
+-		panic("Real mode trampoline was not allocated");
++	{
++		// ignore for now
++		//panic("Real mode trampoline was not allocated");
++		pr_warn("Real mode trampoline was not allocated");
++		return 0;
++	}
+ 
+ 	setup_real_mode();
+ 	set_real_mode_permissions();
