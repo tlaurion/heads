@@ -63,8 +63,14 @@ adjust_cmd_line() {
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 	#If expecting debug output, have kexec load (-l) output debug info
-	kexeccmd="$kexeccmd -d"
+	kexeccmd="$kexeccmd --debug"
 fi
+
+if [ ! -z "$CONFIG_KEXEC_ADDITIONAL_OPTIONS" ];then
+        #If expecting debug output, have kexec load (-l) output debug info
+        kexeccmd="$kexeccmd $CONFIG_KEXEC_ADDITIONAL_OPTIONS"
+fi
+
 
 module_number="1"
 while read line
@@ -76,20 +82,19 @@ do
 		fix_file_path
 		if [ "$kexectype" = "xen" ]; then
 			# always use xen with custom arguments
-			kexeccmd="$kexeccmd -l $filepath"
+			kexeccmd="$kexeccmd --load $filepath"
 			kexeccmd="$kexeccmd --command-line \"$restval no-real-mode reboot=no vga=current\""
 		elif [ "$kexectype" = "multiboot" ]; then
-			kexeccmd="$kexeccmd -l $filepath"
+			kexeccmd="$kexeccmd --load $filepath"
 			kexeccmd="$kexeccmd --command-line \"$restval\""
 		elif [ "$kexectype" = "elf" ]; then
 			DEBUG "kexectype= $kexectype"
 			DEBUG "restval= $restval"
 			DEBUG "filepath= $filepath"
-			kexeccmd="$kexeccmd -l $filepath"
-			DEBUG "kexeccmd= $kexeccmd"
+			kexeccmd="$kexeccmd --load $filepath"
 		else
 			DEBUG "unknown kexectype!!!!"
-			kexeccmd="$kexeccmd -l $filepath"
+			kexeccmd="$kexeccmd --load $filepath"
 		fi
 	fi
 	if [ "$key" = "module" ]; then
