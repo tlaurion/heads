@@ -67,7 +67,10 @@ echo_entry() {
 				for init in $(echo $initrd | tr ',' ' '); do
 					fix_path $init
 					# The initrd must also exist
-					if ! check_path "$path"; then return; fi
+					if ! check_path "$path"; then 
+						DEBUG " echo_entry initrd path= $path didn't exist after fix_path $path. Returning"
+						return; 
+					fi
 					entry="$entry|initrd $path"
 				done
 			fi
@@ -139,6 +142,8 @@ grub_entry() {
 			DEBUG " grub_entry : linux trimcmd prior of kernel/append parsing: $trimcmd"
 			kernel=`echo $trimcmd | sed "s/([^)]*)//g" | cut -d\  -f2`
 			append=`echo $trimcmd | cut -d\  -f3-`
+			DEBUG " grub_entry : linux trimcmd kernel outcome: $kernel"
+			DEBUG " grub_entry : linux trimcmd append outcome: $append"
 			;;
 		initrd*)
 			# Trim off device specification as above

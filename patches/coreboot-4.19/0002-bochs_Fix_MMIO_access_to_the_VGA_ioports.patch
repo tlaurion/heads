@@ -1,0 +1,34 @@
+From c5e68223558eb48dad7961e7927c811a725c2de5 Mon Sep 17 00:00:00 2001
+From: Bin Meng <bmeng@tinylab.org>
+Date: Fri, 12 May 2023 17:55:46 +0800
+Subject: [PATCH] drivers/emulation/qemu/bochs: Fix the MMIO access to the VGA ioports
+
+The Bochs graphics adapter remaps the legacy VGA ioports
+(0x3c0 -> 0x3df) to its MMIO region at offsets 0400 - 041f.
+Currently bochs_vga_write() calculates a wrong offset when
+accessing these ioports, which causes the boot splash image
+not displayed when using the legacy-free pci variant of the
+Bochs graphics adapter.
+
+TEST=Build coreboot for QEMU x86 i440fx with a boot splash image
+included, boot coreboot.rom with QEMU with '-device secondary-vga'
+and verify the boot splash image is correctly displayed.
+
+Fixes: efaf1b32ba1e ("drivers/emulation/qemu/bochs: Rewrite driver")
+Signed-off-by: Bin Meng <bmeng@tinylab.org>
+Change-Id: I4acc71e3d6ef5161ab62e6714c94b7643c4c0972
+---
+
+diff --git a/src/drivers/emulation/qemu/bochs.c b/src/drivers/emulation/qemu/bochs.c
+index 4634021..0650430 100644
+--- a/src/drivers/emulation/qemu/bochs.c
++++ b/src/drivers/emulation/qemu/bochs.c
+@@ -67,7 +67,7 @@
+ 	if (res->flags & IORESOURCE_IO)
+ 		outb(val, index + 0x3c0);
+ 	else
+-		write8(res2mmio(res, (0x400 - 0x3c0) + index, 0), val);
++		write8(res2mmio(res, 0x400 + index, 0), val);
+ }
+ 
+ static struct resource res_legacy = {

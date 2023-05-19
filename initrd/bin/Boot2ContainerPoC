@@ -1,0 +1,23 @@
+B2CRUN="b2c.run=-ti docker.io/library/alpine:latest"
+B2CLOAD=""
+B2CFILESYSTEM=""
+
+#We initialize the network drivers available to the board, and obtain IP address for Heads.
+network-init-recovery
+
+#Remove busybox's wget, use the one provided by path, which expects u-root's wget+root ca under /bbin/wget and /etc/ssl/certs
+rm -f /bin/wget
+
+#Download boot2container linux + initrd once (delete manually to redo that part for the moment.)
+#TODO: find links pointing to latest instead of versioning
+if [ ! -e /boot/linux-x86_64-full ]; then
+	mount -o remount,rw /boot
+	echo "Downloading full linux kernel..."
+	wget https://gitlab.freedesktop.org/mupuf/boot2container/-/releases/v0.9.9/downloads/linux-x86_64-full -O /boot/linux-x86_64-full
+	echo "Downloading initramfs..."
+	wget https://gitlab.freedesktop.org/mupuf/boot2container/-/releases/v0.9.9/downloads/initramfs.linux_amd64.cpio.xz -O /boot/initramfs.linux_amd64.cpio.xz
+	mount -o remount,ro /boot
+fi
+echo "Preparing kexec...."
+kexec -d -l  /boot/linux-x86_64-full --initrd=/boot/initramfs.linux_amd64.cpio.xz --append="$B2CRUN"
+kexec -e

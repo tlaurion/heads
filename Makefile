@@ -51,6 +51,7 @@ include $(CONFIG)
 
 # Unless otherwise specified, we are building for heads
 CONFIG_HEADS	?= y
+CONFIG_UROOT	?= n
 
 # Unless otherwise specified, we are building bash to have non-interactive shell for scripts (arrays and bashisms)
 CONFIG_BASH	?= y
@@ -529,6 +530,7 @@ initrd-y += $(pwd)/blobs/dev.cpio
 initrd-y += $(build)/$(initrd_dir)/modules.cpio
 initrd-y += $(build)/$(initrd_dir)/tools.cpio
 initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
+initrd-$(CONFIG_UROOT) += $(build)/$(initrd_dir)/u-root.cpio
 
 #$(build)/$(initrd_dir)/.build: $(build)/$(initrd_dir)/initrd.cpio.xz
 
@@ -609,8 +611,8 @@ echo_modules:
 modules.clean:
 	for dir in $(module_dirs) \
 	; do \
-		$(MAKE) -C "build/$$dir" clean ; \
-		rm "build/$$dir/.configured" ; \
+		$(MAKE) -C "build/${CONFIG_TARGET_ARCH}/$$dir" clean ; \
+		rm -f "build/${CONFIG_TARGET_ARCH}/$$dir/.configured" ; \
 	done
 
 # Inject a GPG key into the image - this is most useful when testing in qemu,
@@ -631,7 +633,7 @@ real.clean:
 		$(kernel_headers) \
 	; do \
 		if [ ! -z "$$dir" ]; then \
-			rm -rf "build/$$dir"; \
+			rm -rf "build/${CONFIG_TARGET_ARCH}/$$dir"; \
 		fi; \
 	done
 	cd install && rm -rf -- *
