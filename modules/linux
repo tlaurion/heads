@@ -71,6 +71,7 @@ $(INSTALL)/include/linux/limits.h: $(build)/$(linux_base_dir)/.canary
 		-C "$(build)/$(linux_base_dir)" \
 		ARCH="$(LINUX_ARCH)" \
 		INSTALL_HDR_PATH="$(INSTALL)" \
+		CROSS_COMPILE="$(CROSS)" \
 		O="$(linux_dir)" \
 		KCONFIG_CONFIG="$(pwd)/$(linux_kconfig)" \
 		headers_install
@@ -263,6 +264,7 @@ linux.save_in_versioned_defconfig_format:
 	&& $(MAKE) -C "$(build)/$(linux_base_dir)" \
 		O="$(build)/$(linux_dir)" \
 		ARCH="$(LINUX_ARCH)" \
+		CROSS_COMPILE="$(CROSS)" \
 		savedefconfig \
 	&& mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)_defconfig_$(CONFIG_LINUX_VERSION)"
 
@@ -273,7 +275,7 @@ linux.save_in_oldconfig_format_in_place:
 		O="$(build)/$(linux_dir)" \
 		ARCH="$(LINUX_ARCH)" \
 		CROSS_COMPILE="$(CROSS)" \
-		oldefconfig \
+		oldconfig \
 	&& mv "$(build)/$(linux_dir)/.config" "$(pwd)/$(linux_kconfig)"
 
 linux.save_in_versioned_oldconfig:
