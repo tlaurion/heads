@@ -49,8 +49,8 @@ DEBUG "Sealing TOTP without PCR6 involvement (LUKS header consistency is not fir
 tpmr pcrread -a 7 "$pcrf"
 DEBUG "Sealing TOTP without PCR8-9 involvement (Unused)"
 #pcr 8-9 unused
-DEBUG "Sealing TOTP with actual state of PCR10 (ppc64's skiboot IMA extends PCR10)"
-#pcr 10 extended per skiboot on ppc64 (see /sys/kernel/security/integrity/ima/ascii_runtime_measurements)
+DEBUG "Sealing TOTP with actual state of PCR10 (Kernel IMA extends PCR10)"
+#pcr 10 extended per linux IMA=y (see /sys/kernel/security/integrity/ima/ascii_runtime_measurements)
 tpmr pcrread -a 10 "$pcrf"
 tpmr seal "$TOTP_SECRET" "$TPM_NVRAM_SPACE" 0,1,2,3,4,7,10 "$pcrf" 312 "" "$TPM_PASSWORD" \
 	|| die "Unable to write sealed secret to NVRAM"

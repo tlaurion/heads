@@ -37,7 +37,7 @@ pcrs() {
 	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
 		tpm2 pcrread sha256
 	elif [ "$CONFIG_TPM" = "y" ]; then
-		head -10 /sys/class/tpm/tpm0/pcrs
+		head -11 /sys/class/tpm/tpm0/pcrs
 	fi
 }
 
@@ -473,7 +473,6 @@ detect_boot_device()
 		if mount -o ro $i /boot >/dev/null 2>&1; then
 			if ls -d /boot/grub* >/dev/null 2>&1; then
 				CONFIG_BOOT_DEV="$i"
-				DEBUG "Found CONFIG_BOOT_DEV= $CONFIG_BOOT_DEV"
 				return 0
 			fi
 		fi
