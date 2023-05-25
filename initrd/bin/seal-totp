@@ -30,12 +30,12 @@ dd \
 
 secret="`base32 < $TOTP_SECRET`"
 pcrf="/tmp/secret/pcrf.bin"
-DEBUG "Sealing TOTP with actual state of PCR0-4)"
+DEBUG "Sealing TOTP with actual state of PCR0-3 (0:VBOOT/IBB from ACM blob), 2:coreboot measured boot, 3:unused)"
 tpmr pcrread 0 "$pcrf"
 tpmr pcrread -a 1 "$pcrf"
 tpmr pcrread -a 2 "$pcrf"
 tpmr pcrread -a 3 "$pcrf"
-DEBUG "Sealing TOTP with actual state of PCR4 (Going to recovery shell extends PCR4)"
+DEBUG "Sealing TOTP with actual state of PCR4 (Going to recovery shell extends PCR4: init state)"
 # pcr 4 is expected to either: 
 #  zero on bare coreboot+linuxboot on x86 (boot mode: init)
 #  already extended on ppc64 per BOOTKERNEL (skiboot) which boots heads.
@@ -47,7 +47,12 @@ DEBUG "Sealing TOTP neglecting PCR5 involvement (Dynamically loaded kernel modul
 DEBUG "Sealing TOTP without PCR6 involvement (LUKS header consistency is not firmware integrity attestation related)"
 # pcr 7 is containing measurements of user injected stuff in cbfs
 tpmr pcrread -a 7 "$pcrf"
-tpmr seal "$TOTP_SECRET" "$TPM_NVRAM_SPACE" 0,1,2,3,4,7 "$pcrf" 312 "" "$TPM_PASSWORD" \
+DEBUG "Sealing TOTP without PCR8-9 involvement (Unused)"
+#pcr 8-9 unused
+DEBUG "Sealing TOTP with actual state of PCR10 (ppc64's skiboot IMA extends PCR10)"
+#pcr 10 extended per skiboot on ppc64 (see /sys/kernel/security/integrity/ima/ascii_runtime_measurements)
+tpmr pcrread -a 10 "$pcrf"
+tpmr seal "$TOTP_SECRET" "$TPM_NVRAM_SPACE" 0,1,2,3,4,7,10 "$pcrf" 312 "" "$TPM_PASSWORD" \
 	|| die "Unable to write sealed secret to NVRAM"
 shred -n 10 -z -u "$TOTP_SEALED" 2> /dev/null
 
