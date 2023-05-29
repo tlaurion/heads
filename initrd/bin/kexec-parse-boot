@@ -138,7 +138,7 @@ grub_entry() {
 			# location.
 			DEBUG " grub_entry : linux trimcmd prior of kernel/append parsing: $trimcmd"
 			kernel=`echo $trimcmd | sed "s/([^)]*)//g" | cut -d\  -f2`
-			append=`echo $trimcmd | cut -d\  -f3-`
+			append=`echo $trimcmd | cut -d\  -f3- | sed 's/ ---//'`
 			;;
 		initrd*)
 			# Trim off device specification as above
