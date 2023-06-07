@@ -23,31 +23,32 @@
         buildInputs = with pkgs; [
           bc
           bison # Generate flashmap descriptor parser
+          cacert
           cmake
           cpio
           curl
           elfutils
           flex
           git
-          gnat
+          gnat11
           gnumake
           innoextract
           m4
-          ncurses # make menuconfig
-          nss # ca-certs
+          ncurses5 # make menuconfig
           perl
           pkgconfig
           python3
           qemu # test the image
           rsync
+          texinfo
           wget
           which
           zlib.dev
         ];
-        profile = ''
-          unset NIX_SSL_CERT_FILE
-          unset SSL_CERT_FILE
-        '';
+        #profile = ''
+        #  unset NIX_SSL_CERT_FILE
+        #  unset SSL_CERT_FILE
+        #'';
       };
     });
 }
