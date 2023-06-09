@@ -1,0 +1,8 @@
+--- a/payloads/external/skiboot/skiboot/make_version.sh	2023-06-09 11:46:42.694892749 -0400
++++ b/payloads/external/skiboot/skiboot/make_version.sh	2023-06-09 12:05:16.420164712 -0400
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ 
+ usage() {
+ 	echo "$0 [ prefix ]"
