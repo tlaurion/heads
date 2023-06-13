@@ -89,25 +89,26 @@ cat "$KEY_DEVICES" | cut -d\  -f1 | xargs /bin/qubes-measure-luks \
 	|| die "Unable to measure the LUKS headers"
 
 pcrf="/tmp/secret/pcrf.bin"
+#On PPC64, skiboot extends PCR0-7 with seperators, extending digests of 0xFFFFFFFF
+DEBUG "Preparing sealing LUKS disk unlock key with actual state of PCR0-4. Should not be modified at runtime"
 tpmr pcrread 0 "$pcrf"
 tpmr pcrread -a 1 "$pcrf"
 tpmr pcrread -a 2 "$pcrf"
 tpmr pcrread -a 3 "$pcrf"
-# Note that PCR 4 needs to be set with the "normal-boot" path value, which is 0.
-dd if=/dev/zero bs="$(tpmr pcrsize)" count=1 status=none >> "$pcrf"
-if [ "$CONFIG_USB_KEYBOARD" = "y" -o -r /lib/modules/libata.ko -o -x /bin/hotp_verification ]; then
-	DEBUG "Sealing TPM disk unlock key with PCR5 involvement (additional kernel modules are loaded per board config)..."
-	# Here, we take pcr 5 into consideration if modules are expected to be measured+loaded
-	tpmr pcrread -a 5 "$pcrf"
-else
-	DEBUG "Sealing TPM disk unlock key with PCR5=0 (NO additional kernel modules are loaded per board config)..."
-	#no kernel modules are expected to be measured+loaded
-	dd if=/dev/zero bs="$(tpmr pcrsize)" count=1 status=none >> "$pcrf"
-fi
-# Precompute the value for pcr 6
+DEBUG "Preparing sealing TPM disk unlock key with actual state of PCR4 (Going to recovery shell extends PCR4. PPC64 extends with BOOTKERNL digest and seperator)"
+# pcr 4 is expected to either: 
+#  zero on bare coreboot+linuxboot on x86 (boot mode: init)
+#  already extended on ppc64 per BOOTKERNEL (skiboot) and seperators on PPC64.
+#We expect the PCR4 to be in the right state at unattended unseal operation
+tpmr pcrread -a 4 "$pcrf"
+DEBUG "Preparing sealing TPM disk unlock key with PCR5 involvement (additional kernel modules are loaded per board config and seperator on PPC64)..."
+tpmr pcrread -a 5 "$pcrf"
 DEBUG "Precomputing TPM future value for PCR6 sealing/unsealing of TPM disk unlock key..."
-tpmr calcfuturepcr -a "/tmp/luksDump.txt" "$pcrf"
-# We take into consideration user files in cbfs
+#TODO: PCR6 is extended in PPC64. Need to take current value+extend of precalc value for expected PCR6 PPC64 seperator value at unseal
+# NOTE: qubes-measure-luks extends PCR6. Who should do it?
+tpmr pcrread 6 "$pcrf"
+tpmr calcfuturepcr -a -r "/tmp/luksDump.txt" "$pcrf"
+DEBUG "Preparing sealing TPM disk unlock key with PCR7 involvement (user related CBFS files, including config, gpg keyring and trustdb ) and PPC64 seperator value..."
 tpmr pcrread -a 7 "$pcrf"
 
 DO_WITH_DEBUG --mask-position 7 \

@@ -98,6 +98,11 @@ tpm2_calcfuturepcr() {
 		shift
 	fi
 
+	if [ "$1" = "-r" ]; then
+                RESET=y
+                shift
+        fi
+
 	input_file="$1"
 	output_file="$2"
 
@@ -105,26 +110,47 @@ tpm2_calcfuturepcr() {
 		true >"$output_file"
 	fi
 
-	tpm2 pcrreset -Q 23
+	if [ -n "$RESET" ]; then
+                DO_WITH_DEBUG tpm2 pcrreset -Q 23
+        fi
+
 	DO_WITH_DEBUG tpmr extend -ix 23 -if "$input_file"
 	DO_WITH_DEBUG tpm2 pcrread -Q -o >(cat >>"$output_file") sha256:23
-	tpm2 pcrreset -Q 23
+
+	if [ -n "$RESET" ]; then
+                DO_WITH_DEBUG tpm2 pcrreset -Q 23
+        fi
 }
 tpm1_calcfuturepcr() {
 	TRACE "Under /bin/tpmr:tpm1_calcfuturepcr"
+	#We expect append(-a) and reset(-r) to be passed before input output
 	if [ "$1" = "-a" ]; then
 		APPEND=y
 		shift
 	fi
 
+	if [ "$1" = "-r" ]; then
+                RESET=y
+                shift
+        fi
+
 	input_file="$1"
 	output_file="$2"
+
+	if [ -n "$RESET" ]; then
+		DO_WITH_DEBUG tpm pcrreset -ix 16
+	fi
 
 	if [ -z "$APPEND" ]; then
 		true >"$output_file"
 	fi
 
+	
 	DO_WITH_DEBUG tpm calcfuturepcr -ix 16 -if "$input_file" | hex2bin >>"$output_file"
+
+	if [ -n "$RESET" ]; then
+                DO_WITH_DEBUG tpm pcrreset -ix 16
+        fi
 }
 
 tpm2_extend() {

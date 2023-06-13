@@ -46,6 +46,7 @@ DEBUG "Sealing TOTP neglecting PCR5 involvement (Dynamically loaded kernel modul
 # pcr 6 (drive luks header) is not measured at sealing/unsealing of totp
 DEBUG "Sealing TOTP without PCR6 involvement (LUKS header consistency is not firmware integrity attestation related)"
 # pcr 7 is containing measurements of user injected stuff in cbfs
+DEBUG "Sealing TOTP with actual state of PCR7 (user injected config.user override, gnupg keyring and trustdb)"
 tpmr pcrread -a 7 "$pcrf"
 tpmr seal "$TOTP_SECRET" "$TPM_NVRAM_SPACE" 0,1,2,3,4,7 "$pcrf" 312 "" "$TPM_PASSWORD" \
 	|| die "Unable to write sealed secret to NVRAM"
