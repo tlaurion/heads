@@ -14,6 +14,9 @@ while true; do
     # use first char from parameter
     menu_choice=${param::1}
     unset param
+    if [ "$CONFIG_FINALIZE_PLATFORM_LOCKING_PRESKYLAKE" = "y" ];then
+	    TOGGLE_CONFIG_FINALIZE_PLATFORM_LOCKING_PRESKYLAKE="    't' ' Turn off platform Locking on pre-Skylake platforms'"
+    fi
   else
     unset menu_choice
     whiptail $BG_COLOR_MAIN_MENU --title "Config Management Menu" \
@@ -21,6 +24,7 @@ while true; do
     'b' ' Change the /boot device' \
     's' ' Save the current configuration to the running BIOS' \
     'r' ' Clear GPG key(s) and reset all user settings' \
+    $TOGGLE_CONFIG_FINALIZE_PLATFORM_LOCKING_PRESKYLAKE \
     'x' ' Return to Main Menu' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -28,6 +32,9 @@ while true; do
   fi
 
   case "$menu_choice" in
+    "t" )
+      unset CONFIG_FINALIZE_PLATFORM_LOCKING_PRESKYLAKE
+    ;;
     "x" )
       exit 0
     ;;
