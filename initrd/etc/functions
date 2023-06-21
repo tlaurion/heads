@@ -33,14 +33,6 @@ DO_WITH_DEBUG() {
 	"$@"
 }
 
-pcrs() {
-	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
-		tpm2 pcrread sha256
-	elif [ "$CONFIG_TPM" = "y" ]; then
-		head -8 /sys/class/tpm/tpm0/pcrs
-	fi
-}
-
 confirm_totp()
 {
 	TRACE "Under /etc/functions:confirm_totp"

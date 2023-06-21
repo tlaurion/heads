@@ -26,6 +26,14 @@ TRACE() {
         fi
 }
 
+pcrs() {
+        if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
+                tpm2 pcrread sha256
+        elif [ "$CONFIG_TPM" = "y" ]; then
+                head -8 /sys/class/tpm/tpm0/pcrs
+        fi
+}
+
 preserve_rom() {
 	TRACE "Under /etc/ash_functions:preserve_rom"
 	new_rom="$1"

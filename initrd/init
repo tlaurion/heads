@@ -101,6 +101,10 @@ if [ "$CONFIG_USB_KEYBOARD" = "y" ]; then
 	enable_usb
 fi
 
+#Snapshot TPM PCRs
+#pcrs > /tmp/secret/boot_pcrs
+pcrs > /tmp/boot_pcrs
+
 # If the user has been holding down r, enter a recovery shell
 # otherwise immediately start the configured boot script.
 # We don't print a prompt, since this is a near instant timeout.
