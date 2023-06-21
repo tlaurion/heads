@@ -101,8 +101,10 @@ if [ "$CONFIG_USB_KEYBOARD" = "y" ]; then
 	enable_usb
 fi
 
-#Snapshot TPM PCRs
-#pcrs > /tmp/secret/boot_pcrs
+#Snapshot TPM PCRs to replay measurements
+#TODO pcrs > /tmp/secret/boot_pcrs
+#Put under /tmp instead of /tmp/secret to be visible from recovery shell
+#Reminder that /tmp/secret dir is wiped going to recovery shell
 pcrs > /tmp/boot_pcrs
 
 # If the user has been holding down r, enter a recovery shell

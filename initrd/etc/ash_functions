@@ -30,7 +30,7 @@ pcrs() {
         if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
                 tpm2 pcrread sha256
         elif [ "$CONFIG_TPM" = "y" ]; then
-                head -8 /sys/class/tpm/tpm0/pcrs
+                head -17 /sys/class/tpm/tpm0/pcrs
         fi
 }
 

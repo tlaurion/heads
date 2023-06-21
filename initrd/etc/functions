@@ -481,7 +481,9 @@ detect_boot_device()
 # cbmem -L | grep -A 4 -e "PCR: 2" -e "PCR-2"| grep SHA1 | cut -d ' ' -f3
 #borrowed from https://github.com/TrenchBoot/secure-kernel-loader/blob/master/util.sh
 validate_and_escape_hash () {
-	local TRIM=`echo -n "$1" | sed -r -e "s/ .*//"`
+	shopt -s extglob
+	#remove 0x in front of hex values
+	local TRIM=`echo -n "${1#@(0x)}" | sed -r -e "s/ .*//"`
 	if (( ${#TRIM} != 64 && ${#TRIM} != 40 )); then
 		>&2 echo "\"$TRIM\" is not a valid SHA1/SHA256 hash"
 		return
@@ -522,6 +524,7 @@ extend_sha256 () {
 	local HASH2
 	case $# in
 	[01] )	>&2 echo "extend_sha256 called with not enough arguments provided"
+		echo "You might want to simulate an empty PCR extend op, consider passing 0x0000000000000000000000000000000000000000000000000000000000000000 on first argument"
 		return
 		;;
 	2 )	if [ -f "$2" ]; then
