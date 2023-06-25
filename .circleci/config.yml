@@ -246,6 +246,7 @@ workflows:
 #
 #
 
+#Coreboot 4.19 boards
       - build:
           name: x220-hotp-maximized
           target: x220-hotp-maximized
@@ -447,25 +448,11 @@ workflows:
           target: t440p-maximized
           subcommand: ""
           requires:
-            - librem_14
+            - x230-hotp-maximized 
 
       - build:
           name: t440p-hotp-maximized
           target: t440p-hotp-maximized
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: qemu-coreboot
-          target: qemu-coreboot
-          subcommand: ""
-          requires:
-            - x230-hotp-maximized
-
-      - build:
-          name: qemu-coreboot-fbwhiptail
-          target: qemu-coreboot-fbwhiptail
           subcommand: ""
           requires:
             - x230-hotp-maximized
@@ -477,6 +464,21 @@ workflows:
           requires:
             - x230-hotp-maximized
 
+      - build:
+          name: p8z77-m_pro-tpm1-maximized
+          target: p8z77-m_pro-tpm1-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: p8z77-m_pro-tpm1-hotp-maximized
+          target: p8z77-m_pro-tpm1-hotp-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+#Coreboot 4.17 boards
       - build:
           name: librem_13v2
           target: librem_13v2
@@ -515,20 +517,6 @@ workflows:
       - build:
           name: librem_mini_v2
           target: librem_mini_v2
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: p8z77-m_pro-tpm1-maximized
-          target: p8z77-m_pro-tpm1-maximized
-          subcommand: ""
-          requires:
-            - librem_14
-
-      - build:
-          name: p8z77-m_pro-tpm1-hotp-maximized
-          target: p8z77-m_pro-tpm1-hotp-maximized
           subcommand: ""
           requires:
             - librem_14
