@@ -12,7 +12,6 @@ flashrom_hash := 1295be687e1d3806e1489671ad4e1abe1561e83010e43eff367a35dfb603ab5
 flashrom_cfg := \
 	WARNERROR=no \
 	CONFIG_NOTHING=yes \
-	CONFIG_INTERNAL=yes \
 	CONFIG_INTERNAL_X86=yes \
 
 ifeq "$(CONFIG_TARGET_ARCH)" "ppc64"
@@ -25,6 +24,7 @@ endif
 #Only enable AST1100 if requested per board configs
 ifeq "$(CONFIG_FLASHROM_AST1100)" "y"
 flashrom_cfg += CONFIG_AST1100=yes
+flashrom_cfg += CONFIG_INTERNAL=yes
 endif
 
 
