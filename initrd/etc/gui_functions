@@ -2,6 +2,17 @@
 # Shell functions for common operations using fbwhiptail
 . /etc/functions
 
+# Pause for the configured timeout before booting automatically.  Returns 0 to
+# continue with automatic boot, nonzero if user interrupted.
+pause_automatic_boot()
+{
+	if IFS= read -t "$CONFIG_AUTO_BOOT_TIMEOUT" -s -n 1 -p \
+		"Automatic boot in $CONFIG_AUTO_BOOT_TIMEOUT seconds unless interrupted by keypress... "; then
+		return 1 # Interrupt automatic boot
+	fi
+	return 0 # Continue with automatic boot
+}
+
 mount_usb()
 {
   TRACE "under gui_functions:mount_usb"
@@ -71,4 +82,42 @@ file_selector()
       --msgbox "No Files found matching the pattern. Aborting." 16 60
     exit 1
   fi
+}
+
+show_system_info()
+{
+  TRACE "Under /bin/gui-init:show_system_info"
+  battery_charge="$(print_battery_charge)"
+  battery_health="$(print_battery_health)"
+  if [ -n $battery_charge -a -n $battery_health ];then
+	  battery_status="\nBattery charge: $battery_charge%\nBattery health: $battery_health%\n"
+  fi
+
+  memtotal=$(cat /proc/meminfo | grep 'MemTotal' | tr -s ' ' | cut -f2 -d ' ')
+  memtotal=$((${memtotal} / 1024 / 1024 + 1))
+  cpustr=$(cat /proc/cpuinfo | grep 'model name' | uniq | sed -r 's/\(R\)//;s/\(TM\)//;s/CPU //;s/model name.*: //')
+  kernel=$(uname -s -r)
+
+  whiptail $BG_COLOR_MAIN_MENU --title 'System Info' \
+    --msgbox "${BOARD_NAME}\n\nFW_VER: ${FW_VER}\nKernel: ${kernel}\n\nCPU: ${cpustr}\nRAM: ${memtotal} GB\n$battery_status\n$(fdisk -l | grep -e '/dev/sd.:' -e '/dev/nvme.*:' | sed 's/B,.*/B/')" 16 60
+}
+
+# Get "Enable" or "Disable" to display in the configuration menu, based on a
+# setting value
+get_config_display_action()
+{
+  [ "$1" = "y" ] && echo "Disable" || echo "Enable"
+}
+
+# Invert a config value
+invert_config()
+{
+  [ "$1" = "y" ] && echo "n" || echo "y"
+}
+
+# Get "Enable" or "Disable" for a config that internally is inverted (because it
+# disables a behavior that is on by default).
+get_inverted_config_display_action()
+{
+  get_config_display_action "$(invert_config "$1")"
 }

@@ -59,7 +59,6 @@ TRACE "Under init"
 if [ ! -e /dev/tpm0 ]; then
 	CONFIG_TPM='n'
 	CONFIG_TPM2_TOOLS='n'
-	warn 'No TPM found...'
 fi
 
 #Specify whiptail background colors cues under FBWhiptail only
@@ -121,6 +120,13 @@ if [ "$boot_option" = "r" ]; then
 	exit
 fi
 
+# Override CONFIG_USE_BLOB_JAIL if needed and persist via user config
+if lspci -n | grep -q "8086:2723"; then
+  if ! cat /etc/config.user 2>/dev/null | grep -q "USE_BLOB_JAIL"; then
+    echo "CONFIG_USE_BLOB_JAIL=y" >> /etc/config.user
+  fi
+fi
+
 # Override CONFIG_TPM and CONFIG_TPM2_TOOLS from /etc/config with runtime value
 # determined above.
 #
@@ -129,8 +135,16 @@ fi
 echo "export CONFIG_TPM=\"$CONFIG_TPM\"" >> /etc/config.user
 echo "export CONFIG_TPM2_TOOLS=\"$CONFIG_TPM2_TOOLS\"" >> /etc/config.user
 
+# CONFIG_BASIC was previously CONFIG_PUREBOOT_BASIC in the PureBoot distribution.
+# Substitute it in config.user if present for backward compatibility.
+sed -i -e 's/^export CONFIG_PUREBOOT_BASIC=/export CONFIG_BASIC=/g' /etc/config.user
+
 combine_configs
 . /tmp/config
+
+if [ "$CONFIG_BASIC" = "y" ]; then
+	echo -e "***** BASIC mode: tamper detection disabled\n" > /dev/tty0
+fi
 
 # export firmware version
 export FW_VER=$(dmesg | grep 'DMI' | grep -o 'BIOS.*' | cut -f2- -d ' ')
@@ -141,6 +155,16 @@ FW_VER=${FW_VER::-10}
 # in the configuration file.
 if [ ! -z "$CONFIG_BOOT_DEV" ]; then
 	echo >> /etc/fstab "$CONFIG_BOOT_DEV /boot auto defaults,ro 0 0"
+fi
+
+if [ "$CONFIG_BASIC" = "y" ]; then
+	CONFIG_BOOTSCRIPT=/bin/gui-init-basic
+	export CONFIG_HOTPKEY=n
+fi
+
+# Perform board-specific init if present
+if [ -x /bin/board-init.sh ]; then
+	/bin/board-init.sh
 fi
 
 if [ ! -x "$CONFIG_BOOTSCRIPT" -a ! -x "$CONFIG_BOOTSCRIPT_NETWORK" ]; then
