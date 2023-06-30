@@ -129,7 +129,9 @@ heads_cc	:= $(CROSS)gcc \
 	-fdebug-prefix-map=$(pwd)=heads \
 	-gno-record-gcc-switches \
 	-D__MUSL__ \
+	--sysroot  $(INSTALL) \
 	-isystem $(INSTALL)/include \
+	-Os -g0 \
 	-L$(INSTALL)/lib \
 
 # Cross-compiling with pkg-config requires clearing PKG_CONFIG_PATH and setting

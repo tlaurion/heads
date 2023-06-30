@@ -31,6 +31,12 @@ endif
 
 flashrom_target := \
 	$(MAKE_JOBS) \
+	PREFIX="$(INSTALL)" \
+	INSTALL="$(INSTALL)" \
+	DESTDIR="$(INSTALL)" \
+	LIBS_BASE="$(INSTALL)" \
+	CFLAGS="-Os -I$(INSTALL)/include/pci" \
+	LDFLAGS="-L$(INSTALL)/lib" \
 	$(CROSS_TOOLS) \
 	$(flashrom_cfg) \
 	flashrom
