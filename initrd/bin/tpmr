@@ -9,6 +9,10 @@ ENC_SESSION_FILE="enc.ctx"
 DEC_SESSION_FILE="dec.ctx"
 PRIMARY_HANDLE_FILE="primary.handle"
 
+# Zeroed hashes of proper lengths, written verbatim to work in all shells.
+sha1_zeros="0000000000000000000000000000000000000000"
+sha256_zeros="0000000000000000000000000000000000000000000000000000000000000000"
+
 # PCR size in bytes.  Set when we determine what TPM version is in use.
 # TPM1 PCRs are always 20 bytes.  TPM2 is allowed to provide multiple PCR banks
 # with different algorithms - we always use SHA-256, so they are 32 bytes.
@@ -35,6 +39,16 @@ TRACE "Under /bin/tpmr"
 # a hex dump to binary data using sed and printf
 hex2bin() {
 	sed 's/\([0-9A-F]\{2\}\)/\\\\\\x\1/gI' | xargs printf
+}
+
+# Reversed above function, but also checks if input has proper length.
+validate_and_escape_hash () {
+        local TRIM=`echo -n "$1" | sed -r -e "s/ .*//"`
+        if [ ${#TRIM} -ne 64 ] && [ ${#TRIM} -ne 40 ] ; then
+                >&2 echo "\"$TRIM\" is not a valid SHA1/SHA256 hash"
+                return
+        fi
+        echo -n $TRIM | sed -r -e "s/([a-f0-9]{2})/\\\x\1/g"
 }
 
 # Render a password as 'hex:<hexdump>' for use with tpm2-tools.  Passwords
@@ -86,45 +100,179 @@ tpm1_pcrread() {
 	DO_WITH_DEBUG tpm pcrread -ix "$index" | hex2bin >>"$file"
 }
 
-# usage: tpmr calcfuturepcr [-a] <input_file> <output_file>
-# Uses the scratch PCR to calculate a future PCR value (TPM2 23, TPM1 16). The
-# data in input file are hashed into a PCR, and the PCR value is placed in
-# output_file.
-# -a: Append to output_file.  Default is to overwrite
-tpm2_calcfuturepcr() {
-	TRACE "Under /bin/tpmr:tpm2_calcfuturepcr"
-	if [ "$1" = "-a" ]; then
-		APPEND=y
-		shift
-	fi
-
-	input_file="$1"
-	output_file="$2"
-
-	if [ -z "$APPEND" ]; then
-		true >"$output_file"
-	fi
-
-	tpm2 pcrreset -Q 23
-	DO_WITH_DEBUG tpmr extend -ix 23 -if "$input_file"
-	DO_WITH_DEBUG tpm2 pcrread -Q -o >(cat >>"$output_file") sha256:23
-	tpm2 pcrreset -Q 23
+# extend_sha* HASH file.bin - extend PCR with value=HASH with file.bin's hash
+# extend_sha* HASH1 HASH2 - extend PCR with value=HASH1 with HASH2
+# extend_sha* HASH file file...
+# extend_sha* HASH HASH HASH... - as long as file is not first
+extend_sha1 () {
+        local HASH1
+        local HASH2
+        case $# in
+        [01] )  # Probably called for log with no entries for given PCR
+                echo $sha1_zeros
+                return
+                ;;
+        2 )     if [ -f "$2" ]; then
+                        HASH1="$1"
+                        HASH2=`dd if="$2" 2>/dev/null | sha1sum`
+                else
+                        HASH1="$1"
+                        HASH2="$2"
+                fi
+                ;;
+        * )     HASH1=$(extend_sha1 "$1" "$2")
+                shift 2
+                extend_sha1 "$HASH1" $@
+                return
+                ;;
+        esac
+        local HASH1_ESC=$(validate_and_escape_hash "$HASH1")
+        local HASH2_ESC=$(validate_and_escape_hash "$HASH2")
+        printf "%b" $HASH1_ESC $HASH2_ESC | sha1sum | sed "s/[[:space:]]*-//"
 }
-tpm1_calcfuturepcr() {
-	TRACE "Under /bin/tpmr:tpm1_calcfuturepcr"
-	if [ "$1" = "-a" ]; then
-		APPEND=y
-		shift
+
+extend_sha256 () {
+        local HASH1
+        local HASH2
+        case $# in
+        [01] )  # Probably called for log with no entries for given PCR
+                echo $sha256_zeros
+                ;;
+        2 )     if [ -f "$2" ]; then
+                        HASH1="$1"
+                        HASH2=`dd if="$2" 2>/dev/null | sha256sum`
+                else
+                        HASH1="$1"
+                        HASH2="$2"
+                fi
+                ;;
+        * )     HASH1=$(extend_sha256 "$1" "$2")
+                shift 2
+                extend_sha256 "$HASH1" $@
+                return
+                ;;
+        esac
+        local HASH1_ESC=$(validate_and_escape_hash "$HASH1")
+        local HASH2_ESC=$(validate_and_escape_hash "$HASH2")
+        printf "%b" $HASH1_ESC $HASH2_ESC | sha256sum | sed "s/[[:space:]]*-//"
+}
+
+# There are 3 (and a half) possible formats of event log, each of them requires
+# different arguments for grep. Those formats are shown below as heredocs to
+# keep all the data, including whitespaces:
+# 1) TPM2 log, which can hold multiple hash algorithms at once:
+: << 'EOF'
+TPM2 log:
+	Specification: 2.00
+	Platform class: PC Client
+TPM2 log entry 1:
+	PCR: 2
+	Event type: Action
+	Digests:
+		 SHA256: de73053377e1ae5ba5d2b637a4f5bfaeb410137722f11ef135e7a1be524e3092
+		 SHA1: 27c4f1fa214480c8626397a15981ef3a9323717f
+	Event data: FMAP: FMAP
+EOF
+# 2) TPM1.2 log (aka TCPA), digest is always SHA1:
+: << 'EOF'
+TCPA log:
+	Specification: 1.21
+	Platform class: PC Client
+TCPA log entry 1:
+	PCR: 2
+	Event type: Action
+	Digest: 27c4f1fa214480c8626397a15981ef3a9323717f
+	Event data: FMAP: FMAP
+EOF
+# 3) coreboot-specific format:
+#   3.5) older versions printed 'coreboot TCPA log', even though it isn't TCPA
+: << 'EOF'
+coreboot TPM log:
+
+ PCR-2 27c4f1fa214480c8626397a15981ef3a9323717f SHA1 [FMAP: FMAP]
+EOF
+
+# Returns first word of log - TPM2, TCPA or coreboot
+get_log_format () {
+	echo "$1" | head -n 1 | cut -d " " -f 1
+}
+
+# usage: tpmr calcfuturepcr <pcr_num> [ <input_file>|<input_hash> ... ]
+# Replays PCR value from CBMEM event log. Note that this contains only the
+# measurements performed by firmware, without those performed by Heads (USB
+# modules, LUKS header etc). First argument is PCR number, followed by optional
+# hashes and/or files extended to given PCR after firmware. Resulting PCR value
+# is returned in binary form.
+replay_sha1_pcr () {
+	TRACE "Under /bin/tpmr:replay_sha1_pcr"
+	if [ -z "$1" ] ; then
+		>&2 echo "No PCR number passed"
+		return
 	fi
-
-	input_file="$1"
-	output_file="$2"
-
-	if [ -z "$APPEND" ]; then
-		true >"$output_file"
+	if [ "$1" -ge 8 ] ; then
+		>&2 echo "Illegal PCR number ($1)"
+		return
 	fi
+	local LOG=`cbmem -L`
+	local PCR='PCR: '
+	local LINES=0
+	local ALG='SHA1'
+	case `get_log_format "$LOG"` in
+	"coreboot" )	FMT='PCR-'
+			;;
+	"TCPA" )	LINES=2
+			ALG='Digest:'
+			;;
+	"TPM2" )	# With 1 hash algo we would get digest of next entry on
+			# 9th line after 'PCR: '. Read as much as possible in
+			# case TPM implements high number of algorithms.
+			LINES=8
+			;;
+	* )		>&2 echo "Unknown TPM event log format"
+			return
+			;;
+	esac
+	PCR="${PCR}$1"
+	shift
+	extend_sha1 $sha1_zeros \
+	`echo "$LOG" | grep "$PCR" -A$LINES | grep $ALG | cut -d " " -f 3` \
+	$@ | hex2bin
+}
 
-	DO_WITH_DEBUG tpm calcfuturepcr -ix 16 -if "$input_file" | hex2bin >>"$output_file"
+replay_sha256_pcr () {
+	TRACE "Under /bin/tpmr:replay_sha256_pcr"
+	if [ -z "$1" ] ; then
+		>&2 echo "No PCR number passed"
+		return
+	fi
+	if [ "$1" -ge 8 ] ; then
+		>&2 echo "Illegal PCR number ($1)"
+		return
+	fi
+	local LOG=`cbmem -L`
+	local FMT='PCR: '
+	local LINES=0
+	local ALG='SHA256'
+	case `get_log_format "$LOG"` in
+	"coreboot" )	FMT='PCR-'
+			;;
+	"TCPA" )	>&2 echo "TCPA event log format has no $ALGO digests"
+			return
+			;;
+	"TPM2" )	# With 1 hash algo we would get digest of next entry on
+			# 9th line after 'PCR: '. Read as much as possible in
+			# case TPM implements high number of algorithms.
+			LINES=8
+			;;
+	* )		>&2 echo "Unknown TPM event log format"
+			return
+			;;
+	esac
+	PCR="${PCR}$1"
+	shift
+	extend_sha256 $sha256_zeros \
+	`echo "$LOG" | grep "$PCR" -A$LINES | grep $ALG | cut -d " " -f 3` \
+	$@ | hex2bin
 }
 
 tpm2_extend() {
@@ -575,7 +723,7 @@ if [ "$CONFIG_TPM2_TOOLS" != "y" ]; then
 		pcrsize)
 			echo "$PCR_SIZE";;
 		calcfuturepcr)
-			shift; tpm1_calcfuturepcr "$@";;
+			shift; replay_sha1_pcr "$@";;
 		seal)
 			shift; tpm1_seal "$@";;
 		startsession)
@@ -606,7 +754,7 @@ case "$subcmd" in
 	pcrsize)
 		echo "$PCR_SIZE";;
 	calcfuturepcr)
-		tpm2_calcfuturepcr "$@";;
+		replay_sha256_pcr "$@";;
 	extend)
 		tpm2_extend "$@";;
 	counter_read)
