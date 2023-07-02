@@ -79,13 +79,13 @@ jobs:
           keys:
             #Restore existing cache for matching modules digest, validated to be exactly the same as in github current commit.
             #This cache was made on top of below caches, if previously existing. If no module definition changed, we reuse this one. Otherwise...
-            - heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - nix-heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
             #If precedent cache not found, restore cache for coreboot module (and patches) and musl-cross-make digests (coreboot: triannual release)
             #Otehrwise....
-            - heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - nix-heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
             #If precedent cache not found. Restore cache for musl-cross-make module digest (rarely modified).
             #Otherwise, we build cleanly.
-            - heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - nix-heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
 
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
@@ -170,7 +170,7 @@ jobs:
       - save_cache:
           #Generate cache for the same musl-cross module definition if hash is not previously existing
           #CircleCI removed their wildcard support, so we have to list precise versions to cache in directory names
-          key: heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: nix-heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - crossgcc
             - build/x86/musl-cross-38e52db8358c043ae82b346a2e6e66bc86a53bc1
@@ -179,7 +179,7 @@ jobs:
       - save_cache:
           #Generate cache for the same coreboot mnd musl-cross-make modules definition if hash is not previously existing
           #CircleCI removed their wildcard support, so we have to list precise versions to cache in directory names
-          key: heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: nix-heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - crossgcc
             - build/x86/musl-cross-38e52db8358c043ae82b346a2e6e66bc86a53bc1
@@ -194,7 +194,7 @@ jobs:
             - build/ppc64/coreboot-git
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
-          key: heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: nix-heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - crossgcc
             - build
