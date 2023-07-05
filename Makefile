@@ -125,19 +125,18 @@ include modules/musl-cross
 musl_dep	:= musl-cross
 target		:= $(shell echo $(CROSS) | grep -Eoe '([^/]*?)-linux-musl')
 arch		:= $(subst -linux-musl, , $(target))
-heads_cc	:= $(CROSS)gcc \
-	-fdebug-prefix-map=$(pwd)=heads \
-	-gno-record-gcc-switches \
-	-D__MUSL__ \
-	--sysroot  $(INSTALL) \
-	-isystem $(INSTALL)/include \
-	-Os -g0 \
-	-L$(INSTALL)/lib \
 
 # Cross-compiling with pkg-config requires clearing PKG_CONFIG_PATH and setting
 # both PKG_CONFIG_LIBDIR and PKG_CONFIG_SYSROOT_DIR.
 # https://autotools.info/pkgconfig/cross-compiling.html
-CROSS_TOOLS_NOCC := \
+#
+# CFLAGS="-fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches -D__MUSL__ --sysroot $(INSTALL) -isystem $(INSTALL)/include -L$(INSTALL)/lib -Os -g0" \
+
+HEADS_GLOBAL_MAKEFILE_CFLAGS := \
+	CFLAGS="-fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches -D__MUSL__ --sysroot $(INSTALL) -isystem $(INSTALL)/include -Os -g0" \
+
+CROSS_TOOLS := \
+	CC="$(CROSS)cc" \
 	AR="$(CROSS)ar" \
 	LD="$(CROSS)ld" \
 	STRIP="$(CROSS)strip" \
@@ -147,10 +146,8 @@ CROSS_TOOLS_NOCC := \
 	PKG_CONFIG_PATH= \
 	PKG_CONFIG_LIBDIR="$(INSTALL)/lib/pkgconfig" \
 	PKG_CONFIG_SYSROOT_DIR="$(INSTALL)" \
-
-CROSS_TOOLS := \
-	CC="$(heads_cc)" \
-	$(CROSS_TOOLS_NOCC) \
+	PKG_CONFIG_SYSTEM_LIBRARY_PATH=$(INSTALL)/lib \
+	PKG_CONFIG_SYSTEM_INCLUDE_PATH=$(INSTALL)/include \
 
 # Targets to build payload only
 .PHONY: payload

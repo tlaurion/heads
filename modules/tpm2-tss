@@ -1,11 +1,11 @@
 # TPM2 TSS library
 modules-$(CONFIG_TPM2_TSS) += tpm2-tss
 
-tpm2-tss_version := 3.2.0
+tpm2-tss_version := 3.2.2
 tpm2-tss_dir := tpm2-tss-$(tpm2-tss_version)
 tpm2-tss_tar := tpm2-tss-$(tpm2-tss_version).tar.gz
 tpm2-tss_url := https://github.com/tpm2-software/tpm2-tss/releases/download/$(tpm2-tss_version)/$(tpm2-tss_tar)
-tpm2-tss_hash := 48305e4144dcf6d10f3b25b7bccf0189fd2d1186feafd8cd68c6b17ecf0d7912
+tpm2-tss_hash := ba9e52117f254f357ff502e7d60fce652b3bfb26327d236bbf5ab634235e40f1
 
 tpm2-tss_configure := aclocal && automake --add-missing && autoreconf -fi \
 	&& ./configure \

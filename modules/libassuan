@@ -7,7 +7,6 @@ libassuan_url := https://gnupg.org/ftp/gcrypt/libassuan/$(libassuan_tar)
 libassuan_hash := e9fd27218d5394904e4e39788f9b1742711c3e6b41689a31aa3380bd5aa4f426
 
 libassuan_configure := \
-	CFLAGS="-Os" \
 	$(CROSS_TOOLS) \
 	./configure \
 	--host $(MUSL_ARCH)-linux-musl \

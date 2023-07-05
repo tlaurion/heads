@@ -7,8 +7,11 @@ zlib_tar := zlib-$(zlib_version).tar.gz
 zlib_url := https://zlib.net/fossils/$(zlib_tar)
 zlib_hash := c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
 
+CFLAGS := $(HEADS_GLOBAL_MAKEFILE_CFLAGS) \
+
 zlib_configure := \
 	$(CROSS_TOOLS) \
+	$(CFLAGS) \
 	./configure \
 	--prefix="/" \
 

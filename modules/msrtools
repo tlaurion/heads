@@ -14,8 +14,6 @@ msrtools_hash := 80554790d0a404205fe215c9ae8d2de159e980ec23821d636f201f12550e6ac
 
 msrtools_target := \
 	$(CROSS_TOOLS) \
-	CFLAGS="-I$(INSTALL)/include" \
-	LDFLAGS="-L$(INSTALL)/lib" \
 
 msrtools_output := \
 	wrmsr \

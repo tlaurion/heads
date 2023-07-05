@@ -35,8 +35,7 @@ flashrom_target := \
 	INSTALL="$(INSTALL)" \
 	DESTDIR="$(INSTALL)" \
 	LIBS_BASE="$(INSTALL)" \
-	CFLAGS="-Os -I$(INSTALL)/include/pci" \
-	LDFLAGS="-L$(INSTALL)/lib" \
+	CFLAGS+="-I$(INSTALL)/include/pci" \
 	$(CROSS_TOOLS) \
 	$(flashrom_cfg) \
 	flashrom
