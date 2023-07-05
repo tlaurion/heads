@@ -8,9 +8,12 @@ lvm2_hash := 23a3d1cddd41b3ef51812ebf83e9fa491f502fe74130d4263be327a91914660d
 
 # cross compiling test assumes malloc/realloc aren't glibc compat
 # so we force it via the configure cache.
+
+#We extend CFLAGS passed from CROSS_TOOLS with -fPIC
+
 lvm2_configure := \
 	$(CROSS_TOOLS) \
-	CFLAGS="-Os"  \
+	CFLAGS+=" -fPIC" \
 	PKG_CONFIG=/bin/false \
 	MODPROBE_CMD=/bin/false \
 	ac_cv_func_malloc_0_nonnull=yes \
@@ -38,6 +41,7 @@ lvm2_configure := \
 lvm2_target := \
 	$(MAKE_JOBS) \
 	$(CROSS_TOOLS) \
+	CFLAGS+=" -fPIC" \
 	DESTDIR="$(INSTALL)" \
 	all \
 	&& \
