@@ -1,0 +1,13 @@
+--- ./cairo_linuxfb.c	2023-07-07 09:57:43.000000000 -0400
++++ ./cairo_linuxfb.c	2023-07-14 10:18:16.541000000 -0400
+@@ -183,8 +183,7 @@
+       CAIRO_FORMAT_RGB24,
+       device->fb_vinfo.xres,
+       device->fb_vinfo.yres_virtual,
+-      cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32,
+-          device->fb_vinfo.xres));
++      device->fb_finfo.line_length);
+   cairo_surface_set_user_data(surface, &user_data_key, device,
+       &cairo_linuxfb_surface_destroy);
+ 
+
