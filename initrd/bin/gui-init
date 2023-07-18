@@ -229,6 +229,19 @@ update_totp()
           if (whiptail $BG_COLOR_WARNING --title 'Generate new TOTP/HOTP secret' \
               --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80) then
             generate_totp_hotp && update_totp && BG_COLOR_MAIN_MENU=""
+            if [ -s /boot/kexec_key_devices.txt ] || [ -s /boot/kexec_key_lvm.txt ]; then
+              warn "A TPM disk decryption key previoulsy setuped is now invalid since firmware measurements changed. Renewing"
+              while ! kexec-seal-key /boot; do
+                warn "Recovery disk encryption key passphrase invalid. Try again!"
+              done
+              echo "LUKS header hash changed under of /boot/kexec_luks_hdr_hash.txt. Resigning /boot"
+              while ! update_checksums; do
+                warn "Checksums were not updated. Please re-sign!"
+              done
+              warn "Rebooting in 3 seconds to enable booting default boot option..."
+              sleep 3
+              reboot
+            fi
           fi
           ;;
         i )
