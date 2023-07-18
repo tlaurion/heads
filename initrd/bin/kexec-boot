@@ -158,7 +158,7 @@ if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 	#Repeat kexec command that will be executed since in debug
 	DEBUG "kexeccmd= $kexeccmd"
 
-	read -n 1 -p "[DEBUG] Continue booting? [Y/n]: " debug_boot_confirm
+	read -n 1 -p "[DEBUG] Continue booting? [Y/n]: "$'\n' debug_boot_confirm
 	if [ "${debug_boot_confirm^^}" = N ]; then
 		# abort
 		die "Boot aborted"
