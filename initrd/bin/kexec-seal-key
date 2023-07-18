@@ -115,7 +115,7 @@ DO_WITH_DEBUG --mask-position 7 \
 	"$TPM_SIZE" "$key_password"
 
 # should be okay if this fails
-shred -n 10 -z -u "$pcrf".* 2> /dev/null \
+shred -n 10 -z -u "$pcrf" 2> /dev/null \
 || warn "Failed to delete pcrf file - continuing"
 shred -n 10 -z -u "$KEY_FILE" 2> /dev/null \
 || warn "Failed to delete key file - continuing"
