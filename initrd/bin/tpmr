@@ -3,11 +3,26 @@
 
 . /etc/functions
 
+set -e -o pipefail
+if [ -r "/tmp/config" ]; then
+        . /tmp/config
+else
+        . /etc/config
+fi
+
+TRACE "Under /bin/tpmr"
+
+
+#Reminder: Only /tmp/secret is wiped automatically when entering recovery console.
 SECRET_DIR="/tmp/secret"
 PRIMARY_HANDLE="0x81000000"
-ENC_SESSION_FILE="enc.ctx"
-DEC_SESSION_FILE="dec.ctx"
-PRIMARY_HANDLE_FILE="primary.handle"
+ENC_SESSION_FILE="$SECRET_DIR/enc.ctx"
+DEC_SESSION_FILE="$SECRET_DIR/dec.ctx"
+PRIMARY_HANDLE_FILE="$SECRET_DIR/primary.handle"
+TRIAL_SESSION="$SECRET_DIR/sealfile_trial.session"
+AUTH_POLICY="$SECRET_DIR/sealfile_auth.policy"
+POLICY_SESSION="$SECRET_DIR/unsealfile_policy.session"
+
 
 # PCR size in bytes.  Set when we determine what TPM version is in use.
 # TPM1 PCRs are always 20 bytes.  TPM2 is allowed to provide multiple PCR banks
@@ -21,15 +36,6 @@ if [ -n "$CONFIG_TPM2_CAPTURE_PCAP" ]; then
 	export TPM2TOOLS_TCTI="pcap:device:/dev/tpmrm0"
 	export TCTI_PCAP_FILE="/tmp/tpm0.pcap"
 fi
-
-set -e -o pipefail
-if [ -r "/tmp/config" ]; then
-	. /tmp/config
-else
-	. /etc/config
-fi
-
-TRACE "Under /bin/tpmr"
 
 # Busybox xxd lacks -r, and we get hex dumps from TPM1 commands.  This converts
 # a hex dump to binary data using sed and printf
@@ -321,10 +327,10 @@ tpm2_startsession() {
 	tpm2 flushcontext -Q \
 		--saved-session \
 		|| die "tpm2_flushcontext: unable to flush saved session"
-	tpm2 readpublic -Q -c "$PRIMARY_HANDLE" -t "/tmp/$PRIMARY_HANDLE_FILE"
-	tpm2 startauthsession -Q -c "/tmp/$PRIMARY_HANDLE_FILE" --hmac-session -S "/tmp/$ENC_SESSION_FILE"
-	tpm2 startauthsession -Q -c "/tmp/$PRIMARY_HANDLE_FILE" --hmac-session -S "/tmp/$DEC_SESSION_FILE"
-	tpm2 sessionconfig -Q --disable-encrypt "/tmp/$DEC_SESSION_FILE"
+	tpm2 readpublic -Q -c "$PRIMARY_HANDLE" -t "$PRIMARY_HANDLE_FILE"
+	tpm2 startauthsession -Q -c "$PRIMARY_HANDLE_FILE" --hmac-session -S "$ENC_SESSION_FILE"
+	tpm2 startauthsession -Q -c "$PRIMARY_HANDLE_FILE" --hmac-session -S "$DEC_SESSION_FILE"
+	tpm2 sessionconfig -Q --disable-encrypt "$DEC_SESSION_FILE"
 }
 
 # Use cleanup_session() with at_exit to release a TPM2 session and delete the
@@ -337,7 +343,7 @@ cleanup_session() {
 		DEBUG "Clean up session: $session_file"
 		# Nothing else we can do if this fails, still remove the file
 		tpm2 flushcontext -Q "$session_file" || DEBUG "Flush failed for session $session_file"
-		rm -f "$session_file"
+		cleanup_shred "$session_file"
 	else
 		DEBUG "No need to clean up session: $session_file"
 	fi
@@ -348,6 +354,7 @@ cleanup_session() {
 #   at_exit cleanup_shred "$FILE"
 cleanup_shred() {
 	TRACE "Under /bin/tpmr:cleanup_shred"
+	DEBUG "Shredding $1"
 	shred -n 10 -z -u "$1" 2>/dev/null || true
 }
 
@@ -403,9 +410,7 @@ tpm2_seal() {
 
 	# Create a policy requiring both PCRs and the object's authentication
 	# value using a trial session.
-	TRIAL_SESSION=/tmp/sealfile_trial.session
-	AUTH_POLICY=/tmp/sealfile_auth.policy
-	rm -f "$TRIAL_SESSION" "$AUTH_POLICY"
+	cleanup_shred "$TRIAL_SESSION $AUTH_POLICY"
 	tpm2 startauthsession -g sha256 -S "$TRIAL_SESSION"
 	# We have to clean up the session
 	at_exit cleanup_session "$TRIAL_SESSION"
@@ -430,16 +435,16 @@ tpm2_seal() {
 	# (The default is to allow either policy auth _or_ password auth.  In
 	# this case the policy includes the password, and we don't want to allow
 	# the password on its own.)
-	tpm2 create -Q -C "/tmp/$PRIMARY_HANDLE_FILE" \
+	tpm2 create -Q -C "$PRIMARY_HANDLE_FILE" \
 		-i "$file" \
 		-u "$SECRET_DIR/$bname.priv" \
 		-r "$SECRET_DIR/$bname.pub" \
 		-L "$AUTH_POLICY" \
-		-S "/tmp/$DEC_SESSION_FILE" \
+		-S "$DEC_SESSION_FILE" \
 		-a "fixedtpm|fixedparent|adminwithpolicy" \
 		"${CREATE_PASS_ARGS[@]}"
 
-	tpm2 load -Q -C "/tmp/$PRIMARY_HANDLE_FILE" \
+	tpm2 load -Q -C "$PRIMARY_HANDLE_FILE" \
 		-u "$SECRET_DIR/$bname.priv" -r "$SECRET_DIR/$bname.pub" \
 		-c "$SECRET_DIR/$bname.seal.ctx"
 	prompt_tpm_password
@@ -531,13 +536,12 @@ tpm2_unseal() {
 	# If we don't have the primary handle (TPM hasn't been reset), tpm2 will
 	# print nonsense error messages about an unexpected handle value.  We
 	# can't do anything without a primary handle.
-	if [ ! -f "/tmp/$PRIMARY_HANDLE_FILE" ]; then
+	if [ ! -f "$PRIMARY_HANDLE_FILE" ]; then
 		DEBUG "tpm2_unseal: No primary handle, cannot attempt to unseal"
 		exit 1
 	fi
 
-	POLICY_SESSION=/tmp/unsealfile_policy.session
-	rm -f "$POLICY_SESSION"
+	cleanup_shred "$POLICY_SESSION"
 	tpm2 startauthsession -Q -g sha256 -S "$POLICY_SESSION" --policy-session
 	at_exit cleanup_session "$POLICY_SESSION"
 	# Check the PCR policy
@@ -554,7 +558,7 @@ tpm2_unseal() {
 	fi
 
 	tpm2 unseal -Q -c "$handle" -p "session:$POLICY_SESSION$UNSEAL_PASS_SUFFIX" \
-		-S "/tmp/$ENC_SESSION_FILE" > "$file"
+		-S "$ENC_SESSION_FILE" > "$file"
 }
 tpm1_unseal() {
 	TRACE "Under /bin/tpmr:tpm1_unseal"
@@ -571,7 +575,7 @@ tpm1_unseal() {
 	sealed_file="$SECRET_DIR/tpm1_unseal_sealed.bin"
 	at_exit cleanup_shred "$sealed_file"
 
-	rm -f "$sealed_file"
+	cleanup_shred "$sealed_file"
 
 	tpm nv_readvalue \
 		-in "$index" \
@@ -626,7 +630,7 @@ tpm2_reset() {
 		--max-tries=10 \
 		--recovery-time=3600 \
 		--lockout-recovery-time=0 \
-		--auth="session:/tmp/$ENC_SESSION_FILE"
+		--auth="session:$ENC_SESSION_FILE"
 
 	# Set a random DA lockout password, so the DA lockout can't be cleared
 	# with a password.  Heads doesn't offer dictionary attach reset, instead

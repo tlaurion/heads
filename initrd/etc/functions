@@ -83,19 +83,26 @@ confirm_totp()
 
 reseal_tpm_disk_decryption_key()
 {
-if [ -s /boot/kexec_key_devices.txt ] || [ -s /boot/kexec_key_lvm.txt ]; then
-	warn "A TPM disk decryption key previoulsy setuped is now invalid since firmware measurements changed. Renewing"
-	while ! kexec-seal-key /boot; do
-		warn "Recovery disk encryption key passphrase invalid. Try again!"
-	done
-	echo "LUKS header hash changed under of /boot/kexec_luks_hdr_hash.txt. Resigning /boot"
-	while ! update_checksums; do
-		warn "Checksums were not updated. Please re-sign!"
-	done
-	warn "Rebooting in 3 seconds to enable booting default boot option..."
-	sleep 3
-	reboot
-fi
+	#Can be called only on resealing, not on tpm reset:
+	#otherise primary handle and rollback would change.
+	if ! grep -q /boot /proc/mounts ; then
+		mount -o ro /boot \
+		|| recovery "Unable to mount /boot"
+	fi
+
+	if [ -s /boot/kexec_key_devices.txt ] || [ -s /boot/kexec_key_lvm.txt ]; then
+		warn "A TPM disk decryption key previoulsy setuped is now invalid since firmware measurements changed. Renewing"
+		while ! kexec-seal-key /boot; do
+			warn "Recovery disk encryption key passphrase invalid. Try again!"
+		done
+		echo "LUKS header hash changed under of /boot/kexec_luks_hdr_hash.txt. Resigning /boot"
+		while ! update_checksums; do
+			warn "Checksums were not updated. Please re-sign!"
+		done
+		warn "Rebooting in 3 seconds to enable booting default boot option..."
+		sleep 3
+		reboot
+	fi
 }
 
 # Enable USB storage (if not already enabled), and wait for storage devices to

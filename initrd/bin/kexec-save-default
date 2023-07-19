@@ -36,6 +36,10 @@ ENTRY_FILE="$paramsdir/kexec_default.$index.txt"
 HASH_FILE="$paramsdir/kexec_default_hashes.txt"
 PRIMHASH_FILE="$paramsdir/kexec_primhdl_hash.txt"
 
+SECRET_DIR="/tmp/secret"
+PRIMARY_HANDLE_FILE="$SECRET_DIR/primary.handle"
+
+
 if [ ! -r "$TMP_MENU_FILE" ]; then
 	die "No menu options available, please run kexec-select-boot"
 fi
@@ -125,7 +129,7 @@ if [ ! -d $paramsdir ]; then
 fi
 
 if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
-	sha256sum /tmp/primary.handle > "$PRIMHASH_FILE" \
+	sha256sum $PRIMARY_HANDLE_FILE > "$PRIMHASH_FILE" \
 		|| die "ERROR: Failed to Hash TPM2 primary key handle!"
 fi
 
