@@ -5,14 +5,19 @@
 . /etc/gui_functions
 . /tmp/config
 
+list_luks_devices()
+{
+	#generate a list of devices to choose from that contain a LUKS header
+	lvm vgscan||true
+        blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks $device;if [ $(echo $?) == 0 ]; then echo $device;fi; done | sort
+}
+
 select_luks_container()
 {
 	if [ -s /boot/kexec_key_devices.txt ]; then
 		LUKS=$(cut -d ' ' -f1 /boot/kexec_key_devices.txt)
 	else
-		#generate a list of devices to choose from that contain a LUKS header
-		lvm vgscan||true
-		blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks $device;if [ $(echo $?) == 0 ]; then echo $device;fi; done | sort > /tmp/luks_devices.txt
+		list_luks_devices
 		if [ $(cat /tmp/luks_devices.txt | wc -l) -gt 0 ]; then
 			file_selector "/tmp/luks_devices.txt" "Select LUKS container device"
 			if [ "$FILE" == "" ]; then
