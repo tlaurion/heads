@@ -1,6 +1,7 @@
 #!/bin/bash
 # Mount a USB device
 . /etc/functions
+. /etc/luks-functions
 
 TRACE "Under /bin/mount-usb"
 
@@ -8,7 +9,11 @@ enable_usb
 enable_usb_storage
 
 if [ ! -d /media ]; then
+  DEBUG "Creating /media directory"
   mkdir /media
+else
+  DEBUG "Cleaning /media directory"
+  umount /media > /dev/null 2>&1 || true
 fi
 
 list_usb_storage > /tmp/usb_block_devices
@@ -22,6 +27,7 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
   fi
   sleep 1
   list_usb_storage > /tmp/usb_block_devices
+
   if [ -z "$(cat /tmp/usb_block_devices)" ]; then
     if [ -x /bin/whiptail ]; then
       whiptail $BG_COLOR_ERROR --title 'ERROR: USB Drive Missing' \
@@ -32,6 +38,7 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
     exit 1
   fi
 fi
+
 
 USB_MOUNT_DEVICE=""
 # Check for the common case: a single USB disk with one partition
@@ -82,8 +89,30 @@ if [ -z ${USB_MOUNT_DEVICE} ]; then
   USB_MOUNT_DEVICE=`head -n $option_index /tmp/usb_disk_list | tail -1 | sed 's/\ .*$//'`
 fi
 
+# Check if the selected USB partition is a luks device
+# if file exists and not empty, then we have at least one luks device
+list_luks_devices > /tmp/luks_devices
+if [ -s /tmp/luks_devices ]; then
+    DEBUG "Checking if $USB_MOUNT_DEVICE is a luks device"
+  if grep -q $USB_MOUNT_DEVICE /tmp/luks_devices; then
+    DEBUG "Selected USB partition is a luks device"
+    #Selected USB partition is a luks device
+    if [ -e /dev/mapper/usb_mount_device ]; then
+      DEBUG "Closing existing luks device"
+      cryptsetup luksClose usb_mount_device
+    fi
+    DEBUG "Opening luks device $USB_MOUNT_DEVICE"
+    cryptsetup luksOpen $USB_MOUNT_DEVICE usb_mount_device
+    warn "Note that you cannot boot from a mounted encrypted device."
+    DEBUG "Setting USB_MOUNT_DEVICE=/dev/mapper/usb_mount_device"
+    USB_MOUNT_DEVICE="/dev/mapper/usb_mount_device"
+  fi
+fi
+
 if [ "$1" = "rw" ]; then
+  DEBUG "Mounting $USB_MOUNT_DEVICE as read-write"
   mount -o rw $USB_MOUNT_DEVICE /media
 else
+  DEBUG "Mounting $USB_MOUNT_DEVICE as read-only"
   mount -o ro $USB_MOUNT_DEVICE /media
 fi
