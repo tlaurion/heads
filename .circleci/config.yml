@@ -231,13 +231,13 @@ workflows:
           requires:
             - x230-hotp-maximized
 
-      # Coreboot Nitropads
+      # Coreboot Nitropads (depend on librem_14 because same kernel)
       - build_and_persist:
           name: nitropad-nv41
           target: nitropad-nv41
           subcommand: ""
           requires:
-            - prep_env
+            - librem_14
 
       # Coreboot for Talos (PPC)
       - build_and_persist:
@@ -251,9 +251,8 @@ workflows:
       #Cache one workspace per architecture. Make sure workspace caches are chainloaded and the last in chain for an arch is saved.
       - save_cache:
           requires:
-            - librem_14
-            - talos-2
             - nitropad-nv41
+            - talos-2
 
 #
 # Those onboarding new boards should add their entries below.
