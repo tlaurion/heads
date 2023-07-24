@@ -4,17 +4,57 @@
 . /etc/luks-functions
 
 TRACE "Under /bin/mount-usb"
+DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$4 ]"
 
 enable_usb
 enable_usb_storage
 
-if [ ! -d /media ]; then
-  DEBUG "Creating /media directory"
-  mkdir /media
-else
-  DEBUG "Cleaning /media directory"
-  umount /media > /dev/null 2>&1 || true
+# parameters:
+#   $1: rw or ro
+#   $2: device to mount
+#   $3: mount point
+#   $4: optional: luks password
+
+#show usage when --help is given
+if [ "$1" = "--help" ]; then
+  echo "Usage: mount-usb [rw|ro] [device] [mount point] [luks password]"
+  echo "  ro: mount read-only (default)"
+  echo "  rw: mount read-write"
+  echo "  device: device to mount (default: first USB device found)"
+  echo "  mount point: where to mount the device (default: /media)"
+  echo "  luks password: password for luks device (default: none)"
+  exit 0
 fi
+
+#TODO: works only if rw /dev/sda2 /media pw given.
+#Need to check from 1 arg to 4 args and reset arguments if invalid
+
+if [ -z "$1" ]; then
+        DEBUG "No parameter given, defaulting to read-only"
+        set -- "ro" "$2" "$3" "$4"
+    fi
+
+    if [ "$1" != "ro" ] && [ "$1" != "rw" ]; then
+        DEBUG "Invalid parameter given, defaulting to read-only"
+        set -- "ro" "$2" "$3" "$4"
+    fi
+
+    if [ -z "$2" ]; then
+        DEBUG "No partition given, setting to empty. Will prompt menu to select partition"
+        set -- "$1" "" "$3" "$4"
+    fi
+
+    if [ -z "$3" ]; then
+        DEBUG "No mount point given, defaulting to /media"
+        set -- "$1" "$2" "/media" "$4"
+    fi
+
+    if [ -z "$4" ]; then
+        DEBUG "No luks password given, leaving it optional"
+        set -- "$1" "$2" "$3" "$4"
+    fi
+
+DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$4 ]"
 
 list_usb_storage > /tmp/usb_block_devices
 if [ -z "$(cat /tmp/usb_block_devices)" ]; then
@@ -27,7 +67,6 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
   fi
   sleep 1
   list_usb_storage > /tmp/usb_block_devices
-
   if [ -z "$(cat /tmp/usb_block_devices)" ]; then
     if [ -x /bin/whiptail ]; then
       whiptail $BG_COLOR_ERROR --title 'ERROR: USB Drive Missing' \
@@ -39,55 +78,64 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
   fi
 fi
 
-
 USB_MOUNT_DEVICE=""
-# Check for the common case: a single USB disk with one partition
-if [ `cat /tmp/usb_block_devices | wc -l` -eq 1 ]; then
-  USB_MOUNT_DEVICE=`cat /tmp/usb_block_devices`
-fi
-# otherwise, let the user pick
-if [ -z ${USB_MOUNT_DEVICE} ]; then
-  > /tmp/usb_disk_list
-  for i in `cat /tmp/usb_block_devices`; do
-    echo $i $(blkid | grep $i | grep -o 'LABEL=".*"' | cut -f2 -d '"') >> /tmp/usb_disk_list
-  done
-
-  if [ -x /bin/whiptail ]; then
-    MENU_OPTIONS=""
-    n=0
-    while read option
-    do
-      n=`expr $n + 1`
-      option=$(echo $option | tr " " "_")
-      MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
-    done < /tmp/usb_disk_list
-
-    MENU_OPTIONS="$MENU_OPTIONS a Abort"
-    whiptail $BG_COLOR --title "Select your USB disk" \
-      --menu "Choose your USB disk [1-$n, a to abort]:" 0 80 8 \
-      -- $MENU_OPTIONS \
-      2>/tmp/whiptail
-
-    option_index=$(cat /tmp/whiptail)
-  else
-    echo "+++ Select your USB disk:"
-    n=0
-    while read option
-    do
-      n=`expr $n + 1`
-      echo "$n. $option"
-    done < /tmp/usb_disk_list
-
-    read \
-      -p "Choose your USB disk [1-$n, a to abort]: " \
-      option_index
+# Check if the user has specified a USB device
+if [ -n "$2" ]; then
+  DEBUG "Checking if $2 is a USB device"
+  if grep -q $2 /tmp/usb_block_devices; then
+    DEBUG "Selected device is a USB device"
+    USB_MOUNT_DEVICE=$2
   fi
-
-  if [ "$option_index" = "a" ]; then
-    exit 5
+else
+  # Check for the common case: a single USB disk with one partition
+  if [ $(cat /tmp/usb_block_devices | wc -l) -eq 1 ]; then
+  USB_MOUNT_DEVICE=$(cat /tmp/usb_block_devices)
   fi
-  USB_MOUNT_DEVICE=`head -n $option_index /tmp/usb_disk_list | tail -1 | sed 's/\ .*$//'`
-fi
+  # otherwise, let the user pick
+  if [ -z ${USB_MOUNT_DEVICE} ]; then
+    > /tmp/usb_disk_list
+    for i in $(cat /tmp/usb_block_devices); do
+      #appends label to the device name
+      echo $i $(blkid | grep $i | grep -o 'LABEL=".*"' | cut -f2 -d '"') >> /tmp/usb_disk_list
+    done
+
+    if [ -x /bin/whiptail ]; then
+      MENU_OPTIONS=""
+      n=0
+      while read option
+      do
+        n=$(expr $n + 1)
+        option=$(echo $option | tr " " "_")
+        MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
+      done < /tmp/usb_disk_list
+
+      MENU_OPTIONS="$MENU_OPTIONS a Abort"
+      whiptail $BG_COLOR --title "Select your USB disk" \
+        --menu "Choose your USB disk [1-$n, a to abort]:" 0 80 8 \
+        -- $MENU_OPTIONS \
+        2>/tmp/whiptail
+
+      option_index=$(cat /tmp/whiptail)
+    else
+      echo "+++ Select your USB disk:"
+      n=0
+      while read option
+      do
+        n=$(expr $n + 1)
+        echo "$n. $option"
+      done < /tmp/usb_disk_list
+
+      read \
+        -p "Choose your USB disk [1-$n, a to abort]: " \
+        option_index
+    fi
+
+    if [ "$option_index" = "a" ]; then
+      exit 5
+    fi
+    USB_MOUNT_DEVICE=$(head -n $option_index /tmp/usb_disk_list | tail -1 | sed 's/\ .*$//')
+  fi
+fi  
 
 # Check if the selected USB partition is a luks device
 # if file exists and not empty, then we have at least one luks device
@@ -102,17 +150,29 @@ if [ -s /tmp/luks_devices ]; then
       cryptsetup luksClose usb_mount_device
     fi
     DEBUG "Opening luks device $USB_MOUNT_DEVICE"
-    cryptsetup luksOpen $USB_MOUNT_DEVICE usb_mount_device
+    #Pass LUKS passphrase to cryptsetup only if we received one
+
+    if [ -z "$4" ]; then
+      #We received a passphrase
+      cryptsetup luksOpen $USB_MOUNT_DEVICE usb_mount_device \
+      || die "Failed to open ${USB_MOUNT_DEVICE} LUKS device"
+    else
+      #Prompt for the pasphrase
+      echo -n "$4"| cryptsetup luksOpen $USB_MOUNT_DEVICE usb_mount_device \
+      || die "Failed to open ${USB_MOUNT_DEVICE} LUKS device"
+    fi
+    
     warn "Note that you cannot boot from a mounted encrypted device."
     DEBUG "Setting USB_MOUNT_DEVICE=/dev/mapper/usb_mount_device"
     USB_MOUNT_DEVICE="/dev/mapper/usb_mount_device"
   fi
 fi
 
+#Reminder : $3 is the mount point
 if [ "$1" = "rw" ]; then
   DEBUG "Mounting $USB_MOUNT_DEVICE as read-write"
-  mount -o rw $USB_MOUNT_DEVICE /media
+  mount -o rw $USB_MOUNT_DEVICE $3
 else
   DEBUG "Mounting $USB_MOUNT_DEVICE as read-only"
-  mount -o ro $USB_MOUNT_DEVICE /media
+  mount -o ro $USB_MOUNT_DEVICE $3
 fi
