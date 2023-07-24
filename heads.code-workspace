@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"explorer.excludeGitIgnore": false,
+		"files.exclude": {
+		},
+		"files.watcherExclude": {
+			"build/**": true,
+			"crossgcc/**": true,
+			"install/**": true,
+			"packages/**": true
+		}
+	}
+}
