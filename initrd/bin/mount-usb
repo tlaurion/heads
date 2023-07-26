@@ -4,7 +4,7 @@
 . /etc/luks-functions
 
 TRACE "Under /bin/mount-usb"
-DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$4 ]"
+DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$( if [ -z "$4" ]; then echo ""; else echo "(secret)"; fi ) ]"
 
 enable_usb
 enable_usb_storage
@@ -20,7 +20,7 @@ if [ "$1" = "--help" ]; then
   echo "Usage: mount-usb [rw|ro] [device] [mount point] [luks password]"
   echo "  ro: mount read-only (default)"
   echo "  rw: mount read-write"
-  echo "  device: device to mount (default: first USB device found)"
+  echo "  device: block device to mount (default: first USB device found)"
   echo "  mount point: where to mount the device (default: /media)"
   echo "  luks password: password for luks device (default: none)"
   exit 0
@@ -54,7 +54,7 @@ if [ -z "$1" ]; then
         set -- "$1" "$2" "$3" "$4"
     fi
 
-DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$4 ]"
+DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$( if [ -z "$4" ]; then echo ""; else echo "(secret)"; fi ) ]"
 
 list_usb_storage > /tmp/usb_block_devices
 if [ -z "$(cat /tmp/usb_block_devices)" ]; then
@@ -114,7 +114,9 @@ else
         --menu "Choose your USB disk [1-$n, a to abort]:" 0 80 8 \
         -- $MENU_OPTIONS \
         2>/tmp/whiptail
-
+      if [ $? -ne 0 ]; then
+        die "Selecting USB disk/partition aborted."
+      fi
       option_index=$(cat /tmp/whiptail)
     else
       echo "+++ Select your USB disk:"

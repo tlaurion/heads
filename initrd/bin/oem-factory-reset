@@ -173,6 +173,56 @@ generate_inmemory_RSA_master_and_subkeys()
     DEBUG "GPG Key setting public key to ultimate trust done."
 }
 
+#Function to move current gpg keyring subkeys to card (key to card)
+# This is aimed to be used after having generated master key and subkeys in memory and having backuped them to a LUKS container
+# This function will key to card the subkeys from the master key in the keyring
+# The master key will be kept in the keyring
+# The master key was already used to sign the subkeys, so it is not needed anymore
+# Delete the master key from the keyring once key to card is done
+move_keyring_subkeys_to_smartcard() {
+    #To do this, we need to:
+    #reset the card
+    #edit the key (with email address) in expert mode (gpg --expert --edit-key <email>)
+    #key 1 is encryption subkey, key 2 is signing subkey, key 3 is authentication subkey
+    
+    #make sure usb ready and usb dongle ready to communicate with
+    enable_usb
+    enable_usb_storage
+    gpg --card-status || die "Error getting GPG card status"
+
+    #factory reset the card
+    {
+        echo admin
+        echo factory-reset
+        echo y
+        echo yes
+    } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit \
+        >/tmp/gpg_card_edit_output 2>&1
+    if [ $? -ne 0 ]; then
+        ERROR=$(cat /tmp/gpg_card_edit_output)
+        whiptail_error_die "GPG Key factory reset failed!\n\n$ERROR"
+    fi
+
+    #keytocard all subkeys
+    {
+        echo "key 1"
+        echo "keytocard"
+        echo "key 1"
+        echo "key 2"
+        echo "keytocard"
+        echo "key 2"
+        echo "key 3"
+        echo "keytocard"
+        echo "key 3"
+        echo "save"
+    } | gpg --expert --edit-key "${GPG_USER_MAIL}" \
+        >/tmp/gpg_card_edit_output 2>&1
+        if [ $? -ne 0 ]; then
+            ERROR=$(cat /tmp/gpg_card_edit_output)
+            whiptail_error_die "GPG Key moving subkeys to smartcard failed!\n\n$ERROR"
+        fi
+}
+
 #Whiptail prompt to disconnect any external USB storage device
 prompt_disconnect_external_USB_storage_device() {
     TRACE "Under oem-factory-reset:disconnect_external_USB_storage_device"
@@ -882,7 +932,7 @@ if [ "$GPG_GEN_KEY_IN_MEMORY" == "1" ]; then
     # Generate GPG master key
     generate_inmemory_RSA_master_and_subkeys
     wipe_thumb_drive_and_copy_gpg_key_material
-    #todo: copy to card
+    move_keyring_subkeys_to_smartcard
 else
     #Generate GPG key and subkeys on smartcard
     ## reset the GPG Key
