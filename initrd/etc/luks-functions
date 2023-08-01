@@ -10,7 +10,7 @@ list_luks_devices()
 {
 	#generate a list of devices to choose from that contain a LUKS header
 	lvm vgscan||true
-  blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks $device;if [ $(echo $?) == 0 ]; then echo $device;fi; done | sort
+	blkid | cut -d ':' -f 1 | while read device;do cryptsetup isLuks $device;if [ $(echo $?) == 0 ]; then echo $device;fi; done | sort
 }
 
 
@@ -112,14 +112,14 @@ prepare_thumb_drive()
 	echo -e "o\nw\n" | fdisk $DEVICE > /dev/null 2>&1 || die "Error creating partition table"
 	DEBUG "partition device with two partitions: first one being the percent applied and rest for second partition through fdisk"
   	echo -e "n\np\n1\n\n+"$PERCENTAGE_MB"M\nn\np\n2\n\n\nw\n" | fdisk $DEVICE > /dev/null 2>&1 || die "Error partitioning device"
-	DEBUG "cryptosetup luksFormat  first partition with LUKS container aes-xts-plain64 cipher with sha256 hash and 512 bit key"
+	DEBUG "cryptsetup luksFormat  first partition with LUKS container aes-xts-plain64 cipher with sha256 hash and 512 bit key"
 	DEBUG "Creating ${PERCENTAGE_MB}MB LUKS container on ${DEVICE}1..."
 	echo -n "$PASSPHRASE" \
 		| cryptsetup -c aes-xts-plain64 -h sha256 -s 512 -y luksFormat ${DEVICE}1 > /dev/null 2>&1 \
 		|| die "Error formatting LUKS container"
-	DEBUG "Opening LUKS device ${DEVICE} into /dev/mapper/private..."
+	DEBUG "Opening LUKS device and mapping under /dev/mapper/private..."
 	echo -n "$PASSPHRASE" | cryptsetup luksOpen ${DEVICE}1 private > /dev/null 2>&1 || die "Error opening LUKS container"
-	DEBUG "Formatting LUKS device ${DEVICE} mapped under /dev/mapper/private with ext4 partition..."
+	DEBUG "Formatting LUKS container mapped under /dev/mapper/private as an ext4 partition..."
 	mke2fs -t ext4 -L private /dev/mapper/private > /dev/null 2>&1 || die "Error formatting LUKS container's ext4 filesystem"
 	DEBUG "Closing LUKS device /dev/mapper/private..."
 	cryptsetup luksClose private > /dev/null 2>&1 || die "Error closing LUKS container"

@@ -4,10 +4,18 @@
 . /etc/luks-functions
 
 TRACE "Under /bin/mount-usb"
-DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$4 ]"
+DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$( if [ -z "$4" ]; then echo "empty"; else echo "(secret)"; fi ) ]"
 
 enable_usb
 enable_usb_storage
+
+if [ ! -d /media ]; then
+  DEBUG "Creating /media directory"
+  mkdir /media
+else
+  DEBUG "Cleaning /media directory"
+  umount /media > /dev/null 2>&1 || true
+fi
 
 # parameters:
 #   $1: rw or ro
@@ -53,8 +61,6 @@ if [ -z "$1" ]; then
         DEBUG "No luks password given, leaving it optional"
         set -- "$1" "$2" "$3" "$4"
     fi
-
-DEBUG "parameters: [ 1=$1 2=$2 3=$3 4=$4 ]"
 
 list_usb_storage > /tmp/usb_block_devices
 if [ -z "$(cat /tmp/usb_block_devices)" ]; then
@@ -114,7 +120,9 @@ else
         --menu "Choose your USB disk [1-$n, a to abort]:" 0 80 8 \
         -- $MENU_OPTIONS \
         2>/tmp/whiptail
-
+      if [ $? -ne 0 ]; then
+        die "Selecting USB disk/partition aborted."
+      fi
       option_index=$(cat /tmp/whiptail)
     else
       echo "+++ Select your USB disk:"
@@ -149,7 +157,7 @@ if [ -s /tmp/luks_devices ]; then
       DEBUG "Closing existing luks device"
       cryptsetup luksClose usb_mount_device
     fi
-    DEBUG "Opening luks device $USB_MOUNT_DEVICE"
+    DEBUG "Opening LUKS device $USB_MOUNT_DEVICE"
     #Pass LUKS passphrase to cryptsetup only if we received one
 
     if [ -z "$4" ]; then

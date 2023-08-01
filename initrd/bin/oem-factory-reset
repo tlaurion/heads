@@ -37,7 +37,7 @@ CUSTOM_PASS_AFFECTED_COMPONENTS=""
 
 #TODO: put back to 3076 by default and redefine to 4096 when in generated in memory
 #RSA_KEY_LENGTH=3076
-RSA_KEY_LENGTH=1024
+RSA_KEY_LENGTH=2048
 
 GPG_USER_NAME="OEM Key"
 GPG_KEY_NAME=$(date +%Y%m%d%H%M%S)
@@ -155,8 +155,7 @@ generate_inmemory_RSA_master_and_subkeys()
         whiptail_error_die "GPG Key authentication subkey generation failed!\n\n$ERROR"
     fi
 
-    DEBUG "GPG Key generation in memory done."
-
+    DEBUG "Setting public key to ultimate trust..."
     #Set the public key to the ultimate trust
     {
         echo trust
@@ -169,8 +168,59 @@ generate_inmemory_RSA_master_and_subkeys()
         ERROR=$(cat /tmp/gpg_card_edit_output)
         whiptail_error_die "GPG Key setting public key to ultimate trust failed!\n\n$ERROR"
     fi  
+}
 
-    DEBUG "GPG Key setting public key to ultimate trust done."
+#Function to move current gpg keyring subkeys to card (keytocard)
+# This is aimed to be used after having generated master key and subkeys in memory and having backuped them to a LUKS container
+# This function will keytocard the subkeys from the master key in the keyring
+# The master key will be kept in the keyring
+# The master key was already used to sign the subkeys, so it is not needed anymore
+# Delete the master key from the keyring once key to card is done (already backuped on LUKS private partition)
+keytocard_subkeys_to_smartcard() {
+    TRACE "Under oem-factory-reset:keytocard_subkeys_to_smartcard"
+
+    #make sure usb ready and usb dongle ready to communicate with
+    enable_usb
+    enable_usb_storage
+    gpg --card-status > /dev/null 2>&1 || die "Error getting GPG card status"
+
+    DEBUG "Factory resetting the smartcard..."
+    gpg_key_factory_reset
+
+    DEBUG "Moving subkeys to smartcard..."
+    DEBUG "GPG_USER_MAIL=${GPG_USER_MAIL}"
+    DEBUG "ADMIN_PIN=${ADMIN_PIN}"
+    DEBUG "USER_PIN=${USER_PIN}"
+
+        #keytocard all subkeys
+        {
+            echo "key 1" #Select Signature key
+            echo "keytocard"
+            echo "1" # Signature key
+            echo "$ADMIN_PIN" #Smartcard admin pin
+            echo "$ADMIN_PIN"  #Subkey PIN
+            echo "0" #No expiration date
+            echo "key 1"
+            echo "key 2"
+            echo "keytocard"
+            echo "2" # Encryption key
+            echo "$ADMIN_PIN"
+            echo "$ADMIN_PIN"
+            echo "key 2"
+            echo "key 3"
+            echo "keytocard"
+            echo "3" # Authentication key
+            echo "$ADMIN_PIN"
+            echo "$ADMIN_PIN"
+            echo "key 3"
+            echo "save"
+        } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --expert --edit-key "${GPG_USER_MAIL}" \
+        >/tmp/gpg_card_edit_output 2>&1
+        if [ $? -ne 0 ]; then
+            ERROR=$(cat /tmp/gpg_card_edit_output)
+            whiptail_error_die "GPG Key moving subkeys to smartcard failed!\n\n$ERROR"
+        fi
+    DEBUG "Moving subkeys to smartcard done."
 }
 
 #Whiptail prompt to disconnect any external USB storage device
@@ -296,16 +346,21 @@ wipe_thumb_drive_and_copy_gpg_key_material()
     fi
     select_luks_container_size_percent
     #Wipe thumb drive with a LUKS container of size $(cat /tmp/luks_container_size_percent)
-    #TODO remove DO_WITH_DEBUG
-    DO_WITH_DEBUG prepare_thumb_drive "$thumb_drive" "$(cat /tmp/luks_container_size_percent)" "$ADMIN_PIN"
+    prepare_thumb_drive "$thumb_drive" "$(cat /tmp/luks_container_size_percent)" "$ADMIN_PIN"
     #Export master key and subkeys to thumb drive
-    DO_WITH_DEBUG export_master_key_subkeys_and_revocation_key_to_private_LUKS_container "rw" "$thumb_drive"1 "/media" "$ADMIN_PIN"
+    export_master_key_subkeys_and_revocation_key_to_private_LUKS_container "rw" "$thumb_drive"1 "/media" "$ADMIN_PIN"
     #Export public key to thumb drive's public partition
     export_public_key_to_thumbdrive_public_partition "rw" "$thumb_drive"2 "/media"
 }
 
-gpg_key_reset() {
+gpg_key_factory_reset() {
+    TRACE "Under oem-factory-reset:gpg_key_factory_reset"
+
+    #enable usb storage
+    enable_usb
+
     # Factory reset GPG card
+    DEBUG "GPG factory reset..."
     {
         echo admin
         echo factory-reset
@@ -323,6 +378,7 @@ gpg_key_reset() {
     fi
     # Toggle forced sig (good security practice, forcing PIN request for each signature request)
     if gpg --card-status | grep "Signature PIN" | grep -q "not forced"; then
+    DEBUG "GPG toggling forcesig on since off..."
         {
             echo admin
             echo forcesig
@@ -334,6 +390,7 @@ gpg_key_reset() {
             whiptail_error_die "GPG Key forcesig toggle on failed!\n\n$ERROR"
         fi
     fi
+    DEBUG "GPG setting RSA key length to ${RSA_KEY_LENGTH} bits..."
     # Set RSA key length
     {
         echo admin
@@ -353,7 +410,11 @@ gpg_key_reset() {
         ERROR=$(cat /tmp/gpg_card_edit_output)
         whiptail_error_die "Setting key attributed to RSA ${RSA_KEY_LENGTH} bits in USB security dongle failed."
     fi
-    # Generate OEM GPG keys
+}
+generate_OEM_gpg_keys(){
+# Generate OEM GPG keys
+    TRACE "Under oem-factory-reset:generate_OEM_gpg_keys"
+    DEBUG "Generating GPG keys to RSA ${RSA_KEY_LENGTH} bits in smartcard..."
     {
         echo admin
         echo generate
@@ -374,6 +435,8 @@ gpg_key_reset() {
 }
 
 gpg_key_change_pin() {
+    TRACE "Under oem-factory-reset:gpg_key_change_pin"
+    DEBUG "Changing GPG key PINs..."
     # 1 = user PIN, 3 = admin PIN
     PIN_TYPE=$1
     PIN_ORIG=$2
@@ -397,6 +460,7 @@ gpg_key_change_pin() {
 }
 
 generate_checksums() {
+    TRACE "Under oem-factory-reset:generate_checksums"
     # ensure /boot mounted
     if ! grep -q /boot /proc/mounts; then
         mount -o rw /boot || whiptail_error_die "Unable to mount /boot"
@@ -485,6 +549,7 @@ generate_checksums() {
 }
 
 set_default_boot_option() {
+    TRACE "Under oem-factory-reset:set_default_boot_option"
     option_file="/tmp/kexec_options.txt"
     tmp_menu_file="/tmp/kexec/kexec_menu.txt"
     hash_file="/boot/kexec_default_hashes.txt"
@@ -528,6 +593,7 @@ set_default_boot_option() {
 }
 
 report_integrity_measurements() {
+    TRACE "Under oem-factory-reset:report_integrity_measurements"
     #check for GPG key in keyring
     GPG_KEY_COUNT=$(gpg -k 2>/dev/null | wc -l)
     if [ "$GPG_KEY_COUNT" -ne 0 ]; then
@@ -882,12 +948,14 @@ if [ "$GPG_GEN_KEY_IN_MEMORY" == "1" ]; then
     # Generate GPG master key
     generate_inmemory_RSA_master_and_subkeys
     wipe_thumb_drive_and_copy_gpg_key_material
-    #todo: copy to card
+    gpg_key_factory_reset
+    keytocard_subkeys_to_smartcard
 else
     #Generate GPG key and subkeys on smartcard
     ## reset the GPG Key
     echo -e "\nResetting GPG Key...\n(this will take around 3 minutes...)\n"
-    gpg_key_reset
+    gpg_key_factory_reset
+    generate_OEM_gpg_keys
 fi
 
 # parse name of generated key
