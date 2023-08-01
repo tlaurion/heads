@@ -698,3 +698,18 @@ real.clean:
 		fi; \
 	done
 	cd install && rm -rf -- *
+
+real.remove_verify_files_rebuild_from_cache:
+	#Most of the times build issues for version bumps happen because old libraries are used as dependencies at linking phase.
+	# Removing install dir content will make sure that build cache is cleanly rebuilt from current version of modules defined packages
+	rm -rf install/*
+	# Packages verify files are kept under packages/arch/.pkgname*_verify
+	#  Removing them will trigger:
+	#   - module package download
+	#   - module package tarball verification
+	#   - module package builddir extraction (overwrites build dir content files)
+	#   - module package patching (patches newly extracted files and create/delete files) 
+	#    - If patching fails, it will tell you for which file patch failed (most probably because already existing). 
+	#    	- Delete existing files reported by by git apply failing and restart build
+	rm -rf packages/*/.*_verify
+
