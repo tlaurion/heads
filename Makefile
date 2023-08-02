@@ -301,13 +301,22 @@ define define_module =
 		git -C "$(build)/$($1_base_dir)" reset --hard $($1_commit_hash) && git submodule update --init --checkout; \
 		echo -n '$($1_repo)|$($1_commit_hash)' > "$$@"; \
 	elif [ "$$$$(cat "$$@")" != '$($1_repo)|$($1_commit_hash)' ]; then \
-		echo "Switching $1 to $($1_repo) at $($1_commit_hash)" && \
-		git -C "$(build)/$($1_base_dir)" fetch $($1_repo) $($1_commit_hash) && \
+		echo "Getting last commit just in case gitignore changed..." && \
+		git -C "$(build)/$($1_base_dir)" reset --hard HEAD^ && \
+		echo "Setting remote  url origin to repo" && \
+		git -C "$(build)/$($1_base_dir)" remote set-url origin $($1_repo) && \
+		echo "Switching $1 to $($1_repo) at $($1_commit_hash)..." && \
+		echo "fetching $($1_repo)..." && \
+		git -C "$(build)/$($1_base_dir)" fetch --set-upstream origin && \
+		echo "resetting to  $($1_commit_hash)" && \
 		git -C "$(build)/$($1_base_dir)" reset --hard $($1_commit_hash) && \
-		git -C "$(build)/$($1_base_dir)" clean -df && \
-		git -C "$(build)/$($1_base_dir)" clean -dffx payloads util/cbmem && \
-		git -C "$(build)/$($1_base_dir)" submodule sync && \
-		git -C "$(build)/$($1_base_dir)" submodule update --init --checkout && \
+		echo "checking out commit $($1_commit_hash)..." && \
+		git -C "$(build)/$($1_base_dir)" checkout $($1_commit_hash) && \
+		echo "cleaning up with git clean -dffx..." && \
+		git -C "$(build)/$($1_base_dir)" clean -dfx && \
+		echo "submodule update --init --recursive..." && \
+		git -C "$(build)/$($1_base_dir)" submodule update --init --recursive && \
+		echo "writing canary file under $(build)/$($1_base_dir)/.canary with $($1_repo) and $($1_commit_hash)..." && \
 		echo -n '$($1_repo)|$($1_commit_hash)' > "$$@"; \
 	fi
 	if [ ! -e "$(build)/$($1_base_dir)/.patched" ]; then \
