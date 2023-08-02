@@ -301,8 +301,11 @@ define define_module =
 		git -C "$(build)/$($1_base_dir)" reset --hard $($1_commit_hash) && git submodule update --init --checkout; \
 		echo -n '$($1_repo)|$($1_commit_hash)' > "$$@"; \
 	elif [ "$$$$(cat "$$@")" != '$($1_repo)|$($1_commit_hash)' ]; then \
-		echo "Switching $1 to $($1_repo) at $($1_commit_hash)" && \
-		git -C "$(build)/$($1_base_dir)" fetch $($1_repo) $($1_commit_hash) && \
+                echo "Switching $1 to $($1_repo) at $($1_commit_hash)" && \
+		git -C "$(build)/$($1_base_dir)" remote set-url origin $($1_repo) && \
+		git -C "$(build)/$($1_base_dir)" reset --hard $($1_commit_hash) && \
+		git submodule sync && git submodule update --init --checkout && \
+                git -C "$(build)/$($1_base_dir)" fetch $($1_repo) $($1_commit_hash) && \
 		git -C "$(build)/$($1_base_dir)" reset --hard $($1_commit_hash) && \
 		git -C "$(build)/$($1_base_dir)" clean -df && \
 		git -C "$(build)/$($1_base_dir)" clean -dffx payloads util/cbmem && \

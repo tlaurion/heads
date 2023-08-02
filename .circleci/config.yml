@@ -251,7 +251,6 @@ workflows:
       #Cache one workspace per architecture. Make sure workspace caches are chainloaded and the last in chain for an arch is saved.
       - save_cache:
           requires:
-            - librem_14
             - talos-2
             - nitropad-nv41
 
