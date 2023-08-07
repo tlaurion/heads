@@ -166,17 +166,35 @@ list_usb_storage()
 confirm_gpg_card()
 {
 	TRACE "Under /etc/functions:confirm_gpg_card"
+
+	if [ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" ]; then
+		message="Please confirm that your GPG card is inserted(Y) or that you have your GPG key material backup on a USB drive inserted(n) [Y/n]: "
+	else
+      # Generic message if no known key material backup
+	  message+="Please confirm that your GPG card is inserted [Y/n]: "
+	fi
+
 	read \
 		-n 1 \
-		-p "Please confirm that your GPG card is inserted [Y/n]: " \
+		-p "$message" \
 		card_confirm
 	echo
 
 	if [ "$card_confirm" != "y" \
 		-a "$card_confirm" != "Y" \
 		-a -n "$card_confirm" ] \
-	; then
-		die "gpg card not confirmed"
+		; then
+		if [ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" ]; then
+			#prompt user to select the proper encrypted partition, being the first one on next prompt
+			echo -e "\n Please select encrypted partition (not public one) and type GPG Admin PIN when prompted for passphrase\n"
+			mount-usb || die "Unable to mount USB"
+			echo -e "\nWhen prompted for passphrase, type GPG Admin PIN\n"
+			gpg --import /media/subkeys.sec ||
+				die "Unable to import GPG private subkeys"
+			return
+		else
+			die "gpg card not confirmed"
+		fi
 	fi
 
 	# setup the USB so we can reach the GPG card

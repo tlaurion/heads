@@ -947,7 +947,10 @@ gpg --list-keys >/dev/null 2>&1
 if [ "$GPG_GEN_KEY_IN_MEMORY" == "1" ]; then
     # Generate GPG master key
     generate_inmemory_RSA_master_and_subkeys
+    #TODO seperate wiping and thumb drive functions with proper validation
     wipe_thumb_drive_and_copy_gpg_key_material
+    #TODO seperate setting config
+    set_user_config CONFIG_HAVE_GPG_KEY_BACKUP Y
     gpg_key_factory_reset
     keytocard_subkeys_to_smartcard
 else
