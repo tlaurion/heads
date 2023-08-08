@@ -159,6 +159,7 @@ if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 	DEBUG "kexeccmd= $kexeccmd"
 
 	read -n 1 -p "[DEBUG] Continue booting? [Y/n]: "$'\n' debug_boot_confirm
+	echo
 	if [ "${debug_boot_confirm^^}" = N ]; then
 		# abort
 		die "Boot aborted"
