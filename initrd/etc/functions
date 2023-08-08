@@ -168,7 +168,7 @@ confirm_gpg_card()
 	TRACE "Under /etc/functions:confirm_gpg_card"
 
 	if [ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" ]; then
-		message="Please confirm that your GPG card is inserted(Y) or that you have your GPG key material backup on a USB drive inserted(n) [Y/n]: "
+		message="Please confirm that your GPG card is inserted(Y/n) or your GPG key material backup thumbdrive is inserted(b) [Y/n/b]: "
 	else
       # Generic message if no known key material backup
 	  message+="Please confirm that your GPG card is inserted [Y/n]: "
@@ -182,18 +182,29 @@ confirm_gpg_card()
 
 	if [ "$card_confirm" != "y" \
 		-a "$card_confirm" != "Y" \
+		-a "$card_confirm" != "b" \
 		-a -n "$card_confirm" ] \
-		; then
-		if [ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" ]; then
+	; then
+		die "gpg card not confirmed"
+	fi
+
+	DEBUG "card_confirm=$card_confirm"
+	DEBUG "CONFIG_HAVE_GPG_KEY_BACKUP=$CONFIG_HAVE_GPG_KEY_BACKUP"
+	DEBUG "CONFIG_GPG_KEY_BACKUP_IN_USE=$CONFIG_GPG_KEY_BACKUP_IN_USE"
+
+	# If user has known GPG key material Thumb drive backup and asked to use it
+	if [[ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" && "$card_confirm" == "b" ]]; then
+		#Only mount and import GPG key material thumb drive backup once
+		if [ ! "$CONFIG_GPG_KEY_BACKUP_IN_USE" == "y" ]; then
 			#prompt user to select the proper encrypted partition, being the first one on next prompt
 			echo -e "\n Please select encrypted partition (not public one) and type GPG Admin PIN when prompted for passphrase\n"
 			mount-usb || die "Unable to mount USB"
-			echo -e "\nWhen prompted for passphrase, type GPG Admin PIN\n"
-			gpg --import /media/subkeys.sec ||
-				die "Unable to import GPG private subkeys"
+			warn "When prompted for passphrase, type known GPG Admin PIN"
+			gpg --pinentry-mode=loopback --import /media/subkeys.sec || die "Unable to import GPG private subkeys"
+			set_user_config CONFIG_GPG_KEY_BACKUP_IN_USE y
+			umount /media || die "Unable to unmount USB"
+			cryptsetup luksClose usb_mount_device || die "Unable to close LUKS device"
 			return
-		else
-			die "gpg card not confirmed"
 		fi
 	fi
 
