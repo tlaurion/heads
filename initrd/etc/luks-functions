@@ -65,17 +65,6 @@ prepare_thumb_drive()
 		die "Error: $DEVICE is not a block device"
 	fi
 
-	#Check if device is already partitioned with two partitions
-	if [ $(fdisk -l $DEVICE | grep -c "Disklabel type: dos") -eq 2 ]; then
-		warn "Warning: $DEVICE is already partitioned with two partitions"
-	fi
-
-	#Check if device is already partitioned with more than two partitions
-	if [ $(fdisk -l $DEVICE | grep -c "Disklabel type: dos") -gt 2 ]; then
-		warn "Waring: $DEVICE is already partitioned with more than two partitions"
-		#TODO: maybe we want to call sister function to reuse existing partitions?
-	fi
-
 	if [ -z "$PERCENTAGE" ]; then
 		#If no percentage was provided, ask user to select percentage of device to use for LUKS container
 		select_luks_container_size_percent

@@ -35,8 +35,8 @@ MAX_HOTP_GPG_PIN_LENGTH=25
 # What are the Security components affected by custom passwords
 CUSTOM_PASS_AFFECTED_COMPONENTS=""
 
-#TODO: put back to 3076 by default and redefine to 4096 when in generated in memory
-#RSA_KEY_LENGTH=3076
+# Default RSA key length
+#TODO change it back to 3076. Canokey cannot be tested easily and Nitrokey prov1 I have doesn't key-attr to 3076
 RSA_KEY_LENGTH=2048
 
 GPG_USER_NAME="OEM Key"
@@ -505,6 +505,7 @@ generate_checksums() {
     fi
 
     # generate hashes
+    
     (
         set -e -o pipefail
         cd /boot
@@ -684,8 +685,7 @@ $TPM_STR
 fi
 
 # We show current integrity measurements status and time
-#TODO: REENABLE once testing is done
-#report_integrity_measurements
+report_integrity_measurements
 
 use_defaults=n
 if [ "$CONFIG_OEMRESET_OFFER_DEFAULTS" = y ]; then
@@ -720,7 +720,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
     fi
 
     #Prompt to ask if user wants to generate GPG key material in memory or on smartcard
-    echo -e -n "Would you like to generate GPG key material in memory or solely on the security element of the USB security dongle? [m/S]: "
+    echo -e -n "Would you like to generate GPG key material in (m)emory or (S)olely on the security element of the USB security dongle? [m/S]: "
     read -n 1 prompt_output
     echo
     if [ "$prompt_output" == "m" \
@@ -883,11 +883,10 @@ if [ "$GPG_GEN_KEY_IN_MEMORY" == "0" ]; then
     fi
 fi
 
-#TODO: Reactivate once copy to card is implemented
 # ensure USB Security Dongle connected if GPG_GEN_KEY_IN_MEMORY=0
 if [ "$GPG_GEN_KEY_IN_MEMORY" == "0" ]; then
     echo -e "\nChecking for USB Security Dongle...\n"
-    # USB kernel modules already loaded via mount-usb
+    enable_usb
     if ! gpg --card-status >/dev/null 2>&1; then
         whiptail_error "Can't access USB Security Dongle; \nPlease remove and reinsert, then press Enter."
         if ! gpg --card-status >/dev/null 2>/tmp/error; then

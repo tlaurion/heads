@@ -95,9 +95,9 @@ reseal_tpm_disk_decryption_key()
 		while ! kexec-seal-key /boot; do
 			warn "Recovery disk encryption key passphrase invalid. Try again!"
 		done
-		echo "LUKS header hash changed under of /boot/kexec_luks_hdr_hash.txt. Resigning /boot"
+		warn "LUKS header hash changed under of /boot/kexec_luks_hdr_hash.txt. Updating checksums and detaching signing /boot/kexec.sig..."
 		while ! update_checksums; do
-			warn "Checksums were not updated. Please re-sign!"
+		warn "Checksums were not signed. Bad PIN provided? Please regenerate and re-sign!"
 		done
 		warn "Rebooting in 3 seconds to enable booting default boot option..."
 		sleep 3
@@ -167,8 +167,15 @@ confirm_gpg_card()
 {
 	TRACE "Under /etc/functions:confirm_gpg_card"
 
+	#Skip prompts if we are currently using a known GPG key material Thumb drive backup and keys are unlocked pinentry
+	#TODO: probably export CONFIG_GPG_KEY_BACKUP_IN_USE but not under /etc/user.config?
+	#Toggle to come in next PR, but currently we don't have a way to toggle it back to n if config.user flashed back in rom
+	if [[ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" && "$CONFIG_GPG_KEY_BACKUP_IN_USE" == "y" ]]; then
+		return
+	fi
+
 	if [ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" ]; then
-		message="Please confirm that your GPG card is inserted(Y/n) or your GPG key material backup thumbdrive is inserted(b) [Y/n/b]: "
+		message="Please confirm that your GPG card is inserted(Y/n) or your GPG key material (b)backup thumbdrive is inserted [Y/n/b]: "
 	else
       # Generic message if no known key material backup
 	  message+="Please confirm that your GPG card is inserted [Y/n]: "
@@ -188,22 +195,33 @@ confirm_gpg_card()
 		die "gpg card not confirmed"
 	fi
 
-	DEBUG "card_confirm=$card_confirm"
-	DEBUG "CONFIG_HAVE_GPG_KEY_BACKUP=$CONFIG_HAVE_GPG_KEY_BACKUP"
-	DEBUG "CONFIG_GPG_KEY_BACKUP_IN_USE=$CONFIG_GPG_KEY_BACKUP_IN_USE"
-
 	# If user has known GPG key material Thumb drive backup and asked to use it
 	if [[ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" && "$card_confirm" == "b" ]]; then
 		#Only mount and import GPG key material thumb drive backup once
 		if [ ! "$CONFIG_GPG_KEY_BACKUP_IN_USE" == "y" ]; then
-			#prompt user to select the proper encrypted partition, being the first one on next prompt
-			echo -e "\n Please select encrypted partition (not public one) and type GPG Admin PIN when prompted for passphrase\n"
-			mount-usb || die "Unable to mount USB"
-			warn "When prompted for passphrase, type known GPG Admin PIN"
-			gpg --pinentry-mode=loopback --import /media/subkeys.sec || die "Unable to import GPG private subkeys"
+			#Prompt user for provisioned GPG Admin PIN that will be passed along to mount-usb and to import gpg subkeys
+			echo
+			read -s -p "Please enter GPG Admin PIN needed to use the GPG backup thumb drive: " gpg_admin_pin
+			#prompt user to select the proper encrypted partition, which should the first one on next prompt
+			echo -e "\n Please select encrypted LUKS container partition (not the public one)\n"
+			mount-usb -pass $gpg_admin_pin || die "Unable to mount USB with GPG Admin PIN"
+			warn "Testing detach-sign operation and verifiying against fused public key in ROM..."
+			gpg --pinentry-mode=loopback --passphrase-file <(echo -n "${gpg_admin_pin}") --import /media/subkeys.sec > /dev/null 2>&1 \
+			 || die "Unable to import GPG private subkeys"
+			#Do a dummy detach signature to ensure gpg material is usable and cache passphrase to sign /boot from caller functions
+			touch /tmp/dummy
+			gpg --pinentry-mode=loopback --passphrase-file <(echo -n "${gpg_admin_pin}") --detach-sign /tmp/dummy > /dev/null 2>&1 \
+			 || die "Unable to sign dummy file with GPG private signing subkey"
+			#verify detached signature against public key in rom
+			gpg --verify /tmp/dummy.sig /tmp/dummy || die "Unable to verify dummy file with GPG public key in ROM: public key mismatch"
+			#TODO: maybe just an export instead of setting /etc/user.config otherwise could be flashed in weird corner case situation
 			set_user_config CONFIG_GPG_KEY_BACKUP_IN_USE y
 			umount /media || die "Unable to unmount USB"
 			cryptsetup luksClose usb_mount_device || die "Unable to close LUKS device"
+			return
+		fi
+		#Else if user has known GPG key material Thumb drive backup and already asked to use it
+		if [[ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" && "$CONFIG_GPG_KEY_BACKUP_IN_USE" == "y" ]]; then
 			return
 		fi
 	fi
