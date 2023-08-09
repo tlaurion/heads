@@ -238,6 +238,7 @@ update_totp()
           ;;
         p )
           reset_tpm && update_totp && BG_COLOR_MAIN_MENU=""
+          reseal_tpm_disk_decryption_key
           ;;
         x )
           recovery "User requested recovery shell"
