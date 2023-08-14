@@ -90,7 +90,7 @@ $(eval $(call coreboot_module,purism,))
 coreboot-nitrokey_repo := https://github.com/dasharo/coreboot
 coreboot-nitrokey_commit_hash := ae10b20f5c6abc9c23f709b65c46be6525da8c13
 coreboot-nitrokey_patch_version := clevo_release
-$(eval $(call coreboot_module,nitrokey,4.19))
+$(eval $(call coreboot_module,nitrokey,))
 
 # Check that the board configured the coreboot version correctly
 ifeq "$(CONFIG_COREBOOT_VERSION)" ""
