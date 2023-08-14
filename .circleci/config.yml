@@ -231,13 +231,15 @@ workflows:
           requires:
             - x230-hotp-maximized
 
-      # coreboot-git Nitropads depending on librems cache since same kernel build cache
+      # coreboot-git Nitropads depending on x230-hotp-maximized cache
+      # since kernel is 6.x and coreboot is git
+      # coreboot module explicitely states to reuse crossgcc of coreboot 4.19
       - build_and_persist:
           name: nitropad-nv41
           target: nitropad-nv41
           subcommand: ""
           requires:
-            - librem_14
+            - x230-hotp-maximized
 
       # coreboot-git Talos II (PPC)
       - build_and_persist:
@@ -548,7 +550,7 @@ workflows:
           requires:
             - librem_14
 
-#coreboot-git Nitrokey NV
+#coreboot-git dasharo clevo_release + staging IASL patch
       - build:
           name: nitropad-ns50
           target: nitropad-ns50
