@@ -231,7 +231,7 @@ workflows:
           requires:
             - x230-hotp-maximized
 
-      # coreboot-git Nitropads on top of coreboot-git librems
+      # coreboot-git Nitropads depending on librems cache since same kernel build cache
       - build_and_persist:
           name: nitropad-nv41
           target: nitropad-nv41
