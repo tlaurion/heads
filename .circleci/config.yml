@@ -19,7 +19,7 @@ commands:
       - run:
           name: Make Board (FULL ORDERED BUILD LOGS HERE UNTIL JOB FAILED)
           command: |
-            rm -rf build/<<parameters.arch>>/<<parameters.target>>/* build/<<parameters.arch>>/log/* && make -j V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
+            rm -rf build/<<parameters.arch>>/<<parameters.target>>/* build/<<parameters.arch>>/log/* && make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output hashes

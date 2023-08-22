@@ -1,18 +1,10 @@
 # Heads OSFW global Makefile
 
-# Include loadavg.mk to set the load average threshold
-# for parallel builds.  This is done here so that the
-# load average threshold can be set in the environment
-# before make is invoked.
-# The default load average threshold is 1.0
-# The load average threshold can be set in the environment
-# before make is invoked, or it can be set on the make
-# command line, eg:
-# make LOADAVG=2.0
-# or
-# export LOADAVG=2.0
+# Include loadmax.mk to calculate a maximum load average to use for parallel builds
+# This is useful for CI systems that might offer multiple cores but have a limited
+# amount of memory.
 
-include loadavg.mk
+include loadmax.mk
 
 # Need to set CB_OUTPUT_FILE before board .config included so
 # that target overrides in x230/x430-flash (eg) are properly handled
@@ -49,7 +41,7 @@ board_build	= $(build)/$(BOARD)
 
 # Controls how many parallel jobs are invoked in subshells
 CPUS		?= $(shell nproc)
-MAKE_JOBS	?= -j$(CPUS) -l$(LOAD_LIMIT)
+MAKE_JOBS	?= -j$(CPUS) -l$(LOAD_MAX)
 
 WGET ?= wget
 
