@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  artifact: circleci/circleci-artifact@0.1.2 
+
 commands:
   build_board:
     parameters:
@@ -39,6 +42,14 @@ commands:
             if [[ -f ./tmpDir/failed_build ]]; then find ./build/<<parameters.arch>>/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Step hasn't failed. Continuing with next step..."; fi \
       - store_artifacts:
           path: build/<<parameters.arch>>/<<parameters.target>>
+      - post_artifacts:
+          executor: artifact/default
+          steps:
+              - artifact/post:
+                  github-token: $GITHUB_TOKEN
+                  pr-number: $CIRCLE_PULL_REQUEST
+                  artifact-path: build/<<parameters.arch>>/<<parameters.target>>/* # specify the artifacts you want to post
+                  comment-title: "Artifacts for << pipeline.parameters.target >>" # customize the comment title with the target name
 
 jobs:
   prep_env:
@@ -540,61 +551,3 @@ workflows:
           subcommand: ""
           requires:
             - librem_14
-
-#      - build:
-#          name: UNTESTED_kgpe-d16_workstation-usb_keyboard
-#          target: UNTESTED_kgpe-d16_workstation-usb_keyboard
-#          subcommand: ""
-#          requires:
-#            - UNTESTED_kgpe-d16_workstation
-
-#      - build:
-#          name: UNTESTED_kgpe-d16_server
-#          target: UNTESTED_kgpe-d16_server
-#          subcommand: ""
-#          requires:
-#            - UNTESTED_kgpe-d16_workstation
-
-#      - build:
-#          name: UNTESTED_kgpe-d16_server-whiptail
-#          target: UNTESTED_kgpe-d16_server-whiptail
-#          subcommand: ""
-#          requires:
-#            - UNTESTED_kgpe-d16_workstation
-
-#      - build:
-#          name: librem_l1um
-#          target: librem_l1um
-#          subcommand: ""
-#          requires:
-#            - librem_14
-
-########################
-########################
-###    OLD STUFF     ###
-########################
-########################
-# linuxboot steps need something to pass in the kernel header path
-# skipping for now
-#      - run:
-#          name: UNTESTED_qemu-linuxboot-edk2
-#          command: |
-#            ./build/make-4.2.1/make \
-#                CROSS=/cross/bin/x86_64-linux-musl- \
-#                BOARD=UNTESTED_qemu-linuxboot \
-#                `/bin/pwd`/build/linuxboot-git/build/qemu/.configured \
-#                # Run first to avoid too many processes
-#
-#      - run:
-#          name: UNTESTED_qemu-linuxboot
-#          command: |
-#            ./build/make-4.2.1/make \
-#                CROSS=/cross/bin/x86_64-linux-musl- \
-#                CPUS=16 \
-#                V=1 \
-#                BOARD=UNTESTED_qemu-linuxboot \
-#
-#      - store-artifacts:
-#          path: build/UNTESTED_qemu-linuxboot/linuxboot.rom
-#      - store-artifacts:
-#          path: build/UNTESTED_qemu-linuxboot/hashes.txt
