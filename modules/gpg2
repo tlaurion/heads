@@ -1,10 +1,10 @@
 modules-$(CONFIG_GPG2) += gpg2
 
-gpg2_version := 2.4.0
+gpg2_version := 2.4.3
 gpg2_dir := gnupg-$(gpg2_version)
 gpg2_tar := gnupg-$(gpg2_version).tar.bz2
 gpg2_url := https://www.gnupg.org/ftp/gcrypt/gnupg/$(gpg2_tar)
-gpg2_hash := 1d79158dd01d992431dd2e3facb89fdac97127f89784ea2cb610c600fb0c1483
+gpg2_hash := a271ae6d732f6f4d80c258ad9ee88dd9c94c8fdc33c3e45328c4d7c126bd219d
 
 # For reproducibility reasons we have to override the exec_prefix
 # and datarootdir on the configure line so that the Makefiles will
@@ -17,7 +17,6 @@ gpg2_configure := \
 	./configure \
 	CPPFLAGS="-I$(INSTALL)/include/libusb-1.0" \
 	--host $(MUSL_ARCH)-linux-musl \
-	--with-libusb="$(INSTALL)" \
 	--with-gpg-error-prefix="$(INSTALL)" \
 	--with-libgcrypt-prefix="$(INSTALL)" \
 	--with-libassuan-prefix="$(INSTALL)" \
@@ -29,13 +28,11 @@ gpg2_configure := \
 	--enable-ccid-driver \
 	--disable-tofu \
 	--disable-rpath \
-        --disable-regex \
         --disable-doc \
 	--disable-bzip2 \
 	--disable-exec \
 	--disable-photo-viewers \
 	--disable-ldap \
-	--disable-regex \
 	--disable-nls \
 	--disable-all-tests \
 	--disable-wks-tools \
