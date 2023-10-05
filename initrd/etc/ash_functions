@@ -16,14 +16,14 @@ warn() {
 
 DEBUG() {
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
-		echo "DEBUG: $*" | tee -a /tmp/debug.log >&2;
+		echo "DEBUG: $*" | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
 	fi
 }
 
 TRACE() {
-        if [ "$CONFIG_ENABLE_FUNCTION_TRACING_OUTPUT" = "y" ];then
-                echo "TRACE: $*" | tee -a /tmp/debug.log >&2;
-        fi
+	if [ "$CONFIG_ENABLE_FUNCTION_TRACING_OUTPUT" = "y" ];then
+		echo "TRACE: $*" | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
+	fi
 }
 
 preserve_rom() {
