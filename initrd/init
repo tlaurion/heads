@@ -53,6 +53,11 @@ hwclock -l -s
 . /etc/ash_functions
 . /etc/config
 
+# Enable console output
+echo -ne '\e[9;0]' > /dev/console
+# Redirect console output to tty0
+exec >/dev/tty0 2>&1
+
 # Enable maximum debug info if in debug mode
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 	#Maximize printk messages to output all to console (8=debug)
