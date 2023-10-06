@@ -53,6 +53,13 @@ hwclock -l -s
 . /etc/ash_functions
 . /etc/config
 
+# Enable maximum debug info if in debug mode
+if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
+	#Maximize printk messages to output all to console
+	#DEBUG and TRACE calls will be in dmesg and on console
+	dmesg -n 10
+fi
+
 TRACE "Under init"
 
 # set CONFIG_TPM dynamically before init
@@ -184,8 +191,9 @@ else
 				setsid agetty -aroot -l"$CONFIG_BOOTSCRIPT" "$console" linux &
 			done
 		fi
-
-		exec "$CONFIG_BOOTSCRIPT"
+		
+		#Setup a control tty so that all terminals outputs correct tty when tty is called
+		exec cttyhack "$CONFIG_BOOTSCRIPT"
 	else
 		# wait for boot via network to occur
 		pause_recovery 'Override network boot. Entering recovery shell'
