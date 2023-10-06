@@ -55,9 +55,9 @@ hwclock -l -s
 
 # Enable maximum debug info if in debug mode
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
-	#Maximize printk messages to output all to console
+	#Maximize printk messages to output all to console (8=debug)
 	#DEBUG and TRACE calls will be in dmesg and on console
-	dmesg -n 10
+	dmesg -n 8
 fi
 
 TRACE "Under init"
