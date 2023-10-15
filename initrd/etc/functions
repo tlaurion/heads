@@ -304,23 +304,33 @@ increment_tpm_counter() {
 
 check_config() {
 	TRACE "Under /etc/functions:check_config"
+
+	DEBUG "bootdir is $1"
+	DEBUG "force is $2"
+
 	if [ ! -d /tmp/kexec ]; then
+		DEBUG "Creating /tmp/kexec dir"
 		mkdir /tmp/kexec ||
 			die 'Failed to make kexec tmp dir'
-	else
-		rm -rf /tmp/kexec/* ||
-			die 'Failed to empty kexec tmp dir'
+	#TODO: Irrelevant since overriden everywhere?
+	#else
+	#	DEBUG "Emptying /tmp/kexec dir"
+	#	rm -rf /tmp/kexec/* ||
+	#		die 'Failed to empty kexec tmp dir'
 	fi
 
 	if [ ! -r $1/kexec.sig -a "$CONFIG_BASIC" != "y" ]; then
+		DEBUG "No kexec.sig found while CONFIG_BASIC is not set, skipping check"
 		return
 	fi
 
 	if [ $(find $1/kexec*.txt | wc -l) -eq 0 ]; then
+		DEBUG "No kexec*.txt files found, skipping check"
 		return
 	fi
 
 	if [ "$2" != "force" ]; then
+		DEBUG "force boot without checking not set: checking signature"
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
 			warn "Invalid signature on $1/boot/kexec*.txt files"
 			die "Please verify hashes/signatures or use call check_config $1 force to check hashes without signature"
@@ -328,7 +338,8 @@ check_config() {
 	fi
 
 	echo "+++ Found verified kexec boot params"
-	cp $1/kexec*.txt /tmp/kexec ||
+	DEBUG "Copying bootdir $1/kexec*.txt params to /tmp/kexec/"
+	cp $1/kexec*.txt /tmp/kexec/ ||
 		die "Failed to copy kexec boot params to tmp"
 }
 
@@ -448,24 +459,37 @@ verify_global_hashes() {
 
 	#Parameters: optional update flag
 	if [ "$1" = "update" ]; then
-		DEBUG "Caller requested update of checksums"
+		DEBUG "Last TRACE caller requested update of checksums"
 		UPDATE="y"
 		UPDATE_TEXT="\n\nWould you like to update your checksums now?"
 	else
-		DEBUG "Caller did not request update of checksums"
+		DEBUG "LAST TRACE caller did not request update of checksums"
 		UPDATE="n"
 		UPDATE_TEXT=""
 	fi
 
 	# Check the hashes of all the files, ignoring signatures for now
-	check_config /boot force
+	DO_WITH_DEBUG check_config /boot force
 	TMP_HASH_FILE="/tmp/kexec/kexec_hashes.txt"
 	TMP_TREE_FILE="/tmp/kexec/kexec_tree.txt"
+	TMP_MENU_FILE="/tmp/kexec/kexec_menu.txt"
 	TMP_PACKAGE_TRIGGER_PRE="/tmp/kexec/kexec_package_trigger_pre.txt"
 	TMP_PACKAGE_TRIGGER_POST="/tmp/kexec/kexec_package_trigger_post.txt"
 
-	if verify_checksums /boot; then
-		return 0
+	# set bootdir to /boot so function can be shared
+	bootdir=/boot
+
+	# check if TMP_MENU_FILE exists, and if so switch bootdir to /tmp/kexec
+	if [ -f "$TMP_MENU_FILE" ]; then
+		DEBUG "Found TMP_MENU_FILE, switching bootdir: $bootdir to /tmp/kexec/"
+		bootdir=/tmp/kexec/
+	fi
+
+	if DO_WITH_DEBUG verify_checksums "$bootdir" "$gui_menu"; then
+		#TODO: /boot above should be bootdir so function can be shared
+		echo "+++ Verified boot hashes "
+		valid_hash='y'
+		valid_global_hash='y'
 	elif [[ ! -f "$TMP_HASH_FILE" || ! -f "$TMP_TREE_FILE" ]]; then
 		# No hashes found, prompt to create them
 		if (whiptail $BG_COLOR_ERROR --title 'ERROR: Missing File!' \
@@ -503,7 +527,7 @@ verify_global_hashes() {
 				TEXT+="$UPDATE_TEXT"
 			fi
 		else
-			#Standard case for Heads without package manager involvement in /boot
+			#Standard case for Heads without package manager traces left under /boot
 			if [ $CHANGED_FILES_COUNT -gt 10 ]; then
 				# drop to console to show full file list
 				whiptail $ERROR_BG_COLOR --title 'ERROR: Boot Hash Mismatch' \
@@ -539,7 +563,7 @@ verify_global_hashes() {
 					whiptail $BG_COLOR_ERROR --title 'ERROR' \
 						--msgbox "Failed to update checksums / sign default config" 0 80
 					BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
-                			return 1
+					return 1
 				fi
 			fi
 		fi
@@ -589,7 +613,7 @@ report_integrity_measurements() {
 		fi
 		# Check for detached signed digest and report on /boot integrity status
 		SIGNED="OK"
-		(check_config /boot) || SIGNED="ALTERED"
+		(DO_WITH_DEBUG check_config /boot) || SIGNED="ALTERED"
 
 		TMP_HASH_FILE="/tmp/kexec/kexec_hashes.txt"
 
@@ -601,13 +625,14 @@ report_integrity_measurements() {
 
 		#Show results
 
+
 		#If the system is in a bad state, show the user a warning
 		whiptail $MAIN_MENU_BG_COLOR --title "Measured Integrity Report" --msgbox "$date\n\nTOTP: $TOTP\nHOTP: $HOTP\nBOOT INTEGRITY SIGNATURE: $SIGNED\nBOOT INTEGRITY HASHES: $HASH\n\nPress OK to continue with detailed information in case of errors" 0 80
 
 		#Show the user the detailed information
 		if [ "$SIGNED" != "OK" ] || [ "$HASH" != "OK" ]; then
-			# Show the user the detailed information of /boot integrity status (without asking to update them)
-			verify_global_hashes
+			# Show the user the detailed information of /boot integrity status and offer update possibility 
+			DO_WITH_DEBUG verify_global_hashes update
 		fi
 	fi
 }
@@ -704,6 +729,8 @@ verify_checksums() {
 	local boot_dir="$1"
 	local gui="${2:-y}"
 
+	DEBUG "boot_dir is $boot_dir, gui is $gui"
+
 	(
 		set +e -o pipefail
 		local ret=0
@@ -780,10 +807,14 @@ detect_boot_device() {
 }
 
 scan_boot_options() {
+	TRACE "Under /etc/functions:scan_boot_options"
+
 	local bootdir config option_file
 	bootdir="$1"
 	config="$2"
 	option_file="$3"
+
+	DEBUG "Scanning bootdir:$bootdir for config:$config files with option_file:$option_file"
 
 	if [ -r $option_file ]; then rm $option_file; fi
 	for i in $(find $bootdir -name "$config"); do

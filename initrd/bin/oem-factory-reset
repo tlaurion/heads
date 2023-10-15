@@ -257,7 +257,7 @@ generate_checksums()
             -a \
             > /boot/kexec.sig 2>/tmp/error; then
         # successful - update the validated params
-        if ! check_config /boot >/dev/null 2>/tmp/error ; then
+        if ! DO_WITH_DEBUG /boot >/dev/null 2>/tmp/error ; then
             cat /tmp/error
             ret=1
         else
@@ -279,6 +279,7 @@ generate_checksums()
 
 set_default_boot_option()
 {
+    TRACE "Under /bin/oem-factory-reset:set_default_boot_option"
     option_file="/tmp/kexec_options.txt"
     tmp_menu_file="/tmp/kexec/kexec_menu.txt"
     hash_file="/boot/kexec_default_hashes.txt"
@@ -287,14 +288,14 @@ set_default_boot_option()
     rm $option_file 2>/dev/null
     # parse boot options from grub.cfg
     for i in `find /boot -name "grub.cfg"`; do
-        kexec-parse-boot "/boot" "$i" >> $option_file
+        DO_WITH_DEBUG kexec-parse-boot "/boot" "$i" >> $option_file
     done
     # FC29/30+ may use BLS format grub config files
     # https://fedoraproject.org/wiki/Changes/BootLoaderSpecByDefault
     # only parse these if $option_file is still empty
     if [ ! -s $option_file ] && [ -d "/boot/loader/entries" ]; then
       for i in `find /boot -name "grub.cfg"`; do
-        kexec-parse-bls "/boot" "$i" "/boot/loader/entries" >> $option_file
+        DO_WITH_DEBUG kexec-parse-bls "/boot" "$i" "/boot/loader/entries" >> $option_file
       done
     fi
     [ ! -s $option_file ] \

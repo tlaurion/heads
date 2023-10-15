@@ -23,7 +23,7 @@ parse_boot_options()
 {
 	BOOTDIR="$1"
 	for i in $(find "$BOOTDIR" -name '*.cfg'); do
-		kexec-parse-boot "$BOOTDIR" "$i"
+		DO_WITH_DEBUG "$BOOTDIR" "$i"
 	done
 }
 
