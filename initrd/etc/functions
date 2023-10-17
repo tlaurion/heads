@@ -35,9 +35,9 @@ DO_WITH_DEBUG() {
 
 pcrs() {
 	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
-		tpm2 pcrread sha256
+		tpm2 pcrread sha256 || die "tpm2 pcrread failed"
 	elif [ "$CONFIG_TPM" = "y" ]; then
-		head -8 /sys/class/tpm/tpm0/pcrs
+		cat /sys/class/tpm/tpm0/pcrs
 	fi
 }
 
@@ -304,30 +304,41 @@ increment_tpm_counter() {
 
 check_config() {
 	TRACE "Under /etc/functions:check_config"
+	DEBUG "bootdir is $1"
+	DEBUG "force is $2"
+
 	if [ ! -d /tmp/kexec ]; then
+		DEBUG "Creating /tmp/kexec dir"
 		mkdir /tmp/kexec ||
 			die 'Failed to make kexec tmp dir'
+	#TODO: Irrelevant since overriden everywhere?
 	else
+		DEBUG "Emptying /tmp/kexec dir"
 		rm -rf /tmp/kexec/* ||
 			die 'Failed to empty kexec tmp dir'
 	fi
 
 	if [ ! -r $1/kexec.sig -a "$CONFIG_BASIC" != "y" ]; then
+		DEBUG "No kexec.sig found while CONFIG_BASIC is not set, skipping check"
 		return
 	fi
 
 	if [ $(find $1/kexec*.txt | wc -l) -eq 0 ]; then
+		DEBUG "No kexec*.txt files found, skipping check"
 		return
 	fi
 
 	if [ "$2" != "force" ]; then
+		DEBUG "force boot without checking not set: checking signature"
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
-			die 'Invalid signature on kexec boot params'
+			warn "Invalid signature on $1/boot/kexec*.txt files"
+			die "Please verify hashes/signatures or use call check_config $1 force to check hashes without signature"
 		fi
 	fi
 
 	echo "+++ Found verified kexec boot params"
-	cp $1/kexec*.txt /tmp/kexec ||
+	DEBUG "Copying bootdir $1/kexec*.txt params to /tmp/kexec/"
+	cp $1/kexec*.txt /tmp/kexec/ ||
 		die "Failed to copy kexec boot params to tmp"
 }
 
@@ -440,6 +451,191 @@ update_checksums() {
 	return $rv
 }
 
+# Verify the checksums of all the files in /boot, show discrepancies, and
+# prompt the user to update the checksums if they are incorrect.
+verify_global_hashes() {
+	TRACE "Under /etc/functions:verify_global_hashes"
+
+	#Parameters: optional update flag
+	if [ "$1" = "update" ]; then
+		DEBUG "Last TRACE caller requested update of checksums"
+		UPDATE="y"
+		UPDATE_TEXT="\n\nWould you like to update your checksums now?"
+	else
+		DEBUG "LAST TRACE caller did not request update of checksums"
+		UPDATE="n"
+		UPDATE_TEXT=""
+	fi
+
+	# Check the hashes of all the files, ignoring signatures for now
+	DO_WITH_DEBUG check_config /boot force
+	TMP_HASH_FILE="/tmp/kexec/kexec_hashes.txt"
+	TMP_TREE_FILE="/tmp/kexec/kexec_tree.txt"
+	TMP_MENU_FILE="/tmp/kexec/kexec_menu.txt"
+	TMP_PACKAGE_TRIGGER_PRE="/tmp/kexec/kexec_package_trigger_pre.txt"
+	TMP_PACKAGE_TRIGGER_POST="/tmp/kexec/kexec_package_trigger_post.txt"
+
+	# set bootdir to /boot so function can be shared
+	bootdir=/boot
+
+	# check if TMP_MENU_FILE exists, and if so switch bootdir to /tmp/kexec
+	if [ -f "$TMP_MENU_FILE" ]; then
+		DEBUG "Found TMP_MENU_FILE, switching bootdir: $bootdir to /tmp/kexec/"
+		bootdir=/tmp/kexec/
+	fi
+
+	if DO_WITH_DEBUG verify_checksums "$bootdir" "$gui_menu"; then
+		#TODO: /boot above should be bootdir so function can be shared
+		echo "+++ Verified boot hashes "
+		valid_hash='y'
+		valid_global_hash='y'
+	elif [[ ! -f "$TMP_HASH_FILE" || ! -f "$TMP_TREE_FILE" ]]; then
+		# No hashes found, prompt to create them
+		if (whiptail $BG_COLOR_ERROR --title 'ERROR: Missing File!' \
+			--yesno "One of the files containing integrity information for /boot is missing!\n\nIf you are setting up heads for the first time or upgrading from an\nolder version, select Yes to create the missing files.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to create the missing files now?" 0 80); then
+			if update_checksums; then
+				BG_COLOR_MAIN_MENU=""
+				return 0
+			else
+				whiptail $BG_COLOR_ERROR --title 'ERROR' \
+					--msgbox "Failed to update checksums / sign default config" 0 80
+			fi
+		fi
+		BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
+		return 1
+	else
+		# Hashes found
+		CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':' | tee -a /tmp/hash_output_mismatches)
+		CHANGED_FILES_COUNT=$(wc -l /tmp/hash_output_mismatches | cut -f1 -d ' ')
+
+		# if files changed before package manager started, show stern warning
+		if [ -f "$TMP_PACKAGE_TRIGGER_PRE" ]; then
+			PRE_CHANGED_FILES=$(grep '^CHANGED_FILES' $TMP_PACKAGE_TRIGGER_POST | cut -f 2 -d '=' | tr -d '"')
+			TEXT="The following files failed the verification process BEFORE package updates ran:\n${PRE_CHANGED_FILES}\n\nCompare against the files $CONFIG_BRAND_NAME has detected have changed:\n${CHANGED_FILES}\n\nThis could indicate a compromise!"
+			TEXT+="$UPDATE_TEXT"
+		# if files changed after package manager started, probably caused by package manager
+		elif [ -f "$TMP_PACKAGE_TRIGGER_POST" ]; then
+			LAST_PACKAGE_LIST=$(grep -E "^(Install|Remove|Upgrade|Reinstall):" $TMP_PACKAGE_TRIGGER_POST)
+			UPDATE_INITRAMFS_PACKAGE=$(grep '^UPDATE_INITRAMFS_PACKAGE' $TMP_PACKAGE_TRIGGER_POST | cut -f 2 -d '=' | tr -d '"')
+
+			if [ "$UPDATE_INITRAMFS_PACKAGE" != "" ]; then
+				TEXT="The following files failed the verification process AFTER package updates ran:\n${CHANGED_FILES}\n\nThis is likely due to package triggers in$UPDATE_INITRAMFS_PACKAGE.\n\nYou will need to update your checksums for all files in /boot."
+				TEXT+="$UPDATE_TEXT"
+			else
+				TEXT="The following files failed the verification process AFTER package updates ran:\n${CHANGED_FILES}\n\nThis might be due to the following package updates:\n$LAST_PACKAGE_LIST.\n\nYou will need to update your checksums for all files in /boot."
+				TEXT+="$UPDATE_TEXT"
+			fi
+		else
+			#Standard case for Heads without package manager traces left under /boot
+			if [ $CHANGED_FILES_COUNT -gt 10 ]; then
+				# drop to console to show full file list
+				whiptail $ERROR_BG_COLOR --title 'ERROR: Boot Hash Mismatch' \
+					--msgbox "${CHANGED_FILES_COUNT} files failed the verification process!\\n\nThis could indicate a compromise!\n\nHit OK to review the list of files.\n\nType \"q\" to exit the list and return." 0 80
+
+				echo "Type \"q\" to exit the list and return." >>/tmp/hash_output_mismatches
+				less /tmp/hash_output_mismatches
+				#move outdated hash mismatch list
+				mv /tmp/hash_output_mismatches /tmp/hash_output_mismatch_old
+				TEXT=""
+				TEXT+="$UPDATE_TEXT"
+			else
+				# show list of files direcly
+				TEXT="The following files failed the verification process:\n\n${CHANGED_FILES}\n\nThis could indicate a compromise!"
+				TEXT+="$UPDATE_TEXT"
+			fi
+		fi
+
+		# If update of checksum is not optionally selected, show stern warning
+		if [ "$UPDATE" == "n" ]; then
+			DEBUG "Checksums update not selected by caller, showing stern warning"
+			whiptail $BG_COLOR_ERROR --title 'ERROR: Boot Hash Mismatch' \
+				--msgbox "$TEXT" 0 80
+			BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
+			return 1
+		else
+			DEBUG "Checksums update selected by caller, showing stern warning with option to update"
+			if (whiptail $BG_COLOR_ERROR --title 'ERROR: Boot Hash Mismatch' --yesno "$TEXT" 0 80); then
+				if update_checksums; then
+					BG_COLOR_MAIN_MENU=""
+					return 0
+				else
+					whiptail $BG_COLOR_ERROR --title 'ERROR' \
+						--msgbox "Failed to update checksums / sign default config" 0 80
+					BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
+					return 1
+				fi
+			fi
+		fi
+	fi
+}
+
+report_integrity_measurements() {
+	#check for GPG key in keyring
+	GPG_KEY_COUNT=$(gpg -k 2>/dev/null | wc -l)
+	if [ $GPG_KEY_COUNT -ne 0 ]; then
+		# Check and report TOTP
+		# update the TOTP code every thirty seconds
+		date=$(date "+%Y-%m-%d %H:%M:%S %Z")
+		seconds=$(date "+%s")
+		half=$(expr \( $seconds % 60 \) / 30)
+		if [ "$CONFIG_TPM" != "y" ]; then
+			TOTP="NO TPM"
+		elif [ "$half" != "$last_half" ]; then
+			last_half=$half
+			TOTP=$(unseal-totp) >/dev/null 2>&1 || TOTP="TPM UNSEALING OF TOTP/HOTP SECRET FAILED"
+		fi
+
+		# Check and report on HOTP status
+		if [ -x /bin/hotp_verification ]; then
+			HOTP=$(unseal-hotp) >/dev/null 2>&1
+			enable_usb
+			while ! hotp_verification info >/dev/null 2>&1; do
+				whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Please insert your HOTP enabled USB Security dongle' --msgbox "Your HOTP enabled USB Security dongle was not detected.\n\nPlease remove it and insert it again." 0 80
+			done
+			# Don't output HOTP codes to screen, so as to make replay attacks harder
+			hotp_verification check $HOTP
+			case "$?" in
+			0)
+				HOTP="Success"
+				;;
+			4)
+				HOTP="Invalid code"
+				MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
+				;;
+			*)
+				HOTP="HOTP VERIFICATION FAILED. Returned error: $?"
+				MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
+				;;
+			esac
+		else
+			HOTP='N/A'
+		fi
+		# Check for detached signed digest and report on /boot integrity status
+		SIGNED="OK"
+		(DO_WITH_DEBUG check_config /boot) || SIGNED="ALTERED"
+
+		TMP_HASH_FILE="/tmp/kexec/kexec_hashes.txt"
+
+		if (cd /boot && sha256sum -c "$TMP_HASH_FILE" >/tmp/hash_output); then
+			HASH="OK"
+		else
+			HASH="ALTERED"
+		fi
+
+		#Show results
+
+
+		#If the system is in a bad state, show the user a warning
+		whiptail $MAIN_MENU_BG_COLOR --title "Measured Integrity Report" --msgbox "$date\n\nTOTP: $TOTP\nHOTP: $HOTP\nBOOT INTEGRITY SIGNATURE: $SIGNED\nBOOT INTEGRITY HASHES: $HASH\n\nPress OK to continue with detailed information in case of errors" 0 80
+
+		#Show the user the detailed information
+		if [ "$SIGNED" != "OK" ] || [ "$HASH" != "OK" ]; then
+			# Show the user the detailed information of /boot integrity status and offer update possibility 
+			DO_WITH_DEBUG verify_global_hashes update
+		fi
+	fi
+}
+
 print_tree() {
 	TRACE "Under /etc/functions:print_tree"
 	find ./ ! -path './kexec*' -print0 | sort -z
@@ -532,6 +728,8 @@ verify_checksums() {
 	local boot_dir="$1"
 	local gui="${2:-y}"
 
+	DEBUG "boot_dir is $boot_dir, gui is $gui"
+
 	(
 		set +e -o pipefail
 		local ret=0
@@ -608,10 +806,13 @@ detect_boot_device() {
 }
 
 scan_boot_options() {
+	TRACE "Under /etc/functions:scan_boot_options"
 	local bootdir config option_file
 	bootdir="$1"
 	config="$2"
 	option_file="$3"
+
+	DEBUG "Scanning bootdir:$bootdir for config:$config files with option_file:$option_file"
 
 	if [ -r $option_file ]; then rm $option_file; fi
 	for i in $(find $bootdir -name "$config"); do
