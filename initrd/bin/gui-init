@@ -1,7 +1,7 @@
 #!/bin/bash
 # Boot from a local disk installation
 
-BOARD_NAME=${CONFIG_BOARD_NAME:-${CONFIG_BOARD}} 
+BOARD_NAME=${CONFIG_BOARD_NAME:-${CONFIG_BOARD}}
 MAIN_MENU_TITLE="${BOARD_NAME} | $CONFIG_BRAND_NAME Boot Menu"
 export BG_COLOR_MAIN_MENU=""
 
@@ -16,54 +16,52 @@ export BG_COLOR_MAIN_MENU=""
 # # see errors again.
 skip_to_menu="false"
 
-mount_boot()
-{
+mount_boot() {
   TRACE "Under /bin/gui-init:mount_boot"
   # Mount local disk if it is not already mounted
-  while ! grep -q /boot /proc/mounts ; do
+  while ! grep -q /boot /proc/mounts; do
     # try to mount if CONFIG_BOOT_DEV exists
     if [ -e "$CONFIG_BOOT_DEV" ]; then
-      mount -o ro $CONFIG_BOOT_DEV /boot 
+      mount -o ro $CONFIG_BOOT_DEV /boot
       [[ $? -eq 0 ]] && continue
     fi
 
     # CONFIG_BOOT_DEV doesn't exist or couldn't be mounted, so give user options
     BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
     whiptail $BG_COLOR_ERROR --title "ERROR: No Bootable OS Found!" \
-        --menu "    No bootable OS was found on the default boot device $CONFIG_BOOT_DEV.
+      --menu "    No bootable OS was found on the default boot device $CONFIG_BOOT_DEV.
     How would you like to proceed?" 0 80 4 \
-        'b' ' Select a new boot device' \
-        'u' ' Boot from USB' \
-        'm' ' Continue to the main menu' \
-        'x' ' Exit to recovery shell' \
-        2>/tmp/whiptail || recovery "GUI menu failed"
+      'b' ' Select a new boot device' \
+      'u' ' Boot from USB' \
+      'm' ' Continue to the main menu' \
+      'x' ' Exit to recovery shell' \
+      2>/tmp/whiptail || recovery "GUI menu failed"
 
     option=$(cat /tmp/whiptail)
-    case "$option" in 
-      b )
-        config-gui.sh boot_device_select
-        if [ $? -eq 0 ]; then
-          # update CONFIG_BOOT_DEV
-          . /tmp/config
-          BG_COLOR_MAIN_MENU=""
-        fi
-        ;;
-      u )
-        exec /bin/usb-init
-        ;;
-      m )
-        skip_to_menu="true"
-        break
-        ;;
-      * )
-        recovery "User requested recovery shell"
-        ;;
+    case "$option" in
+    b)
+      config-gui.sh boot_device_select
+      if [ $? -eq 0 ]; then
+        # update CONFIG_BOOT_DEV
+        . /tmp/config
+        BG_COLOR_MAIN_MENU=""
+      fi
+      ;;
+    u)
+      exec /bin/usb-init
+      ;;
+    m)
+      skip_to_menu="true"
+      break
+      ;;
+    *)
+      recovery "User requested recovery shell"
+      ;;
     esac
   done
 }
 
-verify_global_hashes()
-{
+verify_global_hashes() {
   TRACE "Under /bin/gui-init:verify_global_hashes"
   # Check the hashes of all the files, ignoring signatures for now
   check_config /boot force
@@ -72,14 +70,14 @@ verify_global_hashes()
   TMP_PACKAGE_TRIGGER_PRE="/tmp/kexec/kexec_package_trigger_pre.txt"
   TMP_PACKAGE_TRIGGER_POST="/tmp/kexec/kexec_package_trigger_post.txt"
 
-  if verify_checksums /boot ; then
+  if verify_checksums /boot; then
     return 0
-  elif [[ ! -f "$TMP_HASH_FILE" || ! -f "$TMP_TREE_FILE" ]] ; then
+  elif [[ ! -f "$TMP_HASH_FILE" || ! -f "$TMP_TREE_FILE" ]]; then
     if (whiptail $BG_COLOR_ERROR --title 'ERROR: Missing File!' \
-        --yesno "One of the files containing integrity information for /boot is missing!\n\nIf you are setting up heads for the first time or upgrading from an\nolder version, select Yes to create the missing files.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to create the missing files now?" 0 80) then
-      if update_checksums ; then
+      --yesno "One of the files containing integrity information for /boot is missing!\n\nIf you are setting up heads for the first time or upgrading from an\nolder version, select Yes to create the missing files.\n\nOtherwise this could indicate a compromise and you should select No to\nreturn to the main menu.\n\nWould you like to create the missing files now?" 0 80); then
+      if update_checksums; then
         BG_COLOR_MAIN_MENU=""
-        return 0;
+        return 0
       else
         whiptail $BG_COLOR_ERROR --title 'ERROR' \
           --msgbox "Failed to update checksums / sign default config" 0 80
@@ -92,12 +90,12 @@ verify_global_hashes()
     CHANGED_FILES_COUNT=$(wc -l /tmp/hash_output_mismatches | cut -f1 -d ' ')
 
     # if files changed before package manager started, show stern warning
-    if [ -f "$TMP_PACKAGE_TRIGGER_PRE" ]; then 
+    if [ -f "$TMP_PACKAGE_TRIGGER_PRE" ]; then
       PRE_CHANGED_FILES=$(grep '^CHANGED_FILES' $TMP_PACKAGE_TRIGGER_POST | cut -f 2 -d '=' | tr -d '"')
       TEXT="The following files failed the verification process BEFORE package updates ran:\n${PRE_CHANGED_FILES}\n\nCompare against the files $CONFIG_BRAND_NAME has detected have changed:\n${CHANGED_FILES}\n\nThis could indicate a compromise!\n\nWould you like to update your checksums anyway?"
 
     # if files changed after package manager started, probably caused by package manager
-    elif [ -f "$TMP_PACKAGE_TRIGGER_POST" ]; then 
+    elif [ -f "$TMP_PACKAGE_TRIGGER_POST" ]; then
       LAST_PACKAGE_LIST=$(grep -E "^(Install|Remove|Upgrade|Reinstall):" $TMP_PACKAGE_TRIGGER_POST)
       UPDATE_INITRAMFS_PACKAGE=$(grep '^UPDATE_INITRAMFS_PACKAGE' $TMP_PACKAGE_TRIGGER_POST | cut -f 2 -d '=' | tr -d '"')
 
@@ -113,7 +111,7 @@ verify_global_hashes()
         whiptail $ERROR_BG_COLOR --title 'ERROR: Boot Hash Mismatch' \
           --msgbox "${CHANGED_FILES_COUNT} files failed the verification process!\\n\nThis could indicate a compromise!\n\nHit OK to review the list of files.\n\nType \"q\" to exit the list and return." 0 80
 
-        echo "Type \"q\" to exit the list and return." >> /tmp/hash_output_mismatches
+        echo "Type \"q\" to exit the list and return." >>/tmp/hash_output_mismatches
         less /tmp/hash_output_mismatches
         #move outdated hash mismatch list
         mv /tmp/hash_output_mismatches /tmp/hash_output_mismatch_old
@@ -123,10 +121,10 @@ verify_global_hashes()
       fi
     fi
 
-    if (whiptail $BG_COLOR_ERROR --title 'ERROR: Boot Hash Mismatch' --yesno "$TEXT" 0 80) then
-      if update_checksums ; then
+    if (whiptail $BG_COLOR_ERROR --title 'ERROR: Boot Hash Mismatch' --yesno "$TEXT" 0 80); then
+      if update_checksums; then
         BG_COLOR_MAIN_MENU=""
-        return 0;
+        return 0
       else
         whiptail $BG_COLOR_ERROR --title 'ERROR' \
           --msgbox "Failed to update checksums / sign default config" 0 80
@@ -137,26 +135,24 @@ verify_global_hashes()
   fi
 }
 
-prompt_update_checksums()
-{
+prompt_update_checksums() {
   TRACE "Under /bin/gui-init:prompt_update_checksums"
   if (whiptail $BG_COLOR_WARNING --title 'Update Checksums and sign all files in /boot' \
-      --yesno "You have chosen to update the checksums and sign all of the files in /boot.\n\nThis means that you trust that these files have not been tampered with.\n\nYou will need your GPG key available, and this change will modify your disk.\n\nDo you want to continue?" 0 80) then
-    if ! update_checksums ; then
+    --yesno "You have chosen to update the checksums and sign all of the files in /boot.\n\nThis means that you trust that these files have not been tampered with.\n\nYou will need your GPG key available, and this change will modify your disk.\n\nDo you want to continue?" 0 80); then
+    if ! update_checksums; then
       whiptail $BG_COLOR_ERROR --title 'ERROR' \
         --msgbox "Failed to update checksums / sign default config" 0 80
     fi
   fi
 }
 
-generate_totp_hotp()
-{
-  tpm_password="$1"	# May be empty, will prompt if needed and empty
+generate_totp_hotp() {
   TRACE "Under /bin/gui-init:generate_totp_hotp"
+  tpm_owner_password="$1" # May be empty, will prompt if needed and empty
   if [ "$CONFIG_TPM" != "y" ] && [ -x /bin/hotp_verification ]; then
     echo "Generating new HOTP secret"
     /bin/seal-hotpkey
-  elif echo -e "Generating new TOTP secret...\n\n" && /bin/seal-totp "$BOARD_NAME" "$tpm_password"; then
+  elif echo -e "Generating new TOTP secret...\n\n" && /bin/seal-totp "$BOARD_NAME" "$tpm_owner_password"; then
     echo
     if [ -x /bin/hotp_verification ]; then
       if [ "$CONFIG_TOTP_SKIP_QRCODE" != y ]; then
@@ -178,16 +174,15 @@ generate_totp_hotp()
   fi
 }
 
-update_totp()
-{
+update_totp() {
   TRACE "Under /bin/gui-init:update_totp"
   # update the TOTP code
-  date=`date "+%Y-%m-%d %H:%M:%S %Z"`
+  date=$(date "+%Y-%m-%d %H:%M:%S %Z")
   tries=0
   if [ "$CONFIG_TPM" != "y" ]; then
     TOTP="NO TPM"
   else
-    TOTP=`unseal-totp`
+    TOTP=$(unseal-totp)
     # On platforms using CONFIG_BOOT_EXTRA_TTYS multiple processes may try to
     # access TPM at the same time, failing with EBUSY. The order of execution
     # is unpredictable, so the error may appear on main console, secondary one,
@@ -197,14 +192,14 @@ update_totp()
     while [ $? -ne 0 ] && [ $tries -lt 2 ]; do
       sleep 0.5
       ((tries++))
-      TOTP=`unseal-totp`
+      TOTP=$(unseal-totp)
     done
     if [ $? -ne 0 ]; then
       BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
       if [ "$skip_to_menu" = "true" ]; then
-        return 1  # Already asked to skip to menu from a prior error
+        return 1 # Already asked to skip to menu from a prior error
       fi
-      
+
       DEBUG "CONFIG_TPM: $CONFIG_TPM"
       DEBUG "CONFIG_TPM2_TOOLS: $CONFIG_TPM2_TOOLS"
       DEBUG "Show PCRs"
@@ -225,43 +220,42 @@ update_totp()
         2>/tmp/whiptail || recovery "GUI menu failed"
 
       option=$(cat /tmp/whiptail)
-      case "$option" in 
-        g )
-          if (whiptail $BG_COLOR_WARNING --title 'Generate new TOTP/HOTP secret' \
-              --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80) then
-            generate_totp_hotp && update_totp && BG_COLOR_MAIN_MENU=""
+      case "$option" in
+      g)
+        if (whiptail $BG_COLOR_WARNING --title 'Generate new TOTP/HOTP secret' \
+          --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80); then
+          generate_totp_hotp && update_totp && BG_COLOR_MAIN_MENU="" &&
             reseal_tpm_disk_decryption_key
-          fi
-          ;;
-        i )
-          skip_to_menu="true"
-          return 1
-          ;;
-        p )
-          reset_tpm && update_totp && BG_COLOR_MAIN_MENU=""
+        fi
+        ;;
+      i)
+        skip_to_menu="true"
+        return 1
+        ;;
+      p)
+        reset_tpm && update_totp && BG_COLOR_MAIN_MENU="" &&
           reseal_tpm_disk_decryption_key
-          ;;
-        x )
-          recovery "User requested recovery shell"
-          ;;
+        ;;
+      x)
+        recovery "User requested recovery shell"
+        ;;
       esac
     fi
   fi
 }
 
-update_hotp()
-{
+update_hotp() {
   TRACE "Under /bin/gui-init:update_hotp"
   if [ -x /bin/hotp_verification ]; then
-    HOTP=`unseal-hotp`
-    if ! hotp_verification info ; then
+    HOTP=$(unseal-hotp)
+    if ! hotp_verification info; then
       if [ "$skip_to_menu" = "true" ]; then
-        return 1  # Already asked to skip to menu from a prior error
+        return 1 # Already asked to skip to menu from a prior error
       fi
       if ! whiptail $BG_COLOR_WARNING \
-          --title "WARNING: Please Insert Your $HOTPKEY_BRANDING" \
-          --yes-button "Retry" --no-button "Skip" \
-          --yesno "Your $HOTPKEY_BRANDING was not detected.\n\nPlease insert your $HOTPKEY_BRANDING" 0 80 ; then
+        --title "WARNING: Please Insert Your $HOTPKEY_BRANDING" \
+        --yes-button "Retry" --no-button "Skip" \
+        --yesno "Your $HOTPKEY_BRANDING was not detected.\n\nPlease insert your $HOTPKEY_BRANDING" 0 80; then
         HOTP="Error checking code, Insert $HOTPKEY_BRANDING and retry"
         BG_COLOR_MAIN_MENU=$BG_COLOR_WARNING
         return
@@ -270,17 +264,17 @@ update_hotp()
     # Don't output HOTP codes to screen, so as to make replay attacks harder
     hotp_verification check "$HOTP"
     case "$?" in
-      0 )
-        HOTP="Success"
-        BG_COLOR_MAIN_MENU=""
+    0)
+      HOTP="Success"
+      BG_COLOR_MAIN_MENU=""
       ;;
-      4|7 )	# 4: code was incorrect, 7: code was not a valid HOTP code at all
-        HOTP="Invalid code"
-        BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
+    4 | 7) # 4: code was incorrect, 7: code was not a valid HOTP code at all
+      HOTP="Invalid code"
+      BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
       ;;
-      * )
-        HOTP="Error checking code, Insert $HOTPKEY_BRANDING and retry"
-        BG_COLOR_MAIN_MENU=$BG_COLOR_WARNING
+    *)
+      HOTP="Error checking code, Insert $HOTPKEY_BRANDING and retry"
+      BG_COLOR_MAIN_MENU=$BG_COLOR_WARNING
       ;;
     esac
   else
@@ -296,43 +290,42 @@ update_hotp()
       2>/tmp/whiptail || recovery "GUI menu failed"
 
     option=$(cat /tmp/whiptail)
-    case "$option" in 
-      g )
-        if (whiptail $BG_COLOR_WARNING --title 'Generate new TOTP/HOTP secret' \
-            --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80) then
-          generate_totp_hotp && BG_COLOR_MAIN_MENU=""
+    case "$option" in
+    g)
+      if (whiptail $BG_COLOR_WARNING --title 'Generate new TOTP/HOTP secret' \
+        --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80); then
+        generate_totp_hotp && BG_COLOR_MAIN_MENU="" &&
           reseal_tpm_disk_decryption_key
-        fi
-        ;;
-      i )
-        return 1
-        ;;
-      x )
-        recovery "User requested recovery shell"
-        ;;
+      fi
+      ;;
+    i)
+      return 1
+      ;;
+    x)
+      recovery "User requested recovery shell"
+      ;;
     esac
   fi
 }
 
-clean_boot_check()
-{
+clean_boot_check() {
   TRACE "Under /bin/gui-init:mount_boot"
   # assume /boot mounted
-  if ! grep -q /boot /proc/mounts ; then
+  if ! grep -q /boot /proc/mounts; then
     return
   fi
 
   # check for any kexec files in /boot
-  kexec_files=`find /boot -name kexec*.txt`
+  kexec_files=$(find /boot -name kexec*.txt)
   [ ! -z "$kexec_files" ] && return
-  
+
   #check for GPG key in keyring
-  GPG_KEY_COUNT=`gpg -k 2>/dev/null | wc -l`
+  GPG_KEY_COUNT=$(gpg -k 2>/dev/null | wc -l)
   [ $GPG_KEY_COUNT -ne 0 ] && return
 
-   # check for USB security token
+  # check for USB security token
   if [ -x /bin/hotp_verification ]; then
-    if ! gpg --card-status > /dev/null ; then
+    if ! gpg --card-status >/dev/null; then
       return
     fi
   fi
@@ -343,14 +336,13 @@ clean_boot_check()
     "Clean Boot Detected - Perform OEM Factory Reset / Re-Ownership?" "$BG_COLOR_WARNING"
 }
 
-check_gpg_key()
-{
+check_gpg_key() {
   TRACE "Under /bin/gui-init:check_gpg_key"
-  GPG_KEY_COUNT=`gpg -k 2>/dev/null | wc -l`
+  GPG_KEY_COUNT=$(gpg -k 2>/dev/null | wc -l)
   if [ $GPG_KEY_COUNT -eq 0 ]; then
     BG_COLOR_MAIN_MENU=$BG_COLOR_ERROR
     if [ "$skip_to_menu" = "true" ]; then
-      return 1  # Already asked to skip to menu from a prior error
+      return 1 # Already asked to skip to menu from a prior error
     fi
     whiptail $BG_COLOR_ERROR --title "ERROR: GPG keyring empty!" \
       --menu "ERROR: $CONFIG_BRAND_NAME couldn't find any GPG keys in your keyring.\n\nIf this is the first time the system has booted,\nyou should add a public GPG key to the BIOS now.\n\nIf you just reflashed a new BIOS, you'll need to add at least one\npublic key to the keyring.\n\nIf you have not just reflashed your BIOS, THIS COULD INDICATE TAMPERING!\n\nHow would you like to proceed?" 0 80 4 \
@@ -361,27 +353,26 @@ check_gpg_key()
       2>/tmp/whiptail || recovery "GUI menu failed"
 
     option=$(cat /tmp/whiptail)
-    case "$option" in 
-      g )
-        gpg-gui.sh && BG_COLOR_MAIN_MENU=""
-        ;;
-      i )
-        skip_to_menu="true"
-        return 1
-        ;;
-      F )
+    case "$option" in
+    g)
+      gpg-gui.sh && BG_COLOR_MAIN_MENU=""
+      ;;
+    i)
+      skip_to_menu="true"
+      return 1
+      ;;
+    F)
       oem-factory-reset
       ;;
 
-      x )
-        recovery "User requested recovery shell"
-        ;;
+    x)
+      recovery "User requested recovery shell"
+      ;;
     esac
   fi
 }
 
-prompt_auto_default_boot()
-{
+prompt_auto_default_boot() {
   TRACE "Under /bin/gui-init:prompt_auto_default_boot"
   echo -e "\nHOTP verification success\n\n"
   if pause_automatic_boot; then
@@ -390,10 +381,9 @@ prompt_auto_default_boot()
   fi
 }
 
-show_main_menu()
-{
+show_main_menu() {
   TRACE "Under /bin/gui-init:show_main_menu"
-  date=`date "+%Y-%m-%d %H:%M:%S %Z"`
+  date=$(date "+%Y-%m-%d %H:%M:%S %Z")
   whiptail $BG_COLOR_MAIN_MENU --title "$MAIN_MENU_TITLE" \
     --menu "$date\nTOTP: $TOTP | HOTP: $HOTP" 0 80 10 \
     'd' ' Default boot' \
@@ -404,27 +394,26 @@ show_main_menu()
     2>/tmp/whiptail || recovery "GUI menu failed"
 
   option=$(cat /tmp/whiptail)
-  case "$option" in 
-    d )
-      attempt_default_boot
-      ;;
-    r )
-      update_totp && update_hotp
-      ;;
-    o )
-      show_options_menu
-      ;;
-    s )
-      show_system_info
-      ;;
-    p )
-      poweroff
-      ;;
+  case "$option" in
+  d)
+    attempt_default_boot
+    ;;
+  r)
+    update_totp && update_hotp
+    ;;
+  o)
+    show_options_menu
+    ;;
+  s)
+    show_system_info
+    ;;
+  p)
+    poweroff
+    ;;
   esac
 }
 
-show_options_menu()
-{
+show_options_menu() {
   TRACE "Under /bin/gui-init:show_options_menu"
   whiptail $BG_COLOR_MAIN_MENU --title "$CONFIG_BRAND_NAME Options" \
     --menu "" 0 80 10 \
@@ -443,49 +432,47 @@ show_options_menu()
     2>/tmp/whiptail || recovery "GUI menu failed"
 
   option=$(cat /tmp/whiptail)
-  case "$option" in 
-    b )
-      show_boot_options_menu
-      ;;
-    t )
-      show_tpm_totp_hotp_options_menu
-      ;;
-    u )
-      prompt_update_checksums
-      ;;
-    c )
-      config-gui.sh
-      ;;
-    f )
-      flash-gui.sh
-      ;;
-    g )
-      gpg-gui.sh
-      ;;
-    F )
-      oem-factory-reset
-      ;;
-    C )
-      luks_reencrypt
-      luks_secrets_cleanup
-      ;;
-    P )
-      luks_change_passphrase
-      luks_secrets_cleanup
-      ;;
-    R )
-      root-hashes-gui.sh
-      ;;
-    x )
-      recovery "User requested recovery shell"
-      ;;
-    r )
-      ;;
+  case "$option" in
+  b)
+    show_boot_options_menu
+    ;;
+  t)
+    show_tpm_totp_hotp_options_menu
+    ;;
+  u)
+    prompt_update_checksums
+    ;;
+  c)
+    config-gui.sh
+    ;;
+  f)
+    flash-gui.sh
+    ;;
+  g)
+    gpg-gui.sh
+    ;;
+  F)
+    oem-factory-reset
+    ;;
+  C)
+    luks_reencrypt
+    luks_secrets_cleanup
+    ;;
+  P)
+    luks_change_passphrase
+    luks_secrets_cleanup
+    ;;
+  R)
+    root-hashes-gui.sh
+    ;;
+  x)
+    recovery "User requested recovery shell"
+    ;;
+  r) ;;
   esac
 }
 
-show_boot_options_menu()
-{
+show_boot_options_menu() {
   TRACE "Under /bin/gui-init:show_boot_options_menu"
   whiptail $BG_COLOR_MAIN_MENU --title "Boot Options" \
     --menu "Select A Boot Option" 0 80 10 \
@@ -496,24 +483,22 @@ show_boot_options_menu()
     2>/tmp/whiptail || recovery "GUI menu failed"
 
   option=$(cat /tmp/whiptail)
-  case "$option" in 
-    m )
-      # select a kernel from the menu
-      select_os_boot_option
-      ;;
-    u )
-      exec /bin/usb-init
-      ;;
-    i )
-      force_unsafe_boot
-      ;;
-    r )
-      ;;
+  case "$option" in
+  m)
+    # select a kernel from the menu
+    select_os_boot_option
+    ;;
+  u)
+    exec /bin/usb-init
+    ;;
+  i)
+    force_unsafe_boot
+    ;;
+  r) ;;
   esac
 }
 
-show_tpm_totp_hotp_options_menu()
-{
+show_tpm_totp_hotp_options_menu() {
   TRACE "Under /bin/gui-init:show_tpm_totp_hotp_options_menu"
   whiptail $BG_COLOR_MAIN_MENU --title "TPM/TOTP/HOTP Options" \
     --menu "Select An Option" 0 80 10 \
@@ -524,28 +509,25 @@ show_tpm_totp_hotp_options_menu()
     2>/tmp/whiptail || recovery "GUI menu failed"
 
   option=$(cat /tmp/whiptail)
-  case "$option" in 
-    g )
-      generate_totp_hotp
+  case "$option" in
+  g)
+    generate_totp_hotp && reseal_tpm_disk_decryption_key
+    ;;
+  r)
+    reset_tpm &&
       reseal_tpm_disk_decryption_key
-      ;;
-    r )
-      reset_tpm
-      reseal_tpm_disk_decryption_key
-      ;;
-    t )
-      prompt_totp_mismatch
-      ;;
-    m )
-      ;;
+    ;;
+  t)
+    prompt_totp_mismatch
+    ;;
+  m) ;;
   esac
 }
 
-prompt_totp_mismatch()
-{
+prompt_totp_mismatch() {
   TRACE "Under /bin/gui-init:prompt_totp_mismatch"
   if (whiptail $BG_COLOR_WARNING --title "TOTP/HOTP code mismatched" \
-    --yesno "TOTP/HOTP code mismatches could indicate either TPM tampering or clock drift:\n\nTo correct clock drift: 'date -s yyyy-MM-DD hh:mm:ss' in UTC timezone\nand save it to the RTC: 'hwclock -w'\nthen reboot and try again.\n\nWould you like to exit to a recovery console?" 0 80) then
+    --yesno "TOTP/HOTP code mismatches could indicate either TPM tampering or clock drift:\n\nTo correct clock drift: 'date -s yyyy-MM-DD hh:mm:ss' in UTC timezone\nand save it to the RTC: 'hwclock -w'\nthen reboot and try again.\n\nWould you like to exit to a recovery console?" 0 80); then
     echo ""
     echo "To correct clock drift: 'date -s yyyy-MM-DD hh:mm:ss' in UTC timezone"
     echo "and save it to the RTC: 'hwclock -w'"
@@ -558,12 +540,11 @@ prompt_totp_mismatch()
   fi
 }
 
-reset_tpm()
-{
+reset_tpm() {
   TRACE "Under /bin/gui-init:reset_tpm"
   if [ "$CONFIG_TPM" = "y" ]; then
     if (whiptail $BG_COLOR_WARNING --title 'Reset the TPM' \
-        --yesno "This will clear the TPM and TPM password, replace them with new ones!\n\nDo you want to proceed?" 0 80) then
+      --yesno "This will clear the TPM and TPM password, replace them with new ones!\n\nDo you want to proceed?" 0 80); then
 
       if ! prompt_new_owner_password; then
         echo "Press Enter to return to the menu..."
@@ -572,7 +553,7 @@ reset_tpm()
         return 1
       fi
 
-      tpmr reset "$key_password"
+      tpmr reset "$tpm_owner_password"
 
       # now that the TPM is reset, remove invalid TPM counter files
       mount_boot
@@ -582,18 +563,18 @@ reset_tpm()
       rm -f /boot/kexec_primhdl_hash.txt
 
       # create Heads TPM counter before any others
-      check_tpm_counter /boot/kexec_rollback.txt "" "$key_password" \
-      || die "Unable to find/create tpm counter"
+      check_tpm_counter /boot/kexec_rollback.txt "" "$tpm_owner_password" ||
+        die "Unable to find/create tpm counter"
       counter="$TPM_COUNTER"
 
-      increment_tpm_counter $counter \
-      || die "Unable to increment tpm counter"
+      increment_tpm_counter $counter ||
+        die "Unable to increment tpm counter"
 
-      sha256sum /tmp/counter-$counter > /boot/kexec_rollback.txt \
-      || die "Unable to create rollback file"
+      sha256sum /tmp/counter-$counter >/boot/kexec_rollback.txt ||
+        die "Unable to create rollback file"
       mount -o ro,remount /boot
 
-      generate_totp_hotp "$key_password"
+      generate_totp_hotp "$tpm_owner_password"
     else
       echo "Returning to the main menu"
     fi
@@ -602,43 +583,40 @@ reset_tpm()
   fi
 }
 
-select_os_boot_option()
-{
+select_os_boot_option() {
   TRACE "Under /bin/gui-init:select_os_boot_option"
   mount_boot
-  if verify_global_hashes ; then
+  if verify_global_hashes; then
     kexec-select-boot -m -b /boot -c "grub.cfg" -g
   fi
 }
 
-attempt_default_boot()
-{
+attempt_default_boot() {
   TRACE "Under /bin/gui-init:attempt_default_boot"
   mount_boot
-    
+
   if ! verify_global_hashes; then
     return
   fi
-  DEFAULT_FILE=`find /boot/kexec_default.*.txt 2>/dev/null | head -1`
+  DEFAULT_FILE=$(find /boot/kexec_default.*.txt 2>/dev/null | head -1)
   if [ -r "$DEFAULT_FILE" ]; then
-    kexec-select-boot -b /boot -c "grub.cfg" -g \
-    || recovery "Failed default boot"
+    kexec-select-boot -b /boot -c "grub.cfg" -g ||
+      recovery "Failed default boot"
   elif (whiptail $BG_COLOR_WARNING --title 'No Default Boot Option Configured' \
-        --yesno "There is no default boot option configured yet.\nWould you like to load a menu of boot options?\nOtherwise you will return to the main menu." 0 80) then
+    --yesno "There is no default boot option configured yet.\nWould you like to load a menu of boot options?\nOtherwise you will return to the main menu." 0 80); then
     kexec-select-boot -m -b /boot -c "grub.cfg" -g
   fi
 }
 
-force_unsafe_boot()
-{
+force_unsafe_boot() {
   TRACE "Under /bin/gui-init:force_unsafe_boot"
   if [ "$CONFIG_RESTRICTED_BOOT" = y ]; then
-      whiptail $BG_COLOR_ERROR --title 'ERROR: Restricted Boot Enabled' --msgbox "Restricted Boot is Enabled, forced boot not allowed.\n\nPress OK to return to the Main Menu" 0 80
-      return
+    whiptail $BG_COLOR_ERROR --title 'ERROR: Restricted Boot Enabled' --msgbox "Restricted Boot is Enabled, forced boot not allowed.\n\nPress OK to return to the Main Menu" 0 80
+    return
   fi
   # Run the menu selection in "force" mode, bypassing hash checks
   if (whiptail $BG_COLOR_WARNING --title 'Unsafe Forced Boot Selected!' \
-      --yesno "WARNING: You have chosen to skip all tamper checks and boot anyway.\n\nThis is an unsafe option!\n\nDo you want to proceed?" 0 80) then
+    --yesno "WARNING: You have chosen to skip all tamper checks and boot anyway.\n\nThis is an unsafe option!\n\nDo you want to proceed?" 0 80); then
     mount_boot && kexec-select-boot -m -b /boot -c "grub.cfg" -g -f
   fi
 }
@@ -648,20 +626,20 @@ TRACE "Under /bin/gui-init, start"
 
 # Use stored HOTP key branding
 if [ -r /boot/kexec_hotp_key ]; then
-	HOTPKEY_BRANDING="$(cat /boot/kexec_hotp_key)"
+  HOTPKEY_BRANDING="$(cat /boot/kexec_hotp_key)"
 else
-	HOTPKEY_BRANDING="HOTP USB Security Dongle"
+  HOTPKEY_BRANDING="HOTP USB Security Dongle"
 fi
 
 if [ -x /bin/hotp_verification ]; then
   enable_usb
 fi
 
-if detect_boot_device ; then
+if detect_boot_device; then
   # /boot device with installed OS found
   clean_boot_check
 else
-  # can't determine /boot device or no OS installed, 
+  # can't determine /boot device or no OS installed,
   # so fall back to interactive selection
   mount_boot
 fi
