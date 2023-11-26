@@ -343,11 +343,11 @@ luks_reencrypt() {
 			read -r luks_current_Disk_Recovery_Key_passphrase
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
-			cryptsetup reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+			cryptsetup reencrypt --force-offline-reencrypt --disable-locks "$LUKS" --debug --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		else
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
-			cryptsetup reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+			cryptsetup reencrypt --force-offline-reencrypt --disable-locks --debug "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		fi
 		#Validate past cryptsetup reencrypt attempts
 		if [ $(echo $?) -ne 0 ]; then
