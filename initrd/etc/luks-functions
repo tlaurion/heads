@@ -281,10 +281,6 @@ select_luks_container()
 				return 1
 			else
 				LUKS=$FILE
-				detect_boot_device
-				mount -o remount,rw /boot
-				echo "$LUKS $(cryptsetup luksUUID $LUKS)" >/boot/kexec_key_devices.txt
-				mount -o remount,ro /boot
 			fi
 		else
 			warn "No encrypted device found"
@@ -347,11 +343,11 @@ luks_reencrypt() {
 			read -r luks_current_Disk_Recovery_Key_passphrase
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
-			cryptsetup-reencrypt -B 64 --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+			cryptsetup-reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		else
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
-			cryptsetup-reencrypt -B 64 --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+			cryptsetup-reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		fi
 		#Validate past cryptsetup-reencrypt attempts
 		if [ $(echo $?) -ne 0 ]; then
