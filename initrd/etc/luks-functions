@@ -306,7 +306,7 @@ test_luks_current_disk_recovery_key_passphrase()
 			warn "Test opening "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
 			cryptsetup open $LUKS test --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		fi
-		#Validate past cryptsetup-reencrypt attempts
+		#Validate past cryptsetup reencrypt attempts
 		if [ $? -eq 0 ]; then
 			whiptail --title 'Invalid Actual LUKS Disk Recovery Key passphrase?' --msgbox \
 				"If you previously changed it and do not remember it, you will have to\n reinstall OS from a an external drive.\n\nTo do so, place ISO file and its signature file on root of external drive,\n and select Options-> Boot from USB \n\nHit Enter to retry." 30 60
@@ -343,13 +343,13 @@ luks_reencrypt() {
 			read -r luks_current_Disk_Recovery_Key_passphrase
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
-			cryptsetup-reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+			cryptsetup reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		else
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
-			cryptsetup-reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+			cryptsetup reencrypt --use-directio "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		fi
-		#Validate past cryptsetup-reencrypt attempts
+		#Validate past cryptsetup reencrypt attempts
 		if [ $(echo $?) -ne 0 ]; then
 			whiptail --title 'Invalid Actual LUKS Disk Recovery Key passphrase?' --msgbox \
 				"If you previously changed it and do not remember it, you will have to\n reinstall OS from a an external drive.\n\nTo do so, place ISO file and its signature file on root of external drive,\n and select Options-> Boot from USB \n\nHit Enter to retry." 30 60
