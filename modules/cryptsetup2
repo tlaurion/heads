@@ -16,6 +16,7 @@ cryptsetup2_configure := \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
+	--enable-internal-sse-argon2 \
 	--disable-rpath \
 	--disable-gcrypt-pbkdf2 \
 	--disable-ssh-token \
