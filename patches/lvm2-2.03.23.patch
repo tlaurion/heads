@@ -96,27 +96,6 @@
  			buflen += id_len + 1; /* range end plus "-" */
  		}
  		buflen++;
---- ./make.tmpl.in.orig	2023-11-27 14:10:06.603000000 -0500
-+++ ./make.tmpl.in	2023-11-27 14:12:04.139000000 -0500
-@@ -210,7 +210,7 @@
- M_INSTALL_PROGRAM = -m 555
- M_INSTALL_DATA = -m 444
- endif
--INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM) $(STRIP)
-+INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM) $(STRIP_ARG)
- INSTALL_DATA = $(INSTALL) -p $(M_INSTALL_DATA)
- INSTALL_WDATA = $(INSTALL) -p -m 644
- 
-@@ -330,8 +330,8 @@
- #CFLAGS += -pg
- #LDFLAGS += -pg
- 
--STRIP=
--#STRIP = -s
-+STRIP_ARG=
-+#STRIP_ARG = -s
- 
- LVM_VERSION := $(shell cat $(top_srcdir)/VERSION)
  
 --- ./tools/lvmcmdline.c.orig	2023-11-27 14:12:46.649000000 -0500
 +++ ./tools/lvmcmdline.c	2023-11-27 14:15:47.563000000 -0500
@@ -146,4 +125,26 @@
 +	if (!(cmd = create_toolcontext(0, NULL, 0, threaded, set_connections, set_filters))) {
  		return_NULL;
  	}
+ 
+--- ./make.tmpl.orig	2023-11-28 13:29:11.744000000 -0500
++++ ./make.tmpl.in	2023-11-28 13:29:36.716000000 -0500
+@@ -210,7 +210,7 @@
+ M_INSTALL_PROGRAM = -m 555
+ M_INSTALL_DATA = -m 444
+ endif
+-INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM) $(STRIP)
++INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM)
+ INSTALL_DATA = $(INSTALL) -p $(M_INSTALL_DATA)
+ INSTALL_WDATA = $(INSTALL) -p -m 644
+ 
+--- ./libdm/make.tmpl.orig	2023-11-28 13:29:52.760000000 -0500
++++ ./libdm/make.tmpl.in	2023-11-28 13:30:22.336000000 -0500
+@@ -173,7 +173,7 @@
+ M_INSTALL_PROGRAM = -m 555
+ M_INSTALL_DATA = -m 444
+ endif
+-INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM) $(STRIP)
++INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM)
+ INSTALL_DATA = $(INSTALL) -p $(M_INSTALL_DATA)
+ INSTALL_WDATA = $(INSTALL) -p -m 644
  
