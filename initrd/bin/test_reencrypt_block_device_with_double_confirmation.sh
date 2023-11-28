@@ -24,10 +24,10 @@ echo "PLACEHOLDER - Running benchmark..." | tee /media/block_reencrypt.log
 cryptsetup benchmark | tee -a /media/block_reencrypt.log
 
 echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt.log
-time cryptsetup luksFormat "$DISK" --debug --batch-mode --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
+time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
 
 echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/block_reencrypt.log
-time cryptsetup reencrypt "$DISK" --disable-locks --force-offline-reencrypt --debug --batch-mode --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
+time cryptsetup reencrypt "$DISK" --disable-locks --force-offline-reencrypt --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
 
 echo "PLACEHOLDER - Unmounting USB drive from /media"
 umount /media
