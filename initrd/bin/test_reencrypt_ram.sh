@@ -1,7 +1,7 @@
 echo "Mounting USB drive to /media"
 mount-usb --mode rw
 
-echo "PLACEHOLDER - Creating 8GB file in /tmp" | tee -a /media/ram_reencrypt.log
+echo "PLACEHOLDER - Creating 8GB file in /tmp" | tee /media/ram_reencrypt.log
 dd if=/dev/zero of=/tmp/disk8gb.raw bs=1M count=8k | tee -a /media/ram_reencrypt.log
 echo "This is test passphrase used to create LUKS key" > /tmp/passphrase.txt
 
