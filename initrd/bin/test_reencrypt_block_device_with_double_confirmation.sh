@@ -27,7 +27,7 @@ echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_r
 time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
 
 echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/block_reencrypt.log
-time cryptsetup reencrypt "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
+time cryptsetup reencrypt "$DISK" --debug --resilience=none --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
 
 echo "PLACEHOLDER - Unmounting USB drive from /media"
 umount /media
