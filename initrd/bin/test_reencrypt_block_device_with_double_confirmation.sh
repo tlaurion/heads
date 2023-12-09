@@ -30,7 +30,16 @@ echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/bl
 time cryptsetup reencrypt "$DISK" --debug \
 	--resilience=none \
 	--disable-locks \
+	--force-offline-reencrypt \
 	--key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
+
+echo "PLACEHOLDER - Some stats" | tee -a /media/block_reencrypt_$GIT_HASH.log
+
+echo "PLACEHOLDER - Running iostat..." | tee -a /media/block_reencrypt_$GIT_HASH.log
+iostat -m | tee -a /media/block_reencrypt_$GIT_HASH.log
+
+echo "PLACEHOLDER - Running uptime..." | tee -a /media/block_reencrypt_$GIT_HASH.log
+uptime | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Unmounting USB drive from /media"
 umount /media
