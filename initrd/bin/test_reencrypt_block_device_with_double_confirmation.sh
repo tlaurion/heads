@@ -16,12 +16,12 @@ fi
 
 #echo "PLACEHOLDER - Creating 8GB file in /tmp" | tee -a /media/ram_reencrypt.log
 #dd if=/dev/zero of=/tmp/disk8gb.raw bs=1M count=8k | tee -a /media/ram_reencrypt.log
-echo "This is test passphrase used to create LUKS key" > /tmp/passphrase.txt
+echo -n "Insurgo Open Technologies" > /tmp/passphrase.txt
 
 #Doing benchmarking
-echo "PLACEHOLDER - Running benchmark..." | tee /media/block_reencrypt_$GIT_HASH.log
+#echo "PLACEHOLDER - Running benchmark..." | tee /media/block_reencrypt_$GIT_HASH.log
 
-cryptsetup benchmark | tee -a /media/block_reencrypt_$GIT_HASH.log
+#cryptsetup benchmark | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
 #time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
