@@ -24,7 +24,7 @@ echo "PLACEHOLDER - Running benchmark..." | tee /media/block_reencrypt_$GIT_HASH
 cryptsetup benchmark | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
-time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
+#time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
 time cryptsetup reencrypt "$DISK" --debug \
