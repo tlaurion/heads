@@ -23,7 +23,7 @@ echo -n "Insurgo Open Technologies" > /tmp/passphrase.txt
 
 #cryptsetup benchmark | tee -a /media/block_reencrypt_$GIT_HASH.log
 
-echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
+#echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
 #time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
@@ -31,6 +31,8 @@ time cryptsetup reencrypt "$DISK" --debug \
 	--resilience=none \
 	--disable-locks \
 	--force-offline-reencrypt \
+	--perf-same_cpu_crypt \
+	--perf-submit_from_crypt_cpus \
 	--key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Some stats" | tee -a /media/block_reencrypt_$GIT_HASH.log
@@ -43,4 +45,5 @@ uptime | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Unmounting USB drive from /media"
 umount /media
+
 echo "Done. You can remove USB drive now and upload ram_reencrypt.log from another computer to github PR."
