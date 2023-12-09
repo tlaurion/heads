@@ -30,8 +30,6 @@ echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/bl
 time cryptsetup reencrypt "$DISK" --debug \
 	--resilience=none \
 	--disable-locks \
-	--perf-no_read_workqueue \
-	--perf-no_write_workqueue \
 	--key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Unmounting USB drive from /media"
