@@ -350,7 +350,7 @@ luks_reencrypt() {
 		fi
 
 		cryptsetup reencrypt --debug \
-                                --perf-no_read_workqueue --perf-no_write_workqueue --perf-submit_from_crypt_cpus --resilience=none \
+                                --perf-no_read_workqueue --perf-no_write_workqueue --resilience=none \
                                 --force-offline-reencrypt --disable-locks \
                                 "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 

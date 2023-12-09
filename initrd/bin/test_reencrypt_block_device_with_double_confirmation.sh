@@ -19,15 +19,20 @@ fi
 echo "This is test passphrase used to create LUKS key" > /tmp/passphrase.txt
 
 #Doing benchmarking
-echo "PLACEHOLDER - Running benchmark..." | tee /media/block_reencrypt.log
+echo "PLACEHOLDER - Running benchmark..." | tee /media/block_reencrypt_$GIT_HASH.log
 
-cryptsetup benchmark | tee -a /media/block_reencrypt.log
+cryptsetup benchmark | tee -a /media/block_reencrypt_$GIT_HASH.log
 
-echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt.log
-time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
+echo "PLACEHOLDER - Creating LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
+time cryptsetup luksFormat "$DISK" --debug --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
-echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/block_reencrypt.log
-time cryptsetup reencrypt "$DISK" --debug --resilience=none --key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt.log
+echo "PLACEHOLDER - Reeencrypting LUKS container on $DISK..." | tee -a /media/block_reencrypt_$GIT_HASH.log
+time cryptsetup reencrypt "$DISK" --debug \
+	--resilience=none \
+	--disable-locks \
+	--perf-no_read_workqueue \
+	--perf-no_write_workqueue \
+	--key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Unmounting USB drive from /media"
 umount /media
