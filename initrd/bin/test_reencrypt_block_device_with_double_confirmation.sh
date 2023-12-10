@@ -31,8 +31,6 @@ time cryptsetup reencrypt "$DISK" --debug \
 	--resilience=none \
 	--disable-locks \
 	--force-offline-reencrypt \
-	--perf-same_cpu_crypt \
-	--perf-submit_from_crypt_cpus \
 	--key-file /tmp/passphrase.txt | tee -a /media/block_reencrypt_$GIT_HASH.log
 
 echo "PLACEHOLDER - Some stats" | tee -a /media/block_reencrypt_$GIT_HASH.log
