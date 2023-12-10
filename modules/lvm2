@@ -25,6 +25,9 @@ lvm2_configure := \
 	--disable-dmfilemapd \
 	--disable-dmeventd \
 	--disable-lvmpolld \
+	--disable-readline \
+	--disable-udev_sync \
+	--enable-static_link \
 	--disable-use-lvmlockd \
 	--disable-use-lvmpolld \
 	--disable-dmfilemapd \
