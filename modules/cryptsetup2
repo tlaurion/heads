@@ -25,6 +25,8 @@ cryptsetup2_configure := \
 	--disable-selinux \
 	--disable-udev \
 	--disable-external-tokens \
+	--disable-internal-sse-argon2 \
+	--disable-internal-argon2 \
 	--with-crypto_backend=kernel \
 	--with-tmpfilesdir=$(INSTALL)/lib/tmpfiles.d
 
