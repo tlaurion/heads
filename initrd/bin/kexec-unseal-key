@@ -37,6 +37,8 @@ for tries in 1 2 3; do
 		"$key_file" "$tpm_password"
 
 	if [ "$?" -eq 0 ]; then
+		#change permission so not world readable
+		chmod 600 "$key_file"
 		exit 0
 	fi
 
