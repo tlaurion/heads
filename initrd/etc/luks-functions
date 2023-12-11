@@ -349,11 +349,9 @@ luks_reencrypt() {
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
 		fi
 
-		cryptsetup reencrypt --debug \
-                                --perf-no_read_workqueue --perf-no_write_workqueue --resilience=none \
-                                --force-offline-reencrypt --disable-locks \
+		cryptsetup reencrypt --debug --resilience=none --force-offline-reencrypt --disable-locks \
                                 "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
-
+		
 		#Validate past cryptsetup reencrypt attempts
 		if [ $(echo $?) -ne 0 ]; then
 			whiptail --title 'Invalid Actual LUKS Disk Recovery Key passphrase?' --msgbox \
