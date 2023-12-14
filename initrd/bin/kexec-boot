@@ -82,7 +82,7 @@ do
 			# always use xen with custom arguments
 			kexeccmd="$kexeccmd -l $filepath"
 			kexeccmd="$kexeccmd --command-line \"$restval no-real-mode reboot=no vga=current\""
-		elif [ "$kexectype" = "multiboot" ]; then
+		elif [ "$kexectype" = "multiboot" -o "$kexectype" = "multiboot2" ]; then
 			kexeccmd="$kexeccmd -l $filepath"
 			kexeccmd="$kexeccmd --command-line \"$restval\""
 		elif [ "$kexectype" = "elf" ]; then

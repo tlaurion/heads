@@ -75,7 +75,7 @@ echo_entry() {
 				entry="$entry|append $append"
 			fi
 			;;
-		multiboot|xen)
+		multiboot|multiboot2|xen)
 			entry="$entry$modules"
 			;;
 		*)

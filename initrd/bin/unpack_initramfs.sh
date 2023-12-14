@@ -22,6 +22,15 @@ TRACE "Under unpack_initramfs.sh"
 # succeeds with whatever was extracted, since this is used to extract particular
 # files and boot can proceed as long as those files were found.
 
+# Usage: unpack_initramfs.sh <initramfs archive> <destination directory> [cpio args]
+#  initramfs archive: path to the initramfs archive
+#  destination directory: directory to unpack the archive to
+#  cpio args: optional arguments to pass to cpio, e.g. --no-absolute-filenames
+#  	 (see cpio(1) for more details)
+if [ $# -lt 2 ]; then
+    die "Usage: $0 <initramfs archive> <destination directory> [cpio args]"
+fi
+
 INITRAMFS_ARCHIVE="$1"
 DEST_DIR="$2"
 shift

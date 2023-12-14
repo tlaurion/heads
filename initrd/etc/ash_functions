@@ -5,7 +5,7 @@
 
 die() {
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
-		echo " !!! ERROR: $* !!!" | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
+		echo " !!! ERROR: $* !!!" | fold -s -b -w 976 | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
 	else
 		echo >&2 "!!! ERROR: $* !!!";
 	fi
@@ -15,7 +15,7 @@ die() {
 
 warn() {
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
-		echo " *** WARNING: $* ***" | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
+		echo " *** WARNING: $* ***" | fold -s -b -w 976 | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
 	else
 		echo >&2 " *** WARNING: $* ***";
 	fi
@@ -25,14 +25,15 @@ warn() {
 DEBUG() {
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 		echo "DEBUG: $*" | while read line; do
-			echo "$line" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
+			echo "$line" | fold -s -b -w 976 | tee -a /tmp/debug.log /dev/kmsg >/dev/null
+			#TODO: invert fold and read line
 		done
 	fi
 }
 
 TRACE() {
 	if [ "$CONFIG_ENABLE_FUNCTION_TRACING_OUTPUT" = "y" ];then
-		echo "TRACE: $*" | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
+		echo "TRACE: $*" | fold -s -b -w 976 | tee -a /tmp/debug.log /dev/kmsg > /dev/null;
 	fi
 }
 
@@ -218,9 +219,9 @@ recovery() {
 	# but recreate the directory so that new tools can use it.
 
 	#safe to always be true. Otherwise "set -e" would make it exit here
-	shred -n 10 -z -u /tmp/secret/* 2> /dev/null || true
-	rm -rf /tmp/secret
-	mkdir -p /tmp/secret
+	#shred -n 10 -z -u /tmp/secret/* 2> /dev/null || true
+	#rm -rf /tmp/secret
+	#mkdir -p /tmp/secret
 
 	# ensure /tmp/config exists for recovery scripts that depend on it
 	touch /tmp/config
