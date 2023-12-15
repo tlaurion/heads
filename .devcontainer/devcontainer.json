@@ -2,11 +2,10 @@
     "name": "Debian Bookworm with Heads dependencies",
     "dockerFile": "Dockerfile",
     "settings": {
-        "terminal.integrated.shell.linux": "/bin/bash",
-	"codespaces.machineProperties": {
-	  "vCPU": 4,
-	  "memory": 64
-	}
+        "hostRequirements": {
+            "cpus": 4,
+            "memory": "16gb"
+  }
     },
     "extensions": [
         "github.github-vscode-theme",
