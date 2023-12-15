@@ -1,11 +1,15 @@
 {
     "name": "Debian Bookworm with Heads dependencies",
+    "runArgs": ["--privileged", "--device=/dev/kvm"],
     "dockerFile": "Dockerfile",
+    "postCreateCommand": "sudo apt-get install zsh python3-pip && pip3 install powerline-status && sudo apt-get install fonts-powerline && chsh -s $(which zsh)",
+    "overrideCommand": false,
     "settings": {
         "hostRequirements": {
             "cpus": 4,
             "memory": "16gb"
-  }
+        },
+        "terminal.integrated.fontFamily": "'DejaVu Sans Mono for Powerline'",
     },
     "extensions": [
         "github.github-vscode-theme",
@@ -14,3 +18,4 @@
 	"timonwong.shellcheck"
     ]
 }
+

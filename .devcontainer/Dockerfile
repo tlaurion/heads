@@ -1,54 +1,56 @@
 # Start from the Debian "Bookworm" image
-FROM debian:bookworm
+FROM mcr.microsoft.com/devcontainers/base:bookworm
 
 # Install necessary packages
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    zlib1g-dev \
-    uuid-dev \
-    libdigest-sha-perl \
-    libelf-dev \
+    autoconf \
+    automake \
     bc \
-    bzip2 \
     bison \
+    bridge-utils \
+    build-essential \
+    bzip2 \
+    ccache \
+    cmake \
+    cpio \
+    cpu-checker \
+    doxygen \
     flex \
+    gawk \
+    gnat \
     git \
     gnupg \
-    gawk \
+    graphviz \
     iasl \
+    imagemagick \
+    innoextract \
+    libdigest-sha-perl \
+    libelf-dev \
+    libguestfs-tools \
+    libncurses5-dev \
+    libtool \
+    libudev-dev \
+    libudev1 \
+    libusb-1.0-0-dev \
+    libvirt-clients \
+    libvirt-daemon-system \
     m4 \
     nasm \
-    patch \
-    python3 \
-    python-is-python3 \
-    wget \
-    gnat \
-    cpio \
-    ccache \
-    pkg-config \
-    cmake \
-    libusb-1.0-0-dev \
-    autoconf \
-    texinfo \
     ncurses-dev \
-    doxygen \
-    graphviz \
-    udev \
-    libudev1 \
-    libudev-dev \
-    automake \
-    libtool \
+    patch \
+    pkg-config \
+    python-is-python3 \
+    python3 \
+    qemu-kvm \
     rsync \
-    innoextract \
     sudo \
-    imagemagick \
-    libncurses5-dev \
     swtpm \
     swtpm-tools \
-    qemu-kvm \
-    libvirt-daemon-system \
-    libvirt-clients \
-    bridge-utils \
+    texinfo \
+    udev \
+    uuid-dev \
     virtinst \
-    libguestfs-tools \
+    wget \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
+
