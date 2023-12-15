@@ -1,0 +1,17 @@
+{
+    "name": "Debian Bookworm with Heads dependencies",
+    "dockerFile": "Dockerfile",
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+	"codespaces.machineProperties": {
+	  "vCPU": 4,
+	  "memory": 64
+	}
+    },
+    "extensions": [
+        "github.github-vscode-theme",
+        "github.copilot",
+        "mads-hartmann.bash-ide-vscode",
+	"timonwong.shellcheck"
+    ]
+}
