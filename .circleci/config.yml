@@ -245,9 +245,9 @@ workflows:
 
       # coreboot-git Talos II (PPC)
       - build_and_persist:
-          name: talos-2
+          name: talos-2-hotp
           arch: ppc64
-          target: talos-2
+          target: talos-2-hotp
           subcommand: ""
           requires:
             - prep_env
@@ -573,6 +573,16 @@ workflows:
           subcommand: ""
           requires:
             - nitropad-nv41
+
+# coreboot-git Talos II (PPC)
+      - build_and_persist:
+          name: talos-2
+          arch: ppc64
+          target: talos-2
+          subcommand: ""
+          requires:
+            - talos-2-hotp
+
 
 #      - build:
 #          name: UNTESTED_kgpe-d16_workstation-usb_keyboard
