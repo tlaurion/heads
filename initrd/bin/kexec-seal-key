@@ -47,6 +47,10 @@ DEBUG "$(pcrs)"
 # LUKS Key slot 0 is the manual recovery pass phrase
 # that they user entered when they installed OS,
 # key slot 1 is the one that we've generated.
+
+# Warn user if caps lock is on
+check_capslock
+
 read -s -p "Enter Disk Recovery Key/passphrase: " disk_password
 echo -n "$disk_password" >"$RECOVERY_KEY"
 echo

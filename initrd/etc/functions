@@ -189,6 +189,28 @@ list_usb_storage() {
 		done
 }
 
+# Check capslock status
+check_capslock() {
+	TRACE "Under /etc/functions:check_capslock"
+
+	local tty_device=$(readlink -f /proc/self/fd/0)
+
+	if [[ ! -e "$tty_device" ]]; then
+		echo "TTY device not found: $tty_device"
+		return 1
+	fi
+
+	local capslock_status=$(busybox dumpkmap | grep -o "Caps_Lock.*" | awk '{print $2}')
+
+	if [[ "$capslock_status" == "on" ]]; then
+		DEBUG "Caps Lock is ON"
+		return 1
+	else
+		DEBUG "Caps Lock is OFF"
+		return 0
+	fi
+}
+
 # Prompt for a TPM Owner Password if it is not already cached in /tmp/secret/tpm_owner_password.  
 # Sets tpm_owner_password variable reused in flow, and cache file used until recovery shell is accessed. 
 # Tools should optionally accept a TPM password on the command line, since some flows need 
