@@ -1,0 +1,15 @@
+BRAND_NAME="Dasharo"
+
+ifeq "nitropad-nv41" "$(BOARD)"
+
+CONFIG_BOARD_NAME="NovaCustom NV4x 12th Gen | v0.9.0"
+
+else ifeq "nitropad-ns50" "$(BOARD)"
+
+CONFIG_BOARD_NAME="NovaCustom NS5x 12th Gen | v0.9.0"
+
+else
+
+CONFIG_BOARD_NAME+=" | v0.9.0"
+
+endif
