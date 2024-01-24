@@ -15,7 +15,7 @@ cryptsetup_configure := \
 	CFLAGS="-Os" \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix "" \
+	--prefix "/" \
 	--disable-gcrypt-pbkdf2 \
 	--enable-cryptsetup-reencrypt \
 	--with-crypto_backend=kernel \

@@ -15,7 +15,7 @@ cryptsetup2_configure := \
 	CFLAGS="-Os" \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix "" \
+	--prefix "/" \
 	--disable-rpath \
 	--disable-gcrypt-pbkdf2 \
 	--enable-cryptsetup-reencrypt \

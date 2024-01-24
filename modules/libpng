@@ -11,7 +11,7 @@ libpng_configure := \
 	CFLAGS="-Os" \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix="" \
+	--prefix="/" \
 
 libpng_target := \
 	$(MAKE_JOBS) \

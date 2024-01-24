@@ -11,7 +11,7 @@ pixman_configure := \
 	CFLAGS="-Os"  \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix="" \
+	--prefix="/" \
 	--disable-gtk
 
 pixman_target := \

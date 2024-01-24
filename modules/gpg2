@@ -24,7 +24,7 @@ gpg2_configure := \
 	--with-libassuan-prefix="$(INSTALL)" \
 	--with-ksba-prefix="$(INSTALL)" \
 	--with-npth-prefix="$(INSTALL)" \
-	--prefix "" \
+	--prefix "/" \
 	--libexecdir "/bin" \
 	--enable-scdaemon \
 	--enable-ccid-driver \

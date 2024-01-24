@@ -22,7 +22,7 @@ tpm2-tools_configure := ./bootstrap && ./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
 	--target $(MUSL_ARCH) \
-	--prefix "" \
+	--prefix "/" \
 	--disable-fapi \
 	TSS2_ESYS_3_0_CFLAGS="-I$(INSTALL)/include" \
 	TSS2_ESYS_3_0_LIBS="-ltss2-esys -L$(INSTALL)/lib" \

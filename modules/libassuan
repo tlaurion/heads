@@ -11,7 +11,7 @@ libassuan_configure := \
 	$(CROSS_TOOLS) \
 	./configure \
 	--host $(MUSL_ARCH)-linux-musl \
-	--prefix "" \
+	--prefix "/" \
 	--disable-static \
 	--disable-doc \
 	--with-libgpg-error-prefix="$(INSTALL)" \

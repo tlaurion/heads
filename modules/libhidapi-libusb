@@ -17,7 +17,7 @@ libhidapi-libusb_configure := ./bootstrap && \
 	./configure \
 	$(MY_CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux\
-	--prefix ""
+	--prefix "/"
 
 
 libhidapi-libusb_target := $(MAKE_JOBS) -C libusb \

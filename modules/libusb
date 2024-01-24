@@ -14,7 +14,7 @@ libusb_configure := \
 	./configure \
 	$(CROSS_TOOLS)\
 	--host $(MUSL_ARCH)-elf-linux\
-	--prefix ""\
+	--prefix "/"\
 	--disable-udev\
 	--disable-tests\
 
