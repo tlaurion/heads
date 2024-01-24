@@ -45,6 +45,7 @@
             sharutils
             texinfo
             unzip
+            zip
             wget
             which
             zlib.dev
