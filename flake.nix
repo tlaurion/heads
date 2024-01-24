@@ -35,14 +35,12 @@
             flex
             git
             gnat11
-            gnumake
             innoextract
             m4
             ncurses5 # make menuconfig
             perl
             pkgconfig
             python3
-            qemu # test the image
             rsync
             sharutils
             texinfo
@@ -50,6 +48,7 @@
             wget
             which
             zlib.dev
+            imagemagick
           ]
           ++ [
             # qemu-coreboot-fbwhiptail-tpm2-hotp
