@@ -16,6 +16,7 @@ libusb_configure := \
 	--host $(MUSL_ARCH)-elf-linux\
 	--prefix ""\
 	--disable-udev\
+	--disable-tests\
 
 # Run one build to generate the executables with the pre-defined
 # exec_prefix and datarootdir, then a second make to install the binaries
