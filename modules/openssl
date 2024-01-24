@@ -17,7 +17,7 @@ openssl_configure := \
 	CFLAGS="-Os" \
 	LDFLAGS="-L$(LIBGCC_DIR)" \
 	./Configure \
-		--prefix="/" \
+		--prefix="" \
 		no-tests \
 		linux-$(strip $(arch)) \
 		no-aria \

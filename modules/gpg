@@ -24,7 +24,7 @@ gpg_configure := \
 	--build $(MUSL_ARCH)-elf-linux \
 	--host $(MUSL_ARCH)-linux-musl \
 	--with-libusb="$(INSTALL)" \
-	--prefix "/" \
+	--prefix "" \
 	--enable-card-support \
 	--disable-bzip2 \
 	--disable-asm \
