@@ -50,6 +50,7 @@
             which
             zlib.dev
             imagemagick
+            vim
           ]
           ++ [
             # qemu-coreboot-fbwhiptail-tpm2-hotp
