@@ -11,7 +11,7 @@ npth_configure := ./configure \
 	--host $(MUSL_ARCH)-linux-musl \
 	--prefix "/" \
 	--disable-static \
-	--with-libgpg-error-prefix="$(INSTALL)" \
+	--with-gpg-error-prefix="$(INSTALL)" \
 
 npth_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
