@@ -152,7 +152,6 @@ heads_cc	:= $(CROSS)gcc \
 	-D__MUSL__ \
 	--sysroot  $(INSTALL) \
 	-isystem $(INSTALL)/include \
-	-Os -g0 \
 	-L$(INSTALL)/lib \
 
 # Cross-compiling with pkg-config requires clearing PKG_CONFIG_PATH and setting
