@@ -11,7 +11,7 @@ libksba_configure := \
 	CFLAGS="-Os" \
 	./configure \
 	--host $(MUSL_ARCH)-linux-musl \
-	--prefix "/" \
+	--prefix "" \
 	--disable-static \
 	--with-libgpg-error-prefix="$(INSTALL)" \
 

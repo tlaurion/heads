@@ -11,7 +11,7 @@ tpm2-tss_configure := aclocal && automake --add-missing && autoreconf -fi \
 	&& ./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix "/" \
+	--prefix "" \
 	--with-sysroot=$(INSTALL) \
 	--disable-doxygen-doc \
 	--disable-doxygen-man \

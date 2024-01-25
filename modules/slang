@@ -9,7 +9,7 @@ slang_hash := 54f0c3007fde918039c058965dffdfd6c5aec0bad0f4227192cc486021f08c36
 slang_configure := ./configure \
 	$(CROSS_TOOLS) \
 	ac_cv_path_nc5config=ncurses-config \
-	--prefix "/" \
+	--prefix "" \
 	--host $(MUSL_ARCH)-elf-linux \
 	--with-z=no \
 	--with-png=no \

@@ -11,7 +11,7 @@ cairo_configure := \
 	$(CROSS_TOOLS) \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix="/" \
+	--prefix="" \
 	--disable-xlib --disable-xcb --disable-pdf \
 	--disable-ps --disable-svg --disable-script \
 	--disable-ft --disable-fc --disable-pthread \

@@ -17,7 +17,7 @@ lvm2_configure := \
 	ac_cv_func_realloc_0_nonnull=yes \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
-	--prefix "/" \
+	--prefix "" \
 	--enable-devmapper \
 	--disable-selinux \
 	--disable-udev-systemd-background-jobs \

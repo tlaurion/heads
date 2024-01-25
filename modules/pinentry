@@ -18,7 +18,7 @@ pinentry_configure := \
 	CFLAGS="-Os" \
 	./configure \
 	--host $(MUSL_ARCH)-linux-musl \
-	--prefix "/" \
+	--prefix "" \
 	--enable-pinentry-tty \
 	--disable-libsecret \
 	--disable-fallback-curses \
