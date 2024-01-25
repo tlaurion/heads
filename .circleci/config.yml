@@ -191,7 +191,11 @@ jobs:
             - build/x86/coreboot-4.15
             - build/x86/coreboot-4.17
             - build/x86/coreboot-4.19
-            - build/ppc64/coreboot-git
+            - build/x86/coreboot-dasharo-kgpe-d16
+            - build/x86/coreboot-nitrokey
+            - build/x86/coreboot-purism
+            - build/ppc64/coreboot-talos_2
+
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
           key: nix-heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
@@ -252,7 +256,7 @@ workflows:
       - save_cache:
           requires:
             - talos-2
-            - nitropad-nv41
+            - librem_14
 
 #
 #
