@@ -1,4 +1,4 @@
-BRAND_NAME="Dasharo"
+BRAND_NAME=Dasharo
 
 ifeq "nitropad-nv41" "$(BOARD)"
 
