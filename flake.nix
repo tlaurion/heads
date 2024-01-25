@@ -51,6 +51,7 @@
             zlib.dev
             imagemagick
             vim
+            ccache
           ]
           ++ [
             # qemu-coreboot-fbwhiptail-tpm2-hotp
