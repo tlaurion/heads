@@ -22,50 +22,50 @@
       devShell = pkgs.mkShellNoCC {
         buildInputs = with pkgs;
           [
-          autoconf
-          automake
-          bc
-          bison # Generate flashmap descriptor parser
-          cacert
-          canokey-qemu # qemu library support. Requires rebuilding qemu below.
-          cmake
-          cpio
-          curl
-          #dtc #device tree compiler: not sure needed.
-          elfutils
-          elfutils.dev #otherwise coreboot buidstack fails on nix deployed on top of quebesos 4.2 debian-12
-          flex
-          git
-          gnat11
-          #coreboot-toolchain.i386 #not working as of now
-          #coreboot-toolchain.ppc64 #not working as of now
-          innoextract
-          m4
-          ncurses5 # make menuconfig
-          perl
-          pkgconfig
-          python3
-          #qemu #needed to test qemu-coreboot-* board configs. Sperify only override if Canokey support desired to be configured and compiled in.
-          rsync
-          shadow #needed by tpm2-tss for groupadd/useradd otherwise fails to build
-          sharutils
-          swtpm #needed to test qemu-coreboot-* board configs with qemu
-          texinfo
-          unzip
-          zip
-          wget
-          which
-          zlib.dev
-          imagemagick
-          vim
-          ccache
-          (qemu.override {
-           #INCOMPLETE. qemu needs to be rebuilt with canokey support but not getting it right:
-           # https://www.qemu.org/docs/master/system/devices/canokey.html
-           # https://github.com/NixOS/nixpkgs/pull/194254
-            canokeySupport = true; #Needed if qemu testing desired with virtual USB Security Dongle (config not yet added)
-          })
-        ];
+            autoconf
+            automake
+            bc
+            bison # Generate flashmap descriptor parser
+            cacert
+            canokey-qemu # qemu library support. Requires rebuilding qemu below.
+            cmake
+            cpio
+            curl
+            dtc #device tree compiler: not sure needed.
+            elfutils
+            elfutils.dev #otherwise coreboot buidstack fails on nix deployed on top of quebesos 4.2 debian-12
+            flex
+            git
+            gnat11
+            #coreboot-toolchain.i386 #not working as of now
+            #coreboot-toolchain.ppc64 #not working as of now
+            innoextract
+            m4
+            ncurses5 # make menuconfig
+            perl
+            pkgconfig
+            python3
+            #qemu #needed to test qemu-coreboot-* board configs. Sperify only override if Canokey support desired to be configured and compiled in.
+            rsync
+            shadow #needed by tpm2-tss for groupadd/useradd otherwise fails to build
+            sharutils
+            swtpm #needed to test qemu-coreboot-* board configs with qemu
+            texinfo
+            unzip
+            zip
+            wget
+            which
+            zlib.dev
+            imagemagick #Needed to apply needed voodoo magic by coreboot on bootsplash.jpg
+            vim
+            ccache #needed by qemu as of right now. Could deactivate under coreboot configs
+            (qemu.override {
+            #INCOMPLETE. qemu needs to be rebuilt with canokey support but not getting it right:
+            # https://www.qemu.org/docs/master/system/devices/canokey.html
+            # https://github.com/NixOS/nixpkgs/pull/194254
+              canokeySupport = true; #Needed if qemu testing desired with virtual USB Security Dongle (config not yet added)
+           })
+          ];
       };
     });
 }
