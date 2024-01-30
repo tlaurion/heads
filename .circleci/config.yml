@@ -14,7 +14,7 @@ commands:
           name: Make Board (FULL ORDERED BUILD LOGS HERE UNTIL JOB FAILED)
           command: |
             rm -rf build/<<parameters.arch>>/<<parameters.target>>/* build/<<parameters.arch>>/log/* &&
-            nix --extra-experimental-features 'nix-command flakes' develop --print-build-logs --ignore-environment --keep DISPLAY --command make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> ||
+            nix --extra-experimental-features 'nix-command flakes' develop --print-build-logs --ignore-environment --keep DISPLAY --command make V=1 CPUS=24 BOARD=<<parameters.target>> <<parameters.subcommand>> ||
             touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
@@ -246,6 +246,14 @@ workflows:
           subcommand: ""
           requires:
             - x230-hotp-maximized
+
+      # Coreboot fork for UNTESTED_kgpe-d16, reusing submodules built cache from x230-hotp-maximized
+      - build_and_persist:
+          name: UNTESTED_kgpe-d16_workstation
+          target: UNTESTED_kgpe-d16_workstation
+          subcommand: ""
+          requires:
+            - prep_env
 
       # coreboot-git Nitropads depending on x230-hotp-maximized cache
       # since kernel is 6.x and coreboot is git is unshared
