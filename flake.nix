@@ -27,6 +27,7 @@
             bc
             bison # Generate flashmap descriptor parser
             cacert
+            canokey-qemu # qemu library support. Requires rebuilding qemu below.
             ccache
             cmake
             cpio
@@ -58,7 +59,9 @@
           ]
           ++ [
             # debugging/fixing/testing
-            qemu
+            #(qemu.override {
+            #  canokeySupport = true; #Needed if qemu testing desired with virtual USB Security Dongle (config not yet added under qemu.mk)
+            #})
             vim
           ];
       };
