@@ -37,16 +37,17 @@
             elfutils
             flex
             git
-            gnat11
+            gnat
             gnumake
             imagemagick
             innoextract
             libtool
             m4
             ncurses5 # make menuconfig
+            #nix-docker # build docker image from this flake. Doesn't exist, nnixOS not nix based.
             parted
             perl
-            pkgconfig
+            pkg-config
             python3
             rsync
             sharutils
@@ -65,5 +66,14 @@
             vim
           ];
       };
+
+      packages.heads-docker = pkgs.dockerTools.buildImage {
+        name = "heads-docker";
+        tag = "0.1.0";
+        contents = self.devShell;
+      };
+
+      defaultPackage = self.packages.heads-docker;
     });
 }
+
