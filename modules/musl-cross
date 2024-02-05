@@ -4,11 +4,11 @@ ifeq "$(MUSL_CROSS_ONCE)" ""
 MUSL_CROSS_ONCE := 1
 modules-$(CONFIG_MUSL) += musl-cross
 
-musl-cross_version := 38e52db8358c043ae82b346a2e6e66bc86a53bc1
+musl-cross_version := fe915821b652a7fa37b34a596f47d8e20bc72338
 musl-cross_dir := musl-cross-$(musl-cross_version)
 musl-cross_url := https://github.com/richfelker/musl-cross-make/archive/$(musl-cross_version).tar.gz
 musl-cross_tar := musl-cross-$(musl-cross_version).tar.gz
-musl-cross_hash := b4b85d6d3ddab0f2b8650a53e775673f8c346fa2fb07d652a9880bd206ade100
+musl-cross_hash := c5df9afd5efd41c97fc7f3866664ef0c91af0ff65116e27cd9cba078c7ab33ae
 
 
 ifneq "$(CROSS)" ""
