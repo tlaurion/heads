@@ -93,6 +93,11 @@ coreboot-nitrokey_repo := https://github.com/dasharo/coreboot
 coreboot-nitrokey_commit_hash := a1787afa6b3bf4d3b201cfdbe2ef69623072afa5
 $(eval $(call coreboot_module,nitrokey,))
 
+# MSI boards are based on Dasharo coreboot port
+coreboot-dasharo_repo := https://github.com/dasharo/coreboot
+coreboot-dasharo_commit_hash := 41a479d895886d12c1a68b65bcb63dad09b83913
+$(eval $(call coreboot_module,dasharo,))
+
 # Check that the board configured the coreboot version correctly
 ifeq "$(CONFIG_COREBOOT_VERSION)" ""
 	$(error "$(BOARD): does not specify coreboot version under CONFIG_COREBOOT_VERSION")
