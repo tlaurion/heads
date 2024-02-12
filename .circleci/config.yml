@@ -227,10 +227,16 @@ workflows:
           requires:
             - nitropad-nv41
 
-#coreboot-git dasharo clevo_release + staging IASL patch
       - build_and_persist:
           name: nitropad-ns50
           target: nitropad-ns50
+          subcommand: ""
+          requires:
+            - nitropad-nv41
+
+      - build_and_persist:
+          name: msi_z690a_ddr4
+          target: msi_z690a_ddr4
           subcommand: ""
           requires:
             - nitropad-nv41
