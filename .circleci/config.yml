@@ -247,3 +247,10 @@ workflows:
           subcommand: ""
           requires:
             - nitropad-nv41
+
+      - build_and_persist:
+          name: msi_z790p_ddr4
+          target: msi_z790p_ddr4
+          subcommand: ""
+          requires:
+            - nitropad-nv41
