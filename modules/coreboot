@@ -103,9 +103,9 @@ $(eval $(call coreboot_module,nitrokey,))
 #x230 fhd based on main to be 4.23
 # with patches under x230fhd
 coreboot-pre423_repo := https://github.com/coreboot/coreboot
-coreboot-pre423_commit_hash := de37109767b6b415778f34cbac196c8418f7e371
+coreboot-pre423_commit_hash := a88dd4b6fbac8748a6f4580ad6363da47f5b3bc2
 coreboot-pre423_patch_version := x230fhd
-#We use clevo_release's crossgcc for now, unshared but between nitropad nv41/ns50
+#We use release's crossgcc for now, unshared but between other boards since 4.23+ (master fhd patch merged in)
 $(eval $(call coreboot_module,pre423,))
 
 # Check that the board configured the coreboot version correctly
