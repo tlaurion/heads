@@ -15,7 +15,7 @@ commands:
           command: |
             ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo libssl-dev device-tree-compiler u-boot-tools sharutils e2fsprogs parted curl unzip imagemagick libncurses5-dev zip
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo libssl-dev device-tree-compiler u-boot-tools sharutils e2fsprogs parted curl unzip imagemagick libncurses5-dev zip sharutils
       - run:
           name: Make Board (FULL ORDERED BUILD LOGS HERE UNTIL JOB FAILED)
           command: |
@@ -110,6 +110,11 @@ jobs:
           name: Download and extract w530 vbios roms for dgpu boards
           command: |
             ./blobs/xx30/vbios_w530.sh
+
+      - run:
+          name: Download and extract w541 vbios roms for dgpu boards
+          command: |
+            ./blobs/w541/vbios_w541_k2100m.sh
 
       - persist_to_workspace:
           root: ~/
@@ -487,6 +492,21 @@ workflows:
           subcommand: ""
           requires:
             - x230-hotp-maximized
+
+      - build:
+          name: UNTESTED_w541-dgpu-k2100m-maximized
+          target: UNTESTED_w541-dgpu-k2100m-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: UNTESTED_w541-dgpu-k2100m-hotp-maximized
+          target: UNTESTED_w541-dgpu-k2100m-hotp-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
 
       - build:
           name: qemu-coreboot-fbwhiptail-tpm2-hotp
