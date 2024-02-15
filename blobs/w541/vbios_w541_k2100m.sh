@@ -53,7 +53,7 @@ echo "### Installing VBiosFinder"
 unzip "$VBIOSFINDER".zip
 cd VBiosFinder-"$VBIOSFINDER" && bundle install --path=vendor/bundle
 
-echo "### Downloading latest Lenovo bios update for t530"
+echo "### Downloading latest Lenovo bios update for w541"
 wget https://download.lenovo.com/pccbbs/mobiles/"$BIOSUPDATE" || { echo "Failed to download $BIOSUPDATE" && exit 1; }
 
 echo "### Verifying expected hash of bios update"
