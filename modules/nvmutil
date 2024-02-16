@@ -9,9 +9,8 @@ nvmutil_url := https://codeberg.org/libreboot/lbmk/archive/$(nvmutil_tar)
 nvmutil_hash := 8708f38c0c41f05bf6637c32a64e2c04ca5cf6fc175ccdde4cbd518e498d55c9
 
 nvmutil_target := \
+	$(CROSS_TOOLS) \
 	-C $(build)/$(nvmutil_dir)/util/nvmutil \
-	CFLAGS="-I$(INSTALL)/include" \
-	LDFLAGS="-L$(INSTALL)/lib" \
 
 nvmutil_output := \
 	util/nvmutil/nvm \
