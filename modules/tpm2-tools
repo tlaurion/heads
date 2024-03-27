@@ -18,23 +18,45 @@ tpm2-tools_url := https://github.com/tpm2-software/tpm2-tools/releases/download/
 tpm2-tools_hash := c0b402f6a7b3456e8eb2445211e2d41c46c7e769e05fe4d8909ff64119f7a630
 
 # we have ESYS 3.0, but it doesn't figure that out on its own
+# TPM2 tools program
+modules-$(CONFIG_TPM2_TOOLS) += tpm2-tools
+
+# CONFIG_TPM means any TPM version.  (CONFIG_TPM2_TOOLS differentiates them when
+# they must be handled differently, which should be localized.)  Boards setting
+# CONFIG_TPM2_TOOLS=y imply CONFIG_TPM=y.
+ifeq "$(CONFIG_TPM2_TOOLS)" "y"
+        export CONFIG_TPM=y
+endif
+
+tpm2-tools_version := 5.2
+#tpm2-tools_version := 78a7681
+#tpm2-tools_repo := https://github.com/tpm2-software/tpm2-tools.git
+
+tpm2-tools_dir := tpm2-tools-$(tpm2-tools_version)
+tpm2-tools_tar := tpm2-tools-$(tpm2-tools_version).tar.gz
+tpm2-tools_url := https://github.com/tpm2-software/tpm2-tools/releases/download/$(tpm2-tools_version)/$(tpm2-tools_tar)
+tpm2-tools_hash := c0b402f6a7b3456e8eb2445211e2d41c46c7e769e05fe4d8909ff64119f7a630
+
+# we have ESYS 3.0, but it doesn't figure that out on its own
 tpm2-tools_configure := \
-	./bootstrap \
-	&& sed -i 's/hardcode_direct=yes/hardcode_direct=no/g' configure \
-	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=" "/' configure \
-	&& sed -i 's/hardcode_minus_L=yes/hardcode_minus_L=no/g' configure \
-	&& sed -i 's/hardcode_automatic=yes/hardcode_automatic=no/g' configure \
-	&& sed -i 's/hardcode_runpath_var=yes/hardcode_runpath_var=no/g' configure \
-	&& sed -i 's/hardcode_into_libs=yes/hardcode_into_libs=no/g' configure \
-	&& sed -i 's/hardcode_direct_absolute=yes/hardcode_direct_absolute=no/g' configure \
-	&& sed -i 's/inherit_rpath=yes/inherit_rpath=no/g' configure \
+        ./bootstrap \
+        && sed -i 's/hardcode_direct=yes/hardcode_direct=no/g' configure \
+        && sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=" "/' configure \
+        && sed -i 's/hardcode_minus_L=yes/hardcode_minus_L=no/g' configure \
+        && sed -i 's/hardcode_automatic=yes/hardcode_automatic=no/g' configure \
+        && sed -i 's/hardcode_runpath_var=yes/hardcode_runpath_var=no/g' configure \
+        && sed -i 's/hardcode_into_libs=yes/hardcode_into_libs=no/g' configure \
+        && sed -i 's/hardcode_direct_absolute=yes/hardcode_direct_absolute=no/g' configure \
+        && sed -i 's/inherit_rpath=yes/inherit_rpath=no/g' configure \
+	&& sed -i "s/PACKAGE_VERSION='[^']*'/PACKAGE_VERSION='$(tpm2-tools_version)'/" configure \
+        && sed -i "s/PACKAGE_STRING='[^']*'/PACKAGE_STRING='$(tpm2-tools_version)'/" configure \
 	&& ./configure \
-	$(CROSS_TOOLS) \
-	--host $(MUSL_ARCH)-elf-linux \
-	--prefix "/" \
-	--disable-fapi \
-	TSS2_ESYS_3_0_CFLAGS="-I$(INSTALL)/include" \
-	TSS2_ESYS_3_0_LIBS="-ltss2-esys" \
+        $(CROSS_TOOLS) \
+        --host $(MUSL_ARCH)-elf-linux \
+        --prefix "/" \
+        --disable-fapi \
+        TSS2_ESYS_3_0_CFLAGS="-I$(INSTALL)/include" \
+        TSS2_ESYS_3_0_LIBS="-ltss2-esys" \
 
 tpm2-tools_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
