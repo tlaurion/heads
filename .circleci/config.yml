@@ -14,7 +14,7 @@ commands:
           name: Make Board (FULL ORDERED BUILD LOGS HERE UNTIL JOB FAILED)
           command: |
             rm -rf build/<<parameters.arch>>/<<parameters.target>>/* build/<<parameters.arch>>/log/*
-            nix --print-build-logs --verbose develop --ignore-environment --command make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
+            make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output hashes
@@ -43,20 +43,15 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: nixos/nix:2.16.1
+      - image: tlaurion/heads-dev-env:v0.0.1
     resource_class: large
+    working_directory: ~/heads
     steps:
       - checkout
       - run:
           name: git reset
           command: |
             git reset --hard "$CIRCLE_SHA1"
-      - run:
-          name: Fetch nix dependencies
-          command: |
-            mkdir -p ~/.config/nix
-            echo 'experimental-features = nix-command flakes' >~/.config/nix/nix.conf
-            nix --print-build-logs --verbose develop --ignore-environment --command true
       - run:
           name: Make tmp dir
           command: |
@@ -89,33 +84,34 @@ jobs:
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
-            nix --print-build-logs --verbose develop --ignore-environment --command  ./blobs/xx20/download_parse_me.sh
+            ./blobs/xx20/download_parse_me.sh
       - run:
           # me_cleaner.py present under heads xx30 blobs dir comes from https://github.com/corna/me_cleaner/blob/43612a630c79f3bc6f2653bfe90dfe0b7b137e08/me_cleaner.py
           name: Download and neuter xx30 ME (keep generated GBE and extracted IFD in tree)
           command: |
-            nix --print-build-logs --verbose develop --ignore-environment --command  ./blobs/xx30/download_clean_me_manually.sh -m $(readlink -f ./blobs/xx30/me_cleaner.py)
+            ./blobs/xx30/download_clean_me_manually.sh -m $(readlink -f ./blobs/xx30/me_cleaner.py)
       - run:
           name: Download and extract t530 vbios roms for dgpu boards
           command: |
             echo skipping for now
             exit 0
-            nix --print-build-logs --verbose develop --ignore-environment --command  ./blobs/xx30/vbios_t530.sh
+            ./blobs/xx30/vbios_t530.sh
       - run:
           name: Download and extract w530 vbios roms for dgpu boards
           command: |
             echo skipping for now
             exit 0
-            nix --print-build-logs --verbose develop --ignore-environment --command  ./blobs/xx30/vbios_w530.sh
+            ./blobs/xx30/vbios_w530.sh
       - persist_to_workspace:
-          root: ~/
+          root: ~/heads
           paths:
             - .
 
   build_and_persist:
     docker:
-      - image: nixos/nix:2.16.1
+      - image: tlaurion/heads-dev-env:v0.0.1
     resource_class: large
+    working_directory: ~/heads
     parameters:
       arch:
         type: string
@@ -126,13 +122,13 @@ jobs:
         type: string
     steps:
       - attach_workspace:
-          at: ~/
+          at: ~/heads
       - build_board:
           arch: <<parameters.arch>>
           target: <<parameters.target>>
           subcommand: <<parameters.subcommand>>
       - persist_to_workspace:
-          root: ~/
+          root: ~/heads
           paths:
             - project/build/<<parameters.arch>>
             - project/crossgcc/<<parameters.arch>>
@@ -141,8 +137,9 @@ jobs:
 
   build:
     docker:
-      - image: nixos/nix:2.16.1
+      - image: tlaurion/heads-dev-env:v0.0.1
     resource_class: large
+    working_directory: ~/heads
     parameters:
       arch:
         type: string
@@ -153,7 +150,7 @@ jobs:
         type: string
     steps:
       - attach_workspace:
-          at: ~/
+          at: ~/heads
       - build_board:
           arch: <<parameters.arch>>
           target: <<parameters.target>>
@@ -161,11 +158,12 @@ jobs:
 
   save_cache:
     docker:
-      - image: nixos/nix:2.16.1
+      - image: tlaurion/heads-dev-env:v0.0.1
     resource_class: large
+    working_directory: ~/heads
     steps:
       - attach_workspace:
-          at: ~/
+          at: ~/heads
       - save_cache:
           # Generate cache for the same musl-cross module definition if hash is not previously existing
           # CircleCI removed their wildcard support, so we have to list precise versions to cache in directory names
