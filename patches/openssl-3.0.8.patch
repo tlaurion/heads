@@ -1,5 +1,5 @@
---- ./util/mkbuildinf.pl.orig	2024-03-27 14:36:49.974651246 -0400
-+++ ./util/mkbuildinf.pl	2023-02-07 08:43:33.000000000 -0500
+--- ./util/mkbuildinf.pl.orig   2023-02-07 08:43:33.000000000 -0500
++++ ./util/mkbuildinf.pl	2024-03-27 14:36:49.974651246 -0400
 @@ -12,7 +12,7 @@
  my ($cflags, $platform) = @ARGV;
  $cflags = "compiler: $cflags";
@@ -9,8 +9,6 @@
  
  print <<"END_OUTPUT";
  /*
---- ./util/mkbuildinf.pl.orig	2024-03-27 15:05:41.355993166 -0400
-+++ ./util/mkbuildinf.pl	2024-03-27 15:16:25.694975578 -0400
 @@ -36,21 +36,7 @@
   * literal
   */
