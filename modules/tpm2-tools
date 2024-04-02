@@ -17,41 +17,10 @@ tpm2-tools_tar := tpm2-tools-$(tpm2-tools_version).tar.gz
 tpm2-tools_url := https://github.com/tpm2-software/tpm2-tools/releases/download/$(tpm2-tools_version)/$(tpm2-tools_tar)
 tpm2-tools_hash := 52c8bcbaadca082abfe5eb7ee4967d2d632d84b1677675f2f071b6d2ec22cec3
 
-
-# TEST: from configure script 5.6 modified per sed below:
-#hardcode_action=
-#if test -n "$hardcode_libdir_flag_spec" ||
-#   test -n "$runpath_var" ||
-#   test yes = "$hardcode_automatic"; then
-#
-#  # We can hardcode non-existent directories.
-#  if test no != "$hardcode_direct" &&
-#     # If the only mechanism to avoid hardcoding is shlibpath_var, we
-#     # have to relink, otherwise we might link with an installed library
-#     # when we should be linking with a yet-to-be-installed one
-#     ## test no != "$_LT_TAGVAR(hardcode_shlibpath_var, )" &&
-#     test no != "$hardcode_minus_L"; then
-#    # Linking always hardcodes the temporary library directory.
-#    hardcode_action=relink
-#  else
-#    # We can link without hardcoding, and we can hardcode nonexisting dirs.
-#    hardcode_action=immediate
-#  fi
-#else
-#  # We cannot hardcode anything, or else we can only hardcode existing
-#  # directories.
-#  hardcode_action=unsupported
-
-
-#  TEST: configure.log result as of now:
-#  checking how to hardcode library paths into programs... immediate
-
-
-
 # we have ESYS 3.0, but it doesn't figure that out on its own
 tpm2-tools_configure := \
 	./bootstrap \
-	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=\"\"/' configure \
+	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=/' configure \
 	&& sed -i 's/runpath_var=.*/runpath_var=\"\"/' configure \
 	&& ./configure \
 	$(CROSS_TOOLS) \
