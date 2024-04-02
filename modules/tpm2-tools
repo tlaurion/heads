@@ -20,11 +20,22 @@ tpm2-tools_hash := 52c8bcbaadca082abfe5eb7ee4967d2d632d84b1677675f2f071b6d2ec22c
 # we have ESYS 3.0, but it doesn't figure that out on its own
 tpm2-tools_configure := \
 	./bootstrap \
+	&& sed -i 's/hardcode_direct=yes/hardcode_direct=no/g' configure \
+	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=" "/' configure \
+	&& sed -i 's/hardcode_minus_L=yes/hardcode_minus_L=no/g' configure \
+	&& sed -i 's/hardcode_automatic=yes/hardcode_automatic=no/g' configure \
+	&& sed -i 's/hardcode_runpath_var=yes/hardcode_runpath_var=no/g' configure \
+	&& sed -i 's/hardcode_into_libs=yes/hardcode_into_libs=no/g' configure \
+	&& sed -i 's/hardcode_direct_absolute=yes/hardcode_direct_absolute=no/g' configure \
+	&& sed -i 's/inherit_rpath=yes/inherit_rpath=no/g' configure \
+	&& sed -i 's/shlibpath_overrides_runpath=yes/shlibpath_overrides_runpath=no/g' configure \
+	&& sed -i 's/lt_cv_shlibpath_overrides_runpath=yes/lt_cv_shlibpath_overrides_runpath=no/g' configure \
 	&& ./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
 	--disable-fapi \
+	--disable-static \
 	TSS2_ESYS_3_0_CFLAGS="-I$(INSTALL)/include" \
 	TSS2_ESYS_3_0_LIBS="-ltss2-esys" \
 
