@@ -17,7 +17,6 @@ tpm2-tools_tar := tpm2-tools-$(tpm2-tools_version).tar.gz
 tpm2-tools_url := https://github.com/tpm2-software/tpm2-tools/releases/download/$(tpm2-tools_version)/$(tpm2-tools_tar)
 tpm2-tools_hash := 52c8bcbaadca082abfe5eb7ee4967d2d632d84b1677675f2f071b6d2ec22cec3
 
-# we have ESYS 3.0, but it doesn't figure that out on its own
 tpm2-tools_configure := \
 	./bootstrap \
 	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=/' configure \
@@ -28,7 +27,6 @@ tpm2-tools_configure := \
 	--disable-fapi \
 	--disable-static \
 	CFLAGS="-fdebug-prefix-map=$(INSTALL)=." \
-	LDFLAGS="-Wl,--disable-new-dtags" \
 
 tpm2-tools_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
