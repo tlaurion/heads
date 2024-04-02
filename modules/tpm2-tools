@@ -51,19 +51,18 @@ tpm2-tools_hash := 52c8bcbaadca082abfe5eb7ee4967d2d632d84b1677675f2f071b6d2ec22c
 # we have ESYS 3.0, but it doesn't figure that out on its own
 tpm2-tools_configure := \
 	./bootstrap \
-	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=/' configure \
-	&& sed -i 's/runpath_var=.*/runpath_var=/' configure \
-	&& sed -i 's/hardcode_automatic=yes/hardcode_automatic=no/' configure \
-	&& sed -i 's/hardcode_direct=no/hardcode_direct=yes/' configure \
-	&& sed -i 's/hardcode_minus_L=no/hardcode_minus_L=yes/' configure \
+	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=\"\"/' configure \
+	&& sed -i 's/runpath_var=.*/runpath_var=\"\"/' configure \
 	&& ./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
 	--disable-fapi \
 	--disable-static \
+	CFLAGS="-fdebug-prefix-map=$(INSTALL)=." \
+	LDFLAGS="-Wl,--disable-new-dtags" \
 	TSS2_ESYS_3_0_CFLAGS="-I$(INSTALL)/include" \
-	TSS2_ESYS_3_0_LIBS="-ltss2-esys" \
+	TSS2_ESYS_3_0_LIBS="-ltss2-esys"
 
 tpm2-tools_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
