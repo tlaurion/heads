@@ -1,3 +1,14 @@
+--- ./bootstrap.orig    2023-11-08 02:19:36.000000000 -0500
++++ ./bootstrap 2024-04-03 12:18:46.722995465 -0400
+@@ -5,7 +5,7 @@
+
+ # Generate a VERSION file that is included in the dist tarball to avoid needed git
+ # when calling autoreconf in a release tarball.
+-git describe --tags --always --dirty > VERSION
++#git describe --tags --always --dirty > VERSION
+
+ # generate list of source files for use in Makefile.am
+ # if you add new source files, you must run ./bootstrap again
 diff --git a/Makefile.am b/Makefile.am
 index 7132215..32e2193 100644
 --- a/Makefile.am

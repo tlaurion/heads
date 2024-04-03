@@ -17,17 +17,20 @@ tpm2-tools_tar := tpm2-tools-$(tpm2-tools_version).tar.gz
 tpm2-tools_url := https://github.com/tpm2-software/tpm2-tools/releases/download/$(tpm2-tools_version)/$(tpm2-tools_tar)
 tpm2-tools_hash := 52c8bcbaadca082abfe5eb7ee4967d2d632d84b1677675f2f071b6d2ec22cec3
 
+#tpm2-tools 5.6 adds release version based on git, while tarball downloaded doesn't include any .git
+#  the patch comments out git output to ./VERSION, and we fill it here based on this Makefile's version
+#tpm2-tools doesn't play nice with reproducible builds, hardcoding lib paths without providing a configure option to remove rpaths
+#  We make sure no hardcoding of libdir flags exist in configure script prior of calling the script with sed call
+#  We pass additional remapping of prefix-map from $INSTALL to local dir
 tpm2-tools_configure := \
-	./bootstrap \
-	&& echo "$(tpm2-tools_version)" > ./VERSION \
-	&& autoreconf -fi \
+	echo "$(tpm2-tools_version)" > ./VERSION \
+	&& ./bootstrap \
 	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=/' configure \
 	&& ./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
 	--disable-fapi \
-	--disable-static \
 	CFLAGS="-fdebug-prefix-map=$(INSTALL)=." \
 
 tpm2-tools_target := $(MAKE_JOBS) \
