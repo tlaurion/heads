@@ -19,6 +19,7 @@ tpm2-tools_hash := 52c8bcbaadca082abfe5eb7ee4967d2d632d84b1677675f2f071b6d2ec22c
 
 tpm2-tools_configure := \
 	./bootstrap \
+	&& echo "$(tpm2-tools_version)" > ./VERSION \
 	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=/' configure \
 	&& ./configure \
 	$(CROSS_TOOLS) \
