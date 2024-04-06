@@ -582,7 +582,6 @@ bin_modules-$(CONFIG_ZSTD) += zstd
 bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 bin_modules-$(CONFIG_IOTOOLS) += iotools
-bin_modules-$(CONFIG_CURL) += curl
 
 $(foreach m, $(bin_modules-y), \
 	$(call map,initrd_bin_add,$(call bins,$m)) \

@@ -9,7 +9,6 @@ libaio_hash := 2c44d1c5fd0d43752287c9ae1eb9c023f04ef848ea8d4aafa46e9aedb678200b
 libaio_target := \
 	DESTDIR="$(INSTALL)" \
 	prefix="/" \
-	CFLAGS="-Os" \
 	$(CROSS_TOOLS) \
 	install \
 	&& mv $(build)/$(libaio_dir)/src/libaio.so.1.0.2 $(build)/$(libaio_dir)/src/libaio.so.1 \

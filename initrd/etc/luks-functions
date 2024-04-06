@@ -307,7 +307,7 @@ test_luks_current_disk_recovery_key_passphrase()
 			cryptsetup open $LUKS test --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 		fi
 		#Validate past cryptsetup reencrypt attempts
-		if [ $? -eq 0 ]; then
+		if [ $? -ne 0 ]; then
 			whiptail --title 'Invalid Actual LUKS Disk Recovery Key passphrase?' --msgbox \
 				"If you previously changed it and do not remember it, you will have to\n reinstall the OS from a an external drive.\n\nTo do so, place the ISO file and its signature file on root of an\n external drive, and select Options-> Boot from USB \n\nHit Enter to retry." 30 60
 			shred -n 10 -z -u /tmp/luks_current_Disk_Recovery_Key_passphrase 2>/dev/null
@@ -353,10 +353,8 @@ luks_reencrypt() {
 			echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/luks_current_Disk_Recovery_Key_passphrase
 			warn "Reencrypting "$LUKS" LUKS encrypted drive content with a new LUKS Disk Recovery Key. Do NOT shut down or reboot!"
 		fi
-
 		cryptsetup reencrypt --debug --resilience=none --force-offline-reencrypt --disable-locks \
-                                "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
-		
+			"$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase		
 		#Validate past cryptsetup reencrypt attempts
 		if [ $(echo $?) -ne 0 ]; then
 			whiptail --title 'Invalid Actual LUKS Disk Recovery Key passphrase?' --msgbox \
