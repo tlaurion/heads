@@ -361,7 +361,8 @@ luks_reencrypt() {
 		#Warn and launch actual reencryption
 		echo -e "\nReencrypting "$LUKS" LUKS encrypted drive content with current Recovery Disk Key passphrase..."
 		warn "DO NOT POWER DOWN MACHINE, UNPLUG AC OR REMOVE BATTERY DURING REENCRYPTION PROCESS"
-		cryptsetup --debug reencrypt "$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase		
+		cryptsetup --debug reencrypt --resilience=none --force-offline-reencrypt --disable-locks \
+			"$LUKS" --key-slot 0 --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 
 		#Validate past cryptsetup reencrypt attempts
 		if [ $? -ne 0 ]; then
