@@ -307,7 +307,7 @@ test_luks_current_disk_recovery_key_passphrase()
 
 		#output test coming and do cryptsetup open call
 		echo -e "\nTesting opening "$LUKS" LUKS encrypted drive content with the current LUKS Disk Recovery Key passphrase..."
-		cryptsetup open $LUKS test --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
+		cryptsetup --debug open $LUKS test --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 
 		#Validate past cryptsetup reencrypt attempts
 		if [ $? -ne 0 ]; then
@@ -422,7 +422,7 @@ luks_change_passphrase()
 
 		#output and do cryptsetup luksChangeKey op
 		echo -e "\nChanging "$LUKS" LUKS encrypted disk passphrase to the new LUKS Disk Recovery Key passphrase..."
-		cryptsetup luksChangeKey "$LUKS" --key-slot 0 --key-file=/tmp/luks_current_Disk_Recovery_Key_passphrase /tmp/luks_new_Disk_Recovery_Key_passphrase
+		cryptsetup --debug luksChangeKey "$LUKS" --key-slot 0 --key-file=/tmp/luks_current_Disk_Recovery_Key_passphrase /tmp/luks_new_Disk_Recovery_Key_passphrase
 
 		#Validate past cryptsetup attempts
 		if [ $? -ne 0 ]; then
