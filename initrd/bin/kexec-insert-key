@@ -40,7 +40,7 @@ SECRET_CPIO=/tmp/secret/initrd.cpio
 bootdir=$(dirname "$INITRD")
 mkdir -p "$INITRD_DIR/etc"
 
-# Attempt to unseal the Disk Unlok Key from the TPM
+# Attempt to unseal the Disk Unlock Key from the TPM
 # should we give this some number of tries?
 unseal_failed="n"
 if ! kexec-unseal-key "$INITRD_DIR/secret.key"; then
@@ -58,7 +58,7 @@ tpmr extend -ix 4 -ic generic ||
 if [ "$unseal_failed" = "y" ]; then
 	confirm_boot="n"
 	if cmp -s "$bootdir/kexec_lukshdr_hash.txt" /tmp/luksDump.txt > /dev/null 2>&1; then
-		echo "Encrypted disk keys(s) have not been changed since sealed in TPM Disk Unlock Key"
+		echo "Encrypted disk keys have not been changed since sealed in TPM Disk Unlock Key"
 	fi
 	read \
 		-n 1 \
