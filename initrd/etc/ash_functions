@@ -134,6 +134,8 @@ confirm_gpg_card() {
 	# ensure we don't exit without retrying
 	errexit=$(set -o | grep errexit | awk '{print $2}')
 	set +e
+	TRACE "Under /etc/ash_functions:confirm_gpg_card"
+	DEBUG "gpg --card-status called..."
 	gpg --card-status >/dev/null
 	if [ $? -ne 0 ]; then
 		# prompt for reinsertion and try a second time
@@ -145,6 +147,8 @@ confirm_gpg_card() {
 			set -e
 		fi
 		# retry card status
+		TRACE "Under /etc/ash_functions:confirm_gpg_card"
+		DEBUG "gpg --card-status called..."
 		gpg --card-status >/dev/null ||
 			die "gpg card read failed"
 	fi

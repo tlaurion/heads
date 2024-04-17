@@ -234,6 +234,8 @@ while true; do
       echo "* Type 'quit' once you have generated the key to exit GPG."
       echo "*"
       echo "********************************************************************************"
+      TRACE_FUNC
+      DEBUG "gpg --card-edit called..."
       gpg --card-edit > /tmp/gpg_card_edit_output
       if [ $? -eq 0 ]; then
         gpg_post_gen_mgmt

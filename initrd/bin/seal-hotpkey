@@ -26,6 +26,8 @@ fatal_error()
 {
   echo -e "\nERROR: ${1}; press Enter to continue."
   read
+  # get lsusb output for debugging
+  DEBUG "lsusb output: $(lsusb)"
   die "$1"
 }
 
@@ -66,6 +68,7 @@ counter_value=1
 enable_usb
 # While making sure the key is inserted, capture the status so we can check how
 # many PIN attempts remain
+DEBUG "Calling hotp_verification info..."
 if ! hotp_token_info="$(hotp_verification info)" ; then
   echo -e "\nInsert your $HOTPKEY_BRANDING and press Enter to configure it"
   read
