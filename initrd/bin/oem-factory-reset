@@ -271,6 +271,8 @@ keytocard_subkeys_to_smartcard() {
     #make sure usb ready and USB Security Dongle ready to communicate with
     enable_usb
     enable_usb_storage
+    TRACE_FUNC
+    DEBUG "gpg --card-status called..."
     gpg --card-status >/dev/null 2>&1 || die "Error getting GPG card status"
 
     gpg_key_factory_reset
@@ -496,10 +498,15 @@ gpg_key_factory_reset() {
     fi
     # If Nitrokey Storage is inserted, reset AES keys as well
     if lsusb | grep -q "20a0:4109" && [ -x /bin/hotp_verification ]; then
+        DEBUG "Nitrokey Storage detected, resetting AES keys..."
+        DEBUG "Calling hotp_verification regenerate"
         /bin/hotp_verification regenerate ${ADMIN_PIN_DEF}
+        DEBUG "Killing scdaemon to force reconnection"
         killall -9 scdaemon
     fi
     # Toggle forced sig (good security practice, forcing PIN request for each signature request)
+    TRACE_FUNC
+    DEBUG "gpg --card-status called..."
     if gpg --card-status | grep "Signature PIN" | grep -q "not forced"; then
         DEBUG "GPG toggling forcesig on since off..."
         {
@@ -781,12 +788,14 @@ report_integrity_measurements() {
 
         # Check and report on HOTP status
         if [ -x /bin/hotp_verification ]; then
+            TRACE_FUNC
             HOTP=$(unseal-hotp) >/dev/null 2>&1
             enable_usb
             if ! hotp_verification info >/dev/null 2>&1; then
                 whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Please insert your HOTP enabled USB Security Dongle' --msgbox "Your HOTP enabled USB Security Dongle was not detected.\n\nPlease remove it and insert it again." 0 80
             fi
             # Don't output HOTP codes to screen, so as to make replay attacks harder
+            DEBUG "Calling hotp_verification check..."
             hotp_verification check $HOTP
             case "$?" in
             0)
@@ -1111,6 +1120,8 @@ fi
 if [ "$GPG_GEN_KEY_IN_MEMORY" = "n" -o "$GPG_GEN_KEY_IN_MEMORY_COPY_TO_SMARTCARD" = "y" ]; then
     echo -e "\nChecking for USB Security Dongle...\n"
     enable_usb
+    TRACE_FUNC
+    DEBUG "gpg --card-status called..."
     if ! gpg --card-status >/dev/null 2>&1; then
         whiptail_error "Can't access USB Security Dongle; \nPlease remove and reinsert, then press Enter."
         if ! gpg --card-status >/dev/null 2>/tmp/error; then

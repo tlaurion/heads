@@ -252,6 +252,7 @@ update_hotp()
   TRACE_FUNC
   if [ -x /bin/hotp_verification ]; then
     HOTP=`unseal-hotp`
+    DEBUG "We called unseal-hotp. We call hotp_verification info now."
     if ! hotp_verification info ; then
       if [ "$skip_to_menu" = "true" ]; then
         return 1  # Already asked to skip to menu from a prior error
@@ -329,6 +330,8 @@ clean_boot_check()
 
    # check for USB security token
   if [ -x /bin/hotp_verification ]; then
+    TRACE_FUNC
+    DEBUG "gpg --card-status called..."
     if ! gpg --card-status > /dev/null ; then
       return
     fi
