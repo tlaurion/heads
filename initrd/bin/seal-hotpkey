@@ -27,7 +27,8 @@ fatal_error()
   echo -e "\nERROR: ${1}; press Enter to continue."
   read
   # get lsusb output for debugging
-  DEBUG "lsusb output: $(lsusb)"
+  DEBUG "lsusb output:"
+  DEBUG "$(lsusb)"
   die "$1"
 }
 
