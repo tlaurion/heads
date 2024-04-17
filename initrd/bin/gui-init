@@ -155,7 +155,11 @@ generate_totp_hotp()
   tpm_owner_password="$1"	# May be empty, will prompt if needed and empty
   if [ "$CONFIG_TPM" != "y" ] && [ -x /bin/hotp_verification ]; then
     echo "Generating new HOTP secret"
-    /bin/seal-hotpkey
+    # we loop calling /bin/seal-hotpkey until it succeeds
+    while ! /bin/seal-hotpkey; do
+      warn "Sealing HOTP secret failed, retrying..."
+      /bin/seal-hotpkey
+    done
   elif echo -e "Generating new TOTP secret...\n\n" && /bin/seal-totp "$BOARD_NAME" "$tpm_owner_password"; then
     echo
     if [ -x /bin/hotp_verification ]; then
@@ -163,7 +167,11 @@ generate_totp_hotp()
         echo "Once you have scanned the QR code, hit Enter to configure your HOTP USB Security Dongle (e.g. Librem Key or Nitrokey)"
         read
       fi
-      /bin/seal-hotpkey
+      # we loop calling /bin/seal-hotpkey until it succeeds
+      while ! /bin/seal-hotpkey; do
+        warn "Sealing HOTP secret failed, retrying..."
+        /bin/seal-hotpkey
+      done
     else
       if [ "$CONFIG_TOTP_SKIP_QRCODE" != y ]; then
         echo "Once you have scanned the QR code, hit Enter to continue"
