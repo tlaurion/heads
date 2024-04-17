@@ -695,12 +695,14 @@ scan_boot_options() {
 }
 
 calc() {
+	TRACE_FUNC
 	awk "BEGIN { print "$*" }"
 }
 
 # truncate a file to a size only if it is longer (busybox truncate lacks '<' and
 # always sets the file size)
 truncate_max_bytes() {
+	TRACE_FUNC
 	local bytes="$1"
 	local file="$2"
 	if [ "$(stat -c %s "$file")" -gt "$bytes" ]; then
@@ -712,6 +714,7 @@ truncate_max_bytes() {
 # trips up many scripts, it's very difficult to diagnose by looking at the
 # output.  Delete line breaks and spaces to really get plain hex output.
 tohex_plain() {
+	TRACE_FUNC
 	xxd -p | tr -d '\n '
 }
 
@@ -721,10 +724,12 @@ tohex_plain() {
 # Note that also unlike GNU xxd, non-hex chars in input corrupt the output (GNU
 # xxd ignores them).
 fromhex_plain() {
+	TRACE_FUNC
 	fold -w 60 | xxd -p -r
 }
 
 print_battery_health() {
+	TRACE_FUNC
 	if [ -d /sys/class/power_supply/BAT* ]; then
 		battery_health=$(calc $(cat /sys/class/power_supply/BAT*/charge_full)/$(cat /sys/class/power_supply/BAT*/charge_full_design)*100 | awk -F "." {'print $1'})
 		echo "$battery_health"
@@ -732,6 +737,7 @@ print_battery_health() {
 }
 
 print_battery_charge() {
+	TRACE_FUNC
 	if [ -d /sys/class/power_supply/BAT* ]; then
 		battery_charge=$(calc $(cat /sys/class/power_supply/BAT*/charge_now)/$(cat /sys/class/power_supply/BAT*/charge_full)*100 | awk -F "." {'print $1'})
 		echo "$battery_charge"
@@ -739,6 +745,7 @@ print_battery_charge() {
 }
 
 generate_random_mac_address() {
+	TRACE_FUNC
 	#Borrowed from https://stackoverflow.com/questions/42660218/bash-generate-random-mac-address-unicast
 	hexdump -n 6 -ve '1/1 "%.2x "' /dev/urandom | awk -v a="2,6,a,e" -v r="$RANDOM" 'BEGIN{srand(r);}NR==1{split(a,b,",");r=int(rand()*4+1);printf "%s%s:%s:%s:%s:%s:%s\n",substr($1,0,1),b[r],$2,$3,$4,$5,$6}'
 }

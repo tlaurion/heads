@@ -29,6 +29,7 @@ if [ -r "$TMP_KEY_LVM" ]; then
 fi
 
 # Measure the LUKS headers before we unseal the disk key
+TRACE_FUNC
 cat "$TMP_KEY_DEVICES" | cut -d\  -f1 | xargs /bin/qubes-measure-luks ||
 	die "LUKS measure failed"
 
@@ -43,6 +44,7 @@ mkdir -p "$INITRD_DIR/etc"
 # Attempt to unseal the disk key from the TPM
 # should we give this some number of tries?
 unseal_failed="n"
+TRACE_FUNC
 if ! kexec-unseal-key "$INITRD_DIR/secret.key"; then
 	unseal_failed="y"
 	echo
@@ -51,6 +53,7 @@ fi
 
 # Override PCR 4 so that user can't read the key
 DEBUG "Extending TPM PCR 4 to prevent further secret unsealing"
+TRACE_FUNC
 tpmr extend -ix 4 -ic generic ||
 	die 'Unable to scramble PCR'
 
@@ -70,6 +73,7 @@ if [ "$unseal_failed" = "y" ]; then
 	fi
 fi
 
+TRACE_FUNC
 echo
 echo '+++ Building initrd'
 # pad the initramfs (dracut doesn't pad the last gz blob)
