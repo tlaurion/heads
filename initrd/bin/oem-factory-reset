@@ -496,7 +496,9 @@ gpg_key_factory_reset() {
     fi
     # If Nitrokey Storage is inserted, reset AES keys as well
     if lsusb | grep -q "20a0:4109" && [ -x /bin/hotp_verification ]; then
+        DEBUG "Nitrokey Storage detected, resetting AES keys..."
         /bin/hotp_verification regenerate ${ADMIN_PIN_DEF}
+        DEBUG "Restarting scdaemon to remove possible exclusive lock of dongle"
         killall -9 scdaemon
     fi
     # Toggle forced sig (good security practice, forcing PIN request for each signature request)
@@ -781,12 +783,22 @@ report_integrity_measurements() {
 
         # Check and report on HOTP status
         if [ -x /bin/hotp_verification ]; then
-            HOTP=$(unseal-hotp) >/dev/null 2>&1
+            HOTP="Unverified"
             enable_usb
-            if ! hotp_verification info >/dev/null 2>&1; then
-                whiptail $CONFIG_WARNING_BG_COLOR --title 'WARNING: Please insert your HOTP enabled USB Security Dongle' --msgbox "Your HOTP enabled USB Security Dongle was not detected.\n\nPlease remove it and insert it again." 0 80
+            for attempt in 1 2 3; do
+                if ! hotp_verification info >/dev/null 2>&1; then
+                    whiptail $CONFIG_WARNING_BG_COLOR --title "WARNING: Please insert your HOTP enabled USB Security Dongle (Attempt $attempt/3)" --msgbox "Your HOTP enabled USB Security Dongle was not detected.\n\nPlease remove it and insert it again." 0 80
+                else
+                    break
+                fi
+            done
+
+            if [ $attempt -eq 3 ]; then
+                die "No HOTP enabled USB Security Dongle detected. Please disable 'CONFIG_HOTPKEY' in the board config and rebuild."
             fi
+
             # Don't output HOTP codes to screen, so as to make replay attacks harder
+            HOTP=$(unseal-hotp) >/dev/null 2>&1
             hotp_verification check $HOTP
             case "$?" in
             0)
@@ -893,7 +905,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
     echo "Each prompt requires a single letter answer: eg. (Y/n)."
     echo -e "If you don't know what to answer, pressing Enter will select the default answer for that prompt: eg. Y, above.\n"
 
-    # Re-ownership of encrypted disk key, content and passphrase
+    # Re-ownership of LUKS encrypted Disk: key, content and passphrase
     echo -e -n "\n\nWould you like to change the current LUKS Disk Recovery Key passphrase?\n (Highly recommended if you didn't install the Operating System yourself, so that past configured passphrase would not permit to access content.\n  Note that without re-encrypting disk, a backed up header could be restored to access encrypted content with old passphrase) [y/N]: "
     read -n 1 prompt_output
     echo
@@ -992,7 +1004,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
         echo
         if [ "$prompt_output" == "y" \
             -o "$prompt_output" == "Y" ]; then
-            echo -e "\nThey must be each at least 8 characters in length.\n"
+            echo -e "\nThe TPM Owner Password and Admin PIN must be at least 8, the User PIN at least 6 characters in length.\n"
             echo
             if [ "$CONFIG_TPM" = "y" ]; then
                 while [[ ${#TPM_PASS} -lt 8 ]]; do
@@ -1009,8 +1021,8 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
             # That is, if keys were NOT generated in memory (on smartcard only) or
             #  if keys were generated in memory but are to be moved from local keyring to smartcard
             if [ "$GPG_GEN_KEY_IN_MEMORY" = "n" -o "$GPG_GEN_KEY_IN_MEMORY_COPY_TO_SMARTCARD" = "y" ]; then
-                while [[ ${#USER_PIN} -lt 8 ]] || [[ ${#USER_PIN} -gt $MAX_HOTP_GPG_PIN_LENGTH ]]; do
-                    echo -e -n "\nThis PIN should be between 8 to $MAX_HOTP_GPG_PIN_LENGTH characters in length.\n"
+                while [[ ${#USER_PIN} -lt 6 ]] || [[ ${#USER_PIN} -gt $MAX_HOTP_GPG_PIN_LENGTH ]]; do
+                    echo -e -n "\nThis PIN should be between 6 to $MAX_HOTP_GPG_PIN_LENGTH characters in length.\n"
                     echo -e -n "Enter desired GPG User PIN: "
                     read USER_PIN
                 done
