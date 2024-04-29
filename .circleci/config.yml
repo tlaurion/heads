@@ -197,6 +197,7 @@ jobs:
             - build/x86/coreboot-4.15
             - build/x86/coreboot-4.17
             - build/x86/coreboot-4.22.01
+            - build/x86/coreboot-mrchromebox
             - build/x86/coreboot-purism
             - build/x86/coreboot-nitrokey
             - build/ppc64/coreboot-talos_2
@@ -463,6 +464,14 @@ workflows:
           subcommand: ""
           requires:
             - librem_14
+
+#coreboot-git mrchromebox
+      - build:
+          name: omnigul
+          target: omnigul
+          subcommand: ""
+          requires:
+            - prep_env
 
 #coreboot-git dasharo clevo_release + staging IASL patch
       - build:
