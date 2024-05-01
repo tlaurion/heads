@@ -28,6 +28,7 @@ tpm2-tools_configure := \
 	&& sed -i 's/hardcode_libdir_flag_spec=.*/hardcode_libdir_flag_spec=" "/' configure \
 	&& ./configure \
 	$(CROSS_TOOLS) \
+	CFLAGS="-fdebug-prefix-map=$(INSTALL)=." \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
 	--disable-fapi \
