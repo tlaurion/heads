@@ -14,7 +14,6 @@ openssl_configure := \
 	CFLAGS="-Os" \
 	./Configure \
 		--prefix="/" \
-		no-tests \
 		linux-$(strip $(arch)) \
 		no-aria \
 		no-bf \
@@ -42,6 +41,7 @@ openssl_configure := \
 		no-siv \
 		no-sm2 \
 		no-sm4 \
+		no-tests \
 		no-whirlpool \
 
 openssl_target := $(MAKE_JOBS) \

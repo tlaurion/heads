@@ -6,7 +6,7 @@
 
 . /etc/functions
 
-TRACE "Under insmod.sh"
+TRACE_FUNC
 
 MODULE="$1"; shift
 
@@ -21,6 +21,15 @@ fi
 
 if [ ! -r "$MODULE" ]; then
 	die "$MODULE: not found?"
+fi
+
+# Check if module is already loaded 
+#  Transform module name changing _ for - and trailing .ko if present
+#  Unify lsmod output to use - instead of _ for comparison
+module_name=$(basename "$MODULE" | sed 's/_/-/g' | sed 's/\.ko$//')
+if lsmod | sed 's/_/-/g' | grep -q "^$module_name\\b"; then
+	DEBUG "$MODULE: already loaded"
+	exit 0
 fi
 
 if [ ! -r /sys/class/tpm/tpm0/pcrs -o ! -x /bin/tpm ]; then
@@ -48,4 +57,4 @@ fi
 # the busybox insmod via the original executable
 DEBUG "Loading $MODULE with busybox insmod"
 busybox insmod "$MODULE" "$@" \
-|| die "$MODULE: insmod failed"
+	|| die "$MODULE: insmod failed"

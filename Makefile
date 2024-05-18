@@ -25,11 +25,48 @@ INSTALL		= $(pwd)/install/$(CONFIG_TARGET_ARCH)
 log_dir		= $(build)/log
 board_build	= $(build)/$(BOARD)
 
-# Controls how many parallel jobs are invoked in subshells
-CPUS		?= $(shell nproc)
-MAKE_JOBS	?= -j$(CPUS) --max-load 16
 
-WGET ?= wget
+# Estimated memory required per job in GB (e.g., 1GB for gcc)
+MEM_PER_JOB_GB ?= 1
+
+# Controls how many parallel jobs are invoked in subshells
+CPUS            ?= $(shell nproc)
+AVAILABLE_MEM_GB   ?= $(shell cat /proc/meminfo | grep MemAvailable | awk '{print int($$2 / 1024)}')
+
+# Calculate the maximum number of jobs based on available memory
+MAX_JOBS_MEM := $(shell echo $$(( $(AVAILABLE_MEM_GB) / $(MEM_PER_JOB_GB) )))
+
+# Use the minimum of the system's CPUs and the calculated max jobs based on memory
+CPUS            := $(shell echo $$(($(CPUS) < $(MAX_JOBS_MEM) ? $(CPUS) : $(MAX_JOBS_MEM))))
+
+# Load average can be adjusted to be higher than CPUS to allow for some CPU overcommit
+# Multiply by 3 and then divide by 2 to achieve the effect of multiplying by 1.5 using integer arithmetic
+LOADAVG         ?= $(shell echo $$(( ($(CPUS) * 3) / 2 )))
+
+# Construct MAKE_JOBS with dynamic CPU count and load average
+MAKE_JOBS       := -j$(CPUS) --load-average=$(LOADAVG) # Add other flags as needed to be more adaptive to CIs
+
+# Print out the settings and compare system values with actual ones used
+$(info ----------------------------------------------------------------------)
+$(info !!!!!! BUILD SYSTEM INFO !!!!!!)
+$(info System CPUS: $(shell nproc))
+$(info System Available Memory: $(AVAILABLE_MEM_GB) GB)
+$(info System Load Average: $(shell uptime | awk '{print $$10}'))
+$(info ----------------------------------------------------------------------)
+$(info Used **CPUS**: $(CPUS))
+$(info Used **LOADAVG**: $(LOADAVG))
+$(info Used **AVAILABLE_MEM_GB**: $(AVAILABLE_MEM_GB) GB)
+$(info ----------------------------------------------------------------------)
+$(info **MAKE_JOBS**: $(MAKE_JOBS))
+$(info )
+$(info Variables available for override (use 'make VAR_NAME=value'):)
+$(info **CPUS** (default: number of processors, e.g., 'make CPUS=4'))
+$(info **LOADAVG** (default: 1.5 times CPUS, e.g., 'make LOADAVG=54'))
+$(info **AVAILABLE_MEM_GB** (default: memory available on the system in GB, e.g., 'make AVAILABLE_MEM_GB=4'))
+$(info **MEM_PER_JOB_GB** (default: 1GB per job, e.g., 'make MEM_PER_JOB_GB=2'))
+$(info ----------------------------------------------------------------------)
+$(info !!!!!! Build starts !!!!!!)
+
 
 # Timestamps should be in ISO format
 DATE=`date --rfc-3339=seconds`
@@ -71,6 +108,18 @@ CONFIG_HEADS	?= y
 
 # Unless otherwise specified, we are building bash to have non-interactive shell for scripts (arrays and bashisms)
 CONFIG_BASH	?= y
+
+# USB keyboards can be ignored, optionally supported, or required.
+#
+# To optionally support USB keyboards, export CONFIG_SUPPORT_USB_KEYBOARD=y.  To
+# default the setting to 'on', also export CONFIG_USER_USB_KEYBOARD=y.
+#
+# To require USB keyboard support (not user-configurable, for boards with no
+# built-in keyboard), export CONFIG_USB_KEYBOARD_REQUIRED=y.
+ifeq "$(CONFIG_USB_KEYBOARD_REQUIRED)" "y"
+# CONFIG_USB_KEYBOARD_REQUIRED implies CONFIG_SUPPORT_USB_KEYBOARD.
+export CONFIG_SUPPORT_USB_KEYBOARD=y
+endif
 
 # Determine arch part for a host triplet
 ifeq "$(CONFIG_TARGET_ARCH)" "x86"
@@ -150,6 +199,7 @@ heads_cc	:= $(CROSS)gcc \
 	-fdebug-prefix-map=$(pwd)=heads \
 	-gno-record-gcc-switches \
 	-D__MUSL__ \
+	--sysroot  $(INSTALL) \
 	-isystem $(INSTALL)/include \
 	-L$(INSTALL)/lib \
 
@@ -218,12 +268,10 @@ all payload:
 FORCE:
 
 # Copies config while replacing predefined placeholders with actual values
+# This is used in a command like 'this && $(call install_config ...) && that'
+# so it needs to evaluate to a shell command.
 define install_config =
-	sed -e 's!@BOARD_BUILD_DIR@!$(board_build)!g' \
-	    -e 's!@BLOB_DIR@!$(pwd)/blobs!g' \
-	    -e 's!@BRAND_DIR@!$(pwd)/branding/$(BRAND_NAME)!g' \
-	    -e 's!@BRAND_NAME@!$(BRAND_NAME)!g' \
-	    "$1" > "$2"
+	$(pwd)/bin/prepare_module_config.sh "$1" "$2" "$(board_build)" "$(BRAND_NAME)"
 endef
 
 # Make helpers to operate on lists of things
@@ -736,6 +784,18 @@ board.move_untested_to_tested:
 	echo "Replacing $$BOARD with $$NEW_BOARD in .circleci/config.yml"; \
 	sed -i "s/$$BOARD/$$NEW_BOARD/g" .circleci/config.yml
 
+board.move_untested_to_unmaintained:
+	@echo "NEW_BOARD variable will move from UNTESTED_ to UNMAINTAINED_ from $(BOARD)"
+	@NEW_BOARD=$$(echo $(BOARD) | sed 's/^UNTESTED_/UNMAINTAINED_/g'); \
+	echo "Renaming boards/$$BOARD/$$BOARD.config to boards/$$BOARD/$$NEW_BOARD.config"; \
+	mkdir -p unmaintained_boards; \
+	mv boards/$$BOARD/$$BOARD.config unmaintained_boards/$$BOARD/$$NEW_BOARD.config; \
+	echo "Renaming boards/$$BOARD to unmaintainted_boards/$$NEW_BOARD"; \
+	rm -rf boards/$$NEW_BOARD; \
+	mv boards/$$BOARD unmaintained_boards/$$NEW_BOARD; \
+	echo "Replacing $$BOARD with $$NEW_BOARD in .circleci/config.yml. Delete manually entries"; \
+	sed -i "s/$$BOARD/$$NEW_BOARD/g" .circleci/config.yml
+
 board.move_tested_to_untested:
 	@echo "NEW_BOARD variable will add UNTESTED_ prefix to $(BOARD)"
 	@NEW_BOARD=UNTESTED_$(BOARD); \
@@ -759,6 +819,8 @@ $(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPU
 	./bin/inject_gpg_key.sh --cbfstool "$(build)/$(coreboot_dir)/cbfstool" \
 		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)" "$(PUBKEY_ASC)"
 
+
+#Dev cycles helpers:
 real.clean:
 	for dir in \
 		$(module_dirs) \
@@ -769,3 +831,29 @@ real.clean:
 		fi; \
 	done
 	cd install && rm -rf -- *
+real.gitclean:
+	@echo "Cleaning the repository using Git ignore file as a base..."
+	@echo "This will wipe everything not in the Git tree, but keep downloaded coreboot forks (detected as Git repos)."
+	git clean -fxd
+
+real.gitclean_keep_packages:
+	@echo "Cleaning the repository using Git ignore file as a base..."
+	@echo "This will wipe everything not in the Git tree, but keep the 'packages' directory."
+	git clean -fxd -e "packages"
+
+real.remove_canary_files-extract_patch_rebuild_what_changed:
+	@echo "Removing 'canary' files to force Heads to restart building board configurations..."
+	@echo "This will check package integrity, extract them, redo patching on files, and rebuild what needs to be rebuilt."
+	@echo "It will also reinstall the necessary files under './install'."
+	@echo "Limitations: If a patch creates a file in an extracted package directory, this approach may fail without further manual actions."
+	@echo "In such cases, Git will inform you about the file that couldn't be created as expected. Simply delete those files and relaunch the build."
+	@echo "This approach economizes time since most build artifacts do not need to be rebuilt, as the file dates should be the same as when you originally built them."
+	@echo "Only a minimal time is needed for rebuilding, which is also good for your SSD."
+	@echo "*** USE THIS APPROACH FIRST ***"
+	find ./build/ -type f -name ".canary" -print -delete
+	find ./install/*/* -print -exec rm -rf {} +
+
+real.gitclean_keep_packages_and_build:
+	@echo "Cleaning the repository using Git ignore file as a base..."
+	@echo "This will wipe everything not in the Git tree, but keep the 'packages' and 'build' directories."
+	git clean -fxd -e "packages" -e "build"

@@ -4,7 +4,7 @@ set -e -o pipefail
 . /tmp/config
 . /etc/functions
 
-TRACE "Under /bin/kexec-save-default"
+TRACE_FUNC
 
 while getopts "b:d:p:i:" arg; do
 	case $arg in
@@ -71,7 +71,7 @@ fi
 
 #Reusable function when user wants to define new TPM DUK for lvms/disks
 prompt_for_existing_encrypted_lvms_or_disks() {
-	TRACE "Under kexec-save-default:prompt_for_existing_encrypted_lvms_or_disks"
+	TRACE_FUNC
 	DEBUG "num_lvm: $num_lvm, lvm_suggest: $lvm_suggest, num_devices: $num_devices, devices_suggest: $devices_suggest"
 
 	# Create an associative array to store the suggested LVMs and their paths
@@ -195,7 +195,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_TPM_NO_LUKS_DISK_UNLOCK" != "y" ] && [ 
 		DEBUG "LUKS TPM Disk Unlock Key was previously set up from $KEY_DEVICES"
 		read \
 			-n 1 \
-			-p "Do you want to reseal a disk key to the TPM [y/N]: " \
+			-p "Do you want to reseal a Disk Unlock Key in the TPM [y/N]: " \
 			change_key_confirm
 		echo
 

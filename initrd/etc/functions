@@ -12,25 +12,128 @@ mask_param() {
 	fi
 }
 
-# Trace a command with DEBUG, then execute it.
+# Pipe input to this to sink it to the debug log, with a name prefix.
+# If the input is empty, no output is produced, so actual output is
+# readily visible in logs.
+#
+# For example:
+# ls /boot/vmlinux* | SINK_LOG "/boot kernels"
+SINK_LOG() {
+	local name="$1"
+	local line haveblank
+	# If the input doesn't end with a line break, read won't give us the
+	# last (unterminated) line.  Add a line break with echo to ensure we
+	# don't lose any input.  Buffer up to one blank line so we can avoid
+	# emitting a final (or only) blank line.
+	(cat; echo) | while IFS= read -r line; do
+		[[ -n "$haveblank" ]] && DEBUG "$name: " # Emit buffered blank line
+		if [[ -z "$line" ]]; then
+			haveblank=y
+		else
+			haveblank=
+			LOG "$name: $line"
+		fi
+	done
+}
+
+# Trace a command with DEBUG, then execute it.  Trace failed exit status, stdout
+# and stderr, etc.
+#
+# DO_WITH_DEBUG is designed so it can be dropped in to most command invocations
+# without side effects - it adds visibility without actually affecting the
+# execution of the script.  Exit statuses, stdout, and stderr are traced, but
+# they are still returned/written to the caller.
+#
 # A password parameter can be masked by passing --mask-position N before the
 # command to execute, the debug trace will just indicate whether the password
 # was empty or nonempty (which is important when use of a password is optional).
 # N=0 is the name of the command to be executed, N=1 is its first parameter,
 # etc.
+#
+# DO_WITH_DEBUG() can be added in most places where a command is executed to
+# add visibility in the debug log.  For example:
+#
+# [DO_WITH_DEBUG] mount "$BLOCK" "$MOUNTPOINT"
+#   ^-- adding DO_WITH_DEBUG will show the block device, mountpoint, and whether
+#   the mount fails
+#
+# [DO_WITH_DEBUG --mask-position 7] tpmr seal "$KEY" "$IDX" "$pcrs" "$pcrf" "$size" "$PASSWORD"
+#   ^-- trace the resulting invocation, but mask the password in the log
+#
+# if ! [DO_WITH_DEBUG] umount "$MOUNTPOINT"; then [...]
+#   ^-- it can be used when the exit status is checked, like the condition of `if`
+#
+# hotp_token_info="$([DO_WITH_DEBUG] hotp_verification info)"
+#   ^-- output of hotp_verification info becomes visible in debug log while
+#   still being captured by script
+#
+# [DO_WITH_DEBUG] umount "$MOUNTPOINT" &>/dev/null || true
+#   ^-- if the command's stdout/stderr/failure are ignored, this still works the
+#   same way with DO_WITH_DEBUG
 DO_WITH_DEBUG() {
-	if [ "$1" == "--mask-position" ]; then
-		mask_position="$2"
+	local exit_status=0
+	local cmd_output
+	if [[ "$1" == "--mask-position" ]]; then
+		local mask_position="$2"
 		shift
 		shift
-		DEBUG_ARGS=("$@")
-
-		DEBUG_ARGS[$mask_position]="$(mask_param "${DEBUG_ARGS[$mask_position]}")"
-		DEBUG "${DEBUG_ARGS[@]}"
+		local show_args=("$@")
+		show_args[$mask_position]="$(mask_param "${show_args[$mask_position]}")"
+		DEBUG "${show_args[@]}"
 	else
 		DEBUG "$@"
 	fi
-	"$@"
+
+	# Execute the command and capture the exit status. Tee stdout/stderr to
+	# debug sinks, so they're visible but still can be used by the caller
+	#
+	# This is tricky when set -e / set -o pipefail may or may not be in
+	# effect.
+	# - Putting the command in an `if` ensures set -e won't terminate us,
+	#   and also does not overwrite $? (like `|| true` would).
+	# - We capture PIPESTATUS[0] whether the command succeeds or fails,
+	#   since we don't know whether the pipeline status will be that of the
+	#   command or 'tee' (depends on set -o pipefail).
+	if ! "$@" 2> >(tee /dev/stderr | SINK_LOG "$1 stderr") | tee >(SINK_LOG "$1 stdout"); then
+		exit_status="${PIPESTATUS[0]}"
+	else
+		exit_status="${PIPESTATUS[0]}"
+	fi
+	if [[ "$exit_status" -ne 0 ]]; then
+		# Trace unsuccessful exit status, but only at DEBUG because this
+		# may be expected.  Include the command name in case the command
+		# also invoked a DO_WITH_DEBUG (it could be a script).
+		DEBUG "$1: exited with status $exit_status"
+	fi
+	# If the command was (probably) not found, trace PATH in case it
+	# prevented the command from being found
+	if [[ "$exit_status" -eq 127 ]]; then
+		DEBUG "$1: PATH=$PATH"
+	fi
+
+	return "$exit_status"
+}
+
+# Trace the current script and function.
+TRACE_FUNC() {
+	# Index [1] for BASH_SOURCE and FUNCNAME give us the caller location.
+	# FUNCNAME is 'main' if called from a script outside any function.
+	# BASH_LINENO is offset by 1, it provides the line that the
+	# corresponding FUNCNAME was _called from_, so BASH_LINENO[0] is the
+	# location of the caller.
+	TRACE "${BASH_SOURCE[1]}(${BASH_LINENO[0]}): ${FUNCNAME[1]}"
+}
+
+# Show the entire current call stack in debug output - useful if a catastrophic
+# error or something very unexpected occurs, like totally invalid parameters.
+DEBUG_STACK() {
+	local FRAMES
+	FRAMES="${#FUNCNAME[@]}"
+	DEBUG "call stack: ($((FRAMES-1)) frames)"
+	# Don't print DEBUG_STACK itself, start from 1
+	for i in $(seq 1 "$((FRAMES-1))"); do
+		DEBUG "- $((i-1)) - ${BASH_SOURCE[$i]}(${BASH_LINENO[$((i-1))]}): ${FUNCNAME[$i]}"
+	done
 }
 
 pcrs() {
@@ -42,7 +145,7 @@ pcrs() {
 }
 
 confirm_totp() {
-	TRACE "Under /etc/functions:confirm_totp"
+	TRACE_FUNC
 	prompt="$1"
 	last_half=X
 	unset totp_confirm
@@ -81,7 +184,7 @@ confirm_totp() {
 }
 
 reseal_tpm_disk_decryption_key() {
-	TRACE "Under /etc/functions:reseal_tpm_disk_decryption_key"
+	TRACE_FUNC
 	#For robustness, exit early if LUKS TPM Disk Unlock Key is prohibited in board configs
 	if [ "$CONFIG_TPM_DISK_UNLOCK_KEY" == "n" ]; then
 		DEBUG "LUKS TPM Disk Unlock Key is prohibited in board configs"
@@ -118,7 +221,7 @@ reseal_tpm_disk_decryption_key() {
 # be detected.  If USB storage was already enabled, no wait occurs, this would
 # have happened already when USB storage was enabled.
 enable_usb_storage() {
-	TRACE "Under /etc/functions:enable_usb_storage"
+	TRACE_FUNC
 	if ! lsmod | grep -q usb_storage; then
 		timeout=0
 		echo "Scanning for USB storage devices..."
@@ -132,8 +235,30 @@ enable_usb_storage() {
 	fi
 }
 
+device_has_partitions() {
+	local DEVICE="$1"
+	# fdisk normally says "doesn't contain a valid partition table" for
+	# devices that lack a partition table - except for FAT32.
+	#
+	# FAT32 devices have a volume boot record that looks enough like an MBR
+	# to satisfy fdisk.  In that case, fdisk prints a partition table header
+	# but no partitions.
+	#
+	# This check covers that: [ $(fdisk -l "$b" | wc -l) -eq 5 ]
+	# In both cases the output is 5 lines: 3 about device info, 1 empty line
+	# and the 5th will be the table header or the invalid message.
+	local DISK_DATA=$(fdisk -l "$DEVICE")
+	if echo "$DISK_DATA" | grep -q "doesn't contain a valid partition table" || \
+		[ "$(echo "$DISK_DATA" | wc -l)" -eq 5 ]; then
+		# No partition table
+		return 1
+	fi
+	# There is a partition table
+	return 0
+}
+
 list_usb_storage() {
-	TRACE "Under /etc/functions:list_usb_storage"
+	TRACE_FUNC
 	# List all USB storage devices, including partitions unless we received argument stating we want drives only
 	# The output is a list of device names, one per line.
 
@@ -162,16 +287,7 @@ list_usb_storage() {
 			# never usable directly, and this allows the "wait for
 			# disks" loop in mount-usb to correctly wait for the
 			# partitions.
-			# This check: [ $(fdisk -l "$b" | wc -l) -eq 5 ]
-			# covers the case of a device without partition table but
-			# formatted as fat32, which contains a sortof partition table.
-			# this causes fdisk to not print the invalid partition table
-			# message and instead it'll print an empty table with header.
-			# In both cases the output is 5 lines: 3 about device info,
-			# 1 empty line and the 5th will be the table header or the
-			# unvalid message.
-			DISK_DATA=$(fdisk -l "$b")
-			if echo "$DISK_DATA" | grep -q "doesn't contain a valid partition table" || [ $(echo "$DISK_DATA" | wc -l) -eq 5 ]; then
+			if ! device_has_partitions "$b"; then
 				# No partition table, include this device
 				DEBUG "USB storage device without partition table: $b"
 				echo "$b"
@@ -194,7 +310,7 @@ list_usb_storage() {
 # Tools should optionally accept a TPM password on the command line, since some flows need 
 # it multiple times and only one prompt is ideal.
 prompt_tpm_owner_password() {
-	TRACE "Under /etc/functions:prompt_tpm_owner_password"
+	TRACE_FUNC
 
 	if [ -s /tmp/secret/tpm_owner_password ]; then
 		DEBUG "/tmp/secret/tpm_owner_password already cached in file. Reusing"
@@ -216,7 +332,7 @@ prompt_tpm_owner_password() {
 # The password must be 1-32 characters and must be entered twice,
 # the script will loop until this is met.
 prompt_new_owner_password() {
-	TRACE "Under /etc/functions:prompt_new_owner_password"
+	TRACE_FUNC
 	local tpm_owner_password2
 	tpm_owner_password=1
 	tpm_owner_password2=2
@@ -240,7 +356,7 @@ prompt_new_owner_password() {
 }
 
 check_tpm_counter() {
-	TRACE "Under /etc/functions:check_tpm_counter"
+	TRACE_FUNC
 	
 	LABEL=${2:-3135106223}
 	tpm_password="$3"
@@ -264,20 +380,20 @@ check_tpm_counter() {
 }
 
 read_tpm_counter() {
-	TRACE "Under /etc/functions:read_tpm_counter"
+	TRACE_FUNC
 	tpmr counter_read -ix "$1" | tee "/tmp/counter-$1" ||
 		die "Counter read failed"
 }
 
 increment_tpm_counter() {
-	TRACE "Under /etc/functions:increment_tpm_counter"
+	TRACE_FUNC
 	tpmr counter_increment -ix "$1" -pwdc '' |
 		tee /tmp/counter-$1 ||
 		die "TPM counter increment failed for rollback prevention. Please reset the TPM"
 }
 
 check_config() {
-	TRACE "Under /etc/functions:check_config"
+	TRACE_FUNC
 	if [ ! -d /tmp/kexec ]; then
 		mkdir /tmp/kexec ||
 			die 'Failed to make kexec tmp dir'
@@ -318,7 +434,7 @@ replace_rom_file() {
 }
 
 replace_config() {
-	TRACE "Under /etc/functions:replace_config"
+	TRACE_FUNC
 	CONFIG_FILE=$1
 	CONFIG_OPTION=$2
 	NEW_SETTING=$3
@@ -351,7 +467,7 @@ secret_from_rom_hash() {
 }
 
 update_checksums() {
-	TRACE "Under /etc/functions:update_checksums"
+	TRACE_FUNC
 	# ensure /boot mounted
 	if ! grep -q /boot /proc/mounts; then
 		mount -o ro /boot ||
@@ -381,7 +497,7 @@ update_checksums() {
 }
 
 print_tree() {
-	TRACE "Under /etc/functions:print_tree"
+	TRACE_FUNC
 	find ./ ! -path './kexec*' -print0 | sort -z
 }
 
@@ -449,7 +565,7 @@ escape_zero() {
 # due to https://bugs.busybox.net/show_bug.cgi?id=14226. Also, certain characters
 # may be intepreted by `whiptail`, `less` et al (e.g. \n, \b, ...).
 assert_signable() {
-	TRACE "Under /etc/functions:assert_signable"
+	TRACE_FUNC
 	# ensure /boot mounted
 	if ! grep -q /boot /proc/mounts; then
 		mount -o ro /boot || die "Unable to mount /boot"
@@ -468,7 +584,7 @@ assert_signable() {
 }
 
 verify_checksums() {
-	TRACE "Under /etc/functions:verify_checksums"
+	TRACE_FUNC
 	local boot_dir="$1"
 	local gui="${2:-y}"
 
@@ -498,57 +614,148 @@ verify_checksums() {
 	return $?
 }
 
+# Check if a device is an LVM2 PV, and if so print the VG name
+find_lvm_vg_name() {
+	TRACE_FUNC
+	local DEVICE VG
+	DEVICE="$1"
+
+	mkdir -p /tmp/root-hashes-gui
+	if ! lvm pvs "$DEVICE" >/tmp/root-hashes-gui/lvm_vg 2>/dev/null; then
+		# It's not an LVM PV
+		return 1
+	fi
+
+	VG="$(tail -n +2 /tmp/root-hashes-gui/lvm_vg | awk '{print $2}')"
+	if [ -z "$VG" ]; then
+		DEBUG "Could not find LVM2 VG from lvm pvs output:"
+		DEBUG "$(cat /tmp/root-hashes-gui/lvm_vg)"
+		return 1
+	fi
+
+	echo "$VG"
+}
+
+# If a block device is a partition, check if it is a bios-grub partition on a
+# GPT-partitioned disk.
+is_gpt_bios_grub() {
+	TRACE_FUNC
+
+	local PART_DEV="$1" DEVICE NUMBER
+
+	# Figure out the partitioned device containing this device (if there is
+	# one) from /sys/class/block.
+	local DEVICE_MATCHES=("/sys/class/block/"*"/$(basename "$PART_DEV")")
+
+	DEVICE="$(echo "${DEVICE_MATCHES[0]}" | cut -d/ -f5)"
+	if [ "${#DEVICE_MATCHES[@]}" -ne 1 ] || [ "$DEVICE" = "*" ]; then
+		return 0
+	fi
+
+	# Extract the partition number
+	if ! [[ $(basename "$PART_DEV") =~ ([0-9]+)$ ]]; then
+		return 0	# Can't figure out the partition number
+	fi
+
+	NUMBER="${BASH_REMATCH[1]}"
+
+	# Now we know the device and partition number, get the type.  This is
+	# specific to GPT disks, MBR disks are shown differently by fdisk.
+	TRACE "$PART_DEV is partition $NUMBER of $DEVICE"
+	if [ "$(fdisk -l "/dev/$DEVICE" | awk '$1 == '"$NUMBER"' {print $5}')" == grub ]; then
+		return 0
+	fi
+	return 1
+}
+
+# Test if a block device could be used as /boot - we can mount it and it
+# contains /boot/grub* files.  (Here, the block device could be a partition or
+# an unpartitioned device.)
+#
+# If the device is a partition, its type is also checked.  Some common types
+# that we definitely can't mount this way are excluded to silence spurious exFAT
+# errors.
+#
+# Any existing /boot is unmounted.  If the device is a reasonable boot device,
+# it's left mounted on /boot.
+mount_possible_boot_device() {
+	TRACE_FUNC
+
+	local BOOT_DEV="$1"
+	local PARTITION_TYPE
+
+	# Unmount anything on /boot.  Ignore failure since there might not be
+	# anything.  If there is something mounted and we cannot unmount it for
+	# some reason, mount will fail, which is handled.
+	umount /boot 2>/dev/null || true
+
+	# Skip bios-grub partitions on GPT disks, LUKS partitions, and LVM PVs,
+	# we can't mount these as /boot.
+	if is_gpt_bios_grub "$BOOT_DEV" || cryptsetup isLuks "$BOOT_DEV" ||
+		find_lvm_vg_name "$BOOT_DEV" >/dev/null; then
+		TRACE "$BOOT_DEV is not a mountable partition for /boot"
+		return 1
+	fi
+
+	TRACE "Try mounting $BOOT_DEV as /boot"
+	if mount -o ro "$BOOT_DEV" /boot >/dev/null 2>&1; then
+		if ls -d /boot/grub* >/dev/null 2>&1; then
+			# This device is a reasonable boot device
+			return 0
+		fi
+		umount /boot || true
+	fi
+
+	return 1
+}
+
 # detect and set /boot device
 # mount /boot if successful
 detect_boot_device() {
-	TRACE "Under /etc/functions:detect_boot_device"
+	TRACE_FUNC
+	local devname
 	# unmount /boot to be safe
 	cd / && umount /boot 2>/dev/null
 
 	# check $CONFIG_BOOT_DEV if set/valid
-	if [ -e "$CONFIG_BOOT_DEV" ]; then
-		if mount -o ro $CONFIG_BOOT_DEV /boot >/dev/null 2>&1; then
-			if ls -d /boot/grub* >/dev/null 2>&1; then
-				# CONFIG_BOOT_DEV is valid device and contains an installed OS
-				return 0
-			fi
-		fi
+	if [ -e "$CONFIG_BOOT_DEV" ] && mount_possible_boot_device "$CONFIG_BOOT_DEV"; then
+		# CONFIG_BOOT_DEV is valid device and contains an installed OS
+		return 0
 	fi
 
 	# generate list of possible boot devices
 	fdisk -l | grep "Disk /dev/" | cut -f2 -d " " | cut -f1 -d ":" >/tmp/disklist
 
-	# filter out extraneous options
-	>/tmp/boot_device_list
+	# Check each possible boot device
 	for i in $(cat /tmp/disklist); do
-		# remove block device from list if numeric partitions exist, since not bootable
-		DEV_NUM_PARTITIONS=$(($(ls -1 $i* | wc -l) - 1))
-		if [ ${DEV_NUM_PARTITIONS} -eq 0 ]; then
-			echo $i >>/tmp/boot_device_list
+		# If the device has partitions, check the partitions instead
+		if device_has_partitions "$i"; then
+			devname="$(basename "$i")"
+			partitions=("/sys/class/block/$devname/$devname"?*)
 		else
-			ls $i* | tail -${DEV_NUM_PARTITIONS} >>/tmp/boot_device_list
+			partitions=("$i")	# Use the device itself
 		fi
-	done
-
-	# iterate thru possible options and check for grub dir
-	for i in $(cat /tmp/boot_device_list); do
-		umount /boot 2>/dev/null
-		if mount -o ro $i /boot >/dev/null 2>&1; then
-			if ls -d /boot/grub* >/dev/null 2>&1; then
-				CONFIG_BOOT_DEV="$i"
+		for partition in "${partitions[@]}"; do
+			partition_dev=/dev/"$(basename "$partition")"
+			# No sense trying something we already tried above
+			if [ "$partition_dev" = "$CONFIG_BOOT_DEV" ]; then
+				continue
+			fi
+			# If this is a reasonable boot device, select it and finish
+			if mount_possible_boot_device "$partition_dev"; then
+				CONFIG_BOOT_DEV="$partition_dev"
 				return 0
 			fi
-		fi
+		done
 	done
 
 	# no valid boot device found
 	echo "Unable to locate /boot files on any mounted disk"
-	umount /boot 2>/dev/null
 	return 1
 }
 
 scan_boot_options() {
-	TRACE "Under /etc/functions:scan_boot_options"
+	TRACE_FUNC
 	local bootdir config option_file
 	bootdir="$1"
 	config="$2"

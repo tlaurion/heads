@@ -5,7 +5,7 @@ set -e -o pipefail
 . /etc/gui_functions
 . /tmp/config
 
-TRACE "Under /bin/config-gui.sh"
+TRACE_FUNC
 
 ROOT_HASH_FILE="/boot/kexec_root_hashes.txt"
 
@@ -39,7 +39,7 @@ while true; do
         'r' ' Clear GPG key(s) and reset all user settings'
         'R' ' Change the root device for hashing'
         'D' ' Change the root directories to hash'
-        'B' ' Check root hashes at boot'
+        'B' " $(get_config_display_action "$CONFIG_ROOT_CHECK_AT_BOOT") root check at boot"
         'L' " $(get_config_display_action "$CONFIG_RESTRICTED_BOOT") Restricted Boot"
     )
 
@@ -69,6 +69,16 @@ while true; do
     [ "$CONFIG_SUPPORT_AUTOMATIC_POWERON" = "y" ] && dynamic_config_options+=(
         'N' " $(get_config_display_action "$CONFIG_AUTOMATIC_POWERON") automatic power-on"
     )
+
+    # Boards with built-in keyboards can support optional USB keyboards as well.
+    # Export CONFIG_SUPPORT_USB_KEYBOARD=y to enable optional support.
+    # Boards that do not have a built-in keyboard export
+    # CONFIG_USB_KEYBOARD_REQUIRED=y; this hides the config option and ensures
+    # USB keyboard support always loads.
+    [ "$CONFIG_SUPPORT_USB_KEYBOARD" = y ] && [ "$CONFIG_USB_KEYBOARD_REQUIRED" != y ] \
+        && dynamic_config_options+=(
+            'K' " $(get_config_display_action "$CONFIG_USER_USB_KEYBOARD") USB keyboard"
+        )
 
     # Debugging option always available
     dynamic_config_options+=(
@@ -255,10 +265,9 @@ while true; do
         --msgbox "The root directories to hash was successfully changed to:\n$NEW_CONFIG_ROOT_DIRLIST" 0 80
     ;;
     "B" )
-      CURRENT_OPTION="$(load_config_value CONFIG_ROOT_CHECK_AT_BOOT)"
-      if [ "$CURRENT_OPTION" != "y" ]; then
+      if [ "$CONFIG_ROOT_CHECK_AT_BOOT" != "y" ]; then
         # Root device and directories must be set to enable this
-        if [ -z "$(load_config_value CONFIG_ROOT_DEV)" ] || [ -z "$(load_config_value CONFIG_ROOT_DIRLIST)" ]; then
+        if [ -z "$CONFIG_ROOT_DEV" ] || [ -z "$CONFIG_ROOT_DIRLIST" ]; then
           whiptail $BG_COLOR_ERROR --title 'Root Check Not Configured' \
             --msgbox "Set the root device and directories to hash before enabling this feature." 0 80
         elif (whiptail --title 'Enable Root Hash Check at Boot?' \
@@ -267,8 +276,7 @@ while true; do
                     \na minute or more to the boot time.
                     \n\nDo you want to proceed?" 0 80) then
 
-          set_config /etc/config.user "CONFIG_ROOT_CHECK_AT_BOOT" "y"
-          combine_configs
+          set_user_config "CONFIG_ROOT_CHECK_AT_BOOT" "y"
 
           # check that root hash file exists
           if [ ! -f ${ROOT_HASH_FILE} ]; then
@@ -288,8 +296,7 @@ while true; do
              --yesno "This will disable checking root hashes each time you boot.
                     \n\nDo you want to proceed?" 0 80) then
 
-          set_config /etc/config.user "CONFIG_ROOT_CHECK_AT_BOOT" "n"
-          combine_configs
+          set_user_config "CONFIG_ROOT_CHECK_AT_BOOT" "n"
 
           whiptail --title 'Config change successful' \
             --msgbox "The root device will not be checked at each boot." 0 80
@@ -511,6 +518,32 @@ while true; do
 
           whiptail --title 'Config change successful' \
             --msgbox "Automatic power-on disabled;\nsave the config change and reboot for it to go into effect." 0 80
+        fi
+      fi
+    ;;
+    "K" )
+      if [ "$CONFIG_USER_USB_KEYBOARD" != "y" ]; then
+        if (whiptail --title 'Enable USB Keyboard?' \
+             --yesno "USB keyboards will be usable in $CONFIG_BRAND_NAME.
+                    \n\nEnabling USB keyboards could allow a compromised USB device to control
+                    \n$CONFIG_BRAND_NAME.
+                    \n\nDo you want to proceed?" 0 80) then
+
+          set_user_config "CONFIG_USER_USB_KEYBOARD" "y"
+
+          whiptail --title 'Config change successful' \
+            --msgbox "USB Keyboard support has been enabled;\nsave the config change and reboot for it to go into effect." 0 80
+
+        fi
+      else
+        if (whiptail --title 'Disable USB Keyboard?' \
+             --yesno "Only the built-in keyboard will be usable in $CONFIG_BRAND_NAME.
+                    \n\nDo you want to proceed?" 0 80) then
+
+          set_user_config "CONFIG_USER_USB_KEYBOARD" "n"
+
+          whiptail --title 'Config change successful' \
+            --msgbox "USB Keyboard support has been disabled;\nsave the config change and reboot for it to go into effect." 0 80
         fi
       fi
     ;;
