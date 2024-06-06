@@ -34,6 +34,42 @@ mount_usb()
   fi
 }
 
+# -- Display related functions --
+# Produce a whiptail prompt with 'warning' background, works for fbwhiptail and newt
+whiptail_warning() {
+    if [ -x /bin/fbwhiptail ]; then
+        whiptail $BG_COLOR_WARNING "$@"
+    else
+        env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail "$@"
+    fi
+}
+
+# Produce a whiptail prompt with 'error' background, works for fbwhiptail and newt
+whiptail_error() {
+    if [ -x /bin/fbwhiptail ]; then
+        whiptail $BG_COLOR_ERROR "$@"
+    else
+        env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail "$@"
+    fi
+}
+
+# Produce a whiptail prompt of the given type - 'error', 'warning', or 'normal'
+whiptail_type() {
+    local TYPE="$1"
+    shift
+    case "$TYPE" in
+        error)
+            whiptail_error "$@"
+	    ;;
+        warrning)
+            whiptail_warning "$@"
+	    ;;
+        normal)
+	    whiptail "$@"
+	    ;;
+    esac
+}
+
 # Create display text for a size in bytes in either MB or GB, unit selected
 # automatically, rounded to nearest
 display_size() {
