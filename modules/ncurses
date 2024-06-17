@@ -8,17 +8,6 @@ ncurses_tar := ncurses-$(ncurses_version).tar.gz
 ncurses_url := https://invisible-island.net/archives/ncurses/ncurses-$(ncurses_version).tar.gz
 ncurses_hash := 136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6
 
-#We remove Makefile passed number of jobs to only pass one job, otherwise fails to build
-ncurses_target := $(MAKE_JOBS) \
-	$(CROSS_TOOLS) \
-	DESTDIR="$(INSTALL)" \
-	install.data && \
-	cp -vpr $(INSTALL)/usr/share/terminfo "$(build)/$(ncurses_dir)" && \
-	touch .build
-
-ncurses_data := \
-	terminfo/l/linux
-
 ncurses_configure := \
 	CFLAGS="-Os" ./configure \
 	$(CROSS_TOOLS) \
@@ -27,5 +16,14 @@ ncurses_configure := \
 	--without-cxx \
 	--without-cxx-binding \
 	--without-manpages \
-	--without-shared  && \
-	touch .configured
+	--without-shared
+
+#build hack: we cp installed terminfo dir back into build dir to pack terminfo in initrd
+ncurses_target := $(MAKE_JOBS) \
+	$(CROSS_TOOLS) \
+	DESTDIR="$(INSTALL)" \
+	install.data && \
+	cp -vpr $(INSTALL)/usr/share/terminfo "$(build)/$(ncurses_dir)"
+
+ncurses_data := \
+	terminfo/l/linux
