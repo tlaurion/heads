@@ -45,7 +45,7 @@ commands:
 jobs:
   prep_env:
     docker:
-      - image: tlaurion/heads-dev-env:v0.1.9
+      - image: tlaurion/heads-dev-env:v0.2.0
     resource_class: large
     working_directory: ~/heads
     steps:
@@ -111,7 +111,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: tlaurion/heads-dev-env:v0.1.9
+      - image: tlaurion/heads-dev-env:v0.2.0
     resource_class: large
     working_directory: ~/heads
     parameters:
@@ -139,7 +139,7 @@ jobs:
 
   build:
     docker:
-      - image: tlaurion/heads-dev-env:v0.1.9
+      - image: tlaurion/heads-dev-env:v0.2.0
     resource_class: large
     working_directory: ~/heads
     parameters:
@@ -160,7 +160,7 @@ jobs:
 
   save_cache:
     docker:
-      - image: tlaurion/heads-dev-env:v0.1.9
+      - image: tlaurion/heads-dev-env:v0.2.0
     resource_class: large
     working_directory: ~/heads
     steps:
@@ -250,8 +250,8 @@ workflows:
 
       # coreboot 4.11
       - build_and_persist:
-          name: UNMAINTAINED_kgpe-d16_workstation
-          target: UNMAINTAINED_kgpe-d16_workstation
+          name: librem_l1um
+          target: librem_l1um
           subcommand: ""
           requires:
             - prep_env
@@ -470,11 +470,19 @@ workflows:
 
       # coreboot 4.11
       - build:
+          name: UNMAINTAINED_kgpe-d16_workstation
+          target: UNMAINTAINED_kgpe-d16_workstation
+          subcommand: ""
+          requires:
+            - librem_l1um
+
+      # coreboot 4.11
+      - build:
           name: UNMAINTAINED_kgpe-d16_workstation-usb_keyboard
           target: UNMAINTAINED_kgpe-d16_workstation-usb_keyboard
           subcommand: ""
           requires:
-            - UNMAINTAINED_kgpe-d16_workstation
+            - librem_l1um
       
       # coreboot 4.11
       - build:
@@ -482,7 +490,7 @@ workflows:
           target: UNMAINTAINED_kgpe-d16_server
           subcommand: ""
           requires:
-            - UNMAINTAINED_kgpe-d16_workstation
+            - librem_l1um
 
       # coreboot 4.11
       - build:
@@ -490,7 +498,7 @@ workflows:
           target: UNMAINTAINED_kgpe-d16_server-whiptail
           subcommand: ""
           requires:
-            - UNMAINTAINED_kgpe-d16_workstation
+            - librem_l1um
 
 #      - build:
 #          name: UNMAINTAINED_kgpe-d16_workstation-usb_keyboard
