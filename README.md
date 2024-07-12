@@ -1,7 +1,7 @@
 ![Heads booting on an x230](https://user-images.githubusercontent.com/827570/156627927-7239a936-e7b1-4ffb-9329-1c422dc70266.jpeg)
 
 Heads: the other side of TAILS
-===
+==
 
 Heads is a configuration for laptops and servers that tries to bring
 more security to commodity hardware.  Among its goals are:
@@ -25,19 +25,27 @@ Documentation
 ===
 Please refer to [Heads-wiki](https://osresearch.net) for your Heads' documentation needs.
 
+Contributing
+===
+We welcome contributions to the Heads project! Before contributing, please read our [Contributing Guidelines](CONTRIBUTING.md) for information on how to get started, submit issues, and propose changes.
+
+Code of Conduct
+===
+We are committed to fostering an open and welcoming environment in our community. Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 
 Building heads
-===
+==
 
 Under QubesOS?
-====
+===
 * Setup nix persistent layer under QubesOS (Thanks @rapenne-s !)
   * https://dataswamp.org/~solene/2023-05-15-qubes-os-install-nix.html
 * Install docker under QubesOS (imperfect old article of mine. Better somewhere?)
   * https://gist.github.com/tlaurion/9113983bbdead492735c8438cd14d6cd
 
 Build docker from nix develop layer locally
-====
+===
 
 #### Set up Nix and flakes  
 
@@ -74,7 +82,7 @@ Done!
 Your local docker image "linuxboot/heads:dev-env" is ready to use, reproducible for the specific Heads commit used and will produce ROMs reproducible for that Heads commit ID.
 
 Jump into nix develop created docker image for interactive workflow
-=====
+====
 `docker run -e DISPLAY=$DISPLAY --network host --rm -ti -v $(pwd):$(pwd) -w $(pwd) linuxboot/heads:dev-env`
 
 
