@@ -269,7 +269,7 @@ prepare_thumb_drive()
 select_luks_container()
 {
 	#TODO: extend logic to prompt for block devices with model if multiple luks is found on block device instead of partitions
-	# Then feek luks with those partitions so that reencrypt and passphrase change can use passphrase to test all selected
+	# Then feed luks with those partitions so that reencrypt and passphrase change can use passphrase to test all selected
 	TRACE_FUNC
 	if [ -s /boot/kexec_key_devices.txt ]; then
 		DEBUG "Reusing known good LUKS container device from /boot/kexec_key_devices.txt"
@@ -389,6 +389,8 @@ luks_reencrypt() {
 
 		# Split the $LUKS variable into an array of LUKS containers
 		luks_containers=($LUKS)
+		TRACE_FUNC
+		DEBUG "luks_containers: $luks_containers"
 
 		# Loop through each LUKS container
 		for luks_container in "${luks_containers[@]}"; do
@@ -406,7 +408,8 @@ luks_reencrypt() {
 				continue
 			fi
 		done
-
+		
+		DEBUG "Test opening ${luks_containers[@]} successful. Now testing key slots to determine which holds master key"
 		for luks_container in "${luks_containers[@]}"; do
 			# First obtain which luks1/luks2 key-slot can be unlocked with the key-file
 			DRK_KEYSLOT=-1
@@ -555,5 +558,6 @@ luks_secrets_cleanup()
 	#Unset variables (when in same boot)
 	unset luks_current_Disk_Recovery_Key_passphrase
 	unset luks_new_Disk_Recovery_Key_passphrase
-	unset LUKS
+	#TODO: refactor logic of selec_luks_conatainer, where to put	
+	#unset LUKS
 }
