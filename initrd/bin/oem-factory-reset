@@ -1147,8 +1147,9 @@ fi
 if [ -n "$luks_new_Disk_Recovery_Key_desired" -a -n "$luks_new_Disk_Recovery_Key_passphrase_desired" ]; then
     #Reencryption of disk, LUKS Disk Recovery Key and LUKS Disk Recovery Key passphrase change is requested
     #TODO: this top-down codepath asks for encrypted disk, fix this
-    luks_change_passphrase
+    # Is this because we change passwd and then reencrypt? Switched
     luks_reencrypt
+    luks_change_passphrase
 elif [ -n "$luks_new_Disk_Recovery_Key_desired" -a -z "$luks_new_Disk_Recovery_Key_passphrase_desired" ]; then
     #Reencryption of disk was requested but not passphrase change
     luks_reencrypt
