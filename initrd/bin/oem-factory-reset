@@ -879,6 +879,7 @@ report_integrity_measurements
 clear
 
 #Prompt user for use of default configuration options
+TRACE_FUNC
 echo -e -n "Would you like to use default configuration options?\nIf N, you will be prompted for each option [Y/n]: "
 read -n 1 use_defaults
 
@@ -907,6 +908,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
     echo
     if [ "$prompt_output" == "y" \
         -o "$prompt_output" == "Y" ]; then
+        TRACE_FUNC
         test_luks_current_disk_recovery_key_passphrase
         luks_new_Disk_Recovery_Key_desired=1
         echo -e "\n"
@@ -1027,6 +1029,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
             }
         done
         #We test that current LUKS Disk Recovery Key passphrase is known prior of going further
+        TRACE_FUNC
         test_luks_current_disk_recovery_key_passphrase
         echo -e "\n"
     fi
@@ -1146,9 +1149,10 @@ fi
 
 if [ -n "$luks_new_Disk_Recovery_Key_desired" -a -n "$luks_new_Disk_Recovery_Key_passphrase_desired" ]; then
     #Reencryption of disk, LUKS Disk Recovery Key and LUKS Disk Recovery Key passphrase change is requested
-    # TODO: validate order. reencrypt needs key slot, not passphrase change per this PR
-    luks_change_passphrase
+    #TODO: this top-down codepath asks for encrypted disk, fix this
+    # Is this because we change passwd and then reencrypt? Switched
     luks_reencrypt
+    luks_change_passphrase
 elif [ -n "$luks_new_Disk_Recovery_Key_desired" -a -z "$luks_new_Disk_Recovery_Key_passphrase_desired" ]; then
     #Reencryption of disk was requested but not passphrase change
     luks_reencrypt
