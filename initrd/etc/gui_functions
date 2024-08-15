@@ -37,60 +37,25 @@ mount_usb()
 # -- Display related functions --
 # Produce a whiptail prompt with 'warning' background, works for fbwhiptail and newt
 whiptail_warning() {
-    local args=()
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --title)
-                args+=("$1" "$2")
-                shift 2
-                ;;
-            --msgbox)
-                args+=("$1" "$2")
-                shift 2
-                ;;
-            *)
-                args+=("$1")
-                shift
-                ;;
-        esac
-    done
-
     if [ -x /bin/fbwhiptail ]; then
-        whiptail $BG_COLOR_WARNING "${args[@]}"
+        whiptail $BG_COLOR_WARNING "$@"
     else
-        env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail "${args[@]}"
+        env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail "$@"
     fi
 }
 
 # Produce a whiptail prompt with 'error' background, works for fbwhiptail and newt
 whiptail_error() {
-    local args=()
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --title)
-                args+=("$1" "$2")
-                shift 2
-                ;;
-            --msgbox)
-                args+=("$1" "$2")
-                shift 2
-                ;;
-            *)
-                args+=("$1")
-                shift
-                ;;
-        esac
-    done
-
     if [ -x /bin/fbwhiptail ]; then
-        whiptail $BG_COLOR_ERROR "${args[@]}"
+        whiptail $BG_COLOR_ERROR "$@"
     else
-        env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail "${args[@]}"
+        env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail "$@"
     fi
 }
 
 # Produce a whiptail prompt of the given type - 'error', 'warning', or 'normal'
 whiptail_type() {
+    TRACE_FUNC
     local TYPE="$1"
     shift
     case "$TYPE" in
