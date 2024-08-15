@@ -314,7 +314,10 @@ test_luks_current_disk_recovery_key_passphrase() {
 
 		# LUKS contains multiline string of LUKS containers on same block device
 		# transform it into words of a same string separated by space
-		PRINTABLE_LUKS=$(echo $LUKS | tr '\n' ' ')
+		PRINTABLE_LUKS=$(echo $LUKS)
+
+		#TODO: remove this once whiptail_error whiptail_warning can take titles with double quotes	
+		DEBUG "PRINTABLE_LUKS: $PRINTABLE_LUKS"
 
 		TRACE_FUNC
 		if [ -z "$luks_current_Disk_Recovery_Key_passphrase" ]; then
@@ -327,19 +330,21 @@ test_luks_current_disk_recovery_key_passphrase() {
 		fi
 
 		# test all LUKS containers on same block device as returned by select_luks_container
-		echo -e "\n$PRINTABLE_LUKS: Testing unlock of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
+		echo -e "\n$PRINTABLE_LUKS: Test unlocking of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
 
 		# Loop on all LUKS containers on same block device
 		for luks_container in $LUKS; do
-			DEBUG "$luks_container: Testing unlock of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase"
+			DEBUG "$luks_container: Test unlocking of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
 			DO_WITH_DEBUG cryptsetup open --test-passphrase "$luks_container" --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 			# Validate past cryptsetup reencrypt attempts
 			if [ $? -ne 0 ]; then
 				# if we have more than one LUKS container and passphrase test unsuccessful, tell user how to change passphrase
 				if [ $(echo $LUKS | wc -w) -gt 1 ]; then
-					msg=$(echo -e "All $PRINTABLE_LUKS must unlock with the same Disk Recovery Key passphrase for the current operation to succeed.\n\nTo change individual LUKS container passphrase, do so from 'Options-> Change LUKS Disk Recovery Key passphrase'\n\nThen retry this operation." | fold -w 70 -s)
+					#TODO remove this once whiptail_error whiptail_warning can take titles with double quotes
+					whiptail_error --title 'test' --msgbox 'test' 0 80
 					
-					whiptail_error --title "$luks_container: Wrong current LUKS Disk Recovery Key passphrase?" \
+					msg=$(echo -e "All $PRINTABLE_LUKS must unlock with the same Disk Recovery Key passphrase for the current operation to succeed.\n\nTo change individual LUKS container passphrase, do so from 'Options-> Change LUKS Disk Recovery Key passphrase'\n\nThen retry this operation." | fold -w 70 -s)
+					whiptail_error --title "$luks_container"': Wrong current LUKS Disk Recovery Key passphrase?' \
 						--msgbox "$msg" 0 80
 					
 					TRACE_FUNC
@@ -412,7 +417,7 @@ luks_reencrypt() {
 
 		# Loop through each LUKS container
 		for luks_container in "${luks_containers[@]}"; do
-			DEBUG "$luks_container: Testing unlock of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase"
+			DEBUG "$luks_container: Test unlocking of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
 			if ! DO_WITH_DEBUG cryptsetup open --test-passphrase "$luks_container" --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase > /dev/null 2>&1; then
 				whiptail_error --title "$luks_container: Wrong current LUKS Disk Recovery Key passphrase?" --msgbox \
 					"If you previously changed it and do not remember it, you will have to\n reinstall the OS from a an external drive.\n\nTo do so, place the ISO file and its signature file on root of an\n external drive, and select Options-> Boot from USB \n\nHit Enter to retry." 0 80
@@ -433,7 +438,7 @@ luks_reencrypt() {
 		for luks_container in "${luks_containers[@]}"; do
 			# First obtain which luks1/luks2 key-slot can be unlocked with the key-file
 			DRK_KEYSLOT=-1
-			DEBUG "$luks_container: Testing unlock of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase"
+			DEBUG "$luks_container: Test unlocking of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
 			for i in $(seq 0 31); do
 				if DO_WITH_DEBUG cryptsetup open --test-passphrase $luks_container --key-slot $i --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase > /dev/null 2>&1; then
 					DRK_KEYSLOT=$i
@@ -542,7 +547,7 @@ luks_change_passphrase() {
         echo -n "$luks_current_Disk_Recovery_Key_passphrase" > /tmp/luks_current_Disk_Recovery_Key_passphrase
         echo -n "$luks_new_Disk_Recovery_Key_passphrase" > /tmp/luks_new_Disk_Recovery_Key_passphrase
 
-        DEBUG "$luks_container: Testing unlock of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
+        DEBUG "$luks_container: Test unlocking of LUKS encrypted drive content the current LUKS Disk Recovery Key passphrase..."
         if ! DO_WITH_DEBUG cryptsetup open --test-passphrase "$luks_container" --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase > /dev/null 2>&1; then
             whiptail_error --title "$luks_container: Wrong current LUKS Disk Recovery Key passphrase?" --msgbox \
                 "If you previously changed it and do not remember it, you will have to\n reinstall the OS from an external drive.\n\nTo do so, place the ISO file and its signature file on root of an\n external drive, and select Options-> Boot from USB \n\nHit Enter to retry." 0 80
