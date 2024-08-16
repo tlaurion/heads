@@ -469,13 +469,6 @@ luks_reencrypt() {
 			echo -e "\nReencrypting $luks_container LUKS encrypted drive content with current Recovery Disk Key passphrase..."
 			warn "DO NOT POWER DOWN MACHINE, UNPLUG AC OR REMOVE BATTERY DURING REENCRYPTION PROCESS"
 			
-			# TODO: uncomment
-			DO_WITH_DEBUG echo "faking cryptsetup reencrypt command for testing purposes on $luks_container LUKS container..."
-			# DO_WITH_DEBUG cryptsetup reencrypt \
-			# --perf-no_read_workqueue --perf-no_write_workqueue \
-			# --resilience=none --force-offline-reencrypt --disable-locks \
-			# "$luks_container" --key-slot "$DRK_KEYSLOT" \
-			# --key-file /tmp/luks_current_Disk_Recovery_Key_passphrase
 			# --perf-no_read_workqueue and/or --perf-no_write_workqueue improve encryption/reencrypton performance on kernel 5.10.9+
 			# bypassing dm-crypt queues.
 			# Ref https://github.com/cloudflare/linux/issues/1#issuecomment-729695518
@@ -483,20 +476,18 @@ luks_reencrypt() {
 			# --force-offline-reencrypt forces the reencryption to be done offline (no read/write operations on the device)
 			# --disable-locks disables the lock feature of cryptsetup, which is enabled by default
 
-			# Validate past cryptsetup reencrypt attempts
-			#if ! DO_WITH_DEBUG cryptsetup reencrypt \
-			#--perf-no_read_workqueue --perf-no_write_workqueue \
-			#--resilience=none --force-offline-reencrypt --disable-locks \
-			#"$luks_container" --key-slot "$DRK_KEYSLOT" \
-			#--key-file /tmp/luks_current_Disk_Recovery_Key_passphrase; then
-			if ! DO_WITH_DEBUG echo "fake cryptsetup reencrypt call"; then
+			if ! DO_WITH_DEBUG cryptsetup reencrypt \
+			--perf-no_read_workqueue --perf-no_write_workqueue \
+			--resilience=none --force-offline-reencrypt --disable-locks \
+			"$luks_container" --key-slot "$DRK_KEYSLOT" \
+			--key-file /tmp/luks_current_Disk_Recovery_Key_passphrase; then
 				whiptail --title "$luks_container: Wrong current LUKS Disk Recovery Key passphrase?" --msgbox \
 					"If you previously changed it and do not remember it, you will have to\n reinstall the OS from a an external drive.\n\nTo do so, place the ISO file and its signature file on root of an\n external drive, and select Options-> Boot from USB \n\nHit Enter to retry." 0 80
-				#remove "known good" selected LUKS container so that next pass asks again user to select LUKS container.
-				#maybe the container was not the right one
 				
 				TRACE_FUNC
 
+				#remove "known good" selected LUKS container so that next pass asks again user to select LUKS container.
+				#maybe the container was not the right one
 				detect_boot_device
 				mount -o remount,rw /boot
 				rm -f /boot/kexec_key_devices.txt
