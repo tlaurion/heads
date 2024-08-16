@@ -42,7 +42,7 @@ CUSTOM_PASS_AFFECTED_COMPONENTS=""
 # p256 also supported (TODO: nk3 supports RSA 4096 in secure element in firmare v1.7.1. Switch!?
 GPG_ALGO="RSA"
 # Default RSA key length is 3072 bits for OEM key gen. 4096 are way longer to generate in smartcard
-RSA_KEY_LENGTH=2048 #TODO REVERT
+RSA_KEY_LENGTH=3072
 
 GPG_USER_NAME="OEM Key"
 GPG_KEY_NAME=$(date +%Y%m%d%H%M%S)
@@ -383,6 +383,7 @@ export_public_key_to_thumbdrive_public_partition() {
 
     #pass non-empty arguments to --pass, --mountpoint, --device, --mode
     mount-usb --device "$device" --mode "$mode" --mountpoint "$mountpoint" || die "Error mounting thumb drive's public partition"
+    #TODO: reuse "Obtain GPG key ID" so that pubkey on public thumb drive partition is named after key ID
     gpg --export --armor "${GPG_USER_MAIL}" >"$mountpoint"/pubkey.asc || die "Error exporting public key to thumb drive's public partition"
     umount "$mountpoint" || die "Error unmounting thumb drive's public partition"
 
@@ -1149,8 +1150,6 @@ fi
 
 if [ -n "$luks_new_Disk_Recovery_Key_desired" -a -n "$luks_new_Disk_Recovery_Key_passphrase_desired" ]; then
     #Reencryption of disk, LUKS Disk Recovery Key and LUKS Disk Recovery Key passphrase change is requested
-    #TODO: this top-down codepath asks for encrypted disk, fix this
-    # Is this because we change passwd and then reencrypt? Switched
     luks_reencrypt
     luks_change_passphrase
 elif [ -n "$luks_new_Disk_Recovery_Key_desired" -a -z "$luks_new_Disk_Recovery_Key_passphrase_desired" ]; then
