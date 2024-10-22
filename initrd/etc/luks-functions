@@ -284,17 +284,17 @@ select_luks_container()
 			if [ "$FILE" == "" ]; then
 				return 1
 			else
-				#TODO: What about BRTFS multi LUKS setup of QubesOS?
-				# if multiple LUKS containers are found on same block device
-				# select all of the luks containers on same block device instead of just one
-				# note that block devices for example under /dev/sda will be /dev/sda1, /dev/sda2, etc
-				# so we need to select all of the partitions on the same block device from /tmp/luks_devices.txt
-				# and then export them to LUKS variable
-				# then reencrypt and passphrase change functions will loop on all of the LUKS containers
-				# and test passphrase on all of them
+				# Check if multiple LUKS containers are found on same block device
 				if grep -q "$(echo $FILE | sed 's/[0-9]*$//')" /tmp/luks_devices.txt; then
-					DEBUG "Multiple LUKS containers found on same block device, selecting them all"
-					LUKS=$(grep $(echo $FILE | sed 's/[0-9]*$//') /tmp/luks_devices.txt)
+					whiptail --title "Multiple LUKS containers found on block device" --yesno \
+						"Multiple LUKS containers were found on the same block device. Considering they share the same decryption passphrase, do you want to select them all?" 0 80
+					if [ $? -eq 0 ]; then
+						DEBUG "Multiple LUKS containers found on same block device, assigning all to LUKS variable"
+						LUKS=$(grep $(echo $FILE | sed 's/[0-9]*$//') /tmp/luks_devices.txt)
+					else
+						DEBUG "User selected single LUKS container on block device containing multiple LUKS containers"
+						LUKS=$FILE
+					fi
 				else
 					DEBUG "Single LUKS container found on block device, assigning to LUKS variable"
 					LUKS=$FILE
