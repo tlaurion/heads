@@ -50,6 +50,13 @@ prompt_luks_passphrase() {
 # Test LUKS passphrase against all found LUKS containers that are not USB
 test_luks_passphrase() {
     TRACE_FUNC
+
+    # Check if the passphrase validation is already cached
+    if [ "$LUKS_VALIDATION_CACHED" = true ]; then
+        DEBUG "Using cached LUKS validation result"
+        return 0
+    fi
+
     list_local_luks_devices >/tmp/luks_devices.txt
     if [ ! -s /tmp/luks_devices.txt ]; then
         warn "No LUKS devices found"
@@ -73,6 +80,7 @@ test_luks_passphrase() {
 
     # Export the valid LUKS devices
     export LUKS="${valid_luks_devices[*]}"
+    export LUKS_VALIDATION_CACHED=true
     return 0
 }
 
