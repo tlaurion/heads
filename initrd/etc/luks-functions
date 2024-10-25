@@ -43,7 +43,6 @@ prompt_luks_passphrase() {
             unset luks_current_Disk_Recovery_Key_passphrase
             continue
         fi
-        echo -e "\nYou entered: $luks_current_Disk_Recovery_Key_passphrase"
     done
     echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
 }
@@ -381,7 +380,6 @@ test_luks_current_disk_recovery_key_passphrase() {
         if [ -z "$luks_current_Disk_Recovery_Key_passphrase" ]; then
             echo -e "\nEnter the current LUKS Disk Recovery Key passphrase (Configured at OS installation or by OEM):"
             read -r luks_current_Disk_Recovery_Key_passphrase
-            echo -e "\nYou entered: $luks_current_Disk_Recovery_Key_passphrase"
             echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
         else
             echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
