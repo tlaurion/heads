@@ -1,21 +1,5 @@
 #!/bin/bash
 # This script contains various functions related to LUKS (Linux Unified Key Setup) encryption management.
-#
-# Functions:
-# - list_local_luks_devices: Lists all LUKS devices on the system that are not USB.
-# - select_luks_container_size_percent: Prompts the user to select the percentage of the device to use for the LUKS container.
-# - interactive_prepare_thumb_drive: Interactively partitions a device with two partitions: a LUKS container and a public exFAT partition.
-# - confirm_thumb_drive_format: Shows a prompt to confirm formatting a flash drive with a percentage allocated to LUKS.
-# - prepare_thumb_drive: Prepares a flash drive with a private LUKS-encrypted ext4 partition and a public exFAT partition.
-# - select_luks_container: Selects a LUKS container.
-# - test_luks_current_disk_recovery_key_passphrase: Tests the current disk recovery key passphrase for LUKS.
-# - luks_reencrypt: Re-encrypts LUKS partitions.
-# - luks_change_passphrase: Changes the LUKS passphrase.
-# - test_luks_passphrase: Tests the LUKS passphrase against all found LUKS containers that are not USB.
-# - confirm_luks_partitions: Confirms with the user to use all unlockable LUKS partitions.
-# - main_luks_selection: Main function to prompt for passphrase, test it, and confirm partitions.
-# - prompt_luks_passphrase: Prompts for the LUKS Disk Recovery Key passphrase.
-# - luks_secrets_cleanup: Cleans up LUKS secrets.
 
 . /etc/functions
 . /etc/gui_functions
@@ -46,6 +30,85 @@ list_local_luks_devices() {
             DEBUG "Device $device is not a LUKS device"
         fi
     done | sort
+}
+
+# Prompt for LUKS Disk Recovery Key passphrase
+prompt_luks_passphrase() {
+    TRACE_FUNC
+    while [[ ${#luks_current_Disk_Recovery_Key_passphrase} -lt 8 ]]; do
+        echo -e "\nEnter the LUKS Disk Recovery Key passphrase (At least 8 characters long):"
+        read -r -s luks_current_Disk_Recovery_Key_passphrase
+        if [[ ${#luks_current_Disk_Recovery_Key_passphrase} -lt 8 ]]; then
+            echo -e "\nPassphrase must be at least 8 characters long. Please try again."
+            unset luks_current_Disk_Recovery_Key_passphrase
+            continue
+        fi
+        echo -e "\nConfirm the LUKS Disk Recovery Key passphrase:"
+        read -r -s luks_passphrase_confirm
+        if [ "$luks_current_Disk_Recovery_Key_passphrase" != "$luks_passphrase_confirm" ]; then
+            echo -e "\nPassphrases do not match. Please try again."
+            unset luks_current_Disk_Recovery_Key_passphrase
+            unset luks_passphrase_confirm
+        fi
+    done
+    echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
+}
+
+# Test LUKS passphrase against all found LUKS containers that are not USB
+test_luks_passphrase() {
+    TRACE_FUNC
+    list_local_luks_devices >/tmp/luks_devices.txt
+    if [ ! -s /tmp/luks_devices.txt ]; then
+        warn "No LUKS devices found"
+        return 1
+    fi
+
+    valid_luks_devices=()
+    while read -r luks_device; do
+        DEBUG "Testing passphrase on $luks_device"
+        if cryptsetup open --test-passphrase "$luks_device" --key-file /tmp/secret/luks_current_Disk_Recovery_Key_passphrase; then
+            DEBUG "Passphrase valid for $luks_device"
+            valid_luks_devices+=("$luks_device")
+        else
+            DEBUG "Passphrase test failed on $luks_device"
+        fi
+    done </tmp/luks_devices.txt
+
+    if [ ${#valid_luks_devices[@]} -eq 0 ]; then
+        return 1
+    fi
+
+    # Export the valid LUKS devices
+    export LUKS="${valid_luks_devices[*]}"
+    return 0
+}
+
+# Confirm with the user to use all unlockable LUKS partitions
+confirm_luks_partitions() {
+    TRACE_FUNC
+    MSG="The following LUKS partitions can be unlocked:\n\n${LUKS}\n\nDo you want to use all of these partitions?"
+    if [ -x /bin/whiptail ]; then
+        if ! whiptail --title "Confirm LUKS Partitions" --yesno "$MSG" 0 80; then
+            die "User aborted the operation"
+        fi
+    else
+        echo -e "$MSG"
+        read -p "Do you want to use all of these partitions? (y/n): " confirm
+        if [ "$confirm" != "y" ]; then
+            die "User aborted the operation"
+        fi
+    fi
+}
+
+# Main function to prompt for passphrase, test it, and confirm partitions
+main_luks_selection() {
+    TRACE_FUNC
+    prompt_luks_passphrase
+    if ! test_luks_passphrase; then
+        die "Passphrase test failed on all LUKS devices"
+    fi
+    confirm_luks_partitions
+    DEBUG "Selected LUKS partitions: $LUKS"
 }
 
 #Whiptail prompt asking user to select ratio of device to use for LUKS container between: 25, 50, 75
@@ -396,7 +459,14 @@ luks_reencrypt() {
             DRK_KEYSLOT=-1
             DEBUG "$luks_container: Test unlocking of LUKS encrypted drive content with current LUKS Disk Recovery Key passphrase..."
             for i in $(seq 0 31); do
+                DEBUG "Testing key slot $i on $luks_container"
                 if DO_WITH_DEBUG cryptsetup open --test-passphrase $luks_container --key-slot $i --key-file /tmp/secret/luks_current_Disk_Recovery_Key_passphrase >/dev/null 2>&1; then
+                    DRK_KEYSLOT=$i
+                    DEBUG "$luks_container: Found key-slot $DRK_KEYSLOT that can be unlocked with the current passphrase. breaking loop"
+                    break
+                else
+                    DEBUG "Key slot $i on $luks_container cannot be unlocked with the current passphrase"
+                fi
                     DRK_KEYSLOT=$i
                     DEBUG "$luks_container: Found key-slot $DRK_KEYSLOT that can be unlocked with the current passphrase. breaking loop"
                     break
@@ -500,85 +570,6 @@ luks_change_passphrase() {
     export luks_current_Disk_Recovery_Key_passphrase
     export luks_new_Disk_Recovery_Key_passphrase
     export LUKS
-}
-
-# Test LUKS passphrase against all found LUKS containers that are not USB
-test_luks_passphrase() {
-    TRACE_FUNC
-    list_local_luks_devices >/tmp/luks_devices.txt
-    if [ ! -s /tmp/luks_devices.txt ]; then
-        warn "No LUKS devices found"
-        return 1
-    fi
-
-    valid_luks_devices=()
-    while read -r luks_device; do
-        DEBUG "Testing passphrase on $luks_device"
-        if cryptsetup open --test-passphrase "$luks_device" --key-file /tmp/secret/luks_current_Disk_Recovery_Key_passphrase; then
-            DEBUG "Passphrase valid for $luks_device"
-            valid_luks_devices+=("$luks_device")
-        else
-            DEBUG "Passphrase test failed on $luks_device"
-        fi
-    done </tmp/luks_devices.txt
-
-    if [ ${#valid_luks_devices[@]} -eq 0 ]; then
-        return 1
-    fi
-
-    # Export the valid LUKS devices
-    export LUKS="${valid_luks_devices[*]}"
-    return 0
-}
-
-# Confirm with the user to use all unlockable LUKS partitions
-confirm_luks_partitions() {
-    TRACE_FUNC
-    MSG="The following LUKS partitions can be unlocked:\n\n${LUKS}\n\nDo you want to use all of these partitions?"
-    if [ -x /bin/whiptail ]; then
-        if ! whiptail --title "Confirm LUKS Partitions" --yesno "$MSG" 0 80; then
-            die "User aborted the operation"
-        fi
-    else
-        echo -e "$MSG"
-        read -p "Do you want to use all of these partitions? (y/n): " confirm
-        if [ "$confirm" != "y" ]; then
-            die "User aborted the operation"
-        fi
-    fi
-}
-
-# Main function to prompt for passphrase, test it, and confirm partitions
-main_luks_selection() {
-    TRACE_FUNC
-    prompt_luks_passphrase
-    if ! test_luks_passphrase; then
-        die "Passphrase test failed on all LUKS devices"
-    fi
-    confirm_luks_partitions
-    DEBUG "Selected LUKS partitions: $LUKS"
-}
-
-# Prompt for LUKS Disk Recovery Key passphrase
-prompt_luks_passphrase() {
-    TRACE_FUNC
-    while [[ ${#luks_current_Disk_Recovery_Key_passphrase} -lt 8 ]]; do
-        echo -e "\nEnter the LUKS Disk Recovery Key passphrase (At least 8 characters long):"
-        read -r -s luks_current_Disk_Recovery_Key_passphrase
-        if [[ ${#luks_current_Disk_Recovery_Key_passphrase} -lt 8 ]]; then
-            echo -e "\nPassphrase must be at least 8 characters long. Please try again."
-            unset luks_current_Disk_Recovery_Key_passphrase
-            continue
-        fi
-        echo -e "\nConfirm the LUKS Disk Recovery Key passphrase:"
-        read -r -s luks_passphrase_confirm
-        if [ "$luks_current_Disk_Recovery_Key_passphrase" != "$luks_passphrase_confirm" ]; then
-            echo -e "\nPassphrases do not match. Please try again."
-            unset luks_current_Disk_Recovery_Key_passphrase
-            unset luks_passphrase_confirm
-        fi
-    done
-    echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
 }
 
 # Cleanup LUKS secrets
