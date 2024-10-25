@@ -37,19 +37,13 @@ prompt_luks_passphrase() {
     TRACE_FUNC
     while [[ ${#luks_current_Disk_Recovery_Key_passphrase} -lt 8 ]]; do
         echo -e "\nEnter the LUKS Disk Recovery Key passphrase (At least 8 characters long):"
-        read -r -s luks_current_Disk_Recovery_Key_passphrase
+        read -r luks_current_Disk_Recovery_Key_passphrase
         if [[ ${#luks_current_Disk_Recovery_Key_passphrase} -lt 8 ]]; then
             echo -e "\nPassphrase must be at least 8 characters long. Please try again."
             unset luks_current_Disk_Recovery_Key_passphrase
             continue
         fi
-        echo -e "\nConfirm the LUKS Disk Recovery Key passphrase:"
-        read -r -s luks_passphrase_confirm
-        if [ "$luks_current_Disk_Recovery_Key_passphrase" != "$luks_passphrase_confirm" ]; then
-            echo -e "\nPassphrases do not match. Please try again."
-            unset luks_current_Disk_Recovery_Key_passphrase
-            unset luks_passphrase_confirm
-        fi
+        echo -e "\nYou entered: $luks_current_Disk_Recovery_Key_passphrase"
     done
     echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
 }
@@ -368,7 +362,11 @@ select_luks_container() {
         LUKS=$(cut -d ' ' -f1 /boot/kexec_key_devices.txt)
         DEBUG "LUKS container device: $(echo $LUKS)"
     elif [ -z "$LUKS" ]; then
-        main_luks_selection
+        if [ "$LUKS_VALIDATION_CACHED" = true ]; then
+            DEBUG "Using cached LUKS validation result"
+        else
+            main_luks_selection
+        fi
     fi
 }
 
@@ -382,7 +380,8 @@ test_luks_current_disk_recovery_key_passphrase() {
 
         if [ -z "$luks_current_Disk_Recovery_Key_passphrase" ]; then
             echo -e "\nEnter the current LUKS Disk Recovery Key passphrase (Configured at OS installation or by OEM):"
-            read -r -s luks_current_Disk_Recovery_Key_passphrase
+            read -r luks_current_Disk_Recovery_Key_passphrase
+            echo -e "\nYou entered: $luks_current_Disk_Recovery_Key_passphrase"
             echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
         else
             echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
@@ -411,6 +410,7 @@ test_luks_current_disk_recovery_key_passphrase() {
             export LUKS
             TRACE_FUNC
             DEBUG "LUKS container(s) $PRINTABLE_LUKS exported to be reused"
+            export LUKS_VALIDATION_CACHED=true
             break
         fi
     done
@@ -466,10 +466,6 @@ luks_reencrypt() {
                     break
                 else
                     DEBUG "Key slot $i on $luks_container cannot be unlocked with the current passphrase"
-                fi
-                    DRK_KEYSLOT=$i
-                    DEBUG "$luks_container: Found key-slot $DRK_KEYSLOT that can be unlocked with the current passphrase. breaking loop"
-                    break
                 fi
             done
 
@@ -535,7 +531,7 @@ luks_change_passphrase() {
 
                 TRACE_FUNC
                 echo -e "\nEnter the current LUKS Disk Recovery Key passphrase (Configured at OS installation or by OEM):"
-                read -r -s luks_current_Disk_Recovery_Key_passphrase
+                read -r luks_current_Disk_Recovery_Key_passphrase
             fi
         fi
 
