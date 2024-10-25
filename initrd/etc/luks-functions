@@ -47,43 +47,6 @@ prompt_luks_passphrase() {
     echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
 }
 
-# Test LUKS passphrase against all found LUKS containers that are not USB
-test_luks_passphrase() {
-    TRACE_FUNC
-
-    # Check if the passphrase validation is already cached
-    if [ "$LUKS_VALIDATION_CACHED" = true ]; then
-        DEBUG "Using cached LUKS validation result"
-        return 0
-    fi
-
-    list_local_luks_devices >/tmp/luks_devices.txt
-    if [ ! -s /tmp/luks_devices.txt ]; then
-        warn "No LUKS devices found"
-        return 1
-    fi
-
-    valid_luks_devices=()
-    while read -r luks_device; do
-        DEBUG "Testing passphrase on $luks_device"
-        if cryptsetup open --test-passphrase "$luks_device" --key-file /tmp/secret/luks_current_Disk_Recovery_Key_passphrase; then
-            DEBUG "Passphrase valid for $luks_device"
-            valid_luks_devices+=("$luks_device")
-        else
-            DEBUG "Passphrase test failed on $luks_device"
-        fi
-    done </tmp/luks_devices.txt
-
-    if [ ${#valid_luks_devices[@]} -eq 0 ]; then
-        return 1
-    fi
-
-    # Export the valid LUKS devices
-    export LUKS="${valid_luks_devices[*]}"
-    export LUKS_VALIDATION_CACHED=true
-    return 0
-}
-
 # Confirm with the user to use all unlockable LUKS partitions
 confirm_luks_partitions() {
     TRACE_FUNC
@@ -380,47 +343,40 @@ select_luks_container() {
 # Test LUKS current disk recovery key passphrase
 test_luks_current_disk_recovery_key_passphrase() {
     TRACE_FUNC
-    while :; do
-        select_luks_container || return 1
 
-        PRINTABLE_LUKS=$(echo $LUKS)
+    # Check if the passphrase validation is already cached
+    if [ "$LUKS_VALIDATION_CACHED" = true ]; then
+        DEBUG "Using cached LUKS validation result"
+        return 0
+    fi
 
-        if [ -z "$luks_current_Disk_Recovery_Key_passphrase" ]; then
-            echo -e "\nEnter the current LUKS Disk Recovery Key passphrase (Configured at OS installation or by OEM):"
-            read -r luks_current_Disk_Recovery_Key_passphrase
-            echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
+    list_local_luks_devices >/tmp/luks_devices.txt
+    if [ ! -s /tmp/luks_devices.txt ]; then
+        warn "No LUKS devices found"
+        return 1
+    fi
+
+    valid_luks_devices=()
+    while read -r luks_device; do
+        DEBUG "Testing passphrase on $luks_device"
+        if cryptsetup open --test-passphrase "$luks_device" --key-file /tmp/secret/luks_current_Disk_Recovery_Key_passphrase; then
+            DEBUG "Passphrase valid for $luks_device"
+            valid_luks_devices+=("$luks_device")
         else
-            echo -n "$luks_current_Disk_Recovery_Key_passphrase" >/tmp/secret/luks_current_Disk_Recovery_Key_passphrase
+            DEBUG "Passphrase test failed on $luks_device"
         fi
+    done </tmp/luks_devices.txt
 
-        echo -e "\n$PRINTABLE_LUKS: Test unlocking of LUKS encrypted drive content with current LUKS Disk Recovery Key passphrase..."
+    if [ ${#valid_luks_devices[@]} -eq 0 ]; then
+        return 1
+    fi
 
-        for luks_container in $LUKS; do
-            DEBUG "$luks_container: Test unlocking of LUKS encrypted drive content with current LUKS Disk Recovery Key passphrase..."
-            if ! cryptsetup open --test-passphrase "$luks_container" --key-file /tmp/secret/luks_current_Disk_Recovery_Key_passphrase; then
-                whiptail_error --title "$luks_container: Wrong current LUKS Disk Recovery Key passphrase?" --msgbox \
-                    "If you previously changed it and do not remember it, you will have to reinstall the OS from an external drive.\n\nTo do so, place the ISO file and its signature file on root of an external drive, and select Options-> Boot from USB \n\nHit Enter to retry." 0 80
-                detect_boot_device
-                mount -o remount,rw /boot
-                rm -f /boot/kexec_key_devices.txt
-                mount -o remount,ro /boot
-                luks_secrets_cleanup
-                unset LUKS
-            else
-                echo "$luks_container: unlocking LUKS container with current Disk Recovery Key passphrase successful"
-                export luks_current_Disk_Recovery_Key_passphrase
-            fi
-        done
-
-        if [ -n "$LUKS" ]; then
-            export LUKS
-            TRACE_FUNC
-            DEBUG "LUKS container(s) $PRINTABLE_LUKS exported to be reused"
-            export LUKS_VALIDATION_CACHED=true
-            break
-        fi
-    done
+    # Export the valid LUKS devices
+    export LUKS="${valid_luks_devices[*]}"
+    export LUKS_VALIDATION_CACHED=true
+    return 0
 }
+
 
 # Function to re-encrypt LUKS partitions
 luks_reencrypt() {
