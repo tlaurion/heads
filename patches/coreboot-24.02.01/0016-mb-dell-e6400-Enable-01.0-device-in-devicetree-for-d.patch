@@ -1,0 +1,28 @@
+From b925e95cc9d750c56fdbfbd1838b77339c124139 Mon Sep 17 00:00:00 2001
+From: Nicholas Chin <nic.c3.14@gmail.com>
+Date: Sat, 6 May 2023 15:53:41 -0600
+Subject: [PATCH 16/65] mb/dell/e6400: Enable 01.0 device in devicetree for
+ dGPU models
+
+Change-Id: I9b8e5d3cd1e1f64dc87b682b1e045b6342924aed
+Signed-off-by: Nicholas Chin <nic.c3.14@gmail.com>
+---
+ src/mainboard/dell/e6400/devicetree.cb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mainboard/dell/e6400/devicetree.cb b/src/mainboard/dell/e6400/devicetree.cb
+index bb954cbd7b..e9f3915d17 100644
+--- a/src/mainboard/dell/e6400/devicetree.cb
++++ b/src/mainboard/dell/e6400/devicetree.cb
+@@ -19,7 +19,7 @@ chip northbridge/intel/gm45
+ 		ops gm45_pci_domain_ops
+ 
+ 		device pci 00.0 on end # host bridge
+-		device pci 01.0 off end
++		device pci 01.0 on end
+ 		device pci 02.0 on end # VGA
+ 		device pci 02.1 on end # Display
+ 		device pci 03.0 on end # ME
+-- 
+2.39.5
+

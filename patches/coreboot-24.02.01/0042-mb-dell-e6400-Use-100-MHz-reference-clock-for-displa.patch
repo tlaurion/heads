@@ -1,0 +1,52 @@
+From 265fb9f4fd017de635bc44b5a762c69a8bec6158 Mon Sep 17 00:00:00 2001
+From: Nicholas Chin <nic.c3.14@gmail.com>
+Date: Mon, 20 May 2024 10:24:16 -0600
+Subject: [PATCH 42/65] mb/dell/e6400: Use 100 MHz reference clock for display
+
+The E6400 uses a 100 MHz reference clock for spread spectrum support on
+LVDS, whereas libgfxinit previously assumed a 96 MHz input clock. For
+the more common 1280 x 800 display panels, the numerical error was not
+large enough to cause noticable issues, but the actual pixel clock
+frequency derived from a 100 MHz reference using PLL configs calculated
+assuming a 96 MHz reference was not close enough for 1440 x 900 panels,
+which require a much higher pixel clock. This resulted in a garbled
+display in the pre-OS graphics environment provided by libgfxinit.
+
+Signed-off-by: Nicholas Chin <nic.c3.14@gmail.com>
+---
+ src/mainboard/dell/e6400/Kconfig   | 3 +++
+ src/northbridge/intel/gm45/Kconfig | 4 ++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/src/mainboard/dell/e6400/Kconfig b/src/mainboard/dell/e6400/Kconfig
+index 417d95fd5d..6fe1b1c456 100644
+--- a/src/mainboard/dell/e6400/Kconfig
++++ b/src/mainboard/dell/e6400/Kconfig
+@@ -19,6 +19,9 @@ config BOARD_SPECIFIC_OPTIONS
+ 	select INTEL_GMA_HAVE_VBT
+ 	select EC_DELL_MEC5035
+ 
++config INTEL_GMA_DPLL_REF_FREQ
++	default 100000000
++
+ config MAINBOARD_DIR
+ 	default "dell/e6400"
+ 
+diff --git a/src/northbridge/intel/gm45/Kconfig b/src/northbridge/intel/gm45/Kconfig
+index 8059e7ee80..5df5a93296 100644
+--- a/src/northbridge/intel/gm45/Kconfig
++++ b/src/northbridge/intel/gm45/Kconfig
+@@ -14,6 +14,10 @@ config NORTHBRIDGE_INTEL_GM45
+ 
+ if NORTHBRIDGE_INTEL_GM45
+ 
++config INTEL_GMA_DPLL_REF_FREQ
++	int
++	default 96000000
++
+ config VBOOT
+ 	select VBOOT_STARTS_IN_BOOTBLOCK
+ 
+-- 
+2.39.5
+

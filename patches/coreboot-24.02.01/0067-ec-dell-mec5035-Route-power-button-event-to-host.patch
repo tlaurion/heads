@@ -1,0 +1,92 @@
+From 32118fa1d21fad517f85cee5eb4edff5f2fd91ea Mon Sep 17 00:00:00 2001
+From: Nicholas Chin <nic.c3.14@gmail.com>
+Date: Tue, 18 Jun 2024 21:31:08 -0600
+Subject: [PATCH 67/67] ec/dell/mec5035: Route power button event to host
+
+If command 0x3e with an argument of 1 isn't sent to the EC, pressing the
+power button results in the EC powering off the system without letting
+the OS cleanly shutting itself down. This command and argument tells the
+EC to route power button events to the host so that it can determine
+what to do.
+
+The EC command was identified from the ec/google/wilco code, which is
+used for Dell's Latitude Chromebooks. According to the EC_GOOGLE_WILCO
+Kconfig help text, those ECs run a modified version of Dell's typical
+Latitude EC firmware, so it is likely that the two firmware
+implementations use similar commands. Examining LPC traffic between the
+host and the EC on the Latitude E6400 did reveal that the same command
+was being sent by the vendor firmware to the EC, but this does not
+confirm that it has the same meaning as the command from the Wilco code.
+Sending the command using inb/outb calls in a userspace C program while
+running coreboot without this patch did allow subsequent power button
+events to be handled by the host, confirming that the command was indeed
+the same.
+
+Change-Id: I5ded315270c0e1efbbc90cfa9d9d894b872e99a2
+Signed-off-by: Nicholas Chin <nic.c3.14@gmail.com>
+---
+ src/ec/dell/mec5035/mec5035.c | 8 ++++++++
+ src/ec/dell/mec5035/mec5035.h | 7 +++++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/src/ec/dell/mec5035/mec5035.c b/src/ec/dell/mec5035/mec5035.c
+index 85c2ab0140..bdae929a27 100644
+--- a/src/ec/dell/mec5035/mec5035.c
++++ b/src/ec/dell/mec5035/mec5035.c
+@@ -94,6 +94,13 @@ void mec5035_control_radio(enum ec_radio_dev dev, enum ec_radio_state state)
+ 	ec_command(CMD_RADIO_CTRL);
+ }
+ 
++void mec5035_power_button_route(enum ec_power_button_route target)
++{
++	u8 buf = (u8)target;
++	write_mailbox_regs(&buf, 2, 1);
++	ec_command(CMD_POWER_BUTTON_TO_HOST);
++}
++
+ void mec5035_change_wake(u8 source, enum ec_wake_change change)
+ {
+ 	u8 buf[ACPI_WAKEUP_NUM_ARGS] = {change, source, 0, 0x40};
+@@ -121,6 +128,7 @@ static void mec5035_init(struct device *dev)
+ 	/* Unconditionally use this argument for now as this setting
+ 	   is probably the most sensible default out of the 3 choices. */
+ 	mec5035_mouse_touchpad(TP_PS2_MOUSE);
++	mec5035_power_button_route(HOST);
+ 
+ 	pc_keyboard_init(NO_AUX_DEVICE);
+ 
+diff --git a/src/ec/dell/mec5035/mec5035.h b/src/ec/dell/mec5035/mec5035.h
+index 8d4fded28b..51422598c4 100644
+--- a/src/ec/dell/mec5035/mec5035.h
++++ b/src/ec/dell/mec5035/mec5035.h
+@@ -11,6 +11,7 @@
+ enum mec5035_cmd {
+ 	CMD_MOUSE_TP = 0x1a,
+ 	CMD_RADIO_CTRL = 0x2b,
++	CMD_POWER_BUTTON_TO_HOST = 0x3e,
+ 	CMD_ACPI_WAKEUP_CHANGE = 0x4a,
+ 	CMD_SLEEP_ENABLE = 0x64,
+ 	CMD_CPU_OK = 0xc2,
+@@ -36,6 +37,11 @@ enum ec_radio_state {
+ 	RADIO_ON
+ };
+ 
++enum ec_power_button_route {
++	EC = 0,
++	HOST
++};
++
+ #define ACPI_WAKEUP_NUM_ARGS 4
+ enum ec_wake_change {
+ 	WAKE_OFF = 0,
+@@ -55,6 +61,7 @@ u8 mec5035_mouse_touchpad(enum ec_mouse_setting setting);
+ void mec5035_cpu_ok(void);
+ void mec5035_early_init(void);
+ void mec5035_control_radio(enum ec_radio_dev device, enum ec_radio_state state);
++void mec5035_power_button_route(enum ec_power_button_route target);
+ void mec5035_change_wake(u8 source, enum ec_wake_change change);
+ void mec5035_sleep_enable(void);
+ 
+-- 
+2.47.0
+

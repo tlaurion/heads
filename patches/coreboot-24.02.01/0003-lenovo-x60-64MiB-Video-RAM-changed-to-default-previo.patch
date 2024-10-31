@@ -1,0 +1,23 @@
+From 14920409e51a9a0997d488b166d90bfad56f61f1 Mon Sep 17 00:00:00 2001
+From: Leah Rowe <leah@osboot.org>
+Date: Sun, 3 Jan 2021 03:34:01 +0000
+Subject: [PATCH 03/65] lenovo/x60: 64MiB Video RAM changed to default
+ (previously it was 8MiB)
+
+---
+ src/mainboard/lenovo/x60/cmos.default | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mainboard/lenovo/x60/cmos.default b/src/mainboard/lenovo/x60/cmos.default
+index 58825c8a36..8e0aaf427d 100644
+--- a/src/mainboard/lenovo/x60/cmos.default
++++ b/src/mainboard/lenovo/x60/cmos.default
+@@ -17,4 +17,4 @@ trackpoint=Enable
+ sticky_fn=Disable
+ power_management_beeps=Enable
+ low_battery_beep=Enable
+-gfx_uma_size=8M
++gfx_uma_size=64M
+-- 
+2.39.5
+

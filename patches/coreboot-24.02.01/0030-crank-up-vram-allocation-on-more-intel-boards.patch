@@ -1,0 +1,142 @@
+From 253f8eeb895e50b3394b58268594acf9e9596bd2 Mon Sep 17 00:00:00 2001
+From: Leah Rowe <leah@libreboot.org>
+Date: Tue, 31 Oct 2023 18:24:39 +0000
+Subject: [PATCH 30/65] crank up vram allocation on more intel boards
+
+these were added to libreboot, and it's a policy of
+libreboot to max out the vram settings. this was
+overlooked, in prior revisions and releases.
+
+Signed-off-by: Leah Rowe <leah@libreboot.org>
+---
+ src/mainboard/dell/e6400/cmos.default                | 2 +-
+ src/mainboard/dell/snb_ivb_workstations/cmos.default | 2 +-
+ src/mainboard/hp/compaq_8200_elite_sff/cmos.default  | 2 +-
+ src/mainboard/hp/compaq_elite_8300_usdt/cmos.default | 2 +-
+ src/mainboard/hp/snb_ivb_laptops/cmos.default        | 1 +
+ src/mainboard/lenovo/t420/cmos.default               | 1 +
+ src/mainboard/lenovo/t420s/cmos.default              | 1 +
+ src/mainboard/lenovo/t430/cmos.default               | 1 +
+ src/mainboard/lenovo/t520/cmos.default               | 1 +
+ src/mainboard/lenovo/t530/cmos.default               | 1 +
+ src/mainboard/lenovo/x201/cmos.default               | 1 +
+ src/mainboard/lenovo/x220/cmos.default               | 1 +
+ 12 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/mainboard/dell/e6400/cmos.default b/src/mainboard/dell/e6400/cmos.default
+index 744a599708..6b8d478f06 100644
+--- a/src/mainboard/dell/e6400/cmos.default
++++ b/src/mainboard/dell/e6400/cmos.default
+@@ -4,4 +4,4 @@ boot_option=Fallback
+ debug_level=Debug
+ power_on_after_fail=Disable
+ sata_mode=AHCI
+-gfx_uma_size=32M
++gfx_uma_size=256M
+diff --git a/src/mainboard/dell/snb_ivb_workstations/cmos.default b/src/mainboard/dell/snb_ivb_workstations/cmos.default
+index 76c16e6a8d..19364aae6e 100644
+--- a/src/mainboard/dell/snb_ivb_workstations/cmos.default
++++ b/src/mainboard/dell/snb_ivb_workstations/cmos.default
+@@ -5,5 +5,5 @@ debug_level=Debug
+ power_on_after_fail=Disable
+ nmi=Enable
+ sata_mode=AHCI
+-gfx_uma_size=128M
++gfx_uma_size=224M
+ fan_full_speed=Disable
+diff --git a/src/mainboard/hp/compaq_8200_elite_sff/cmos.default b/src/mainboard/hp/compaq_8200_elite_sff/cmos.default
+index 497ae92e1f..64d43a07f7 100644
+--- a/src/mainboard/hp/compaq_8200_elite_sff/cmos.default
++++ b/src/mainboard/hp/compaq_8200_elite_sff/cmos.default
+@@ -5,5 +5,5 @@ debug_level=Debug
+ power_on_after_fail=Enable
+ nmi=Enable
+ sata_mode=AHCI
+-gfx_uma_size=32M
++gfx_uma_size=224M
+ psu_fan_lvl=3
+diff --git a/src/mainboard/hp/compaq_elite_8300_usdt/cmos.default b/src/mainboard/hp/compaq_elite_8300_usdt/cmos.default
+index f3dad88670..b60f28447b 100644
+--- a/src/mainboard/hp/compaq_elite_8300_usdt/cmos.default
++++ b/src/mainboard/hp/compaq_elite_8300_usdt/cmos.default
+@@ -5,4 +5,4 @@ debug_level=Debug
+ power_on_after_fail=Enable
+ nmi=Enable
+ sata_mode=AHCI
+-gfx_uma_size=32M
++gfx_uma_size=224M
+diff --git a/src/mainboard/hp/snb_ivb_laptops/cmos.default b/src/mainboard/hp/snb_ivb_laptops/cmos.default
+index e6042c0c27..a04026b70c 100644
+--- a/src/mainboard/hp/snb_ivb_laptops/cmos.default
++++ b/src/mainboard/hp/snb_ivb_laptops/cmos.default
+@@ -5,3 +5,4 @@ debug_level=Debug
+ power_on_after_fail=Disable
+ nmi=Enable
+ sata_mode=AHCI
++gfx_uma_size=224M
+diff --git a/src/mainboard/lenovo/t420/cmos.default b/src/mainboard/lenovo/t420/cmos.default
+index 27a62d07b3..d1c9fcaaaf 100644
+--- a/src/mainboard/lenovo/t420/cmos.default
++++ b/src/mainboard/lenovo/t420/cmos.default
+@@ -17,3 +17,4 @@ trackpoint=Enable
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+ me_state=Disabled
++gfx_uma_size=224M
+diff --git a/src/mainboard/lenovo/t420s/cmos.default b/src/mainboard/lenovo/t420s/cmos.default
+index 27a62d07b3..d1c9fcaaaf 100644
+--- a/src/mainboard/lenovo/t420s/cmos.default
++++ b/src/mainboard/lenovo/t420s/cmos.default
+@@ -17,3 +17,4 @@ trackpoint=Enable
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+ me_state=Disabled
++gfx_uma_size=224M
+diff --git a/src/mainboard/lenovo/t430/cmos.default b/src/mainboard/lenovo/t430/cmos.default
+index 6d1e172056..c00b358314 100644
+--- a/src/mainboard/lenovo/t430/cmos.default
++++ b/src/mainboard/lenovo/t430/cmos.default
+@@ -18,3 +18,4 @@ backlight=Both
+ usb_always_on=Disable
+ hybrid_graphics_mode=Integrated Only
+ me_state=Disabled
++gfx_uma_size=224M
+diff --git a/src/mainboard/lenovo/t520/cmos.default b/src/mainboard/lenovo/t520/cmos.default
+index ab1be1a678..c7ee9564f3 100644
+--- a/src/mainboard/lenovo/t520/cmos.default
++++ b/src/mainboard/lenovo/t520/cmos.default
+@@ -18,3 +18,4 @@ backlight=Both
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+ me_state=Disabled
++gfx_uma_size=224M
+diff --git a/src/mainboard/lenovo/t530/cmos.default b/src/mainboard/lenovo/t530/cmos.default
+index ab1be1a678..c7ee9564f3 100644
+--- a/src/mainboard/lenovo/t530/cmos.default
++++ b/src/mainboard/lenovo/t530/cmos.default
+@@ -18,3 +18,4 @@ backlight=Both
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+ me_state=Disabled
++gfx_uma_size=224M
+diff --git a/src/mainboard/lenovo/x201/cmos.default b/src/mainboard/lenovo/x201/cmos.default
+index 94f8e08a75..a1f2eacf11 100644
+--- a/src/mainboard/lenovo/x201/cmos.default
++++ b/src/mainboard/lenovo/x201/cmos.default
+@@ -17,3 +17,4 @@ power_management_beeps=Enable
+ low_battery_beep=Enable
+ sata_mode=AHCI
+ usb_always_on=Disable
++gfx_uma_size=128M
+diff --git a/src/mainboard/lenovo/x220/cmos.default b/src/mainboard/lenovo/x220/cmos.default
+index b318ab9772..82292ea5d6 100644
+--- a/src/mainboard/lenovo/x220/cmos.default
++++ b/src/mainboard/lenovo/x220/cmos.default
+@@ -16,3 +16,4 @@ fn_ctrl_swap=Disable
+ sticky_fn=Disable
+ trackpoint=Enable
+ me_state=Disabled
++gfx_uma_size=224M
+-- 
+2.39.5
+

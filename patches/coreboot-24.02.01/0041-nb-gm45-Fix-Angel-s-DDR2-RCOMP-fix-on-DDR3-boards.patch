@@ -1,0 +1,240 @@
+From 3110c4392d40175716f167be5ef8234f2b4cd030 Mon Sep 17 00:00:00 2001
+From: Leah Rowe <info@minifree.org>
+Date: Tue, 6 Aug 2024 00:50:24 +0100
+Subject: [PATCH 41/65] nb/gm45: Fix Angel's DDR2 RCOMP fix on DDR3 boards
+
+We add this patch:
+
+commit commit_id_here
+Author: Angel Pons <th3fanbus@gmail.com>
+Date:   Mon May 10 22:40:59 2021 +0200
+
+    nb/intel/gm45: Make DDR2 raminit work
+
+This patch was original applied, in lbmk, only on coreboot/dell,
+separately from coreboot/default, which was wasteful because it
+meant having an entire coreboot tree just for a single board. We
+did this, because the DDR2 RCOMP fix happened to break DDR3 init
+on other boards.
+
+What *this* new patch does on top of Angel's patch, is make sure
+that their changes only apply to DDR2, while DDR3 behaviour remains
+unchanged. This means that the Dell Latitude E6400 can be supported
+in the main coreboot tree, within lbmk.
+
+Essentially, this patch restores the old behaviour, prior to applying
+Angel's patch, only when DDR3 memory is used.
+
+Signed-off-by: Leah Rowe <info@minifree.org>
+---
+ src/northbridge/intel/gm45/raminit.c          | 161 +++++++++---------
+ .../intel/gm45/raminit_rcomp_calibration.c    |   9 +-
+ 2 files changed, 88 insertions(+), 82 deletions(-)
+
+diff --git a/src/northbridge/intel/gm45/raminit.c b/src/northbridge/intel/gm45/raminit.c
+index df8f46fbbc..433db3a68c 100644
+--- a/src/northbridge/intel/gm45/raminit.c
++++ b/src/northbridge/intel/gm45/raminit.c
+@@ -1117,7 +1117,10 @@ static void dram_program_timings(const int spd_type, const timings_t *const timi
+ 				reg = (reg & ~(0xf << 10)) | (2 << 10);
+ 			else
+ 				reg = (reg & ~(0xf << 10)) | (3 << 10);
+-			reg = (reg & ~(0x7 <<  5)) | (2 << 5);
++			if (spd_type == DDR2)
++				reg = (reg & ~(0x7 <<  5)) | (2 << 5);
++			else
++				reg = (reg & ~(0x7 <<  5)) | (3 << 5);
+ 		} else if (timings->mem_clock != MEM_CLOCK_1067MT) {
+ 			reg = (reg & ~(0x7 << 15)) | ((9 - timings->CAS) << 15);
+ 			reg = (reg & ~(0xf << 10)) | ((timings->CAS - 3) << 10);
+@@ -2209,83 +2212,85 @@ void raminit(sysinfo_t *const sysinfo, const int s3resume)
+ 		raminit_write_training(timings->mem_clock, dimms, s3resume);
+ 	}
+ 
+-	/*
+-	 * Program hardcoded DDR2-800 RCOMP SRAM codes. This must be done
+-	 * after receiver enable calibration, otherwise raminit sometimes
+-	 * completes with non-working memory.
+-	 */
+-	mchbar_write32(0x0530, 0x06060005);
+-	mchbar_write32(0x0680, 0x06060606);
+-	mchbar_write32(0x0684, 0x08070606);
+-	mchbar_write32(0x0688, 0x0e0e0c0a);
+-	mchbar_write32(0x068c, 0x0e0e0e0e);
+-	mchbar_write32(0x0698, 0x06060606);
+-	mchbar_write32(0x069c, 0x08070606);
+-	mchbar_write32(0x06a0, 0x0c0c0b0a);
+-	mchbar_write32(0x06a4, 0x0c0c0c0c);
+-
+-	mchbar_write32(0x06c0, 0x02020202);
+-	mchbar_write32(0x06c4, 0x03020202);
+-	mchbar_write32(0x06c8, 0x04040403);
+-	mchbar_write32(0x06cc, 0x04040404);
+-	mchbar_write32(0x06d8, 0x02020202);
+-	mchbar_write32(0x06dc, 0x03020202);
+-	mchbar_write32(0x06e0, 0x04040403);
+-	mchbar_write32(0x06e4, 0x04040404);
+-
+-	mchbar_write32(0x0700, 0x02020202);
+-	mchbar_write32(0x0704, 0x03020202);
+-	mchbar_write32(0x0708, 0x04040403);
+-	mchbar_write32(0x070c, 0x04040404);
+-	mchbar_write32(0x0718, 0x02020202);
+-	mchbar_write32(0x071c, 0x03020202);
+-	mchbar_write32(0x0720, 0x04040403);
+-	mchbar_write32(0x0724, 0x04040404);
+-
+-	mchbar_write32(0x0740, 0x02020202);
+-	mchbar_write32(0x0744, 0x03020202);
+-	mchbar_write32(0x0748, 0x04040403);
+-	mchbar_write32(0x074c, 0x04040404);
+-	mchbar_write32(0x0758, 0x02020202);
+-	mchbar_write32(0x075c, 0x03020202);
+-	mchbar_write32(0x0760, 0x04040403);
+-	mchbar_write32(0x0764, 0x04040404);
+-
+-	mchbar_write32(0x0780, 0x06060606);
+-	mchbar_write32(0x0784, 0x09070606);
+-	mchbar_write32(0x0788, 0x0e0e0c0b);
+-	mchbar_write32(0x078c, 0x0e0e0e0e);
+-	mchbar_write32(0x0798, 0x06060606);
+-	mchbar_write32(0x079c, 0x09070606);
+-	mchbar_write32(0x07a0, 0x0d0d0c0b);
+-	mchbar_write32(0x07a4, 0x0d0d0d0d);
+-
+-	mchbar_write32(0x07c0, 0x06060606);
+-	mchbar_write32(0x07c4, 0x09070606);
+-	mchbar_write32(0x07c8, 0x0e0e0c0b);
+-	mchbar_write32(0x07cc, 0x0e0e0e0e);
+-	mchbar_write32(0x07d8, 0x06060606);
+-	mchbar_write32(0x07dc, 0x09070606);
+-	mchbar_write32(0x07e0, 0x0d0d0c0b);
+-	mchbar_write32(0x07e4, 0x0d0d0d0d);
+-
+-	mchbar_write32(0x0840, 0x06060606);
+-	mchbar_write32(0x0844, 0x08070606);
+-	mchbar_write32(0x0848, 0x0e0e0c0a);
+-	mchbar_write32(0x084c, 0x0e0e0e0e);
+-	mchbar_write32(0x0858, 0x06060606);
+-	mchbar_write32(0x085c, 0x08070606);
+-	mchbar_write32(0x0860, 0x0c0c0b0a);
+-	mchbar_write32(0x0864, 0x0c0c0c0c);
+-
+-	mchbar_write32(0x0880, 0x02020202);
+-	mchbar_write32(0x0884, 0x03020202);
+-	mchbar_write32(0x0888, 0x04040403);
+-	mchbar_write32(0x088c, 0x04040404);
+-	mchbar_write32(0x0898, 0x02020202);
+-	mchbar_write32(0x089c, 0x03020202);
+-	mchbar_write32(0x08a0, 0x04040403);
+-	mchbar_write32(0x08a4, 0x04040404);
++	if (sysinfo->spd_type == DDR2) {
++		/*
++		 * Program hardcoded DDR2-800 RCOMP SRAM codes. This must be done
++		 * after receiver enable calibration, otherwise raminit sometimes
++		 * completes with non-working memory.
++		 */
++		mchbar_write32(0x0530, 0x06060005);
++		mchbar_write32(0x0680, 0x06060606);
++		mchbar_write32(0x0684, 0x08070606);
++		mchbar_write32(0x0688, 0x0e0e0c0a);
++		mchbar_write32(0x068c, 0x0e0e0e0e);
++		mchbar_write32(0x0698, 0x06060606);
++		mchbar_write32(0x069c, 0x08070606);
++		mchbar_write32(0x06a0, 0x0c0c0b0a);
++		mchbar_write32(0x06a4, 0x0c0c0c0c);
++
++		mchbar_write32(0x06c0, 0x02020202);
++		mchbar_write32(0x06c4, 0x03020202);
++		mchbar_write32(0x06c8, 0x04040403);
++		mchbar_write32(0x06cc, 0x04040404);
++		mchbar_write32(0x06d8, 0x02020202);
++		mchbar_write32(0x06dc, 0x03020202);
++		mchbar_write32(0x06e0, 0x04040403);
++		mchbar_write32(0x06e4, 0x04040404);
++
++		mchbar_write32(0x0700, 0x02020202);
++		mchbar_write32(0x0704, 0x03020202);
++		mchbar_write32(0x0708, 0x04040403);
++		mchbar_write32(0x070c, 0x04040404);
++		mchbar_write32(0x0718, 0x02020202);
++		mchbar_write32(0x071c, 0x03020202);
++		mchbar_write32(0x0720, 0x04040403);
++		mchbar_write32(0x0724, 0x04040404);
++
++		mchbar_write32(0x0740, 0x02020202);
++		mchbar_write32(0x0744, 0x03020202);
++		mchbar_write32(0x0748, 0x04040403);
++		mchbar_write32(0x074c, 0x04040404);
++		mchbar_write32(0x0758, 0x02020202);
++		mchbar_write32(0x075c, 0x03020202);
++		mchbar_write32(0x0760, 0x04040403);
++		mchbar_write32(0x0764, 0x04040404);
++
++		mchbar_write32(0x0780, 0x06060606);
++		mchbar_write32(0x0784, 0x09070606);
++		mchbar_write32(0x0788, 0x0e0e0c0b);
++		mchbar_write32(0x078c, 0x0e0e0e0e);
++		mchbar_write32(0x0798, 0x06060606);
++		mchbar_write32(0x079c, 0x09070606);
++		mchbar_write32(0x07a0, 0x0d0d0c0b);
++		mchbar_write32(0x07a4, 0x0d0d0d0d);
++
++		mchbar_write32(0x07c0, 0x06060606);
++		mchbar_write32(0x07c4, 0x09070606);
++		mchbar_write32(0x07c8, 0x0e0e0c0b);
++		mchbar_write32(0x07cc, 0x0e0e0e0e);
++		mchbar_write32(0x07d8, 0x06060606);
++		mchbar_write32(0x07dc, 0x09070606);
++		mchbar_write32(0x07e0, 0x0d0d0c0b);
++		mchbar_write32(0x07e4, 0x0d0d0d0d);
++
++		mchbar_write32(0x0840, 0x06060606);
++		mchbar_write32(0x0844, 0x08070606);
++		mchbar_write32(0x0848, 0x0e0e0c0a);
++		mchbar_write32(0x084c, 0x0e0e0e0e);
++		mchbar_write32(0x0858, 0x06060606);
++		mchbar_write32(0x085c, 0x08070606);
++		mchbar_write32(0x0860, 0x0c0c0b0a);
++		mchbar_write32(0x0864, 0x0c0c0c0c);
++
++		mchbar_write32(0x0880, 0x02020202);
++		mchbar_write32(0x0884, 0x03020202);
++		mchbar_write32(0x0888, 0x04040403);
++		mchbar_write32(0x088c, 0x04040404);
++		mchbar_write32(0x0898, 0x02020202);
++		mchbar_write32(0x089c, 0x03020202);
++		mchbar_write32(0x08a0, 0x04040403);
++		mchbar_write32(0x08a4, 0x04040404);
++	}
+ 
+ 	igd_compute_ggc(sysinfo);
+ 
+diff --git a/src/northbridge/intel/gm45/raminit_rcomp_calibration.c b/src/northbridge/intel/gm45/raminit_rcomp_calibration.c
+index b74765fd9c..5d4505e063 100644
+--- a/src/northbridge/intel/gm45/raminit_rcomp_calibration.c
++++ b/src/northbridge/intel/gm45/raminit_rcomp_calibration.c
+@@ -198,7 +198,7 @@ void raminit_rcomp_calibration(int ddr_type, const stepping_t stepping) {
+ 		reg = mchbar_read32(0x518);
+ 		lut_idx[channel][group][PULL_UP] = (reg >> 24) & 0x7f;
+ 		lut_idx[channel][group][PULL_DOWN] = (reg >> 16) & 0x7f;
+-		if (i == 1) {
++		if ((i == 1) && (ddr_type == DDR2)) {
+ 			magic_comp[0] = (reg >> 8) & 0x3f;
+ 			magic_comp[1] = (reg >> 0) & 0x3f;
+ 		}
+@@ -242,7 +242,8 @@ void raminit_rcomp_calibration(int ddr_type, const stepping_t stepping) {
+ 		}
+ 		mchbar += 0x0040;
+ 	}
+-
+-	mchbar_clrsetbits32(0x4d0, 0x3f << 26, magic_comp[0] << 26);
+-	mchbar_clrsetbits32(0x4d0, 0x3f << 20, magic_comp[1] << 20);
++	if (ddr_type == DDR2) {
++		mchbar_clrsetbits32(0x4d0, 0x3f << 26, magic_comp[0] << 26);
++		mchbar_clrsetbits32(0x4d0, 0x3f << 20, magic_comp[1] << 20);
++	}
+ }
+-- 
+2.39.5
+

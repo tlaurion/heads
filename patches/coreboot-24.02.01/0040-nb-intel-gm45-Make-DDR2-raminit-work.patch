@@ -1,0 +1,223 @@
+From c41e97f85f2a2677c742d62e3080af7cfeb2ef23 Mon Sep 17 00:00:00 2001
+From: Angel Pons <th3fanbus@gmail.com>
+Date: Mon, 10 May 2021 22:40:59 +0200
+Subject: [PATCH 40/65] nb/intel/gm45: Make DDR2 raminit work
+
+List of changes:
+ - Update some timing and ODT values
+ - Patch RCOMP calibration to better match what MRC binaries do
+ - Replay a hardcoded list of RCOMP codes after RcvEn
+
+This makes raminit work at DDR2-800 speeds and fixes S3 resume as well.
+Tested on Toshiba Satellite A300-1ME with two 2 GiB DDR2-800 SO-DIMMs.
+
+Change-Id: Ibaee524b8ff652ddadd66cb0eb680401b988ff7c
+Signed-off-by: Angel Pons <th3fanbus@gmail.com>
+---
+ src/northbridge/intel/gm45/gm45.h             |  2 +-
+ src/northbridge/intel/gm45/raminit.c          | 90 +++++++++++++++++--
+ .../intel/gm45/raminit_rcomp_calibration.c    | 27 ++++--
+ 3 files changed, 106 insertions(+), 13 deletions(-)
+
+diff --git a/src/northbridge/intel/gm45/gm45.h b/src/northbridge/intel/gm45/gm45.h
+index 5d9ac56606..338260ea7a 100644
+--- a/src/northbridge/intel/gm45/gm45.h
++++ b/src/northbridge/intel/gm45/gm45.h
+@@ -420,7 +420,7 @@ void igd_compute_ggc(sysinfo_t *const sysinfo);
+ int raminit_read_vco_index(void);
+ u32 raminit_get_rank_addr(unsigned int channel, unsigned int rank);
+ 
+-void raminit_rcomp_calibration(stepping_t stepping);
++void raminit_rcomp_calibration(int ddr_type, stepping_t stepping);
+ void raminit_reset_readwrite_pointers(void);
+ void raminit_receive_enable_calibration(int ddr_type, const timings_t *, const dimminfo_t *);
+ void raminit_write_training(const mem_clock_t, const dimminfo_t *, int s3resume);
+diff --git a/src/northbridge/intel/gm45/raminit.c b/src/northbridge/intel/gm45/raminit.c
+index b7e013959a..df8f46fbbc 100644
+--- a/src/northbridge/intel/gm45/raminit.c
++++ b/src/northbridge/intel/gm45/raminit.c
+@@ -1047,7 +1047,7 @@ static void rcomp_initialization(const int spd_type, const stepping_t stepping,
+ 	}
+ 
+ 	/* Perform RCOMP calibration for DDR3. */
+-	raminit_rcomp_calibration(stepping);
++	raminit_rcomp_calibration(spd_type, stepping);
+ 
+ 	/* Run initial RCOMP. */
+ 	mchbar_setbits32(0x418, 1 << 17);
+@@ -1117,7 +1117,7 @@ static void dram_program_timings(const int spd_type, const timings_t *const timi
+ 				reg = (reg & ~(0xf << 10)) | (2 << 10);
+ 			else
+ 				reg = (reg & ~(0xf << 10)) | (3 << 10);
+-			reg = (reg & ~(0x7 <<  5)) | (3 << 5);
++			reg = (reg & ~(0x7 <<  5)) | (2 << 5);
+ 		} else if (timings->mem_clock != MEM_CLOCK_1067MT) {
+ 			reg = (reg & ~(0x7 << 15)) | ((9 - timings->CAS) << 15);
+ 			reg = (reg & ~(0xf << 10)) | ((timings->CAS - 3) << 10);
+@@ -1286,11 +1286,11 @@ static void ddr2_odt_setup(const timings_t *const timings, const int sff)
+ 		reg = (reg & ~(0xf << (44 - 32))) | (8 << (44 - 32));
+ 		reg = (reg & ~(0xf << (40 - 32))) | (7 << (40 - 32));
+ 		if (timings->mem_clock == MEM_CLOCK_667MT) {
+-			reg = (reg & ~(0xf << (36 - 32))) | (4 << (36 - 32));
+-			reg = (reg & ~(0xf << (32 - 32))) | (4 << (32 - 32));
++			reg = (reg & ~(0xf << (36 - 32))) | (8 << (36 - 32));
++			reg = (reg & ~(0xf << (32 - 32))) | (8 << (32 - 32));
+ 		} else {
+-			reg = (reg & ~(0xf << (36 - 32))) | (5 << (36 - 32));
+-			reg = (reg & ~(0xf << (32 - 32))) | (5 << (32 - 32));
++			reg = (reg & ~(0xf << (36 - 32))) | (9 << (36 - 32));
++			reg = (reg & ~(0xf << (32 - 32))) | (9 << (32 - 32));
+ 		}
+ 		mchbar_write32(CxODT_HIGH(ch), reg);
+ 
+@@ -2209,6 +2209,84 @@ void raminit(sysinfo_t *const sysinfo, const int s3resume)
+ 		raminit_write_training(timings->mem_clock, dimms, s3resume);
+ 	}
+ 
++	/*
++	 * Program hardcoded DDR2-800 RCOMP SRAM codes. This must be done
++	 * after receiver enable calibration, otherwise raminit sometimes
++	 * completes with non-working memory.
++	 */
++	mchbar_write32(0x0530, 0x06060005);
++	mchbar_write32(0x0680, 0x06060606);
++	mchbar_write32(0x0684, 0x08070606);
++	mchbar_write32(0x0688, 0x0e0e0c0a);
++	mchbar_write32(0x068c, 0x0e0e0e0e);
++	mchbar_write32(0x0698, 0x06060606);
++	mchbar_write32(0x069c, 0x08070606);
++	mchbar_write32(0x06a0, 0x0c0c0b0a);
++	mchbar_write32(0x06a4, 0x0c0c0c0c);
++
++	mchbar_write32(0x06c0, 0x02020202);
++	mchbar_write32(0x06c4, 0x03020202);
++	mchbar_write32(0x06c8, 0x04040403);
++	mchbar_write32(0x06cc, 0x04040404);
++	mchbar_write32(0x06d8, 0x02020202);
++	mchbar_write32(0x06dc, 0x03020202);
++	mchbar_write32(0x06e0, 0x04040403);
++	mchbar_write32(0x06e4, 0x04040404);
++
++	mchbar_write32(0x0700, 0x02020202);
++	mchbar_write32(0x0704, 0x03020202);
++	mchbar_write32(0x0708, 0x04040403);
++	mchbar_write32(0x070c, 0x04040404);
++	mchbar_write32(0x0718, 0x02020202);
++	mchbar_write32(0x071c, 0x03020202);
++	mchbar_write32(0x0720, 0x04040403);
++	mchbar_write32(0x0724, 0x04040404);
++
++	mchbar_write32(0x0740, 0x02020202);
++	mchbar_write32(0x0744, 0x03020202);
++	mchbar_write32(0x0748, 0x04040403);
++	mchbar_write32(0x074c, 0x04040404);
++	mchbar_write32(0x0758, 0x02020202);
++	mchbar_write32(0x075c, 0x03020202);
++	mchbar_write32(0x0760, 0x04040403);
++	mchbar_write32(0x0764, 0x04040404);
++
++	mchbar_write32(0x0780, 0x06060606);
++	mchbar_write32(0x0784, 0x09070606);
++	mchbar_write32(0x0788, 0x0e0e0c0b);
++	mchbar_write32(0x078c, 0x0e0e0e0e);
++	mchbar_write32(0x0798, 0x06060606);
++	mchbar_write32(0x079c, 0x09070606);
++	mchbar_write32(0x07a0, 0x0d0d0c0b);
++	mchbar_write32(0x07a4, 0x0d0d0d0d);
++
++	mchbar_write32(0x07c0, 0x06060606);
++	mchbar_write32(0x07c4, 0x09070606);
++	mchbar_write32(0x07c8, 0x0e0e0c0b);
++	mchbar_write32(0x07cc, 0x0e0e0e0e);
++	mchbar_write32(0x07d8, 0x06060606);
++	mchbar_write32(0x07dc, 0x09070606);
++	mchbar_write32(0x07e0, 0x0d0d0c0b);
++	mchbar_write32(0x07e4, 0x0d0d0d0d);
++
++	mchbar_write32(0x0840, 0x06060606);
++	mchbar_write32(0x0844, 0x08070606);
++	mchbar_write32(0x0848, 0x0e0e0c0a);
++	mchbar_write32(0x084c, 0x0e0e0e0e);
++	mchbar_write32(0x0858, 0x06060606);
++	mchbar_write32(0x085c, 0x08070606);
++	mchbar_write32(0x0860, 0x0c0c0b0a);
++	mchbar_write32(0x0864, 0x0c0c0c0c);
++
++	mchbar_write32(0x0880, 0x02020202);
++	mchbar_write32(0x0884, 0x03020202);
++	mchbar_write32(0x0888, 0x04040403);
++	mchbar_write32(0x088c, 0x04040404);
++	mchbar_write32(0x0898, 0x02020202);
++	mchbar_write32(0x089c, 0x03020202);
++	mchbar_write32(0x08a0, 0x04040403);
++	mchbar_write32(0x08a4, 0x04040404);
++
+ 	igd_compute_ggc(sysinfo);
+ 
+ 	/* Program final memory map (with real values). */
+diff --git a/src/northbridge/intel/gm45/raminit_rcomp_calibration.c b/src/northbridge/intel/gm45/raminit_rcomp_calibration.c
+index aef863f05a..b74765fd9c 100644
+--- a/src/northbridge/intel/gm45/raminit_rcomp_calibration.c
++++ b/src/northbridge/intel/gm45/raminit_rcomp_calibration.c
+@@ -161,11 +161,13 @@ static void lookup_and_write(const int a1step,
+ 		mchbar += 4;
+ 	}
+ }
+-void raminit_rcomp_calibration(const stepping_t stepping) {
++void raminit_rcomp_calibration(int ddr_type, const stepping_t stepping) {
+ 	const int a1step = stepping >= STEPPING_CONVERSION_A1;
+ 
+ 	int i;
+ 
++	char magic_comp[2] = {0};
++
+ 	enum {
+ 		PULL_UP = 0,
+ 		PULL_DOWN = 1,
+@@ -196,6 +198,10 @@ void raminit_rcomp_calibration(const stepping_t stepping) {
+ 		reg = mchbar_read32(0x518);
+ 		lut_idx[channel][group][PULL_UP] = (reg >> 24) & 0x7f;
+ 		lut_idx[channel][group][PULL_DOWN] = (reg >> 16) & 0x7f;
++		if (i == 1) {
++			magic_comp[0] = (reg >> 8) & 0x3f;
++			magic_comp[1] = (reg >> 0) & 0x3f;
++		}
+ 	}
+ 	/* Cleanup? */
+ 	mchbar_setbits32(0x400, 1 << 3);
+@@ -216,13 +222,19 @@ void raminit_rcomp_calibration(const stepping_t stepping) {
+ 	for (channel = 0; channel < 2; ++channel) {
+ 		for (group = 0; group < 6; ++group) {
+ 			for (pu_pd = PULL_DOWN; pu_pd >= PULL_UP; --pu_pd) {
+-				lookup_and_write(
+-					a1step,
+-					lut_idx[channel][group][pu_pd] - 7,
+-					ddr3_lookup_schedule[group][pu_pd],
+-					mchbar);
++				if (ddr_type == DDR3) {
++					lookup_and_write(
++						a1step,
++						lut_idx[channel][group][pu_pd] - 7,
++						ddr3_lookup_schedule[group][pu_pd],
++						mchbar);
++				}
+ 				mchbar += 0x0018;
+ 			}
++			if (ddr_type == DDR2) {
++				mchbar_clrsetbits32(mchbar + 0, 0x7f << 24, lut_idx[channel][group][PULL_DOWN] << 24);
++				mchbar_clrsetbits32(mchbar + 4, 0x7f <<  0, lut_idx[channel][group][PULL_UP]   <<  0);
++			}
+ 			mchbar += 0x0010;
+ 			/* Channel B knows only the first two groups. */
+ 			if ((1 == channel) && (1 == group))
+@@ -230,4 +242,7 @@ void raminit_rcomp_calibration(const stepping_t stepping) {
+ 		}
+ 		mchbar += 0x0040;
+ 	}
++
++	mchbar_clrsetbits32(0x4d0, 0x3f << 26, magic_comp[0] << 26);
++	mchbar_clrsetbits32(0x4d0, 0x3f << 20, magic_comp[1] << 20);
+ }
+-- 
+2.39.5
+

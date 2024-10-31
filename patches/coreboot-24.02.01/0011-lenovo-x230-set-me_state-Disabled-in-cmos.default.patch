@@ -1,0 +1,38 @@
+From 47483865af46a3d1f8732d1bd97f4a7155cc24d6 Mon Sep 17 00:00:00 2001
+From: Leah Rowe <leah@libreboot.org>
+Date: Mon, 3 Jan 2022 19:06:22 +0000
+Subject: [PATCH 11/65] lenovo/x230: set me_state=Disabled in cmos.default
+
+I only recently found out about this. It's possible to use me_cleaner to
+do the same thing, but some people might just flash coreboot and not do
+anything with the ME region
+
+With this change, the ME is set to disabled. It's my understanding that this
+will accomplish more or less the same thing as me_cleaner, without actually
+using that. Of course, I still recommend using me_cleaner
+
+I saw this when I audited coreboot's git history, and saw this:
+
+commit 833e9bad4762e0dca6c867d3a18dbaf6d5166be8
+Author: Evgeny Zinoviev <me@ch1p.io>
+Date:   Thu Nov 21 21:47:31 2019 +0300
+
+    sb/intel/bd82x6x: Support ME Soft Temporary Disable Mode
+---
+ src/mainboard/lenovo/x230/cmos.default | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mainboard/lenovo/x230/cmos.default b/src/mainboard/lenovo/x230/cmos.default
+index 3bb78960b9..ae47202aac 100644
+--- a/src/mainboard/lenovo/x230/cmos.default
++++ b/src/mainboard/lenovo/x230/cmos.default
+@@ -17,5 +17,5 @@ trackpoint=Enable
+ backlight=Both
+ usb_always_on=Disable
+ f1_to_f12_as_primary=Enable
+-me_state=Normal
++me_state=Disabled
+ gfx_uma_size=224M
+-- 
+2.39.5
+

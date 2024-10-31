@@ -1,0 +1,68 @@
+From 2533ed49003c470a8dbfbf17f6c6a5ef0672c2e2 Mon Sep 17 00:00:00 2001
+From: Vitali64 <5405891-vitali64yt@users.noreply.gitlab.com>
+Date: Wed, 27 Oct 2021 13:36:01 +0200
+Subject: [PATCH 02/65] add c3 and clockgen to apple/macbook21
+
+---
+ src/mainboard/apple/macbook21/Kconfig       |  1 +
+ src/mainboard/apple/macbook21/cstates.c     | 13 +++++++++++++
+ src/mainboard/apple/macbook21/devicetree.cb |  6 ++++++
+ 3 files changed, 20 insertions(+)
+
+diff --git a/src/mainboard/apple/macbook21/Kconfig b/src/mainboard/apple/macbook21/Kconfig
+index 330d8efae2..cf10343554 100644
+--- a/src/mainboard/apple/macbook21/Kconfig
++++ b/src/mainboard/apple/macbook21/Kconfig
+@@ -18,6 +18,7 @@ config BOARD_SPECIFIC_OPTIONS
+ 	select HAVE_ACPI_TABLES
+ 	select HAVE_ACPI_RESUME
+ 	select I945_LVDS
++	select DRIVERS_I2C_CK505
+ 
+ config MAINBOARD_DIR
+ 	default "apple/macbook21"
+diff --git a/src/mainboard/apple/macbook21/cstates.c b/src/mainboard/apple/macbook21/cstates.c
+index 13d06f0839..88b8669c61 100644
+--- a/src/mainboard/apple/macbook21/cstates.c
++++ b/src/mainboard/apple/macbook21/cstates.c
+@@ -29,6 +29,19 @@ static const acpi_cstate_t cst_entries[] = {
+ 			.addrh = 0,
+ 		}
+ 	},
++	{
++		.ctype = 3,
++		.latency = 17,
++		.power = 250,
++		.resource = {
++			.space_id = ACPI_ADDRESS_SPACE_FIXED,
++			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
++			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
++			.access_size = ACPI_ACCESS_SIZE_UNDEFINED,
++			.addrl = 0x20,
++			.addrh = 0,
++		}
++	},
+ };
+ 
+ int get_cst_entries(const acpi_cstate_t **entries)
+diff --git a/src/mainboard/apple/macbook21/devicetree.cb b/src/mainboard/apple/macbook21/devicetree.cb
+index fd86e939b9..263fbabcd1 100644
+--- a/src/mainboard/apple/macbook21/devicetree.cb
++++ b/src/mainboard/apple/macbook21/devicetree.cb
+@@ -100,7 +100,13 @@ chip northbridge/intel/i945
+ 			end
+ 			device pci 1f.3 on # SMBUS
+ 				subsystemid 0x8086 0x7270
++				chip drivers/i2c/ck505
++					register "mask" = "{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }"
++					register "regs" = "{ 0x77, 0x77, 0x2d, 0x00, 0x21, 0x10, 0x3b, 0x06, 0x07, 0x0f, 0xf0, 0x01, 0x1e, 0x7f, 0x80, 0x80, 0x10, 0x08, 0x04, 0x01 }"
++					device i2c 69 on end
++				end
+ 			end
++
+ 		end
+ 	end
+ end
+-- 
+2.39.5
+

@@ -1,0 +1,243 @@
+From 0caa5d97b67b2acf571e4fab2b7f85ef3d3a7260 Mon Sep 17 00:00:00 2001
+From: Nicholas Chin <nic.c3.14@gmail.com>
+Date: Thu, 26 Sep 2024 19:48:26 -0600
+Subject: [PATCH 62/65] mb/dell: Convert E6400 into a variant
+
+All the GM45 Dell Latitudes should be nearly identical, so convert the
+E6400 port into a variant so that future ports for the other systems can
+share code with each other.
+
+Change-Id: I8094fce56eaaadb20aef173644cd3b2c0b008e95
+Signed-off-by: Nicholas Chin <nic.c3.14@gmail.com>
+---
+ src/mainboard/dell/e6400/Makefile.mk          |  10 --------
+ .../dell/{e6400 => gm45_latitude}/Kconfig     |  22 +++++++++++++-----
+ .../{e6400 => gm45_latitude}/Kconfig.name     |   0
+ src/mainboard/dell/gm45_latitude/Makefile.mk  |  11 +++++++++
+ .../dell/{e6400 => gm45_latitude}/acpi/ec.asl |   0
+ .../acpi/ich9_pci_irqs.asl                    |   0
+ .../{e6400 => gm45_latitude}/acpi/superio.asl |   0
+ .../dell/{e6400 => gm45_latitude}/blc.c       |   0
+ .../{e6400 => gm45_latitude}/board_info.txt   |   0
+ .../dell/{e6400 => gm45_latitude}/bootblock.c |   0
+ .../{e6400 => gm45_latitude}/cmos.default     |   0
+ .../dell/{e6400 => gm45_latitude}/cmos.layout |   0
+ .../dell/{e6400 => gm45_latitude}/cstates.c   |   0
+ .../{e6400 => gm45_latitude}/devicetree.cb    |   1 -
+ .../dell/{e6400 => gm45_latitude}/dsdt.asl    |   0
+ .../dell/{e6400 => gm45_latitude}/mainboard.c |   0
+ .../dell/{e6400 => gm45_latitude}/romstage.c  |   0
+ .../variants}/e6400/data.vbt                  | Bin
+ .../variants}/e6400/gma-mainboard.ads         |   0
+ .../{ => gm45_latitude/variants}/e6400/gpio.c |   0
+ .../variants}/e6400/hda_verb.c                |   0
+ .../variants/e6400/overridetree.cb            |   7 ++++++
+ 22 files changed, 34 insertions(+), 17 deletions(-)
+ delete mode 100644 src/mainboard/dell/e6400/Makefile.mk
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/Kconfig (64%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/Kconfig.name (100%)
+ create mode 100644 src/mainboard/dell/gm45_latitude/Makefile.mk
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/acpi/ec.asl (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/acpi/ich9_pci_irqs.asl (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/acpi/superio.asl (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/blc.c (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/board_info.txt (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/bootblock.c (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/cmos.default (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/cmos.layout (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/cstates.c (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/devicetree.cb (98%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/dsdt.asl (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/mainboard.c (100%)
+ rename src/mainboard/dell/{e6400 => gm45_latitude}/romstage.c (100%)
+ rename src/mainboard/dell/{ => gm45_latitude/variants}/e6400/data.vbt (100%)
+ rename src/mainboard/dell/{ => gm45_latitude/variants}/e6400/gma-mainboard.ads (100%)
+ rename src/mainboard/dell/{ => gm45_latitude/variants}/e6400/gpio.c (100%)
+ rename src/mainboard/dell/{ => gm45_latitude/variants}/e6400/hda_verb.c (100%)
+ create mode 100644 src/mainboard/dell/gm45_latitude/variants/e6400/overridetree.cb
+
+diff --git a/src/mainboard/dell/e6400/Makefile.mk b/src/mainboard/dell/e6400/Makefile.mk
+deleted file mode 100644
+index ca3a82db48..0000000000
+--- a/src/mainboard/dell/e6400/Makefile.mk
++++ /dev/null
+@@ -1,10 +0,0 @@
+-## SPDX-License-Identifier: GPL-2.0-only
+-
+-bootblock-y += bootblock.c
+-
+-romstage-y += gpio.c
+-
+-ramstage-y += cstates.c
+-ramstage-y += blc.c
+-
+-ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += gma-mainboard.ads
+diff --git a/src/mainboard/dell/e6400/Kconfig b/src/mainboard/dell/gm45_latitude/Kconfig
+similarity index 64%
+rename from src/mainboard/dell/e6400/Kconfig
+rename to src/mainboard/dell/gm45_latitude/Kconfig
+index 6fe1b1c456..ba76fb6e8c 100644
+--- a/src/mainboard/dell/e6400/Kconfig
++++ b/src/mainboard/dell/gm45_latitude/Kconfig
+@@ -1,9 +1,7 @@
+ ## SPDX-License-Identifier: GPL-2.0-only
+ 
+-if BOARD_DELL_E6400
+-
+-config BOARD_SPECIFIC_OPTIONS
+-	def_bool y
++config BOARD_DELL_GM45_LATITUDE_COMMON
++	def_bool n
+ 	select SYSTEM_TYPE_LAPTOP
+ 	select CPU_INTEL_SOCKET_P
+ 	select NORTHBRIDGE_INTEL_GM45
+@@ -19,19 +17,31 @@ config BOARD_SPECIFIC_OPTIONS
+ 	select INTEL_GMA_HAVE_VBT
+ 	select EC_DELL_MEC5035
+ 
++
++config BOARD_DELL_E6400
++	select BOARD_DELL_GM45_LATITUDE_COMMON
++
++if BOARD_DELL_GM45_LATITUDE_COMMON
++
+ config INTEL_GMA_DPLL_REF_FREQ
+ 	default 100000000
+ 
+ config MAINBOARD_DIR
+-	default "dell/e6400"
++	default "dell/gm45_latitude"
+ 
+ config MAINBOARD_PART_NUMBER
+ 	default "Latitude E6400" if BOARD_DELL_E6400
+ 
++config OVERRIDE_DEVICETREE
++	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
++
++config VARIANT_DIR
++	default "e6400" if BOARD_DELL_E6400
++
+ config USBDEBUG_HCD_INDEX
+ 	default 1
+ 
+ config CBFS_SIZE
+ 	default 0x1A0000
+ 
+-endif # BOARD_DELL_E6400
++endif # BOARD_DELL_GM45_LATITUDE_COMMON
+diff --git a/src/mainboard/dell/e6400/Kconfig.name b/src/mainboard/dell/gm45_latitude/Kconfig.name
+similarity index 100%
+rename from src/mainboard/dell/e6400/Kconfig.name
+rename to src/mainboard/dell/gm45_latitude/Kconfig.name
+diff --git a/src/mainboard/dell/gm45_latitude/Makefile.mk b/src/mainboard/dell/gm45_latitude/Makefile.mk
+new file mode 100644
+index 0000000000..5295d5be22
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/Makefile.mk
+@@ -0,0 +1,11 @@
++## SPDX-License-Identifier: GPL-2.0-only
++
++bootblock-y += bootblock.c
++
++romstage-y += variants/$(VARIANT_DIR)/gpio.c
++
++ramstage-y += cstates.c
++ramstage-y += blc.c
++ramstage-y += variants/$(VARIANT_DIR)/hda_verb.c
++
++ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += variants/$(VARIANT_DIR)/gma-mainboard.ads
+diff --git a/src/mainboard/dell/e6400/acpi/ec.asl b/src/mainboard/dell/gm45_latitude/acpi/ec.asl
+similarity index 100%
+rename from src/mainboard/dell/e6400/acpi/ec.asl
+rename to src/mainboard/dell/gm45_latitude/acpi/ec.asl
+diff --git a/src/mainboard/dell/e6400/acpi/ich9_pci_irqs.asl b/src/mainboard/dell/gm45_latitude/acpi/ich9_pci_irqs.asl
+similarity index 100%
+rename from src/mainboard/dell/e6400/acpi/ich9_pci_irqs.asl
+rename to src/mainboard/dell/gm45_latitude/acpi/ich9_pci_irqs.asl
+diff --git a/src/mainboard/dell/e6400/acpi/superio.asl b/src/mainboard/dell/gm45_latitude/acpi/superio.asl
+similarity index 100%
+rename from src/mainboard/dell/e6400/acpi/superio.asl
+rename to src/mainboard/dell/gm45_latitude/acpi/superio.asl
+diff --git a/src/mainboard/dell/e6400/blc.c b/src/mainboard/dell/gm45_latitude/blc.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/blc.c
+rename to src/mainboard/dell/gm45_latitude/blc.c
+diff --git a/src/mainboard/dell/e6400/board_info.txt b/src/mainboard/dell/gm45_latitude/board_info.txt
+similarity index 100%
+rename from src/mainboard/dell/e6400/board_info.txt
+rename to src/mainboard/dell/gm45_latitude/board_info.txt
+diff --git a/src/mainboard/dell/e6400/bootblock.c b/src/mainboard/dell/gm45_latitude/bootblock.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/bootblock.c
+rename to src/mainboard/dell/gm45_latitude/bootblock.c
+diff --git a/src/mainboard/dell/e6400/cmos.default b/src/mainboard/dell/gm45_latitude/cmos.default
+similarity index 100%
+rename from src/mainboard/dell/e6400/cmos.default
+rename to src/mainboard/dell/gm45_latitude/cmos.default
+diff --git a/src/mainboard/dell/e6400/cmos.layout b/src/mainboard/dell/gm45_latitude/cmos.layout
+similarity index 100%
+rename from src/mainboard/dell/e6400/cmos.layout
+rename to src/mainboard/dell/gm45_latitude/cmos.layout
+diff --git a/src/mainboard/dell/e6400/cstates.c b/src/mainboard/dell/gm45_latitude/cstates.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/cstates.c
+rename to src/mainboard/dell/gm45_latitude/cstates.c
+diff --git a/src/mainboard/dell/e6400/devicetree.cb b/src/mainboard/dell/gm45_latitude/devicetree.cb
+similarity index 98%
+rename from src/mainboard/dell/e6400/devicetree.cb
+rename to src/mainboard/dell/gm45_latitude/devicetree.cb
+index e9f3915d17..76dae87153 100644
+--- a/src/mainboard/dell/e6400/devicetree.cb
++++ b/src/mainboard/dell/gm45_latitude/devicetree.cb
+@@ -15,7 +15,6 @@ chip northbridge/intel/gm45
+ 	register "pci_mmio_size" = "2048"
+ 
+ 	device domain 0 on
+-		subsystemid 0x1028 0x0233 inherit
+ 		ops gm45_pci_domain_ops
+ 
+ 		device pci 00.0 on end # host bridge
+diff --git a/src/mainboard/dell/e6400/dsdt.asl b/src/mainboard/dell/gm45_latitude/dsdt.asl
+similarity index 100%
+rename from src/mainboard/dell/e6400/dsdt.asl
+rename to src/mainboard/dell/gm45_latitude/dsdt.asl
+diff --git a/src/mainboard/dell/e6400/mainboard.c b/src/mainboard/dell/gm45_latitude/mainboard.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/mainboard.c
+rename to src/mainboard/dell/gm45_latitude/mainboard.c
+diff --git a/src/mainboard/dell/e6400/romstage.c b/src/mainboard/dell/gm45_latitude/romstage.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/romstage.c
+rename to src/mainboard/dell/gm45_latitude/romstage.c
+diff --git a/src/mainboard/dell/e6400/data.vbt b/src/mainboard/dell/gm45_latitude/variants/e6400/data.vbt
+similarity index 100%
+rename from src/mainboard/dell/e6400/data.vbt
+rename to src/mainboard/dell/gm45_latitude/variants/e6400/data.vbt
+diff --git a/src/mainboard/dell/e6400/gma-mainboard.ads b/src/mainboard/dell/gm45_latitude/variants/e6400/gma-mainboard.ads
+similarity index 100%
+rename from src/mainboard/dell/e6400/gma-mainboard.ads
+rename to src/mainboard/dell/gm45_latitude/variants/e6400/gma-mainboard.ads
+diff --git a/src/mainboard/dell/e6400/gpio.c b/src/mainboard/dell/gm45_latitude/variants/e6400/gpio.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/gpio.c
+rename to src/mainboard/dell/gm45_latitude/variants/e6400/gpio.c
+diff --git a/src/mainboard/dell/e6400/hda_verb.c b/src/mainboard/dell/gm45_latitude/variants/e6400/hda_verb.c
+similarity index 100%
+rename from src/mainboard/dell/e6400/hda_verb.c
+rename to src/mainboard/dell/gm45_latitude/variants/e6400/hda_verb.c
+diff --git a/src/mainboard/dell/gm45_latitude/variants/e6400/overridetree.cb b/src/mainboard/dell/gm45_latitude/variants/e6400/overridetree.cb
+new file mode 100644
+index 0000000000..acc34a2252
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/variants/e6400/overridetree.cb
+@@ -0,0 +1,7 @@
++## SPDX-License-Identifier: GPL-2.0-or-later
++
++chip northbridge/intel/gm45
++	device domain 0 on
++		subsystemid 0x1028 0x0233 inherit
++	end
++end
+-- 
+2.39.5
+

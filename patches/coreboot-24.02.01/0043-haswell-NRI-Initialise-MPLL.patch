@@ -1,0 +1,348 @@
+From ab36967cce0593dd17f3018ab4a6661e4219d242 Mon Sep 17 00:00:00 2001
+From: Angel Pons <th3fanbus@gmail.com>
+Date: Thu, 11 Apr 2024 17:25:07 +0200
+Subject: [PATCH 43/65] haswell NRI: Initialise MPLL
+
+Add code to initialise the MPLL (Memory PLL). The procedure is similar
+to the one for Sandy/Ivy Bridge, but it is not worth factoring out.
+
+Change-Id: I978c352de68f6d8cecc76f4ae3c12daaf4be9ed6
+Signed-off-by: Angel Pons <th3fanbus@gmail.com>
+---
+ .../intel/haswell/native_raminit/Makefile.mk  |   2 +
+ .../intel/haswell/native_raminit/init_mpll.c  | 210 ++++++++++++++++++
+ .../haswell/native_raminit/io_comp_control.c  |  22 ++
+ .../haswell/native_raminit/raminit_main.c     |   3 +-
+ .../haswell/native_raminit/raminit_native.h   |  11 +
+ .../intel/haswell/registers/mchbar.h          |   3 +
+ 6 files changed, 250 insertions(+), 1 deletion(-)
+ create mode 100644 src/northbridge/intel/haswell/native_raminit/init_mpll.c
+ create mode 100644 src/northbridge/intel/haswell/native_raminit/io_comp_control.c
+
+diff --git a/src/northbridge/intel/haswell/native_raminit/Makefile.mk b/src/northbridge/intel/haswell/native_raminit/Makefile.mk
+index ebf7abc6ec..c125d84f0b 100644
+--- a/src/northbridge/intel/haswell/native_raminit/Makefile.mk
++++ b/src/northbridge/intel/haswell/native_raminit/Makefile.mk
+@@ -1,5 +1,7 @@
+ ## SPDX-License-Identifier: GPL-2.0-or-later
+ 
++romstage-y += init_mpll.c
++romstage-y += io_comp_control.c
+ romstage-y += raminit_main.c
+ romstage-y += raminit_native.c
+ romstage-y += spd_bitmunching.c
+diff --git a/src/northbridge/intel/haswell/native_raminit/init_mpll.c b/src/northbridge/intel/haswell/native_raminit/init_mpll.c
+new file mode 100644
+index 0000000000..1f3f2c29a9
+--- /dev/null
++++ b/src/northbridge/intel/haswell/native_raminit/init_mpll.c
+@@ -0,0 +1,210 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++#include <commonlib/bsd/clamp.h>
++#include <console/console.h>
++#include <delay.h>
++#include <device/pci_ops.h>
++#include <northbridge/intel/haswell/haswell.h>
++#include <types.h>
++
++#include "raminit_native.h"
++
++static uint32_t get_mem_multiplier(const struct sysinfo *ctrl)
++{
++	const uint32_t mult = NS2MHZ_DIV256 / (ctrl->tCK * ctrl->base_freq);
++
++	if (ctrl->base_freq == 100)
++		return clamp_u32(7, mult, 12);
++
++	if (ctrl->base_freq == 133)
++		return clamp_u32(3, mult, 10);
++
++	die("Unsupported base frequency\n");
++}
++
++static void normalize_tck(struct sysinfo *ctrl, const bool pll_ref100)
++{
++	/** TODO: Haswell supports up to DDR3-2600 **/
++	if (ctrl->tCK <= TCK_1200MHZ) {
++		ctrl->tCK = TCK_1200MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 1200;
++
++	} else if (ctrl->tCK <= TCK_1100MHZ) {
++		ctrl->tCK = TCK_1100MHZ;
++		ctrl->base_freq = 100;
++		ctrl->mem_clock_mhz = 1100;
++
++	} else if (ctrl->tCK <= TCK_1066MHZ) {
++		ctrl->tCK = TCK_1066MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 1066;
++
++	} else if (ctrl->tCK <= TCK_1000MHZ) {
++		ctrl->tCK = TCK_1000MHZ;
++		ctrl->base_freq = 100;
++		ctrl->mem_clock_mhz = 1000;
++
++	} else if (ctrl->tCK <= TCK_933MHZ) {
++		ctrl->tCK = TCK_933MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 933;
++
++	} else if (ctrl->tCK <= TCK_900MHZ) {
++		ctrl->tCK = TCK_900MHZ;
++		ctrl->base_freq = 100;
++		ctrl->mem_clock_mhz = 900;
++
++	} else if (ctrl->tCK <= TCK_800MHZ) {
++		ctrl->tCK = TCK_800MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 800;
++
++	} else if (ctrl->tCK <= TCK_700MHZ) {
++		ctrl->tCK = TCK_700MHZ;
++		ctrl->base_freq = 100;
++		ctrl->mem_clock_mhz = 700;
++
++	} else if (ctrl->tCK <= TCK_666MHZ) {
++		ctrl->tCK = TCK_666MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 666;
++
++	} else if (ctrl->tCK <= TCK_533MHZ) {
++		ctrl->tCK = TCK_533MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 533;
++
++	} else if (ctrl->tCK <= TCK_400MHZ) {
++		ctrl->tCK = TCK_400MHZ;
++		ctrl->base_freq = 133;
++		ctrl->mem_clock_mhz = 400;
++
++	} else {
++		ctrl->tCK = 0;
++		ctrl->base_freq = 1;
++		ctrl->mem_clock_mhz = 0;
++		return;
++	}
++	if (!pll_ref100 && ctrl->base_freq == 100) {
++		/* Skip unsupported frequency */
++		ctrl->tCK++;
++		normalize_tck(ctrl, pll_ref100);
++	}
++}
++
++#define MIN_CAS	4
++#define MAX_CAS	24
++
++static uint8_t find_compatible_cas(struct sysinfo *ctrl)
++{
++	printk(RAM_DEBUG, "With tCK %u, try CAS: ", ctrl->tCK);
++	const uint8_t cas_lower = MAX(MIN_CAS, DIV_ROUND_UP(ctrl->tAA, ctrl->tCK));
++	const uint8_t cas_upper = MIN(MAX_CAS, 19); /* JEDEC MR0 limit */
++
++	if (!(ctrl->cas_supported >> (cas_lower - MIN_CAS))) {
++		printk(RAM_DEBUG, "DIMMs do not support CAS >= %u\n", cas_lower);
++		ctrl->tCK++;
++		return 0;
++	}
++	for (uint8_t cas = cas_lower; cas <= cas_upper; cas++) {
++		printk(RAM_DEBUG, "%u ", cas);
++		if (ctrl->cas_supported & BIT(cas - MIN_CAS)) {
++			printk(RAM_DEBUG, "OK\n");
++			return cas;
++		}
++	}
++	return 0;
++}
++
++static enum raminit_status find_cas_tck(struct sysinfo *ctrl)
++{
++	/** TODO: Honor all possible PLL_REF100_CFG values **/
++	uint8_t pll_ref100 = (pci_read_config32(HOST_BRIDGE, CAPID0_B) >> 21) & 0x7;
++	printk(RAM_DEBUG, "PLL_REF100_CFG value: 0x%x\n", pll_ref100);
++	printk(RAM_DEBUG, "100MHz reference clock support: %s\n", pll_ref100 ? "yes" : "no");
++
++	uint8_t selected_cas;
++	while (true) {
++		/* Round tCK up so that it is a multiple of either 133 or 100 MHz */
++		normalize_tck(ctrl, pll_ref100);
++		if (!ctrl->tCK) {
++			printk(BIOS_ERR, "Couldn't find compatible clock / CAS settings\n");
++			return RAMINIT_STATUS_MPLL_INIT_FAILURE;
++		}
++		selected_cas = find_compatible_cas(ctrl);
++		if (selected_cas)
++			break;
++
++		ctrl->tCK++;
++	}
++	printk(BIOS_DEBUG, "Found compatible clock / CAS settings\n");
++	printk(BIOS_DEBUG, "Selected DRAM frequency: %u MHz\n", NS2MHZ_DIV256 / ctrl->tCK);
++	printk(BIOS_DEBUG, "Selected CAS latency   : %uT\n", selected_cas);
++	ctrl->multiplier = get_mem_multiplier(ctrl);
++	return RAMINIT_STATUS_SUCCESS;
++}
++
++enum raminit_status initialise_mpll(struct sysinfo *ctrl)
++{
++	if (ctrl->tCK > TCK_400MHZ) {
++		printk(BIOS_ERR, "tCK is too slow. Increasing to 400 MHz as last resort\n");
++		ctrl->tCK = TCK_400MHZ;
++	}
++	while (true) {
++		if (!ctrl->qclkps) {
++			const enum raminit_status status = find_cas_tck(ctrl);
++			if (status)
++				return status;
++		}
++
++		/*
++		 * Unlike previous generations, Haswell's MPLL won't shut down if the
++		 * requested frequency isn't supported. But we cannot reinitialize it.
++		 * Another different thing: MPLL registers are 4-bit instead of 8-bit.
++		 */
++
++		/** FIXME: Obtain current clock frequency if we want to skip this **/
++		//if (mchbar_read32(MC_BIOS_DATA) != 0)
++		//	break;
++
++		uint32_t mc_bios_req = ctrl->multiplier;
++		if (ctrl->base_freq == 100) {
++			/* Use 100 MHz reference clock */
++			mc_bios_req |= BIT(4);
++		}
++		mc_bios_req |= BIT(31);
++		printk(RAM_DEBUG, "MC_BIOS_REQ = 0x%08x\n", mc_bios_req);
++		printk(BIOS_DEBUG, "MPLL busy... ");
++		mchbar_write32(MC_BIOS_REQ, mc_bios_req);
++
++		for (unsigned int i = 0; i <= 5000; i++) {
++			if (!(mchbar_read32(MC_BIOS_REQ) & BIT(31))) {
++				printk(BIOS_DEBUG, "done in %u us\n", i);
++				break;
++			}
++			udelay(1);
++		}
++		if (mchbar_read32(MC_BIOS_REQ) & BIT(31))
++			printk(BIOS_DEBUG, "did not lock\n");
++
++		/* Verify locked frequency */
++		const uint32_t mc_bios_data = mchbar_read32(MC_BIOS_DATA);
++		printk(RAM_DEBUG, "MC_BIOS_DATA = 0x%08x\n", mc_bios_data);
++		if ((mc_bios_data & 0xf) >= ctrl->multiplier)
++			break;
++
++		printk(BIOS_DEBUG, "Retrying at a lower frequency\n\n");
++		ctrl->tCK++;
++	}
++	if (!ctrl->mem_clock_mhz) {
++		printk(BIOS_ERR, "Could not program MPLL frequency\n");
++		return RAMINIT_STATUS_MPLL_INIT_FAILURE;
++	}
++	printk(BIOS_DEBUG, "MPLL frequency is set to: %u MHz ", ctrl->mem_clock_mhz);
++	ctrl->mem_clock_fs = 1000000000 / ctrl->mem_clock_mhz;
++	printk(BIOS_DEBUG, "(period: %u femtoseconds)\n", ctrl->mem_clock_fs);
++	ctrl->qclkps = ctrl->mem_clock_fs / 2000;
++	printk(BIOS_DEBUG, "Quadrature clock period: %u picoseconds\n", ctrl->qclkps);
++	return wait_for_first_rcomp();
++}
+diff --git a/src/northbridge/intel/haswell/native_raminit/io_comp_control.c b/src/northbridge/intel/haswell/native_raminit/io_comp_control.c
+new file mode 100644
+index 0000000000..d45b608dd3
+--- /dev/null
++++ b/src/northbridge/intel/haswell/native_raminit/io_comp_control.c
+@@ -0,0 +1,22 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++#include <commonlib/bsd/clamp.h>
++#include <console/console.h>
++#include <northbridge/intel/haswell/haswell.h>
++#include <timer.h>
++#include <types.h>
++
++#include "raminit_native.h"
++
++enum raminit_status wait_for_first_rcomp(void)
++{
++	struct stopwatch timer;
++	stopwatch_init_msecs_expire(&timer, 2000);
++	do {
++		if (mchbar_read32(RCOMP_TIMER) & BIT(16))
++			return RAMINIT_STATUS_SUCCESS;
++
++	} while (!stopwatch_expired(&timer));
++	printk(BIOS_ERR, "Timed out waiting for RCOMP to complete\n");
++	return RAMINIT_STATUS_POLL_TIMEOUT;
++}
+diff --git a/src/northbridge/intel/haswell/native_raminit/raminit_main.c b/src/northbridge/intel/haswell/native_raminit/raminit_main.c
+index 19ec5859ac..bf745e943f 100644
+--- a/src/northbridge/intel/haswell/native_raminit/raminit_main.c
++++ b/src/northbridge/intel/haswell/native_raminit/raminit_main.c
+@@ -19,7 +19,8 @@ struct task_entry {
+ };
+ 
+ static const struct task_entry cold_boot[] = {
+-	{ collect_spd_info,           true, "PROCSPD",    },
++	{ collect_spd_info,                                       true, "PROCSPD",    },
++	{ initialise_mpll,                                        true, "INITMPLL",   },
+ };
+ 
+ /* Return a generic stepping value to make stepping checks simpler */
+diff --git a/src/northbridge/intel/haswell/native_raminit/raminit_native.h b/src/northbridge/intel/haswell/native_raminit/raminit_native.h
+index 8078c9c386..15a1550424 100644
+--- a/src/northbridge/intel/haswell/native_raminit/raminit_native.h
++++ b/src/northbridge/intel/haswell/native_raminit/raminit_native.h
+@@ -24,6 +24,8 @@ enum raminit_status {
+ 	RAMINIT_STATUS_SUCCESS = 0,
+ 	RAMINIT_STATUS_NO_MEMORY_INSTALLED,
+ 	RAMINIT_STATUS_UNSUPPORTED_MEMORY,
++	RAMINIT_STATUS_MPLL_INIT_FAILURE,
++	RAMINIT_STATUS_POLL_TIMEOUT,
+ 	RAMINIT_STATUS_UNSPECIFIED_ERROR, /** TODO: Deprecated in favor of specific values **/
+ };
+ 
+@@ -83,10 +85,19 @@ struct sysinfo {
+ 	uint8_t rankmap[NUM_CHANNELS];
+ 	uint8_t rank_mirrored[NUM_CHANNELS];
+ 	uint32_t channel_size_mb[NUM_CHANNELS];
++
++	uint8_t base_freq;		/* Memory base frequency, either 100 or 133 MHz */
++	uint32_t multiplier;
++	uint32_t mem_clock_mhz;
++	uint32_t mem_clock_fs;		/* Memory clock period in femtoseconds */
++	uint32_t qclkps;		/* Quadrature clock period in picoseconds */
+ };
+ 
+ void raminit_main(enum raminit_boot_mode bootmode);
+ 
+ enum raminit_status collect_spd_info(struct sysinfo *ctrl);
++enum raminit_status initialise_mpll(struct sysinfo *ctrl);
++
++enum raminit_status wait_for_first_rcomp(void);
+ 
+ #endif
+diff --git a/src/northbridge/intel/haswell/registers/mchbar.h b/src/northbridge/intel/haswell/registers/mchbar.h
+index 5610e7089a..45f8174995 100644
+--- a/src/northbridge/intel/haswell/registers/mchbar.h
++++ b/src/northbridge/intel/haswell/registers/mchbar.h
+@@ -13,6 +13,8 @@
+ #define MC_INIT_STATE_G		0x5030
+ #define MRC_REVISION		0x5034 /* MRC Revision */
+ 
++#define RCOMP_TIMER		0x5084
++
+ #define MC_LOCK			0x50fc /* Memory Controller Lock register */
+ 
+ #define GFXVTBAR		0x5400 /* Base address for IGD */
+@@ -61,6 +63,7 @@
+ 
+ #define BIOS_RESET_CPL		0x5da8 /* 8-bit */
+ 
++#define MC_BIOS_REQ		0x5e00 /* Memory frequency request register */
+ #define MC_BIOS_DATA		0x5e04 /* Miscellaneous information for BIOS */
+ #define SAPMCTL			0x5f00
+ 
+-- 
+2.39.5
+

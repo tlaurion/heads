@@ -1,0 +1,52 @@
+From c0e95144b426ab323e0397942579261fbb7b922b Mon Sep 17 00:00:00 2001
+From: Leah Rowe <info@minifree.org>
+Date: Mon, 12 Aug 2024 02:15:24 +0100
+Subject: [PATCH 60/65] nb/x4x: define INTEL_GMA_DPLL_REF_FREQ
+
+set it to 96MHz. fixes the following build error when
+building for x4x boards e.g. gigabyte ga-g41m-es2l:
+
+hw-gfx-gma-plls.adb:465:46: error: "INTEL_GMA_DPLL_REF_FREQ" not declared in "Config"
+make: *** [Makefile:423: build/ramstage/libgfxinit/common/g45/hw-gfx-gma-plls.o] Error 1
+
+this error was introduced when merging coreboot/dell
+into coreboot/default in lbmk. nicholas chin's fix in lbmk
+was as follows:
+
+commit 8629873a6043067affc137be275b7aa69cb1f10c
+Author: Nicholas Chin <nic.c3.14@gmail.com>
+Date:   Mon May 20 10:46:25 2024 -0600
+
+    Fix E6400 display issue with 1440 x 900 panel
+
+this currently corresponds to the patch in lbmk,
+as of 12 august 2024:
+
+0042-mb-dell-e6400-Use-100-MHz-reference-clock-for-displa.patch
+
+The assumption prior to Nicholas's fix was 96MHz, so set
+it accordingly on x4x northbridge.
+
+Signed-off-by: Leah Rowe <info@minifree.org>
+---
+ src/northbridge/intel/x4x/Kconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/northbridge/intel/x4x/Kconfig b/src/northbridge/intel/x4x/Kconfig
+index 9af063819b..93ba575b95 100644
+--- a/src/northbridge/intel/x4x/Kconfig
++++ b/src/northbridge/intel/x4x/Kconfig
+@@ -14,6 +14,10 @@ config NORTHBRIDGE_INTEL_X4X
+ 
+ if NORTHBRIDGE_INTEL_X4X
+ 
++config INTEL_GMA_DPLL_REF_FREQ
++	int
++	default 96000000
++
+ config CBFS_SIZE
+ 	default 0x100000 if !SOUTHBRIDGE_INTEL_I82801GX
+ 
+-- 
+2.39.5
+

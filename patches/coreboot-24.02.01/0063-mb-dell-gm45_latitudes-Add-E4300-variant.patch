@@ -1,0 +1,332 @@
+From bc9836ac2708687dfe43656adba2833493fa4199 Mon Sep 17 00:00:00 2001
+From: Nicholas Chin <nic.c3.14@gmail.com>
+Date: Thu, 26 Sep 2024 19:51:25 -0600
+Subject: [PATCH 63/65] mb/dell/gm45_latitudes: Add E4300 variant
+
+Change-Id: I0f2059501b11be103187e3ce1a7c04ab85ae63d2
+Signed-off-by: Nicholas Chin <nic.c3.14@gmail.com>
+---
+ src/mainboard/dell/gm45_latitude/Kconfig      |   5 +
+ src/mainboard/dell/gm45_latitude/Kconfig.name |   3 +
+ .../gm45_latitude/variants/e4300/data.vbt     | Bin 0 -> 3881 bytes
+ .../variants/e4300/gma-mainboard.ads          |  17 +++
+ .../dell/gm45_latitude/variants/e4300/gpio.c  | 138 ++++++++++++++++++
+ .../gm45_latitude/variants/e4300/hda_verb.c   |  37 +++++
+ .../variants/e4300/overridetree.cb            |  10 ++
+ 7 files changed, 210 insertions(+)
+ create mode 100644 src/mainboard/dell/gm45_latitude/variants/e4300/data.vbt
+ create mode 100644 src/mainboard/dell/gm45_latitude/variants/e4300/gma-mainboard.ads
+ create mode 100644 src/mainboard/dell/gm45_latitude/variants/e4300/gpio.c
+ create mode 100644 src/mainboard/dell/gm45_latitude/variants/e4300/hda_verb.c
+ create mode 100644 src/mainboard/dell/gm45_latitude/variants/e4300/overridetree.cb
+
+diff --git a/src/mainboard/dell/gm45_latitude/Kconfig b/src/mainboard/dell/gm45_latitude/Kconfig
+index ba76fb6e8c..144f9bcdf0 100644
+--- a/src/mainboard/dell/gm45_latitude/Kconfig
++++ b/src/mainboard/dell/gm45_latitude/Kconfig
+@@ -21,6 +21,9 @@ config BOARD_DELL_GM45_LATITUDE_COMMON
+ config BOARD_DELL_E6400
+ 	select BOARD_DELL_GM45_LATITUDE_COMMON
+ 
++config BOARD_DELL_E4300
++	select BOARD_DELL_GM45_LATITUDE_COMMON
++
+ if BOARD_DELL_GM45_LATITUDE_COMMON
+ 
+ config INTEL_GMA_DPLL_REF_FREQ
+@@ -31,12 +34,14 @@ config MAINBOARD_DIR
+ 
+ config MAINBOARD_PART_NUMBER
+ 	default "Latitude E6400" if BOARD_DELL_E6400
++	default "Latitude E4300" if BOARD_DELL_E4300
+ 
+ config OVERRIDE_DEVICETREE
+ 	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
+ 
+ config VARIANT_DIR
+ 	default "e6400" if BOARD_DELL_E6400
++	default "e4300" if BOARD_DELL_E4300
+ 
+ config USBDEBUG_HCD_INDEX
+ 	default 1
+diff --git a/src/mainboard/dell/gm45_latitude/Kconfig.name b/src/mainboard/dell/gm45_latitude/Kconfig.name
+index aefe777109..4dc95f46be 100644
+--- a/src/mainboard/dell/gm45_latitude/Kconfig.name
++++ b/src/mainboard/dell/gm45_latitude/Kconfig.name
+@@ -1,4 +1,7 @@
+ ## SPDX-License-Identifier: GPL-2.0-only
+ 
++config BOARD_DELL_E4300
++	bool "Latitude E4300"
++
+ config BOARD_DELL_E6400
+ 	bool "Latitude E6400"
+diff --git a/src/mainboard/dell/gm45_latitude/variants/e4300/data.vbt b/src/mainboard/dell/gm45_latitude/variants/e4300/data.vbt
+new file mode 100644
+index 0000000000000000000000000000000000000000..fa2f3db13f688b5687df16a155781d8674ea26f3
+GIT binary patch
+literal 3881
+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
+JE5(FU=`RLB=-&VU
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/mainboard/dell/gm45_latitude/variants/e4300/gma-mainboard.ads b/src/mainboard/dell/gm45_latitude/variants/e4300/gma-mainboard.ads
+new file mode 100644
+index 0000000000..89b81b3d69
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/variants/e4300/gma-mainboard.ads
+@@ -0,0 +1,17 @@
++-- SPDX-License-Identifier: GPL-2.0-or-later
++
++with HW.GFX.GMA;
++with HW.GFX.GMA.Display_Probing;
++
++use HW.GFX.GMA;
++use HW.GFX.GMA.Display_Probing;
++
++private package GMA.Mainboard is
++
++   ports : constant Port_List :=
++     (DP2, -- dock DP
++      Analog, -- mainboard VGA
++      LVDS,
++      others => Disabled);
++
++end GMA.Mainboard;
+diff --git a/src/mainboard/dell/gm45_latitude/variants/e4300/gpio.c b/src/mainboard/dell/gm45_latitude/variants/e4300/gpio.c
+new file mode 100644
+index 0000000000..b50f8da0b5
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/variants/e4300/gpio.c
+@@ -0,0 +1,138 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <southbridge/intel/common/gpio.h>
++
++static const struct pch_gpio_set1 pch_gpio_set1_mode = {
++	.gpio0  = GPIO_MODE_NATIVE,
++	.gpio1  = GPIO_MODE_GPIO,
++	.gpio2  = GPIO_MODE_GPIO,
++	.gpio3  = GPIO_MODE_GPIO,
++	.gpio4  = GPIO_MODE_GPIO,
++	.gpio5  = GPIO_MODE_GPIO,
++	.gpio6  = GPIO_MODE_GPIO,
++	.gpio7  = GPIO_MODE_GPIO,
++	.gpio8  = GPIO_MODE_GPIO,
++	.gpio9  = GPIO_MODE_NATIVE,
++	.gpio10 = GPIO_MODE_NATIVE,
++	.gpio11 = GPIO_MODE_NATIVE,
++	.gpio12 = GPIO_MODE_NATIVE,
++	.gpio13 = GPIO_MODE_GPIO,
++	.gpio14 = GPIO_MODE_GPIO,
++	.gpio15 = GPIO_MODE_NATIVE,
++	.gpio16 = GPIO_MODE_NATIVE,
++	.gpio17 = GPIO_MODE_GPIO,
++	.gpio18 = GPIO_MODE_GPIO,
++	.gpio19 = GPIO_MODE_GPIO,
++	.gpio20 = GPIO_MODE_GPIO,
++	.gpio21 = GPIO_MODE_GPIO,
++	.gpio22 = GPIO_MODE_GPIO,
++	.gpio23 = GPIO_MODE_NATIVE,
++	.gpio24 = GPIO_MODE_GPIO,
++	.gpio25 = GPIO_MODE_NATIVE,
++	.gpio26 = GPIO_MODE_NATIVE,
++	.gpio27 = GPIO_MODE_GPIO,
++	.gpio28 = GPIO_MODE_GPIO,
++	.gpio29 = GPIO_MODE_NATIVE,
++	.gpio30 = GPIO_MODE_NATIVE,
++	.gpio31 = GPIO_MODE_NATIVE,
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_direction = {
++	.gpio1  = GPIO_DIR_INPUT,
++	.gpio2  = GPIO_DIR_INPUT,
++	.gpio3  = GPIO_DIR_INPUT,
++	.gpio4  = GPIO_DIR_INPUT,
++	.gpio5  = GPIO_DIR_INPUT,
++	.gpio6  = GPIO_DIR_INPUT,
++	.gpio7  = GPIO_DIR_INPUT,
++	.gpio8  = GPIO_DIR_INPUT,
++	.gpio13 = GPIO_DIR_INPUT,
++	.gpio14 = GPIO_DIR_INPUT,
++	.gpio17 = GPIO_DIR_INPUT,
++	.gpio18 = GPIO_DIR_INPUT,
++	.gpio19 = GPIO_DIR_INPUT,
++	.gpio20 = GPIO_DIR_INPUT,
++	.gpio21 = GPIO_DIR_INPUT,
++	.gpio22 = GPIO_DIR_INPUT,
++	.gpio24 = GPIO_DIR_INPUT,
++	.gpio27 = GPIO_DIR_INPUT,
++	.gpio28 = GPIO_DIR_INPUT,
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_level = {
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_blink = {
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_invert = {
++	.gpio1  = GPIO_INVERT,
++	.gpio7  = GPIO_INVERT,
++	.gpio8  = GPIO_INVERT,
++};
++
++static const struct pch_gpio_set2 pch_gpio_set2_mode = {
++	.gpio32 = GPIO_MODE_NATIVE,
++	.gpio33 = GPIO_MODE_GPIO,
++	.gpio34 = GPIO_MODE_GPIO,
++	.gpio35 = GPIO_MODE_NATIVE,
++	.gpio36 = GPIO_MODE_GPIO,
++	.gpio37 = GPIO_MODE_GPIO,
++	.gpio38 = GPIO_MODE_GPIO,
++	.gpio39 = GPIO_MODE_GPIO,
++	.gpio40 = GPIO_MODE_NATIVE,
++	.gpio41 = GPIO_MODE_NATIVE,
++	.gpio42 = GPIO_MODE_NATIVE,
++	.gpio43 = GPIO_MODE_NATIVE,
++	.gpio44 = GPIO_MODE_NATIVE,
++	.gpio45 = GPIO_MODE_NATIVE,
++	.gpio46 = GPIO_MODE_NATIVE,
++	.gpio47 = GPIO_MODE_NATIVE,
++	.gpio48 = GPIO_MODE_GPIO,
++	.gpio49 = GPIO_MODE_GPIO,
++	.gpio50 = GPIO_MODE_NATIVE,
++	.gpio51 = GPIO_MODE_NATIVE,
++	.gpio52 = GPIO_MODE_GPIO,
++	.gpio53 = GPIO_MODE_GPIO,
++	.gpio54 = GPIO_MODE_NATIVE,
++	.gpio55 = GPIO_MODE_NATIVE,
++	.gpio56 = GPIO_MODE_GPIO,
++	.gpio57 = GPIO_MODE_GPIO,
++	.gpio58 = GPIO_MODE_NATIVE,
++	.gpio59 = GPIO_MODE_NATIVE,
++	.gpio60 = GPIO_MODE_GPIO,
++};
++
++static const struct pch_gpio_set2 pch_gpio_set2_direction = {
++	.gpio33 = GPIO_DIR_INPUT,
++	.gpio34 = GPIO_DIR_INPUT,
++	.gpio36 = GPIO_DIR_INPUT,
++	.gpio37 = GPIO_DIR_INPUT,
++	.gpio38 = GPIO_DIR_INPUT,
++	.gpio39 = GPIO_DIR_INPUT,
++	.gpio48 = GPIO_DIR_INPUT,
++	.gpio49 = GPIO_DIR_INPUT,
++	.gpio52 = GPIO_DIR_INPUT,
++	.gpio53 = GPIO_DIR_INPUT,
++	.gpio56 = GPIO_DIR_INPUT,
++	.gpio57 = GPIO_DIR_INPUT,
++	.gpio60 = GPIO_DIR_INPUT,
++};
++
++static const struct pch_gpio_set2 pch_gpio_set2_level = {
++};
++
++const struct pch_gpio_map mainboard_gpio_map = {
++	.set1 = {
++		.mode      = &pch_gpio_set1_mode,
++		.direction = &pch_gpio_set1_direction,
++		.level     = &pch_gpio_set1_level,
++		.blink     = &pch_gpio_set1_blink,
++		.invert    = &pch_gpio_set1_invert,
++	},
++	.set2 = {
++		.mode      = &pch_gpio_set2_mode,
++		.direction = &pch_gpio_set2_direction,
++		.level     = &pch_gpio_set2_level,
++	},
++};
+diff --git a/src/mainboard/dell/gm45_latitude/variants/e4300/hda_verb.c b/src/mainboard/dell/gm45_latitude/variants/e4300/hda_verb.c
+new file mode 100644
+index 0000000000..a9948a93dd
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/variants/e4300/hda_verb.c
+@@ -0,0 +1,37 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <device/azalia_device.h>
++
++const u32 cim_verb_data[] = {
++	/* coreboot specific header */
++	0x111d76b2, /* IDT 92HD71B7X */
++	0x1028024d, /* Subsystem ID */
++	13,	    /* Number of entries */
++
++	/* Pin Widget Verb Table */
++
++	AZALIA_PIN_CFG(0, 0x0a, 0x0421101f),
++	AZALIA_PIN_CFG(0, 0x0b, 0x04a11021),
++	AZALIA_PIN_CFG(0, 0x0c, 0x40f000f0),
++	AZALIA_PIN_CFG(0, 0x0d, 0x90170110),
++	AZALIA_PIN_CFG(0, 0x0e, 0x23a1102e),
++	AZALIA_PIN_CFG(0, 0x0f, 0x23011050),
++	AZALIA_PIN_CFG(0, 0x14, 0x40f000f2),
++	AZALIA_PIN_CFG(0, 0x18, 0x90a601a0),
++	AZALIA_PIN_CFG(0, 0x19, 0x40f000f4),
++	AZALIA_PIN_CFG(0, 0x1e, 0x40f000f5),
++	AZALIA_PIN_CFG(0, 0x1f, 0x40f000f6),
++	AZALIA_PIN_CFG(0, 0x20, 0x40f000f7),
++	AZALIA_PIN_CFG(0, 0x27, 0x40f000f0),
++};
++
++const u32 pc_beep_verbs[] = {
++	0x00170500, /* power up codec */
++	0x00d70500, /* power up speakers */
++	0x00d70102, /* select mixer (input 0x2) for speakers */
++	0x00d70740, /* enable speakers output */
++	0x02770720, /* enable beep input */
++	0x01737217, /* unmute beep (mixer's input 0x2), set amp 0dB */
++	0x00d37000, /* unmute speakers */
++};
++AZALIA_ARRAY_SIZES;
+diff --git a/src/mainboard/dell/gm45_latitude/variants/e4300/overridetree.cb b/src/mainboard/dell/gm45_latitude/variants/e4300/overridetree.cb
+new file mode 100644
+index 0000000000..20dfa245fb
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/variants/e4300/overridetree.cb
+@@ -0,0 +1,10 @@
++## SPDX-License-Identifier: GPL-2.0-or-later
++
++chip northbridge/intel/gm45
++	device domain 0 on
++		subsystemid 0x1028 0x024d inherit
++		chip southbridge/intel/i82801ix
++			device pci 1c.2 off end # PCIe Port #3
++		end
++	end
++end
+-- 
+2.39.5
+

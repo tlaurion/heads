@@ -1,0 +1,124 @@
+From 84f7622ea0c3a78742f129d2ec9f437e6c424839 Mon Sep 17 00:00:00 2001
+From: Leah Rowe <leah@libreboot.org>
+Date: Wed, 2 Mar 2022 21:50:01 +0000
+Subject: [PATCH 12/65] set me_state=Disabled on all cmos.default files!
+
+yeah. why the hell isn't this the default
+
+Signed-off-by: Leah Rowe <leah@libreboot.org>
+---
+ src/mainboard/lenovo/l520/cmos.default         | 2 +-
+ src/mainboard/lenovo/t420/cmos.default         | 2 +-
+ src/mainboard/lenovo/t420s/cmos.default        | 2 +-
+ src/mainboard/lenovo/t430/cmos.default         | 2 +-
+ src/mainboard/lenovo/t430s/cmos.default        | 2 +-
+ src/mainboard/lenovo/t520/cmos.default         | 2 +-
+ src/mainboard/lenovo/t530/cmos.default         | 2 +-
+ src/mainboard/lenovo/x220/cmos.default         | 2 +-
+ src/mainboard/protectli/vault_cml/cmos.default | 2 +-
+ src/mainboard/system76/tgl-u/cmos.default      | 2 +-
+ 10 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/mainboard/lenovo/l520/cmos.default b/src/mainboard/lenovo/l520/cmos.default
+index be08e0a342..b8970efa46 100644
+--- a/src/mainboard/lenovo/l520/cmos.default
++++ b/src/mainboard/lenovo/l520/cmos.default
+@@ -16,4 +16,4 @@ sticky_fn=Disable
+ trackpoint=Enable
+ backlight=Both
+ usb_always_on=Disable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/t420/cmos.default b/src/mainboard/lenovo/t420/cmos.default
+index 6fd26c5fe3..27a62d07b3 100644
+--- a/src/mainboard/lenovo/t420/cmos.default
++++ b/src/mainboard/lenovo/t420/cmos.default
+@@ -16,4 +16,4 @@ sticky_fn=Disable
+ trackpoint=Enable
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/t420s/cmos.default b/src/mainboard/lenovo/t420s/cmos.default
+index 6fd26c5fe3..27a62d07b3 100644
+--- a/src/mainboard/lenovo/t420s/cmos.default
++++ b/src/mainboard/lenovo/t420s/cmos.default
+@@ -16,4 +16,4 @@ sticky_fn=Disable
+ trackpoint=Enable
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/t430/cmos.default b/src/mainboard/lenovo/t430/cmos.default
+index c896eadec1..6d1e172056 100644
+--- a/src/mainboard/lenovo/t430/cmos.default
++++ b/src/mainboard/lenovo/t430/cmos.default
+@@ -17,4 +17,4 @@ trackpoint=Enable
+ backlight=Both
+ usb_always_on=Disable
+ hybrid_graphics_mode=Integrated Only
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/t430s/cmos.default b/src/mainboard/lenovo/t430s/cmos.default
+index 286fb0ae8c..5a05c73721 100644
+--- a/src/mainboard/lenovo/t430s/cmos.default
++++ b/src/mainboard/lenovo/t430s/cmos.default
+@@ -18,4 +18,4 @@ backlight=Both
+ enable_dual_graphics=Disable
+ usb_always_on=Disable
+ f1_to_f12_as_primary=Enable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/t520/cmos.default b/src/mainboard/lenovo/t520/cmos.default
+index 4857f92f67..ab1be1a678 100644
+--- a/src/mainboard/lenovo/t520/cmos.default
++++ b/src/mainboard/lenovo/t520/cmos.default
+@@ -17,4 +17,4 @@ trackpoint=Enable
+ backlight=Both
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/t530/cmos.default b/src/mainboard/lenovo/t530/cmos.default
+index 4857f92f67..ab1be1a678 100644
+--- a/src/mainboard/lenovo/t530/cmos.default
++++ b/src/mainboard/lenovo/t530/cmos.default
+@@ -17,4 +17,4 @@ trackpoint=Enable
+ backlight=Both
+ hybrid_graphics_mode=Integrated Only
+ usb_always_on=Disable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/lenovo/x220/cmos.default b/src/mainboard/lenovo/x220/cmos.default
+index ef706c1303..b318ab9772 100644
+--- a/src/mainboard/lenovo/x220/cmos.default
++++ b/src/mainboard/lenovo/x220/cmos.default
+@@ -15,4 +15,4 @@ usb_always_on=Disable
+ fn_ctrl_swap=Disable
+ sticky_fn=Disable
+ trackpoint=Enable
+-me_state=Normal
++me_state=Disabled
+diff --git a/src/mainboard/protectli/vault_cml/cmos.default b/src/mainboard/protectli/vault_cml/cmos.default
+index d61046df6b..8c793fd1c3 100644
+--- a/src/mainboard/protectli/vault_cml/cmos.default
++++ b/src/mainboard/protectli/vault_cml/cmos.default
+@@ -2,4 +2,4 @@
+ 
+ boot_option=Fallback
+ debug_level=Debug
+-me_state=Enable
++me_state=Disabled
+diff --git a/src/mainboard/system76/tgl-u/cmos.default b/src/mainboard/system76/tgl-u/cmos.default
+index d61046df6b..8c793fd1c3 100644
+--- a/src/mainboard/system76/tgl-u/cmos.default
++++ b/src/mainboard/system76/tgl-u/cmos.default
+@@ -2,4 +2,4 @@
+ 
+ boot_option=Fallback
+ debug_level=Debug
+-me_state=Enable
++me_state=Disabled
+-- 
+2.39.5
+

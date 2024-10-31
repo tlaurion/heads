@@ -1,0 +1,47 @@
+From a1a4312c9bea5b7fb5170174dbd14f914c11637c Mon Sep 17 00:00:00 2001
+From: Leah Rowe <leah@libreboot.org>
+Date: Wed, 1 Dec 2021 02:53:00 +0000
+Subject: [PATCH 14/65] fix speedstep on x200/t400: Revert
+ "cpu/intel/model_1067x: enable PECI"
+
+This reverts commit 70fea013c7ebd6d85a7806748233fcfd76802f5f.
+
+Enabling PECI without microcode updates loaded causes the CPUID feature set
+to become corrupted. And one consequence is broken SpeedStep. At least, that's
+my understanding looking at Intel Errata. This revert is not a fix, because
+upstream is correct (upstream assumes microcode updates). We will simply
+maintain this revert patch in Libreboot, from now on.
+---
+ src/cpu/intel/model_1067x/model_1067x_init.c | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/src/cpu/intel/model_1067x/model_1067x_init.c b/src/cpu/intel/model_1067x/model_1067x_init.c
+index d051e8915b..30ba2bf0c6 100644
+--- a/src/cpu/intel/model_1067x/model_1067x_init.c
++++ b/src/cpu/intel/model_1067x/model_1067x_init.c
+@@ -141,8 +141,6 @@ static void configure_emttm_tables(void)
+ 	wrmsr(MSR_EMTTM_CR_TABLE(5), msr);
+ }
+ 
+-#define IA32_PECI_CTL		0x5a0
+-
+ static void configure_misc(const int eist, const int tm2, const int emttm)
+ {
+ 	msr_t msr;
+@@ -185,13 +183,6 @@ static void configure_misc(const int eist, const int tm2, const int emttm)
+ 		msr.lo |= (1 << 20);	/* Lock Enhanced SpeedStep Enable */
+ 		wrmsr(IA32_MISC_ENABLE, msr);
+ 	}
+-
+-	/* Enable PECI
+-	   WARNING: due to Erratum AW67 described in Intel document #318733
+-	   the microcode must be updated before this MSR is written to. */
+-	msr = rdmsr(IA32_PECI_CTL);
+-	msr.lo |= 1;
+-	wrmsr(IA32_PECI_CTL, msr);
+ }
+ 
+ #define PIC_SENS_CFG	0x1aa
+-- 
+2.39.5
+

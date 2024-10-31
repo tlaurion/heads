@@ -1,0 +1,22 @@
+From f8ea06883762c906a7f3ad7d286b628bca3443ab Mon Sep 17 00:00:00 2001
+From: Leah Rowe <leah@libreboot.org>
+Date: Mon, 20 Dec 2021 01:29:31 +0000
+Subject: [PATCH 10/65] coreboot: Add Lenovo X230 patch: gfx_uma_size 224M by
+ default
+
+---
+ src/mainboard/lenovo/x230/cmos.default | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/mainboard/lenovo/x230/cmos.default b/src/mainboard/lenovo/x230/cmos.default
+index 732e214b32..3bb78960b9 100644
+--- a/src/mainboard/lenovo/x230/cmos.default
++++ b/src/mainboard/lenovo/x230/cmos.default
+@@ -18,3 +18,4 @@ backlight=Both
+ usb_always_on=Disable
+ f1_to_f12_as_primary=Enable
+ me_state=Normal
++gfx_uma_size=224M
+-- 
+2.39.5
+

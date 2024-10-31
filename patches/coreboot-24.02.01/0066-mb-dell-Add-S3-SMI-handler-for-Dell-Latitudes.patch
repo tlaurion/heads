@@ -1,0 +1,70 @@
+From 0fe1d4b9fe56a0f27a6ff39cfb94d63559b729b8 Mon Sep 17 00:00:00 2001
+From: Nicholas Chin <nic.c3.14@gmail.com>
+Date: Fri, 3 May 2024 16:31:12 -0600
+Subject: [PATCH 66/67] mb/dell: Add S3 SMI handler for Dell Latitudes
+
+Integrate the previously added mec5035_smi_sleep() function into
+mainboard code to fix S3 suspend on the SNB/IVB Latitudes and the E7240.
+The E6400 does not require the EC command to sucessfully suspend and
+resume from S3, though sending it does enable the breathing effect on
+the power LED while in S3. Without it, all LEDs turn off during S3.
+
+Change-Id: Ic0d887f75be13c3fb9f6df62153ac458895e0283
+Signed-off-by: Nicholas Chin <nic.c3.14@gmail.com>
+---
+ src/mainboard/dell/e7240/smihandler.c            | 9 +++++++++
+ src/mainboard/dell/gm45_latitude/smihandler.c    | 9 +++++++++
+ src/mainboard/dell/snb_ivb_latitude/smihandler.c | 9 +++++++++
+ 3 files changed, 27 insertions(+)
+ create mode 100644 src/mainboard/dell/e7240/smihandler.c
+ create mode 100644 src/mainboard/dell/gm45_latitude/smihandler.c
+ create mode 100644 src/mainboard/dell/snb_ivb_latitude/smihandler.c
+
+diff --git a/src/mainboard/dell/e7240/smihandler.c b/src/mainboard/dell/e7240/smihandler.c
+new file mode 100644
+index 0000000000..00e55b51db
+--- /dev/null
++++ b/src/mainboard/dell/e7240/smihandler.c
+@@ -0,0 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <cpu/x86/smm.h>
++#include <ec/dell/mec5035/mec5035.h>
++
++void mainboard_smi_sleep(u8 slp_typ)
++{
++	mec5035_smi_sleep(slp_typ);
++}
+diff --git a/src/mainboard/dell/gm45_latitude/smihandler.c b/src/mainboard/dell/gm45_latitude/smihandler.c
+new file mode 100644
+index 0000000000..00e55b51db
+--- /dev/null
++++ b/src/mainboard/dell/gm45_latitude/smihandler.c
+@@ -0,0 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <cpu/x86/smm.h>
++#include <ec/dell/mec5035/mec5035.h>
++
++void mainboard_smi_sleep(u8 slp_typ)
++{
++	mec5035_smi_sleep(slp_typ);
++}
+diff --git a/src/mainboard/dell/snb_ivb_latitude/smihandler.c b/src/mainboard/dell/snb_ivb_latitude/smihandler.c
+new file mode 100644
+index 0000000000..00e55b51db
+--- /dev/null
++++ b/src/mainboard/dell/snb_ivb_latitude/smihandler.c
+@@ -0,0 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <cpu/x86/smm.h>
++#include <ec/dell/mec5035/mec5035.h>
++
++void mainboard_smi_sleep(u8 slp_typ)
++{
++	mec5035_smi_sleep(slp_typ);
++}
+-- 
+2.47.0
+
