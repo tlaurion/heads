@@ -91,9 +91,9 @@ coreboot-purism_repo := https://source.puri.sm/firmware/coreboot.git
 coreboot-purism_commit_hash := bea9947a1279be7d4a72b38a601d0288d10d1cb8
 $(eval $(call coreboot_module,purism,24.02.01))
 
-# MSI and Novacustom V540x MTL boards are based on Dasharo coreboot port. Fixed commit from last Dasharo release
+# Novacustom V540TU MTL board is based on Dasharo coreboot port. Using latest commit from novacustom_upstream branch
 coreboot-dasharo_repo := https://github.com/dasharo/coreboot
-coreboot-dasharo_commit_hash := 316f964cb0f892ad4fe985b16c598f1e5ed8fe61
+coreboot-dasharo_commit_hash := 50126aa21e90d5177543609819c5237bf8732e8d
 coreboot-dasharo_patch_version := unreleased
 $(eval $(call coreboot_module,dasharo,))
 
