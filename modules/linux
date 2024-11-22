@@ -283,7 +283,7 @@ linux.save_in_versioned_defconfig_format:
 
 # This one can be used in kernel version bump, which will accept all new defconfig options for the new version.
 #  PLEASE VERIFY CHANGES AND KEEP THINGS MINIMAL IN PRs.
-linux.save_in_oldconfig_format_in_place:
+linux.save_in_olddefconfig_format_in_place:
 	mkdir -p "$(build)/$(linux_dir)" \
 	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
 	&& $(MAKE) -C "$(build)/$(linux_base_dir)" \
