@@ -31,3 +31,4 @@ ncurses_dest := etc/terminfo/l/linux
 
 # Define a variable to hold both paths
 ncurses_data := $(ncurses_src) $(ncurses_dest)
+
