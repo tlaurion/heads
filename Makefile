@@ -653,6 +653,8 @@ define process_module_data
 $(info Processing module: $(1))
 $(foreach data,$($(1)_data), \
     $(info Data: $(data)) \
+    $(info Firstword: $(firstword $(subst :, ,$(data)))) \
+    $(info Lastword: $(lastword $(subst :, ,$(data)))) \
     $(eval $(call initrd_data_add,$(firstword $(subst :, ,$(data))),$(lastword $(subst :, ,$(data))))))
 endef
 
