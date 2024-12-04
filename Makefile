@@ -593,11 +593,11 @@ endef
 define initrd_data_add
 @-mkdir -p "$(dir $2)"
 $(info Adding data: $1 -> $2)
-$(info Firstword: $(firstword $(subst :, ,$1)))
-$(info Lastword: $(lastword $(subst :, ,$2)))
-$(2): $(1)
+$(info Firstword: $(firstword $1))
+$(info Lastword: $(lastword $2))
+$2: $1
     $(call do,INSTALL-DATA,$(1:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-initrd_data += $(2)
+initrd_data += $2
 endef
 
 define initrd_lib_add =
