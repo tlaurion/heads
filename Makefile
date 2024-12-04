@@ -777,6 +777,9 @@ $(build)/$(initrd_dir)/tools.cpio: \
 	$(initrd_tmp_dir)/etc/config \
 
 	$(info Used **BINS**: $(initrd_bins))
+	$(info Used **DATA**: $(initrd_data))
+	$(info Used **LIBS**: $(initrd_libs))
+	
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
 
