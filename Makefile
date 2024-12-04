@@ -591,14 +591,14 @@ initrd_bins += $(initrd_bin_dir)/$(notdir $1)
 endef
 
 define initrd_data_add
-@-mkdir -p "$(dir $2)"
-$(info Adding data: $1 -> $2)
+@-mkdir -p "$(dir $(initrd_tmp_dir)/$2)"
+$(info Adding data: $1 -> $(initrd_tmp_dir)/$2)
 $(info Firstword: $(firstword $1))
 $(info Lastword: $(lastword $2))
-$2: $1
-    @-mkdir -p "$(dir $2)"
-    $(call do,INSTALL-DATA,$(1:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-initrd_data += $2
+$(initrd_tmp_dir)/$2: $1
+    @-mkdir -p "$(dir $(initrd_tmp_dir)/$2)"
+    $(call do,INSTALL-DATA,$(1:$(pwd)/%=%),cp -a --remove-destination "$$<" "$(initrd_tmp_dir)/$$@")
+initrd_data += $(initrd_tmp_dir)/$2
 endef
 
 define initrd_lib_add =
