@@ -27,7 +27,7 @@ ncurses_target := $(MAKE_JOBS) \
 
 # Define source and destination paths separately
 ncurses_src := $(build)/$(ncurses_dir)/terminfo/l/linux
-ncurses_dest := $(initrd_tmp_dir)/etc/terminfo/l/linux
+ncurses_dest := etc/terminfo/l/linux
 
 # Define a variable to hold both paths
 ncurses_data := $(ncurses_src) $(ncurses_dest)
