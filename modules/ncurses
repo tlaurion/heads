@@ -29,6 +29,6 @@ ncurses_target := $(MAKE_JOBS) \
 ncurses_src := $(build)/$(ncurses_dir)/terminfo/l/linux
 ncurses_dest := etc/terminfo/l/linux
 
-# Define a variable to hold both paths
+# Define a variable to hold both paths as a list of pairs
 ncurses_data := $(ncurses_src) $(ncurses_dest)
 

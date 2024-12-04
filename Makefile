@@ -641,14 +641,22 @@ $(info Starting to process module data)
 # Process data definitions from modules
 define process_module_data
 $(info Processing module: $(1))
-$(foreach data,$($(1)_data), \
-    $(info Data: $(data)) \
-    $(info Source: $(word 1,$(data))) \
-    $(info Destination: $(word 2,$(data))) \
-    $(eval $(call initrd_data_add,$(word 1,$(data)),$(word 2,$(data)))))
+$(eval data_list := $($(1)_data))
+$(eval data_count := $(words $(data_list)))
+$(eval data_pairs := $(data_count) / 2)
+$(eval i := 1)
+$(while $(i) <= $(data_pairs), \
+    $(eval src := $(word $(shell echo $$(($(i) * 2 - 1))), $(data_list))) \
+    $(eval dest := $(word $(shell echo $$(($(i) * 2))), $(data_list))) \
+    $(info Data: $(src) $(dest)) \
+    $(info Source: $(src)) \
+    $(info Destination: $(dest)) \
+    $(eval $(call initrd_data_add,$(src),$(dest))) \
+    $(eval i := $(shell echo $$(($(i) + 1)))) \
+)
 endef
 
-# Add the data for every module that we have built
+# Process data for each module
 $(foreach module,$(modules-y),$(info Module: $(module))$(eval $(call process_module_data,$(module))))
 
 # Add debug information after processing module data
