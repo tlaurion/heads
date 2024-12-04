@@ -175,12 +175,11 @@ endif
 # Create a temporary directory for the initrd
 initrd_dir	:= $(BOARD)
 initrd_tmp_dir	:= $(shell mktemp -d)
-initrd_data_dir	:= $(initrd_tmp_dir)/etc/terminfo/l
 initrd_lib_dir	:= $(initrd_tmp_dir)/lib
 initrd_bin_dir	:= $(initrd_tmp_dir)/bin
 modules-y += initrd
 
-$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)")
+$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)")
 
 # We are running our own version of make,
 # proceed with the build.
@@ -591,10 +590,14 @@ $(initrd_bin_dir)/$(notdir $1): $1
 initrd_bins += $(initrd_bin_dir)/$(notdir $1)
 endef
 
-define initrd_data_add =
-$(initrd_data_dir)/$(notdir $1): $1
-	$(call do,INSTALL-DATA,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-initrd_data += $(initrd_data_dir)/$(notdir $1)
+define initrd_data_add
+@-mkdir -p "$(dir $2)"
+$(info Adding data: $1 -> $2)
+$(info Firstword: $(firstword $(subst :, ,$1)))
+$(info Lastword: $(lastword $(subst :, ,$2)))
+$(2): $(1)
+    $(call do,INSTALL-DATA,$(1:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
+initrd_data += $(2)
 endef
 
 define initrd_lib_add =
@@ -642,13 +645,26 @@ $(foreach m, $(bin_modules-y), \
 	$(call map,initrd_bin_add,$(call bins,$m)) \
 )
 
-# Install the data for every module that we have built
-$(foreach m, $(modules-y), \
-	$(call map,initrd_data_add,$(call data,$m)) \
-)
+# Add debug information before processing module data
+$(info Starting to process module data)
+
+# Process data definitions from modules
+define process_module_data
+$(info Processing module: $(1))
+$(foreach data,$($(1)_data), \
+    $(info Data: $(data)) \
+    $(eval $(call initrd_data_add,$(firstword $(subst :, ,$(data))),$(lastword $(subst :, ,$(data))))))
+endef
+
+# Process data for each module
+$(foreach module,$(modules-y),$(info Module: $(module))$(eval $(call process_module_data,$(module))))
+
+# Add debug information after processing module data
+$(info Finished processing module data)
+
 # Install the libraries for every module that we have built
 $(foreach m, $(modules-y), \
-	$(call map,initrd_lib_add,$(call libs,$m)) \
+    $(call map,initrd_lib_add,$(call libs,$m)) \
 )
 
 #

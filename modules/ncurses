@@ -25,5 +25,6 @@ ncurses_target := $(MAKE_JOBS) \
 	install.data && \
 	cp -vpr $(INSTALL)/usr/share/terminfo "$(build)/$(ncurses_dir)"
 
+# Define data files with source and destination paths
 ncurses_data := \
-	terminfo/l/linux
+	$(build)/$(ncurses_dir)/terminfo/l/linux:$(initrd_tmp_dir)/etc/terminfo/l/linux
