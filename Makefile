@@ -579,23 +579,6 @@ define install =
 	$(call do,INSTALL,$2,cp -a --remove-destination "$1" "$2")
 endef
 
-#
-# Files that should be copied into the initrd
-# THis should probably be done in a more scalable manner
-#
-define initrd_bin_add =
-$(initrd_bin_dir)/$(notdir $1): $1
-	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
-initrd_bins += $(initrd_bin_dir)/$(notdir $1)
-endef
-
-define initrd_lib_add =
-$(initrd_lib_dir)/$(notdir $1): $1
-	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%),\
-		$(CROSS)strip --preserve-dates -o "$$@" "$$<")
-initrd_libs += $(initrd_lib_dir)/$(notdir $1)
-endef
 
 # Only some modules have binaries that we install
 # Shouldn't this be specified in the module file?
@@ -631,9 +614,26 @@ bin_modules-$(CONFIG_ZSTD) += zstd
 bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 
-$(foreach m, $(bin_modules-y), \
-	$(call map,initrd_bin_add,$(call bins,$m)) \
-)
+
+#
+# Files that should be copied into the initrd
+# This should probably be done in a more scalable manner
+#
+
+define initrd_bin_add =
+$(initrd_bin_dir)/$(notdir $1): $1
+	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
+	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
+initrd_bins += $(initrd_bin_dir)/$(notdir $1)
+endef
+
+define initrd_lib_add =
+$(initrd_lib_dir)/$(notdir $1): $1
+	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%),\
+		$(CROSS)strip --preserve-dates -o "$$@" "$$<")
+initrd_libs += $(initrd_lib_dir)/$(notdir $1)
+endef
+
 
 # Add debug information before processing module data
 $(info Starting to process module data)
@@ -648,11 +648,16 @@ $(foreach data,$($(1)_data), \
     $(eval $(call initrd_data_add,$(word 1,$(data)),$(word 2,$(data)))))
 endef
 
-# Process data for each module
+# Add the data for every module that we have built
 $(foreach module,$(modules-y),$(info Module: $(module))$(eval $(call process_module_data,$(module))))
 
 # Add debug information after processing module data
 $(info Finished processing module data)
+
+# Add the binaries for every module that we have built
+$(foreach m, $(bin_modules-y), \
+	$(call map,initrd_bin_add,$(call bins,$m)) \
+)
 
 # Install the libraries for every module that we have built
 $(foreach m, $(modules-y), \
