@@ -597,7 +597,7 @@ $(info Firstword: $(firstword $1))
 $(info Lastword: $(lastword $2))
 $(initrd_tmp_dir)/$2: $1
     @-mkdir -p "$(dir $(initrd_tmp_dir)/$2)"
-    $(call do,INSTALL-DATA,$(1:$(pwd)/%=%),cp -a --remove-destination "$$<" "$(initrd_tmp_dir)/$$@")
+    $(call do,INSTALL-DATA,$(1:$(pwd)/%=%),cp -a --remove-destination "$$<" "$(initrd_tmp_dir)/$2")
 initrd_data += $(initrd_tmp_dir)/$2
 endef
 
