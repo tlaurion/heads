@@ -606,8 +606,27 @@ define initrd_data_add
 		$(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
 endef
 
+# Process data definitions from modules
+define process_module_data
+$(info Processing module: $(1))
+$(eval data_list := $($(1)_data))
+$(eval data_count := $(words $(data_list)))
+$(eval i := 1)
+$(while $(i) <= $(data_count), \
+    $(eval src := $(word $(i), $(data_list))) \
+    $(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
+    $(if $(src)$(dest), \
+        $(info Data: $(src) $(dest)) \
+        $(info Source: $(src)) \
+        $(info Destination: $(dest)) \
+        $(eval $(call initrd_data_add,$(src),$(dest))) \
+    ) \
+    $(eval i := $(shell echo $$(($(i) + 2)))) \
+)
+endef
+
 # Only some modules have binaries that we install
-# Shouldn't this be specified in the module file?
+# TODO: Shouldn't this be specified in the module file?
 #bin_modules-$(CONFIG_MUSL) += musl-cross-make
 bin_modules-$(CONFIG_KEXEC) += kexec
 bin_modules-$(CONFIG_TPMTOTP) += tpmtotp
@@ -640,28 +659,8 @@ bin_modules-$(CONFIG_ZSTD) += zstd
 bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 
-
 # Add debug information before processing module data
 $(info Starting to process module data)
-
-# Process data definitions from modules
-define process_module_data
-$(info Processing module: $(1))
-$(eval data_list := $($(1)_data))
-$(eval data_count := $(words $(data_list)))
-$(eval i := 1)
-$(while $(i) <= $(data_count), \
-    $(eval src := $(word $(i), $(data_list))) \
-    $(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
-    $(if $(src)$(dest), \
-        $(info Data: $(src) $(dest)) \
-        $(info Source: $(src)) \
-        $(info Destination: $(dest)) \
-        $(eval $(call initrd_data_add,$(src),$(dest))) \
-    ) \
-    $(eval i := $(shell echo $$(($(i) + 2)))) \
-)
-endef
 
 # Process data for each module
 $(foreach module,$(modules-y), \
@@ -681,6 +680,7 @@ $(foreach m, $(bin_modules-y), \
 $(foreach m, $(modules-y), \
 	$(call map,initrd_data_add,$(call data,$m)) \
 )
+
 # Install the libraries for every module that we have built
 $(foreach m, $(modules-y), \
     $(call map,initrd_lib_add,$(call libs,$m)) \
