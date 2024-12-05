@@ -579,6 +579,32 @@ define install =
 	$(call do,INSTALL,$2,cp -a --remove-destination "$1" "$2")
 endef
 
+#
+# Files that should be copied into the initrd
+# TODO: This should probably be done in a more scalable manner
+#
+
+define initrd_bin_add =
+$(initrd_bin_dir)/$(notdir $1): $1
+	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
+	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
+initrd_bins += $(initrd_bin_dir)/$(notdir $1)
+endef
+
+define initrd_lib_add =
+$(initrd_lib_dir)/$(notdir $1): $1
+	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%),\
+		$(CROSS)strip --preserve-dates -o "$$@" "$$<")
+initrd_libs += $(initrd_lib_dir)/$(notdir $1)
+endef
+
+# Define the initrd_data_add function
+define initrd_data_add
+	$(eval initrd_data += $(initrd_tmp_dir)/$(2))
+	$(eval $(initrd_tmp_dir)/$(2): $(1))
+		@mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
+		$(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
+endef
 
 # Only some modules have binaries that we install
 # Shouldn't this be specified in the module file?
@@ -651,37 +677,14 @@ $(foreach m, $(bin_modules-y), \
     $(call map,initrd_bin_add,$(call bins,$m)) \
 )
 
+# Install the data for every module that we have built
+$(foreach m, $(modules-y), \
+	$(call map,initrd_data_add,$(call data,$m)) \
+)
 # Install the libraries for every module that we have built
 $(foreach m, $(modules-y), \
     $(call map,initrd_lib_add,$(call libs,$m)) \
 )
-
-#
-# Files that should be copied into the initrd
-# TODO: This should probably be done in a more scalable manner
-#
-
-define initrd_bin_add =
-$(initrd_bin_dir)/$(notdir $1): $1
-	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
-initrd_bins += $(initrd_bin_dir)/$(notdir $1)
-endef
-
-define initrd_lib_add =
-$(initrd_lib_dir)/$(notdir $1): $1
-	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%),\
-		$(CROSS)strip --preserve-dates -o "$$@" "$$<")
-initrd_libs += $(initrd_lib_dir)/$(notdir $1)
-endef
-
-# Define the initrd_data_add function
-define initrd_data_add
-    $(eval initrd_data += $(initrd_tmp_dir)/$(2))
-    $(eval $(initrd_tmp_dir)/$(2): $(1))
-        @mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
-        $(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
-endef
 
 #
 # hack to build cbmem from coreboot
