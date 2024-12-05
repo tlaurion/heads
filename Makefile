@@ -649,21 +649,26 @@ $(info Starting to process module data)
 define process_module_data
 $(info Processing module: $(1))
 $(eval data_list := $($(1)_data))
-$(eval data_pairs := $(foreach i,$(data_list),$(eval $(i))))
-$(foreach pair,$(data_pairs), \
-    $(eval src := $(firstword $(pair))) \
-    $(eval dest := $(word 2,$(pair))) \
-    $(if $(src)$(dest), \
-        $(info Data: $(src) $(dest)) \
-        $(info Source: $(src)) \
-        $(info Destination: $(dest)) \
-        $(eval $(call initrd_data_add,$(src),$(dest))) \
-    ) \
+$(eval data_count := $(words $(data_list)))
+$(eval i := 1)
+$(while $(i) <= $(data_count), \
+	$(eval src := $(word $(i), $(data_list))) \
+	$(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
+	$(if $(src)$(dest), \
+		$(info Data: $(src) $(dest)) \
+		$(info Source: $(src)) \
+		$(info Destination: $(dest)) \
+		$(eval $(call initrd_data_add,$(src),$(dest))) \
+	) \
+	$(eval i := $(shell echo $$(($(i) + 2)))) \
 )
 endef
 
 # Process data for each module
-$(foreach module,$(modules-y),$(info Module: $(module))$(eval $(call process_module_data,$(module))))
+$(foreach module,$(modules-y), \
+	$(info Module: $(module)) \
+	$(eval $(call process_module_data,$(module))) \
+)
 
 # Add debug information after processing module data
 $(info Finished processing module data)
