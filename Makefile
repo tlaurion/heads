@@ -615,33 +615,6 @@ bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 
 
-#
-# Files that should be copied into the initrd
-# This should probably be done in a more scalable manner
-#
-
-define initrd_bin_add =
-$(initrd_bin_dir)/$(notdir $1): $1
-	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
-initrd_bins += $(initrd_bin_dir)/$(notdir $1)
-endef
-
-define initrd_lib_add =
-$(initrd_lib_dir)/$(notdir $1): $1
-	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%),\
-		$(CROSS)strip --preserve-dates -o "$$@" "$$<")
-initrd_libs += $(initrd_lib_dir)/$(notdir $1)
-endef
-
-# Define the initrd_data_add function
-define initrd_data_add
-    $(eval initrd_data += $(initrd_tmp_dir)/$(2))
-    $(eval $(initrd_tmp_dir)/$(2): $(1))
-        @mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
-        $(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
-endef
-
 # Add debug information before processing module data
 $(info Starting to process module data)
 
@@ -666,8 +639,8 @@ endef
 
 # Process data for each module
 $(foreach module,$(modules-y), \
-    $(info Module: $(module)) \
-    $(eval $(call process_module_data,$(module))) \
+	$(info Module: $(module)) \
+	$(eval $(call process_module_data,$(module))) \
 )
 
 # Add debug information after processing module data
@@ -682,6 +655,33 @@ $(foreach m, $(bin_modules-y), \
 $(foreach m, $(modules-y), \
     $(call map,initrd_lib_add,$(call libs,$m)) \
 )
+
+#
+# Files that should be copied into the initrd
+# TODO: This should probably be done in a more scalable manner
+#
+
+define initrd_bin_add =
+$(initrd_bin_dir)/$(notdir $1): $1
+	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
+	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
+initrd_bins += $(initrd_bin_dir)/$(notdir $1)
+endef
+
+define initrd_lib_add =
+$(initrd_lib_dir)/$(notdir $1): $1
+	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%),\
+		$(CROSS)strip --preserve-dates -o "$$@" "$$<")
+initrd_libs += $(initrd_lib_dir)/$(notdir $1)
+endef
+
+# Define the initrd_data_add function
+define initrd_data_add
+    $(eval initrd_data += $(initrd_tmp_dir)/$(2))
+    $(eval $(initrd_tmp_dir)/$(2): $(1))
+        @mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
+        $(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
+endef
 
 #
 # hack to build cbmem from coreboot
