@@ -636,10 +636,10 @@ endef
 
 # Define the initrd_data_add function
 define initrd_data_add
-$(eval initrd_data += $(initrd_tmp_dir)/$(2))
-$(eval $(initrd_tmp_dir)/$(2): $(1))
-	@mkdir -p $(dir $(initrd_tmp_dir)/$(2))
-	$(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
+	$(eval initrd_data += $(initrd_tmp_dir)/$(2))
+	$(eval $(initrd_tmp_dir)/$(2): $(1))
+		@mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
+		$(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
 endef
 
 # Add debug information before processing module data
@@ -649,17 +649,16 @@ $(info Starting to process module data)
 define process_module_data
 $(info Processing module: $(1))
 $(eval data_list := $($(1)_data))
-$(eval data_count := $(words $(data_list)))
-$(eval data_pairs := $(data_count) / 2)
-$(eval i := 1)
-$(while $(i) <= $(data_pairs), \
-    $(eval src := $(word $(shell echo $$(($(i) * 2 - 1))), $(data_list))) \
-    $(eval dest := $(word $(shell echo $$(($(i) * 2))), $(data_list))) \
-    $(info Data: $(src) $(dest)) \
-    $(info Source: $(src)) \
-    $(info Destination: $(dest)) \
-    $(eval $(call initrd_data_add,$(src),$(dest))) \
-    $(eval i := $(shell echo $$(($(i) + 1)))) \
+$(eval data_pairs := $(foreach i,$(data_list),$(eval $(i))))
+$(foreach pair,$(data_pairs), \
+    $(eval src := $(firstword $(pair))) \
+    $(eval dest := $(word 2,$(pair))) \
+    $(if $(src)$(dest), \
+        $(info Data: $(src) $(dest)) \
+        $(info Source: $(src)) \
+        $(info Destination: $(dest)) \
+        $(eval $(call initrd_data_add,$(src),$(dest))) \
+    ) \
 )
 endef
 
