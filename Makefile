@@ -689,7 +689,7 @@ $(foreach m, $(modules-y), \
 # The tools initrd is made from all of the things that we've
 # created during the submodule build.
 $(build)/$(initrd_dir)/tools.cpio: \
-$(initrd_bins) \
+	$(initrd_bins) \
 	$(initrd_data) \
 	$(initrd_libs) \
 	$(initrd_tmp_dir)/etc/config
