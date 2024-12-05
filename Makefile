@@ -686,6 +686,22 @@ $(foreach m, $(modules-y), \
     $(call map,initrd_lib_add,$(call libs,$m)) \
 )
 
+# The tools initrd is made from all of the things that we've
+# created during the submodule build.
+$(build)/$(initrd_dir)/tools.cpio: \
+    $(initrd_bins) \
+    $(initrd_data) \
+    $(initrd_libs) \
+    $(initrd_tmp_dir)/etc/config \
+
+    $(info Used **BINS**: $(initrd_bins))
+    $(info Used **DATA**: $(initrd_data))
+    $(info Used **LIBS**: $(initrd_libs))
+    
+    $(call do-cpio,$@,$(initrd_tmp_dir))
+    @$(RM) -rf "$(initrd_tmp_dir)"
+
+
 #
 # hack to build cbmem from coreboot
 # this must be built *AFTER* musl, but since coreboot depends on other things
@@ -778,24 +794,6 @@ endif
 #
 $(build)/$(initrd_dir)/heads.cpio: FORCE
 	$(call do-cpio,$@,$(pwd)/initrd)
-
-
-#
-# The tools initrd is made from all of the things that we've
-# created during the submodule build.
-#
-$(build)/$(initrd_dir)/tools.cpio: \
-	$(initrd_bins) \
-	$(initrd_data) \
-	$(initrd_libs) \
-	$(initrd_tmp_dir)/etc/config \
-
-	$(info Used **BINS**: $(initrd_bins))
-	$(info Used **DATA**: $(initrd_data))
-	$(info Used **LIBS**: $(initrd_libs))
-	
-	$(call do-cpio,$@,$(initrd_tmp_dir))
-	@$(RM) -rf "$(initrd_tmp_dir)"
 
 $(initrd_tmp_dir)/etc/config: FORCE
 	@mkdir -p $(dir $@)
