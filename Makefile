@@ -634,6 +634,13 @@ $(initrd_lib_dir)/$(notdir $1): $1
 initrd_libs += $(initrd_lib_dir)/$(notdir $1)
 endef
 
+# Define the initrd_data_add function
+define initrd_data_add
+$(eval initrd_data += $(initrd_tmp_dir)/$(2))
+$(eval $(initrd_tmp_dir)/$(2): $(1))
+	@mkdir -p $(dir $(initrd_tmp_dir)/$(2))
+	$(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
+endef
 
 # Add debug information before processing module data
 $(info Starting to process module data)
