@@ -613,15 +613,15 @@ $(eval data_list := $($(1)_data))
 $(eval data_count := $(words $(data_list)))
 $(eval i := 1)
 $(while $(i) <= $(data_count), \
-    $(eval src := $(word $(i), $(data_list))) \
-    $(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
-    $(if $(src)$(dest), \
-        $(info Data: $(src) $(dest)) \
-        $(info Source: $(src)) \
-        $(info Destination: $(dest)) \
-        $(eval $(call initrd_data_add,$(src),$(dest))) \
-    ) \
-    $(eval i := $(shell echo $$(($(i) + 2)))) \
+	$(eval src := $(word $(i), $(data_list))) \
+	$(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
+	$(if $(src)$(dest), \
+		$(info Data: $(src) $(dest)) \
+		$(info Source: $(src)) \
+		$(info Destination: $(dest)) \
+		$(eval $(call initrd_data_add,$(src),$(dest))) \
+	) \
+	$(eval i := $(shell echo $$(($(i) + 2)))) \
 )
 endef
 
@@ -673,7 +673,7 @@ $(info Finished processing module data)
 
 # Add the binaries for every module that we have built
 $(foreach m, $(bin_modules-y), \
-    $(call map,initrd_bin_add,$(call bins,$m)) \
+	$(call map,initrd_bin_add,$(call bins,$m)) \
 )
 
 # Install the data for every module that we have built
@@ -683,24 +683,21 @@ $(foreach m, $(modules-y), \
 
 # Install the libraries for every module that we have built
 $(foreach m, $(modules-y), \
-    $(call map,initrd_lib_add,$(call libs,$m)) \
+	$(call map,initrd_lib_add,$(call libs,$m)) \
 )
 
 # The tools initrd is made from all of the things that we've
 # created during the submodule build.
 $(build)/$(initrd_dir)/tools.cpio: \
-    $(initrd_bins) \
-    $(initrd_data) \
-    $(initrd_libs) \
-    $(initrd_tmp_dir)/etc/config \
-
-    $(info Used **BINS**: $(initrd_bins))
-    $(info Used **DATA**: $(initrd_data))
-    $(info Used **LIBS**: $(initrd_libs))
-    
-    $(call do-cpio,$@,$(initrd_tmp_dir))
-    @$(RM) -rf "$(initrd_tmp_dir)"
-
+$(initrd_bins) \
+	$(initrd_data) \
+	$(initrd_libs) \
+	$(initrd_tmp_dir)/etc/config
+	$(info Used **BINS**: $(initrd_bins))
+	$(info Used **DATA**: $(initrd_data))
+	$(info Used **LIBS**: $(initrd_libs))
+	$(call do-cpio,$@,$(initrd_tmp_dir))
+	@$(RM) -rf "$(initrd_tmp_dir)"
 
 #
 # hack to build cbmem from coreboot
