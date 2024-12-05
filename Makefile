@@ -636,10 +636,10 @@ endef
 
 # Define the initrd_data_add function
 define initrd_data_add
-	$(eval initrd_data += $(initrd_tmp_dir)/$(2))
-	$(eval $(initrd_tmp_dir)/$(2): $(1))
-		@mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
-		$(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
+    $(eval initrd_data += $(initrd_tmp_dir)/$(2))
+    $(eval $(initrd_tmp_dir)/$(2): $(1))
+        @mkdir -p $$(dir $(initrd_tmp_dir)/$(2))
+        $(call do,INSTALL-DATA,$(1),cp -a --remove-destination "$$<" "$$@")
 endef
 
 # Add debug information before processing module data
@@ -652,22 +652,22 @@ $(eval data_list := $($(1)_data))
 $(eval data_count := $(words $(data_list)))
 $(eval i := 1)
 $(while $(i) <= $(data_count), \
-	$(eval src := $(word $(i), $(data_list))) \
-	$(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
-	$(if $(src)$(dest), \
-		$(info Data: $(src) $(dest)) \
-		$(info Source: $(src)) \
-		$(info Destination: $(dest)) \
-		$(eval $(call initrd_data_add,$(src),$(dest))) \
-	) \
-	$(eval i := $(shell echo $$(($(i) + 2)))) \
+    $(eval src := $(word $(i), $(data_list))) \
+    $(eval dest := $(word $$(($(i) + 1)), $(data_list))) \
+    $(if $(src)$(dest), \
+        $(info Data: $(src) $(dest)) \
+        $(info Source: $(src)) \
+        $(info Destination: $(dest)) \
+        $(eval $(call initrd_data_add,$(src),$(dest))) \
+    ) \
+    $(eval i := $$(($(i) + 2))) \
 )
 endef
 
 # Process data for each module
 $(foreach module,$(modules-y), \
-	$(info Module: $(module)) \
-	$(eval $(call process_module_data,$(module))) \
+    $(info Module: $(module)) \
+    $(eval $(call process_module_data,$(module))) \
 )
 
 # Add debug information after processing module data
@@ -675,7 +675,7 @@ $(info Finished processing module data)
 
 # Add the binaries for every module that we have built
 $(foreach m, $(bin_modules-y), \
-	$(call map,initrd_bin_add,$(call bins,$m)) \
+    $(call map,initrd_bin_add,$(call bins,$m)) \
 )
 
 # Install the libraries for every module that we have built
