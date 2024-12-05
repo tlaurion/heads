@@ -626,14 +626,14 @@ $(eval data_count := $(words $(data_list)))
 $(eval i := 1)
 $(while $(i) <= $(data_count), \
     $(eval src := $(word $(i), $(data_list))) \
-    $(eval dest := $(word $$(($(i) + 1)), $(data_list))) \
+    $(eval dest := $(word $(shell echo $$(($(i) + 1))), $(data_list))) \
     $(if $(src)$(dest), \
         $(info Data: $(src) $(dest)) \
         $(info Source: $(src)) \
         $(info Destination: $(dest)) \
         $(eval $(call initrd_data_add,$(src),$(dest))) \
     ) \
-    $(eval i := $$(($(i) + 2))) \
+    $(eval i := $(shell echo $$(($(i) + 2)))) \
 )
 endef
 
