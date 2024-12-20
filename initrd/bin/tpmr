@@ -611,16 +611,9 @@ tpm2_unseal() {
 	fi
 
 	# tpm2 unseal will write the unsealed data to stdout and any errors to
-	# 	stderr.  We capture the unsealed data to $file, but still log the errors for quiet mode.
-	# In case of unseal error, caller will also report on TOTP not being able to be unsealed.
-	TMP_ERR_FILE=$(mktemp)
+	# stderr; capture stderr to log.
 	if ! tpm2 unseal -Q -c "$handle" -p "session:$POLICY_SESSION$UNSEAL_PASS_SUFFIX" \
-		-S "$ENC_SESSION_FILE" >"$file" 2>"$TMP_ERR_FILE"; then
-		# Log the contents of the temporary error file
-		while IFS= read -r line; do
-			LOG "tpm2 stderr: $line"
-		done <"$TMP_ERR_FILE"
-		rm -f "$TMP_ERR_FILE"
+		-S "$ENC_SESSION_FILE" >"$file" 2> >(SINK_LOG "tpm2 stderr"); then
 		LOG "Unable to unseal secret from TPM NVRAM"
 
 		# should succeed, exit if it doesn't
@@ -672,15 +665,15 @@ tpm2_reset() {
 	# output TPM Owner Password to a file to be reused in this boot session until recovery shell/reboot
 	DEBUG "Caching TPM Owner Password to $SECRET_DIR/tpm_owner_password"
 	echo -n "$tpm_owner_password" >"$SECRET_DIR/tpm_owner_password"
-	tpm2 clear -c platform >/dev/null 2>&1 || LOG "Unable to clear TPM on platform hierarchy"
-	tpm2 changeauth -c owner "$(tpm2_password_hex "$tpm_owner_password")" >/dev/null 2>&1 || LOG "Unable to change owner password"
-	tpm2 changeauth -c endorsement "$(tpm2_password_hex "$tpm_owner_password")" >/dev/null 2>&1 || LOG "Unable to change endorsement password"
-	tpm2 createprimary -C owner -g sha256 -G "${CONFIG_PRIMARY_KEY_TYPE:-rsa}" \
-		-c "$SECRET_DIR/primary.ctx" -P "$(tpm2_password_hex "$tpm_owner_password")" >/dev/null 2>&1 || LOG "Unable to create primary key"
-	tpm2 evictcontrol -C owner -c "$SECRET_DIR/primary.ctx" "$PRIMARY_HANDLE" \
-		-P "$(tpm2_password_hex "$tpm_owner_password")" >/dev/null 2>&1 || LOG "Unable to evict primary key"
-	shred -u "$SECRET_DIR/primary.ctx" >/dev/null 2>&1
-	tpm2_startsession >/dev/null 2>&1 || LOG "Unable to start session"
+	DO_WITH_DEBUG tpm2 clear -c platform &>/dev/null
+	DO_WITH_DEBUG tpm2 changeauth -c owner "$(tpm2_password_hex "$tpm_owner_password")" &>/dev/null
+	DO_WITH_DEBUG tpm2 changeauth -c endorsement "$(tpm2_password_hex "$tpm_owner_password")" &>/dev/null
+	DO_WITH_DEBUG tpm2 createprimary -C owner -g sha256 -G "${CONFIG_PRIMARY_KEY_TYPE:-rsa}" \
+		-c "$SECRET_DIR/primary.ctx" -P "$(tpm2_password_hex "$tpm_owner_password")" &>/dev/null
+	DO_WITH_DEBUG tpm2 evictcontrol -C owner -c "$SECRET_DIR/primary.ctx" "$PRIMARY_HANDLE" \
+		-P "$(tpm2_password_hex "$tpm_owner_password")" &>/dev/null
+	shred -u "$SECRET_DIR/primary.ctx" &>/dev/null
+	DO_WITH_DEBUG tpm2_startsession &>/dev/null
 
 	# Set the dictionary attack parameters.  TPM2 defaults vary widely, we
 	# want consistent behavior on any TPM.
@@ -722,17 +715,17 @@ tpm1_reset() {
 	DEBUG "Caching TPM Owner Password to $SECRET_DIR/tpm_owner_password"
 	echo -n "$tpm_owner_password" >"$SECRET_DIR/tpm_owner_password"
 	# Make sure the TPM is ready to be reset
-	tpm physicalpresence -s >/dev/null 2>&1 || LOG "Unable to assert physical presence"
-	tpm physicalenable >/dev/null 2>&1 || LOG "Unable to enable TPM"
-	tpm physicalsetdeactivated -c >/dev/null 2>&1 || LOG "Unable to deactivate TPM"
-	tpm forceclear >/dev/null 2>&1 || LOG "Unable to clear TPM"
-	tpm physicalenable >/dev/null 2>&1 || LOG "Unable to enable TPM"
-	tpm takeown -pwdo "$tpm_owner_password" >/dev/null 2>&1 || LOG "Unable to take ownership of TPM"
+	DO_WITH_DEBUG tpm physicalpresence -s &>/dev/null
+	DO_WITH_DEBUG tpm physicalenable &>/dev/null
+	DO_WITH_DEBUG tpm physicalsetdeactivated -c &>/dev/null
+	DO_WITH_DEBUG tpm forceclear &>/dev/null
+	DO_WITH_DEBUG tpm physicalenable &>/dev/null
+	DO_WITH_DEBUG tpm takeown -pwdo "$tpm_owner_password" &>/dev/null
 
 	# And now turn it all back on
-	tpm physicalpresence -s >/dev/null 2>&1 || LOG "Unable to assert physical presence"
-	tpm physicalenable >/dev/null 2>&1 || LOG "Unable to enable TPM"
-	tpm physicalsetdeactivated -c >/dev/null 2>&1 || LOG "Unable to deactivate TPM physical presence requirement"
+	DO_WITH_DEBUG tpm physicalpresence -s &>/dev/null
+	DO_WITH_DEBUG tpm physicalenable &>/dev/null
+	DO_WITH_DEBUG tpm physicalsetdeactivated -c &>/dev/null
 }
 
 # Perform final cleanup before boot and lock the platform heirarchy.
@@ -810,13 +803,9 @@ if [ "$CONFIG_TPM2_TOOLS" != "y" ]; then
 		TRACE_FUNC
 		LOG "TPM: Extending PCR[$3] with hash $hash"
 
-		# Redirect the output of DO_WITH_DEBUG to a temporary file so we can LOG it in quiet mode
-		TMP_DEBUG_FILE=$(mktemp)
-		DO_WITH_DEBUG exec tpm "$@" >"$TMP_DEBUG_FILE" 2>&1
-		while IFS= read -r line; do
-			LOG "$line"
-		done <"$TMP_DEBUG_FILE"
-		rm -f "$TMP_DEBUG_FILE"
+		# Silence stdout/stderr, they're only useful for debugging
+		# and DO_WITH_DEBUG captures them
+		DO_WITH_DEBUG exec tpm "$@" &>/dev/null
 		;;
 	seal)
 		shift
