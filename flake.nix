@@ -76,7 +76,7 @@
         vim # Mostly used amongst us, sorry if you'd like something else, open issue
         swtpm # QEMU requirement to emulate tpm1/tpm2
         dosfstools # QEMU requirement to produce valid fs to store exported public key to be fused through inject_key on qemu (so qemu flashrom emulated SPI support).
-        diffoscopeMinimal # Not sure exactly what is packed here, let's try. Might need diffoscope if something is missing
+        diffoscope# minimal doesn't include cbfstool nor help comparing full roms
         gnupg #to inject public key inside of qemu create rom through inject_gpg target of targets/qemu.mk TODO: remove when pflash supported by flashrom + modify code
         less # so 'git log' is usable
         moreutils # so that 'make 2>&1 | ts' can give timestamps
