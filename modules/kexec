@@ -1,10 +1,10 @@
 modules-$(CONFIG_KEXEC) += kexec
 
-kexec_version := 2.0.26
+kexec_version := a7fcd424c4c80dea5a2fd5ffa274ffeb8129c790
 kexec_dir := kexec-tools-$(kexec_version)
 kexec_tar := kexec-tools-$(kexec_version).tar.gz
-kexec_url := https://kernel.org/pub/linux/utils/kernel/kexec/$(kexec_tar)
-kexec_hash := 89bdd941542c64fec16311858df304ed3a3908c1a60874d69df5d9bf1611e062
+kexec_url := https://github.com/horms/kexec-tools/archive/$(kexec_version).tar.gz
+kexec_hash := dd7b6513627be54ea2e341979210194652b975af40c8ce52148d65999e4a1d01
 
 kexec_configure := \
 	CFLAGS="-g -Os -fno-strict-aliasing -Wall -Wstrict-prototypes" \
