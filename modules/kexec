@@ -1,10 +1,10 @@
 modules-$(CONFIG_KEXEC) += kexec
 
-kexec_version := 2.0.26
+kexec_version := 2.0.30
 kexec_dir := kexec-tools-$(kexec_version)
 kexec_tar := kexec-tools-$(kexec_version).tar.gz
 kexec_url := https://kernel.org/pub/linux/utils/kernel/kexec/$(kexec_tar)
-kexec_hash := 89bdd941542c64fec16311858df304ed3a3908c1a60874d69df5d9bf1611e062
+kexec_hash := bb6b39bbe00099219e95ab34b25ea4348e1a95964eefc45c1e6fe32362ac9021
 
 kexec_configure := \
 	CFLAGS="-g -Os -fno-strict-aliasing -Wall -Wstrict-prototypes" \
@@ -13,7 +13,6 @@ kexec_configure := \
 	--host $(MUSL_ARCH)-elf-linux \
 	--target $(MUSL_ARCH) \
 	--prefix="/" \
-	--without-lzma \
 	&& $(MAKE) clean
 
 kexec_target := \
