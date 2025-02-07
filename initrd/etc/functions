@@ -761,14 +761,11 @@ check_tpm_counter() {
 
 	LABEL=${2:-3135106223}
 	tpm_password="$3"
-	# if the /boot.hashes file already exists, read the TPM counter ID
-	# from it.
-	if [ -r "$1" ]; then
-		TPM_COUNTER=$(grep counter- "$1" | awk '{print $2}' | cut -d'/' -f3 | sed 's/-$//')
-		DEBUG "TPM counter found in $1: $TPM_COUNTER"
 
-		#TPM_COUNTER used from other functions, so export it
-		export TPM_COUNTER
+	if [ -r "$1" ]; then
+		COUNTER_FILE=$(awk '{print $2}' "$1")
+		TPM_COUNTER=$(echo "$COUNTER_FILE" | sed 's|^.*/counter-\{0,1\}||')
+		DEBUG "TPM counter found in $1: $TPM_COUNTER"
 	else
 		INFO "$1 does not exist; creating new TPM counter"
 		DO_WITH_DEBUG tpmr counter_create \
@@ -777,30 +774,55 @@ check_tpm_counter() {
 			tee /tmp/counter >/dev/null 2>&1 ||
 			die "Unable to create TPM counter"
 		TPM_COUNTER=$(cut -d: -f1 </tmp/counter)
-		DEBUG "TPM counter created under /tmp/counter; extracted TPM_COUNTER:$TPM_COUNTER"
-
-		#TPM_COUNTER used from other functions, so export it
-		export TPM_COUNTER
+		COUNTER_FILE="/tmp/counter"
+		DEBUG "TPM counter created under $COUNTER_FILE; extracted TPM_COUNTER:$TPM_COUNTER"
 	fi
 
 	if [ -z "$TPM_COUNTER" ]; then
 		die "$1: TPM Counter not found"
 	fi
+
+	export TPM_COUNTER
+	export COUNTER_FILE
 }
 
-# Read the TPM counter value from the TPM.
 read_tpm_counter() {
 	TRACE_FUNC
-	DO_WITH_DEBUG tpmr counter_read -ix "$1" | tee "/tmp/counter-$1" >/dev/null 2>&1 ||
+	DO_WITH_DEBUG tpmr counter_read -ix "$TPM_COUNTER" | tee "$COUNTER_FILE" >/dev/null 2>&1 ||
 		die "Counter read failed"
 }
 
-# Increment the TPM counter value in the TPM.
+# Increment the TPM counter and update the counter file and rollback hash file.
 increment_tpm_counter() {
 	TRACE_FUNC
-	DO_WITH_DEBUG tpmr counter_increment -ix "$1" -pwdc '' |
-		tee /tmp/counter-$1 >/dev/null 2>&1 ||
-		die "TPM counter increment failed for rollback prevention. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
+	local COUNTER_FILE="/tmp/counter-$TPM_COUNTER"
+	local ROLLBACK_FILE="/boot/kexec_rollback.txt"
+
+	DEBUG "Current state: TPM_COUNTER=$TPM_COUNTER, COUNTER_FILE=$COUNTER_FILE"
+	DEBUG "Rollback file will be: $ROLLBACK_FILE"
+
+	# We don't need to increment here, just read the current value
+	DO_WITH_DEBUG tpmr counter_read -ix "$TPM_COUNTER" |
+		tee "$COUNTER_FILE" >/dev/null 2>&1 ||
+		die "TPM counter read failed. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
+
+	DEBUG "Counter file contents: $(cat "$COUNTER_FILE")"
+
+	DEBUG "Attempting to create rollback file with: sha256sum $COUNTER_FILE > $ROLLBACK_FILE"
+	if ! sha256sum "$COUNTER_FILE" >"$ROLLBACK_FILE"; then
+		DEBUG "sha256sum failed. Error: $(sha256sum "$COUNTER_FILE" 2>&1 >/dev/null)"
+		DEBUG "Current directory: $(pwd)"
+		DEBUG "Listing of /tmp: $(ls -l /tmp)"
+		die "Unable to create rollback file"
+	fi
+
+	DEBUG "Rollback file contents: $(cat "$ROLLBACK_FILE")"
+
+	export COUNTER_FILE
+
+	DEBUG "Final state: TPM_COUNTER=$TPM_COUNTER, COUNTER_FILE=$COUNTER_FILE"
+
+	return 0
 }
 
 # Check detached signature on kexec boot params
