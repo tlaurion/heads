@@ -120,14 +120,14 @@ verify_rollback_counter() {
 	TPM_COUNTER=$(grep counter $TMP_ROLLBACK_FILE | cut -d- -f2)
 
 	if [ -z "$TPM_COUNTER" ]; then
-		die "$TMP_ROLLBACK_FILE: TPM counter not found. TPM Reset required"
+		die "$TMP_ROLLBACK_FILE: TPM counter not found. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
 	fi
 
 	read_tpm_counter $TPM_COUNTER >/dev/null 2>&1 ||
-		die "Failed to read TPM counter. TPM Reset required"
+		die "Failed to read TPM counter. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
 
 	sha256sum -c $TMP_ROLLBACK_FILE >/dev/null 2>&1 ||
-		die "Invalid TPM counter state. TPM Reset required"
+		die "Invalid TPM counter state. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
 
 	valid_rollback="y"
 }

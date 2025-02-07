@@ -31,7 +31,7 @@ mount_boot_or_die
 
 #if HOTP_COUNTER is not present, bail out
 if [ ! -f $HOTP_COUNTER ]; then
-  INFO "HOTP counter file not found. If you just reinstalled an OS, you need to reseal the HOTP secret"
+  die "HOTP counter file not found. If you just reinstalled an OS, you need to reseal the HOTP secret"
 fi
 
 # Read the counter from the file

@@ -81,7 +81,7 @@ if [ "$rollback" = "y" ]; then
 		TRACE_FUNC
 
 		if [ ! -e $rollback_file ]; then
-			die "$paramsdir: No rollback file existing. Please reset TPM"
+			die "$paramsdir: No rollback file existing. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
 			#TODO maybe whiptail, die messages are not user friendly
 		fi
 

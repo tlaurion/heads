@@ -555,7 +555,7 @@ reset_tpm() {
 			check_tpm_counter /boot/kexec_rollback.txt "" "$tpm_owner_password" ||
 				die "Unable to find/create tpm counter"
 			counter="$TPM_COUNTER"
-			#TODO WFT
+			#TODO was counter supposed to be empty and that was ok?!?!?!
 
 			increment_tpm_counter $counter >/dev/null 2>&1 ||
 				die "Unable to increment tpm counter"
