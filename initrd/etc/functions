@@ -8,6 +8,12 @@ die() {
 	else
 		echo -e "!!! ERROR: $* !!!" >&2
 	fi
+
+	# ask user to press any key prior to exit
+	# TODO: pausing for input creates problems with TPMTOTP unseal and HOTP unseal?!?!
+	#read -n 1 -s -r -p "Press any key to continue..."
+	
+	#TODO remove this sleep and uncomment the read above once figured out.
 	sleep 2
 	exit 1
 }
@@ -762,32 +768,39 @@ check_tpm_counter() {
 	# from it.
 	if [ -r "$1" ]; then
 		TPM_COUNTER=$(grep counter- "$1" | cut -d- -f2)
+		DEBUG "TPM counter found in $1: $TPM_COUNTER"
 	else
 		INFO "$1 does not exist; creating new TPM counter"
-		tpmr counter_create \
+		DO_WITH_DEBUG tpmr counter_create \
 			-pwdc '' \
 			-la $LABEL |
 			tee /tmp/counter >/dev/null 2>&1 ||
 			die "Unable to create TPM counter"
 		TPM_COUNTER=$(cut -d: -f1 </tmp/counter)
+		DEBUG "TPM counter created under /tmp/counter; extracted TPM_COUNTER:$TPM_COUNTER"
+
+		#TPM_COUNTER used from other functions, so export it
+		# TODO: how come this was expected to be valid and not reuse extraction logic leading to TPM_COUNTER being empty?
+		export TPM_COUNTER
+		#TODO clean this mess
 	fi
 
 	if [ -z "$TPM_COUNTER" ]; then
-		die "$1: TPM Counter not found?"
+		die "$1: TPM Counter not found"
 	fi
 }
 
 # Read the TPM counter value from the TPM.
 read_tpm_counter() {
 	TRACE_FUNC
-	tpmr counter_read -ix "$1" | tee "/tmp/counter-$1" >/dev/null 2>&1 ||
+	DO_WITH_DEBUG tpmr counter_read -ix "$1" | tee "/tmp/counter-$1" >/dev/null 2>&1 ||
 		die "Counter read failed"
 }
 
 # Increment the TPM counter value in the TPM.
 increment_tpm_counter() {
 	TRACE_FUNC
-	tpmr counter_increment -ix "$1" -pwdc '' |
+	DO_WITH_DEBUG tpmr counter_increment -ix "$1" -pwdc '' |
 		tee /tmp/counter-$1 >/dev/null 2>&1 ||
 		die "TPM counter increment failed for rollback prevention. Please reset the TPM"
 }
@@ -804,14 +817,17 @@ check_config() {
 	fi
 
 	if [ ! -r $1/kexec.sig -a "$CONFIG_BASIC" != "y" ]; then
+		DEBUG "No $1/kexec.sig found"
 		return
 	fi
 
 	if [ $(find $1/kexec*.txt | wc -l) -eq 0 ]; then
+		DEBUG "No $1/kexec*.txt found"
 		return
 	fi
 
 	if [ "$2" != "force" ]; then
+		DEBUG "$2 != force"
 		# Note that kexec.sig detached signature is solely verifying kexec*.txt files here!
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
 			die 'Invalid signature on kexec boot params'
@@ -885,10 +901,11 @@ update_checksums() {
 	extparam=
 	if [ "$CONFIG_TPM" = "y" ]; then
 		if [ "$CONFIG_IGNORE_ROLLBACK" != "y" ]; then
+			DEBUG "add -r to kexec-sign-config since CONFIG_IGNORE_ROLLBACK is not set"
 			extparam=-r
 		fi
 	fi
-	if ! kexec-sign-config -p /boot -u $extparam; then
+	if ! DO_WITH_DEBUG kexec-sign-config -p /boot -u $extparam; then
 		rv=1
 	else
 		rv=0
@@ -996,20 +1013,26 @@ verify_checksums() {
 		set +e -o pipefail
 		local ret=0
 		cd "$boot_dir" || ret=1
-		sha256sum -c "$TMP_HASH_FILE" >/tmp/hash_output || ret=1
+		TRACE_FUNC
+		sha256sum -c "$TMP_HASH_FILE" >/tmp/hash_output 2>/dev/null || ret=1
 
 		# also make sure that the file & directory structure didn't change
 		# (sha256sum won't detect added files)
 		print_tree >/tmp/tree_output || ret=1
-		if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output &>/dev/null; then
+		#if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output 2>/dev/null; then
+		if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output; then
+			TRACE_FUNC
 			ret=1
 			[[ "$gui" != "y" ]] && exit "$ret"
 			# produce a diff that can safely be presented to the user
 			# this is relatively hard as file names may e.g. contain backslashes etc.,
 			# which are interpreted by whiptail, less, ...
-			escape_zero "(new) " <"$TMP_TREE_FILE" >"${TMP_TREE_FILE}.user"
+			[ -f "$TMP_TREE_FILE" ] && escape_zero "(new) " <"$TMP_TREE_FILE" >"${TMP_TREE_FILE}.user"
 			escape_zero "(new) " </tmp/tree_output >/tmp/tree_output.user
-			diff "${TMP_TREE_FILE}.user" /tmp/tree_output.user | grep -E '^\+\(new\).*$' | sed -r 's/^\+\(new\)/(new)/g' >>/tmp/hash_output
+			TRACE_FUNC
+			diff "${TMP_TREE_FILE}.user" /tmp/tree_output.user 2>/dev/null |
+				grep -E '^\+(new).*$' | sed -r 's/^\+(new)/(new)/g' >/tmp/tree_output
+			TRACE_FUNC
 			rm -f "${TMP_TREE_FILE}.user"
 			rm -f /tmp/tree_output.user
 		fi

@@ -29,7 +29,13 @@ mount_boot_or_die
 #counter_value=$(read_tpm_counter $counter | cut -f2 -d ' ' | awk 'gsub("^000e","")')
 #
 
-counter_value=$(cat $HOTP_COUNTER)
+#if HOTP_COUNTER is not present, bail out
+if [ ! -f $HOTP_COUNTER ]; then
+  INFO "HOTP counter file not found. If you just reinstalled an OS, you need to reseal the HOTP secret"
+fi
+
+# Read the counter from the file
+counter_value=$(cat $HOTP_COUNTER 2>/dev/null)
 
 if [ "$counter_value" == "" ]; then
   die "Unable to read HOTP counter"

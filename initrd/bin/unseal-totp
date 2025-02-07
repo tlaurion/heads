@@ -10,6 +10,10 @@ TRACE_FUNC
 if [ "$CONFIG_TPM" = "y" ]; then
 	tpmr unseal 4d47 0,1,2,3,4,7 312 "$TOTP_SECRET" ||
 		die "Unable to unseal TOTP secret from TPM"
+
+		# TODO: switch from die to exit 1 once figured out why creating unsealing problems 
+		# for TPMTOTP and consequently for HOTP
+		#exit 1
 fi
 
 if ! totp -q <"$TOTP_SECRET"; then
