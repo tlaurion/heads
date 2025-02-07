@@ -10,11 +10,8 @@ die() {
 	fi
 
 	# ask user to press any key prior to exit
-	# TODO: pausing for input creates problems with TPMTOTP unseal and HOTP unseal?!?!
-	#read -n 1 -s -r -p "Press any key to continue..."
-	
-	#TODO remove this sleep and uncomment the read above once figured out.
-	sleep 2
+	read -n 1 -s -r -p "Press any key to continue..."
+
 	exit 1
 }
 
