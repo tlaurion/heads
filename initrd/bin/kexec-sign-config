@@ -112,7 +112,7 @@ if [ "$rollback" = "y" ]; then
 	fi
 
 	# save the counter value to the rollback file
-	DEBUG "rollback=y: Saving counter $counter to $rollback_file"
+	DEBUG "rollback=y: Saving counter $counter hash to $rollback_file"
 	DO_WITH_DEBUG sha256sum /tmp/counter-$counter >$rollback_file ||
 		die "$paramsdir: Unable to create rollback file"
 fi
