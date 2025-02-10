@@ -98,23 +98,16 @@ if [ "$rollback" = "y" ]; then
 		#check_tpm_counter /boot/kexec_rollback.txt "" "$tpm_owner_password" ||
 		#		die "Unable to find/create tpm counter"
 		#	counter="$TPM_COUNTER"
-
+		TRACE_FUNC
 		DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
 		# we checked for existing counter and didn't die; increment it
 		DEBUG "rollback=y: Incrementing counter:$counter."
-		TRACE_FUNC
 
 		DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
 			die "$paramsdir: Unable to increment tpm counter"
-		
-		DEBUG "rollback=y: Incremented counter $counter"
 		TRACE_FUNC
+		DEBUG "rollback=y: Incremented counter $counter"
 	fi
-
-	# save the counter value to the rollback file
-	DEBUG "rollback=y: Saving counter $counter hash to $rollback_file"
-	DO_WITH_DEBUG sha256sum /tmp/counter-$counter >$rollback_file ||
-		die "$paramsdir: Unable to create rollback file"
 fi
 
 param_files=$(find $paramsdir/kexec*.txt)
