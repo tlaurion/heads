@@ -786,6 +786,7 @@ check_tpm_counter() {
 	export COUNTER_FILE
 }
 
+# Read the TPM counter value from the TPM.
 read_tpm_counter() {
 	TRACE_FUNC
 	DO_WITH_DEBUG tpmr counter_read -ix "$TPM_COUNTER" | tee "$COUNTER_FILE" >/dev/null 2>&1 ||
@@ -794,35 +795,52 @@ read_tpm_counter() {
 
 # Increment the TPM counter and update the counter file and rollback hash file.
 increment_tpm_counter() {
-	TRACE_FUNC
-	local COUNTER_FILE="/tmp/counter-$TPM_COUNTER"
-	local ROLLBACK_FILE="/boot/kexec_rollback.txt"
+    TRACE_FUNC
+    local CURRENT_COUNTER="$1"
+    local NEW_COUNTER=$((CURRENT_COUNTER + 1))
+    local NEW_COUNTER_FILE="/tmp/counter-$NEW_COUNTER"
+    local ROLLBACK_FILE="/boot/kexec_rollback.txt"
 
-	DEBUG "Current state: TPM_COUNTER=$TPM_COUNTER, COUNTER_FILE=$COUNTER_FILE"
-	DEBUG "Rollback file will be: $ROLLBACK_FILE"
+    DEBUG "Incrementing counter from $CURRENT_COUNTER to $NEW_COUNTER"
+    DEBUG "New counter file will be: $NEW_COUNTER_FILE"
+    DEBUG "Rollback file will be: $ROLLBACK_FILE"
 
-	# We don't need to increment here, just read the current value
-	DO_WITH_DEBUG tpmr counter_read -ix "$TPM_COUNTER" |
-		tee "$COUNTER_FILE" >/dev/null 2>&1 ||
-		die "TPM counter read failed. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
+    DO_WITH_DEBUG tpmr counter_increment -ix "$CURRENT_COUNTER" -pwdc '' \
+        | tee "$NEW_COUNTER_FILE" >/dev/null 2>&1 ||
+        die "TPM counter increment failed. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
 
-	DEBUG "Counter file contents: $(cat "$COUNTER_FILE")"
+    DEBUG "New counter file contents: $(cat "$NEW_COUNTER_FILE")"
 
-	DEBUG "Attempting to create rollback file with: sha256sum $COUNTER_FILE > $ROLLBACK_FILE"
-	if ! sha256sum "$COUNTER_FILE" >"$ROLLBACK_FILE"; then
-		DEBUG "sha256sum failed. Error: $(sha256sum "$COUNTER_FILE" 2>&1 >/dev/null)"
-		DEBUG "Current directory: $(pwd)"
-		DEBUG "Listing of /tmp: $(ls -l /tmp)"
-		die "Unable to create rollback file"
-	fi
+    DEBUG "Checking if rollback file exists before sha256sum"
+    if [ -f "$ROLLBACK_FILE" ]; then
+        DEBUG "Rollback file already exists before sha256sum"
+    else
+        DEBUG "Rollback file does not exist before sha256sum"
+    fi
 
-	DEBUG "Rollback file contents: $(cat "$ROLLBACK_FILE")"
+    DEBUG "Attempting to create rollback file with: sha256sum $NEW_COUNTER_FILE > $ROLLBACK_FILE"
+    if ! DO_WITH_DEBUG sha256sum "$NEW_COUNTER_FILE" >"$ROLLBACK_FILE"; then
+        DEBUG "sha256sum command failed"
+        die "Unable to create rollback file: sha256sum failed"
+    fi
 
-	export COUNTER_FILE
+    DEBUG "Checking if rollback file exists after sha256sum"
+    if [ -f "$ROLLBACK_FILE" ]; then
+        DEBUG "Rollback file exists after sha256sum"
+    else
+        DEBUG "Rollback file does not exist after sha256sum"
+        die "Unable to create rollback file: file does not exist"
+    fi
 
-	DEBUG "Final state: TPM_COUNTER=$TPM_COUNTER, COUNTER_FILE=$COUNTER_FILE"
+    if [ ! -s "$ROLLBACK_FILE" ]; then
+        DEBUG "Rollback file is empty"
+        die "Unable to create rollback file: file is empty"
+    fi
 
-	return 0
+    DEBUG "Rollback file contents: $(cat "$ROLLBACK_FILE")"
+    DEBUG "Final state: NEW_COUNTER=$NEW_COUNTER, NEW_COUNTER_FILE=$NEW_COUNTER_FILE"
+
+    return 0
 }
 
 # Check detached signature on kexec boot params
