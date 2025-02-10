@@ -639,7 +639,7 @@ tpm1_unseal() {
 
 	rm -f "$sealed_file"
 
-	tpm nv_readvalue \
+	DO_WITH_DEBUG tpm nv_readvalue \
 		-in "$index" \
 		-sz "$sealed_size" \
 		-of "$sealed_file" ||

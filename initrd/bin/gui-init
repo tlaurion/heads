@@ -554,15 +554,16 @@ reset_tpm() {
 			# create Heads TPM counter before any others
 			check_tpm_counter /boot/kexec_rollback.txt "" "$tpm_owner_password" ||
 				die "Unable to find/create tpm counter"
+
+			TRACE_FUNC
+
 			counter="$TPM_COUNTER"
 			#TODO was counter supposed to be empty and that was ok?!?!?!
 
 			increment_tpm_counter $counter >/dev/null 2>&1 ||
 				die "Unable to increment tpm counter"
 
-			sha256sum /tmp/counter-$counter >/boot/kexec_rollback.txt ||
-				die "Unable to create rollback file"
-
+			TRACE_FUNC
 			# As a countermeasure for existing primary handle hash, we will now force sign /boot without it
 			if (whiptail --title 'TPM Reset Successfully' \
 				--yesno "Would you like to update the checksums and sign all of the files in /boot?\n\nYou will need your GPG key to continue and this will modify your disk.\n\nOtherwise the system will reboot immediately." 0 80); then
