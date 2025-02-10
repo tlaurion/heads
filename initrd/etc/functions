@@ -753,7 +753,7 @@ prompt_new_owner_password() {
 	# Cache the password externally to be reused by who needs it
 	DEBUG "Caching TPM Owner Password to /tmp/secret/tpm_owner_password"
 	mkdir -p /tmp/secret || die "Unable to create /tmp/secret"
-	echo -n "$tpm_owner_password" >/tmp/secret/tpm_owner_password || die "Unable to cache TPM password under /tmp/secret"
+	echo -n "$tpm_owner_password" >/tmp/secret/tpm_owner_password || die "Unable to cache TPM password under /tmp/secret/tpm_owner_password"
 }
 
 check_tpm_counter() {
@@ -769,23 +769,30 @@ check_tpm_counter() {
 		INFO "$1 does not exist; creating new TPM counter"
 		DO_WITH_DEBUG tpmr counter_create -pwdc '' -la $LABEL | tee /tmp/counter >/dev/null 2>&1 ||
 			die "Unable to create TPM counter"
+
+		TRACE_FUNC
 		TPM_COUNTER=$(cut -d: -f1 </tmp/counter)
 		echo "counter-$TPM_COUNTER" >"$1"
 		DEBUG "TPM counter created under $1; extracted TPM_COUNTER:$TPM_COUNTER"
 	fi
-
 	if [ -z "$TPM_COUNTER" ]; then
 		die "$1: TPM Counter not found"
 	fi
 
+	TRACE_FUNC
+	DEBUG "TPM_COUNTER: $TPM_COUNTER"
 	export TPM_COUNTER
 }
 
 # Read the TPM counter value from the TPM.
 read_tpm_counter() {
 	TRACE_FUNC
+
+	DEBUG "TPM_COUNTER: $TPM_COUNTER"
+	DEBUG "COUNTER_FILE: $COUNTER_FILE"
+
 	DO_WITH_DEBUG tpmr counter_read -ix "$TPM_COUNTER" | tee "$COUNTER_FILE" >/dev/null 2>&1 ||
-		die "Counter read failed"
+		die "TPM counter read failed for counter-$TPM_COUNTER"
 }
 
 # Increment the TPM counter and update the counter file and rollback hash file.
