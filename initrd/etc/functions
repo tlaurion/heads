@@ -763,19 +763,15 @@ check_tpm_counter() {
 	tpm_password="$3"
 
 	if [ -r "$1" ]; then
-		COUNTER_FILE=$(awk '{print $2}' "$1")
-		TPM_COUNTER=$(echo "$COUNTER_FILE" | sed 's|^.*/counter-\{0,1\}||')
+		TPM_COUNTER=$(grep counter- "$1" | cut -d- -f2)
 		DEBUG "TPM counter found in $1: $TPM_COUNTER"
 	else
 		INFO "$1 does not exist; creating new TPM counter"
-		DO_WITH_DEBUG tpmr counter_create \
-			-pwdc '' \
-			-la $LABEL |
-			tee /tmp/counter >/dev/null 2>&1 ||
+		DO_WITH_DEBUG tpmr counter_create -pwdc '' -la $LABEL | tee /tmp/counter >/dev/null 2>&1 ||
 			die "Unable to create TPM counter"
 		TPM_COUNTER=$(cut -d: -f1 </tmp/counter)
-		COUNTER_FILE="/tmp/counter"
-		DEBUG "TPM counter created under $COUNTER_FILE; extracted TPM_COUNTER:$TPM_COUNTER"
+		echo "counter-$TPM_COUNTER" >"$1"
+		DEBUG "TPM counter created under $1; extracted TPM_COUNTER:$TPM_COUNTER"
 	fi
 
 	if [ -z "$TPM_COUNTER" ]; then
@@ -783,7 +779,6 @@ check_tpm_counter() {
 	fi
 
 	export TPM_COUNTER
-	export COUNTER_FILE
 }
 
 # Read the TPM counter value from the TPM.
@@ -811,34 +806,16 @@ increment_tpm_counter() {
 
 	DEBUG "New counter file contents: $(cat "$NEW_COUNTER_FILE")"
 
-	DEBUG "Checking if rollback file exists before sha256sum"
-	if [ -f "$ROLLBACK_FILE" ]; then
-		DEBUG "Rollback file already exists before sha256sum"
-	else
-		DEBUG "Rollback file does not exist before sha256sum"
-	fi
-
 	DEBUG "Attempting to create rollback file with: sha256sum $NEW_COUNTER_FILE > $ROLLBACK_FILE"
 	if ! DO_WITH_DEBUG sha256sum "$NEW_COUNTER_FILE" >"$ROLLBACK_FILE"; then
 		DEBUG "sha256sum command failed"
 		die "Unable to create rollback file: sha256sum failed"
 	fi
 
-	DEBUG "Checking if rollback file exists after sha256sum"
-	if [ -f "$ROLLBACK_FILE" ]; then
-		DEBUG "Rollback file exists after sha256sum"
-	else
-		DEBUG "Rollback file does not exist after sha256sum"
-		die "Unable to create rollback file: file does not exist"
-	fi
-
-	if [ ! -s "$ROLLBACK_FILE" ]; then
-		DEBUG "Rollback file is empty"
-		die "Unable to create rollback file: file is empty"
-	fi
-
 	DEBUG "Rollback file contents: $(cat "$ROLLBACK_FILE")"
 	DEBUG "Final state: NEW_COUNTER=$NEW_COUNTER, NEW_COUNTER_FILE=$NEW_COUNTER_FILE"
+
+	export TPM_COUNTER="$NEW_COUNTER"
 
 	return 0
 }

@@ -9,19 +9,19 @@ TRACE_FUNC
 rollback="n"
 update="n"
 while getopts "p:c:ur" arg; do
-	case $arg in
-	p) paramsdir="$OPTARG" ;;
-	c)
-		counter="$OPTARG"
-		rollback="y"
-		;;
-	u) update="y" ;;
-	r) rollback="y" ;;
-	esac
+    case $arg in
+    p) paramsdir="$OPTARG" ;;
+    c)
+        counter="$OPTARG"
+        rollback="y"
+        ;;
+    u) update="y" ;;
+    r) rollback="y" ;;
+    esac
 done
 
 if [ -z "$paramsdir" ]; then
-	die "Usage: $0 -p /boot [ -u | -c counter ]"
+    die "Usage: $0 -p /boot [ -u | -c counter ]"
 fi
 
 paramsdir="${paramsdir%%/}"
@@ -37,98 +37,89 @@ mount -o remount,rw /boot
 
 # update hashes in /boot before signing
 if [ "$update" = "y" ]; then
-	(
-		TRACE_FUNC
-		DEBUG "update=y: Updating kexec hashes in /boot"
-		cd /boot
-		find ./ -type f ! -path './kexec*' -print0 | xargs -0 sha256sum >/boot/kexec_hashes.txt
-		if [ -e /boot/kexec_default_hashes.txt ]; then
-			DEBUG "/boot/kexec_default_hashes.txt exists, updating /boot/kexec_default_hashes.txt"
-			DEFAULT_FILES=$(cat /boot/kexec_default_hashes.txt | cut -f3 -d ' ')
-			echo $DEFAULT_FILES | xargs sha256sum >/boot/kexec_default_hashes.txt
-		fi
+    (
+        TRACE_FUNC
+        DEBUG "update=y: Updating kexec hashes in /boot"
+        cd /boot
+        find ./ -type f ! -path './kexec*' -print0 | xargs -0 sha256sum >/boot/kexec_hashes.txt
+        if [ -e /boot/kexec_default_hashes.txt ]; then
+            DEBUG "/boot/kexec_default_hashes.txt exists, updating /boot/kexec_default_hashes.txt"
+            DEFAULT_FILES=$(cat /boot/kexec_default_hashes.txt | cut -f3 -d ' ')
+            echo $DEFAULT_FILES | xargs sha256sum >/boot/kexec_default_hashes.txt
+        fi
 
-		#also save the file & directory structure to detect added files
-		print_tree >/boot/kexec_tree.txt
-		TRACE_FUNC
-	)
-	[ $? -eq 0 ] || die "$paramsdir: Failed to update hashes."
+        #also save the file & directory structure to detect added files
+        print_tree >/boot/kexec_tree.txt
+        TRACE_FUNC
+    )
+    [ $? -eq 0 ] || die "$paramsdir: Failed to update hashes."
 
-	# Remove any package trigger log files
-	# We don't need them after the user decides to sign
-	rm -f /boot/kexec_package_trigger*
+    # Remove any package trigger log files
+    # We don't need them after the user decides to sign
+    rm -f /boot/kexec_package_trigger*
 fi
 
 if [ "$rollback" = "y" ]; then
 
-	# this script was called with -c $OPTARG (counter=$OPTARG) or -r (rollback=y)
-	# TODO: THIS NEEDS WORK. $counter is empty
+    # this script was called with -c $OPTARG (counter=$OPTARG) or -r (rollback=y)
+    # TODO: THIS NEEDS WORK. $counter is empty
 
-	DEBUG "rollback=y, counter=$counter, paramsdir=$paramsdir"
+    DEBUG "rollback=y, counter=$counter, paramsdir=$paramsdir"
 
-	TRACE_FUNC
-	rollback_file="$paramsdir/kexec_rollback.txt"
+    TRACE_FUNC
+    rollback_file="$paramsdir/kexec_rollback.txt"
 
-	if [ -n "$counter" ]; then
-		DEBUG "rollback=y: counter=$counter, will read tpm counter next"
-		TRACE_FUNC
+    if [ -n "$counter" ]; then
+        DEBUG "rollback=y: counter=$counter, will read tpm counter next"
+        TRACE_FUNC
 
-		# use existing tpm counter
-		DO_WITH_DEBUG read_tpm_counter $counter >/dev/null 2>&1 ||
-			die "$paramsdir: Unable to read tpm counter '$counter'"
-	else
-		DEBUG "rollback=y: counter is empty: checking for existing TPM counter"
-		TRACE_FUNC
+        # use existing tpm counter
+        DO_WITH_DEBUG read_tpm_counter $counter >/dev/null 2>&1 ||
+            die "$paramsdir: Unable to read tpm counter '$counter'"
+    else
+        DEBUG "rollback=y: counter is empty: checking for existing TPM counter"
+        TRACE_FUNC
 
-		if [ ! -e $rollback_file ]; then
-			die "$paramsdir: No rollback file existing. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
-			#TODO maybe whiptail, die messages are not user friendly
-		fi
+        if [ ! -e $rollback_file ]; then
+            die "$paramsdir: No rollback file existing. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
+            #TODO maybe whiptail, die messages are not user friendly
+        fi
 
-		TRACE_FUNC
-		#DO_WITH_DEBUG check_tpm_counter $rollback_file >/dev/null 2>&1 ||
-		#	die "$paramsdir: Unable to find/create tpm counter"
-		DO_WITH_DEBUG check_tpm_counter $rollback_file ||
-			die "$paramsdir: Unable to find/create tpm counter"
-		counter="$TPM_COUNTER"
-		#TODO: this is not working as expected, TPM_COUNTER is empty
+        TRACE_FUNC
+        DO_WITH_DEBUG check_tpm_counter $rollback_file ||
+            die "$paramsdir: Unable to find/create tpm counter"
+        counter="$TPM_COUNTER"
+        TRACE_FUNC
+        DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
+        # we checked for existing counter and didn't die; increment it
+        DEBUG "rollback=y: Incrementing counter:$counter."
 
-		# FROM tpm reset:
-		# create Heads TPM counter before any others
-		#check_tpm_counter /boot/kexec_rollback.txt "" "$tpm_owner_password" ||
-		#		die "Unable to find/create tpm counter"
-		#	counter="$TPM_COUNTER"
-		TRACE_FUNC
-		DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
-		# we checked for existing counter and didn't die; increment it
-		DEBUG "rollback=y: Incrementing counter:$counter."
-
-		DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
-			die "$paramsdir: Unable to increment tpm counter"
-		TRACE_FUNC
-		DEBUG "rollback=y: Incremented counter $counter"
-	fi
+        DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
+            die "$paramsdir: Unable to increment tpm counter"
+        TRACE_FUNC
+        DEBUG "rollback=y: Incremented counter $counter"
+    fi
 fi
 
 param_files=$(find $paramsdir/kexec*.txt)
 if [ -z "$param_files" ]; then
-	die "$paramsdir: No kexec parameter files to sign"
+    die "$paramsdir: No kexec parameter files to sign"
 fi
 
 for tries in 1 2 3; do
-	if sha256sum $param_files | gpg \
-		--detach-sign \
-		-a \
-		>$paramsdir/kexec.sig \
-		; then
-		# successful - update the validated params
-		check_config $paramsdir
+    if sha256sum $param_files | gpg \
+        --detach-sign \
+        -a \
+        >$paramsdir/kexec.sig \
+        ; then
+        # successful - update the validated params
+        check_config $paramsdir
 
-		# remount /boot as ro
-		mount -o remount,ro /boot
+        # remount /boot as ro
+        mount -o remount,ro /boot
 
-		exit 0
-	fi
+        exit 0
+    fi
 done
 
 # remount /boot as ro
