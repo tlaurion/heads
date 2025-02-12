@@ -188,6 +188,7 @@ jobs:
             - build/ppc64/musl-cross-make-38e52db8358c043ae82b346a2e6e66bc86a53bc1
             - build/x86/coreboot-4.11
             - build/x86/coreboot-24.02.01
+            - build/x86/coreboot-2412
             - build/x86/coreboot-dasharo
             - build/x86/coreboot-purism
             - build/x86/musl-cross-make-38e52db8358c043ae82b346a2e6e66bc86a53bc1
@@ -228,7 +229,7 @@ workflows:
       # Below, sequentially build one board for each coreboot version.
       # The last board in the sequence is the dependency for the parallel boards built at the end, and also save_cache.
 
-      # coreboot 24.02.01
+      # coreboot 24.12
       - build_and_persist:
           name: x230-hotp-maximized
           target: x230-hotp-maximized
@@ -236,25 +237,21 @@ workflows:
           requires:
             - x86-musl-cross-make
 
-      # coreboot purism
+      # coreboot purism, depending on 24.02.01 buildstack
       - build_and_persist:
           name: librem_14
           target: librem_14
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - x86-musl-cross-make
 
-      # coreboot nitropad
-      # Nitropads depending on x230-hotp-maximized cache since kernel is 6.x and coreboot is git is unshared
-      # We use nitropad's coreboot's fork crossgcc
-      # No need to wait further for other board's cache
-      # We reuse built modules from x230-hotp-maximized cache only
+      # coreboot dasahro, reusing 24.02.01 buildstack
       - build_and_persist:
           name: novacustom-nv4x_adl
           target: novacustom-nv4x_adl
           subcommand: ""
           requires:
-            - x230-hotp-maximized
+            - librem_14
 
       # coreboot talos_2
       - build_and_persist:
@@ -278,10 +275,10 @@ workflows:
       - save_cache:
           requires:
             - UNTESTED_talos-2
-            - librem_14
+            - x230-hotp-maximized
 
       # Those onboarding new boards should add their entries below.
-      # coreboot 24.02.01 boards
+      # coreboot 24.12 boards
       - build:
           name: x220-hotp-maximized
           target: x220-hotp-maximized
@@ -331,7 +328,6 @@ workflows:
           requires:
             - x230-hotp-maximized
 
-      #TODO: move away of 24.02.01 coreboot and depend on optiplex specific dasharo commit
       - build:
           name: optiplex-7010_9010-maximized
           target: optiplex-7010_9010-maximized
@@ -459,6 +455,21 @@ workflows:
           requires:
             - x230-hotp-maximized
 
+      - build:
+          name: t480-hotp
+          target: t480-hotp
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: t480 
+          target: t480
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+
       # coreboot purism
       # librem boards
       - build:
@@ -509,22 +520,6 @@ workflows:
           subcommand: ""
           requires:
             - librem_14
-
-      # t480 is based on 24.12 coreboot release, not sharing any buildstack from now, depend on muscl-cross cache
-      - build:
-          name: t480-hotp
-          target: t480-hotp
-          subcommand: ""
-          requires:
-            - x86-musl-cross-make
-
-      # t480 is based on 24.12 coreboot release, not sharing any buildstack from now, depend on muscl-cross cache
-      - build:
-          name: t480
-          target: t480
-          subcommand: ""
-          requires:
-            - t480-hotp
 
       # dasharo release, share 24.02.01 utils/crossgcc
       - build:
