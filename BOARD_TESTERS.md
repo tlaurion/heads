@@ -34,7 +34,7 @@ xx4x(Haswell):
 
 xx8x(Kaby Lake Refresh):
 ===
-- [ ] t480: @gaspar-ilom
+- [ ] t480: @gaspar-ilom @notgivenby @MattClifton76 @akunterkontrolle @mblanqui
 - [ ] t480s (similar to t480): TODO: NOT SUPPORTED OR TESTED YET
 
 Librems:
