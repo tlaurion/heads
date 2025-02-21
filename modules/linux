@@ -289,6 +289,22 @@ linux.save_in_olddefconfig_format_in_place:
 		olddefconfig \
 	&& mv "$(build)/$(linux_dir)/.config" "$(pwd)/$(linux_kconfig)"
 
+# Same as above, but consistent with coreboot call; 
+#  so that developer can only switch coreboot to linux doing linux.save_in_oldconfig_format_in_place
+# We keep both since some older version of linux don't support oldconfig below: only olddefconfig
+#  TODO: review and remove later, this one or previous one on next major kernel/coreboot version bump
+# This one can be used in kernel version bump, which will accept all new defconfig options for the new version.
+#  PLEASE VERIFY CHANGES AND KEEP THINGS MINIMAL IN PRs.
+linux.save_in_oldconfig_format_in_place:
+	mkdir -p "$(build)/$(linux_dir)" \
+	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
+	&& $(MAKE) -C "$(build)/$(linux_base_dir)" \
+		O="$(build)/$(linux_dir)" \
+		ARCH="$(LINUX_ARCH)" \
+		CROSS_COMPILE="$(CROSS)" \
+		oldconfig \
+	&& mv "$(build)/$(linux_dir)/.config" "$(pwd)/$(linux_kconfig)"
+
 linux.save_in_versioned_oldconfig:
 	mkdir -p "$(build)/$(linux_dir)" \
 	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
