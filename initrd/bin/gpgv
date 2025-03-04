@@ -3,4 +3,6 @@
 . /etc/functions
 
 TRACE_FUNC
-exec gpg --verify "$@"
+DO_WITH_DEBUG exec gpg --verify "$@"
+#this is weaks if called without passing all files to verify
+# typically in codebase its 'find /boot/kexec*.txt | gpg --verify /boot/kexec.sig -'
