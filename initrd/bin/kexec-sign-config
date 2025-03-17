@@ -80,22 +80,22 @@ if [ "$rollback" = "y" ]; then
         TRACE_FUNC
 
         if [ ! -e $rollback_file ]; then
+            DEBUG "Rollback file $rollback_file does not exist. Creating new TPM counter."
+            DO_WITH_DEBUG check_tpm_counter $rollback_file ||
+                die "$paramsdir: Unable to find/create tpm counter"
+            counter="$TPM_COUNTER"
+            TRACE_FUNC
+            DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
+            # we checked for existing counter and didn't die; increment it
+            DEBUG "rollback=y: Incrementing counter:$counter."
+
+            DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
+                die "$paramsdir: Unable to increment tpm counter"
+            TRACE_FUNC
+            DEBUG "rollback=y: Incremented counter $counter"
+        else
             die "$paramsdir: No rollback file existing. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
         fi
-
-        TRACE_FUNC
-        DO_WITH_DEBUG check_tpm_counter $rollback_file ||
-            die "$paramsdir: Unable to find/create tpm counter"
-        counter="$TPM_COUNTER"
-        TRACE_FUNC
-        DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
-
-        # we checked for existing counter and didn't die; increment it
-        DEBUG "rollback=y: Incrementing counter:$counter."
-        DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
-            die "$paramsdir: Unable to increment tpm counter"
-        TRACE_FUNC
-        DEBUG "rollback=y: Incremented counter $counter"
     fi
 
     # Ensure the TPM counter file exists
