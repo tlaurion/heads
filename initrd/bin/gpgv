@@ -3,14 +3,4 @@
 . /etc/functions
 
 TRACE_FUNC
-
-
-if [ -s "$@" ]; then  
-	DEBUG "Verifying $@ which exists and is not empty"
-	DO_WITH_DEBUG exec gpg --verify "$@"
-else
-	DEBUG " $@ does not exist or is empty"
-	die "$@ does not exist or is empty. Verify /boot integrity and do 'Options -> Update checksums and sign all files in /boot'"
-fi
-
-# typically in codebase its 'find /boot/kexec*.txt | gpg --verify /boot/kexec.sig -'
+exec gpg --verify "$@"

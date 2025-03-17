@@ -36,6 +36,8 @@ TRACE_FUNC
 # remount /boot as rw
 mount -o remount,rw /boot
 
+DEBUG "Signing kexec parameters in $paramsdir, rollback=$rollback, update=$update, counter=$counter"
+
 # update hashes in /boot before signing
 if [ "$update" = "y" ]; then
     (
@@ -83,11 +85,11 @@ if [ "$rollback" = "y" ]; then
             DEBUG "Rollback file $rollback_file does not exist. Creating new TPM counter."
             DO_WITH_DEBUG check_tpm_counter $rollback_file ||
                 die "$paramsdir: Unable to find/create tpm counter"
-            counter="$TPM_COUNTER"
+
             TRACE_FUNC
-            DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
+            DEBUG "rollback=y: checked for existing counter under $rollback_file, found TPM_COUNTER=$TPM_COUNTER"
             # we checked for existing counter and didn't die; increment it
-            DEBUG "rollback=y: Incrementing counter:$counter."
+            DEBUG "rollback=y: Incrementing counter:$TPM_COUNTER."
 
             DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
                 die "$paramsdir: Unable to increment tpm counter"
@@ -99,7 +101,7 @@ if [ "$rollback" = "y" ]; then
     fi
 
     # Ensure the TPM counter file exists
-    DEBUG "Checking if TPM counter file '/tmp/counter-$counter' exists."
+    DEBUG "Checking if TPM counter file '/tmp/counter-$counter exists."
     if [ ! -e "/tmp/counter-$counter" ]; then
         die "$paramsdir: TPM counter file '/tmp/counter-$counter' not found after incrementing."
     fi
