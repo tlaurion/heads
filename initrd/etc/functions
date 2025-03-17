@@ -8,7 +8,10 @@ die() {
 	else
 		echo -e "!!! ERROR: $* !!!" >&2
 	fi
-	sleep 2
+
+	# ask user to press any key prior to exit
+	read -n 1 -s -r -p $'Press any key to continue...\n\n'
+
 	exit 1
 }
 
@@ -778,7 +781,7 @@ prompt_new_owner_password() {
 	# Cache the password externally to be reused by who needs it
 	DEBUG "Caching TPM Owner Password to /tmp/secret/tpm_owner_password"
 	mkdir -p /tmp/secret || die "Unable to create /tmp/secret"
-	echo -n "$tpm_owner_password" >/tmp/secret/tpm_owner_password || die "Unable to cache TPM password under /tmp/secret"
+	echo -n "$tpm_owner_password" >/tmp/secret/tpm_owner_password || die "Unable to cache TPM password under /tmp/secret/tpm_owner_password"
 }
 
 check_tpm_counter() {
@@ -817,12 +820,17 @@ increment_tpm_counter() {
 	TRACE_FUNC
 	tpmr counter_increment -ix "$1" -pwdc '' |
 		tee /tmp/counter-$1 >/dev/null 2>&1 ||
-		die "TPM counter increment failed for rollback prevention. Please reset the TPM"
+		die "TPM counter increment failed for rollback prevention. Please reset the TPM. Press Enter to continue"
+		#TODO: why the die here needs to say to Press Enter to continue? Should be part of die call?
 }
 
 # Check detached signature on kexec boot params
 check_config() {
 	TRACE_FUNC
+
+	DEBUG "paramdir: $1"
+	DEBUG "force: $2"
+
 	if [ ! -d /tmp/kexec ]; then
 		mkdir /tmp/kexec ||
 			die 'Failed to make kexec tmp dir'
@@ -832,17 +840,27 @@ check_config() {
 	fi
 
 	if [ ! -r $1/kexec.sig -a "$CONFIG_BASIC" != "y" ]; then
+		DEBUG "No $1/kexec.sig found"
 		return
 	fi
 
 	if [ $(find $1/kexec*.txt | wc -l) -eq 0 ]; then
+		DEBUG "No $1/kexec*.txt found"
 		return
 	fi
 
 	if [ "$2" != "force" ]; then
+		DEBUG "checking unforced signature on $1/kexec*.txt against $1/kexec.sig"
+		#TODO: what does unforced signature mean if its actually forced?
+		
+		#die if we have no detached digest under $1/kexec.sig
+		if [ ! -r "$1/kexec.sig" ]; then
+			die "No detached digest signature found under $1/kexec.sig. Please do 'Options-> Update checksums and sign all files in /boot'"
+		fi
+
 		# Note that kexec.sig detached signature is solely verifying kexec*.txt files here!
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
-			die 'Invalid signature on kexec boot params'
+			die "Invalid digest signature under $1/kexec.sig. Please do 'Options-> Update checksums and sign all files in /boot'"
 		fi
 	fi
 
@@ -913,6 +931,7 @@ update_checksums() {
 	extparam=
 	if [ "$CONFIG_TPM" = "y" ]; then
 		if [ "$CONFIG_IGNORE_ROLLBACK" != "y" ]; then
+			DEBUG "add -r to kexec-sign-config since CONFIG_IGNORE_ROLLBACK is not set"
 			extparam=-r
 		fi
 	fi
@@ -1024,20 +1043,26 @@ verify_checksums() {
 		set +e -o pipefail
 		local ret=0
 		cd "$boot_dir" || ret=1
-		sha256sum -c "$TMP_HASH_FILE" >/tmp/hash_output || ret=1
+		TRACE_FUNC
+		sha256sum -c "$TMP_HASH_FILE" >/tmp/hash_output 2>/dev/null || ret=1
 
 		# also make sure that the file & directory structure didn't change
 		# (sha256sum won't detect added files)
 		print_tree >/tmp/tree_output || ret=1
-		if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output &>/dev/null; then
+		#if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output 2>/dev/null; then
+		if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output; then
+			TRACE_FUNC
 			ret=1
 			[[ "$gui" != "y" ]] && exit "$ret"
 			# produce a diff that can safely be presented to the user
 			# this is relatively hard as file names may e.g. contain backslashes etc.,
 			# which are interpreted by whiptail, less, ...
-			escape_zero "(new) " <"$TMP_TREE_FILE" >"${TMP_TREE_FILE}.user"
+			[ -f "$TMP_TREE_FILE" ] && escape_zero "(new) " <"$TMP_TREE_FILE" >"${TMP_TREE_FILE}.user"
 			escape_zero "(new) " </tmp/tree_output >/tmp/tree_output.user
-			diff "${TMP_TREE_FILE}.user" /tmp/tree_output.user | grep -E '^\+\(new\).*$' | sed -r 's/^\+\(new\)/(new)/g' >>/tmp/hash_output
+			TRACE_FUNC
+			diff "${TMP_TREE_FILE}.user" /tmp/tree_output.user 2>/dev/null |
+				grep -E '^\+(new).*$' | sed -r 's/^\+(new)/(new)/g' >/tmp/tree_output
+			TRACE_FUNC
 			rm -f "${TMP_TREE_FILE}.user"
 			rm -f /tmp/tree_output.user
 		fi

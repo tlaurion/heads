@@ -27,21 +27,30 @@ fi
 paramsdir="${paramsdir%%/}"
 
 assert_signable
+TRACE_FUNC
 
 confirm_gpg_card
+TRACE_FUNC
 
 # remount /boot as rw
 mount -o remount,rw /boot
 
+DEBUG "Signing kexec parameters in $paramsdir, rollback=$rollback, update=$update, counter=$counter"
+
 # update hashes in /boot before signing
 if [ "$update" = "y" ]; then
 	(
+		TRACE_FUNC
+		DEBUG "update=y: Updating kexec hashes in /boot"
 		cd /boot
 		find ./ -type f ! -path './kexec*' -print0 | xargs -0 sha256sum >/boot/kexec_hashes.txt
 		if [ -e /boot/kexec_default_hashes.txt ]; then
+			DEBUG "/boot/kexec_default_hashes.txt exists, updating /boot/kexec_default_hashes.txt"
 			DEFAULT_FILES=$(cat /boot/kexec_default_hashes.txt | cut -f3 -d ' ')
 			echo $DEFAULT_FILES | xargs sha256sum >/boot/kexec_default_hashes.txt
 		fi
+
+		TRACE_FUNC
 
 		#also save the file & directory structure to detect added files
 		print_tree >/boot/kexec_tree.txt
@@ -56,7 +65,13 @@ fi
 if [ "$rollback" = "y" ]; then
 	rollback_file="$paramsdir/kexec_rollback.txt"
 
+	DEBUG "rollback=y, counter=$counter, paramsdir=$paramsdir"
+	TRACE_FUNC
+
 	if [ -n "$counter" ]; then
+		DEBUG "rollback=y: counter=$counter, will read tpm counter next"
+		TRACE_FUNC
+
 		# use existing counter
 		read_tpm_counter $counter >/dev/null 2>&1 ||
 			die "$paramsdir: Unable to read tpm counter '$counter'"

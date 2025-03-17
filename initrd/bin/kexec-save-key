@@ -77,6 +77,7 @@ kexec-seal-key $paramsdir ||
 if [ "$skip_sign" != "y" ]; then
 	extparam=
 	if [ "$CONFIG_IGNORE_ROLLBACK" != "y" ]; then
+		DEBUG "kexec-save-key: CONFIG_IGNORE_ROLLBACK is not set, will sign with -r"
 		extparam=-r
 	fi
 	# sign and auto-roll config counter
