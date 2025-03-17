@@ -1,4 +1,5 @@
 #!/bin/bash
+# filepath: /home/user/heads/initrd/bin/kexec-sign-config
 # Sign a valid directory of kexec params
 set -e -o pipefail
 . /tmp/config
@@ -62,11 +63,9 @@ fi
 if [ "$rollback" = "y" ]; then
 
     # this script was called with -c $OPTARG (counter=$OPTARG) or -r (rollback=y)
-    # TODO: THIS NEEDS WORK. $counter is empty
-
     DEBUG "rollback=y, counter=$counter, paramsdir=$paramsdir"
-
     TRACE_FUNC
+
     rollback_file="$paramsdir/kexec_rollback.txt"
 
     if [ -n "$counter" ]; then
@@ -82,7 +81,6 @@ if [ "$rollback" = "y" ]; then
 
         if [ ! -e $rollback_file ]; then
             die "$paramsdir: No rollback file existing. Please reset TPM through the Heads menu: Options -> TPM/TOTP/HOTP Options -> Reset the TPM"
-            #TODO maybe whiptail, die messages are not user friendly
         fi
 
         TRACE_FUNC
@@ -91,14 +89,24 @@ if [ "$rollback" = "y" ]; then
         counter="$TPM_COUNTER"
         TRACE_FUNC
         DEBUG "rollback=y: checked for existing counter under $rollback_file, found counter:$counter=TPM_COUNTER=$TPM_COUNTER"
+
         # we checked for existing counter and didn't die; increment it
         DEBUG "rollback=y: Incrementing counter:$counter."
-
         DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
             die "$paramsdir: Unable to increment tpm counter"
         TRACE_FUNC
         DEBUG "rollback=y: Incremented counter $counter"
     fi
+
+    # Ensure the TPM counter file exists
+    DEBUG "Checking if TPM counter file '/tmp/counter-$counter' exists."
+    if [ ! -e "/tmp/counter-$counter" ]; then
+        die "$paramsdir: TPM counter file '/tmp/counter-$counter' not found after incrementing."
+    fi
+
+    # Create the rollback file
+    sha256sum /tmp/counter-$counter >$rollback_file ||
+        die "$paramsdir: Unable to create rollback file"
 fi
 
 param_files=$(find $paramsdir/kexec*.txt)

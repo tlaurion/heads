@@ -361,9 +361,9 @@ do_boot() {
 
 while true; do
 	if [ "$force_boot" = "y" -o "$CONFIG_BASIC" = "y" ]; then
-		check_config $paramsdir force
+		DO_WITH_DEBUG check_config $paramsdir force
 	else
-		check_config $paramsdir
+		DO_WITH_DEBUG check_config $paramsdir
 	fi
 	TMP_DEFAULT_FILE=$(find /tmp/kexec/kexec_default.*.txt 2>/dev/null | head -1) || true
 	TMP_MENU_FILE="/tmp/kexec/kexec_menu.txt"
