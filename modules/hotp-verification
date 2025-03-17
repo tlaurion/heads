@@ -2,12 +2,13 @@ modules-$(CONFIG_HOTPKEY) += hotp-verification
 
 hotp-verification_depends := libusb $(musl_dep)
 
-# v1.7 + non-released stuff under 1.7 version bump (Nitrokey will do PR to change this in the future and also fixes to Heads related to regression fixes under Heads)
-hotp-verification_version := f4583b701a354dfa50c690075a568bc5cdf160e1
+# v1.7 + non-released stuff after 1.7 version bump (Nitrokey will do PR to change this in the future and also fixes to Heads related to regression fixes under Heads)
+#  diff between 1.7 commit and this one: https://github.com/Nitrokey/nitrokey-hotp-verification/compare/e6cf719d67a811356eecff69769fa1dbce47f953...3af17164d48e51e49f1b6e455901ecc7da502b03
+hotp-verification_version := 3af17164d48e51e49f1b6e455901ecc7da502b03
 hotp-verification_dir := hotp-verification-$(hotp-verification_version)
 hotp-verification_tar := nitrokey-hotp-verification-$(hotp-verification_version).tar.gz
 hotp-verification_url := https://github.com/Nitrokey/nitrokey-hotp-verification/archive/$(hotp-verification_version).tar.gz
-hotp-verification_hash := 42efeba9a61e4a00df55bf5337c157948bc76c895410fc76d02b87d6cd3b38eb
+hotp-verification_hash := 4bc5660df6ab827b23e6ea137941782e51e4c5d531cbb185f5ce204852d883e8
 
 hotp-verification_target := \
 	$(MAKE_JOBS) \
