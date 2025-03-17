@@ -818,9 +818,10 @@ read_tpm_counter() {
 # Increment the TPM counter value in the TPM.
 increment_tpm_counter() {
 	TRACE_FUNC
-	tpmr counter_increment -ix "$1" -pwdc '' |
+	DO_WITH_DEBUG tpmr counter_increment -ix "$1" -pwdc '' |
 		tee /tmp/counter-$1 >/dev/null 2>&1 ||
 		die "TPM counter increment failed for rollback prevention. Please reset the TPM. Press Enter to continue"
+		#TODO: why the die here needs to say to Press Enter to continue? Should be part of die call?
 }
 
 # Check detached signature on kexec boot params

@@ -560,7 +560,7 @@ reset_tpm() {
 			counter="$TPM_COUNTER"
 			#TODO was counter supposed to be empty and that was ok?!?!?!
 
-			increment_tpm_counter $counter >/dev/null 2>&1 ||
+			DO_WITH_DEBUG increment_tpm_counter $counter >/dev/null 2>&1 ||
 				die "Unable to increment tpm counter"
 
 			TRACE_FUNC
