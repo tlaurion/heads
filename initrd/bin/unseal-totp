@@ -13,7 +13,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
 			die "Unable to unseal TOTP secret from TPM"
 fi
 
-if ! DO_WITH_DEBUG --mask-position 2 totp -q <"$TOTP_SECRET"; then
+if ! DO_WITH_DEBUG totp -q <"$TOTP_SECRET"; then
 	shred -n 10 -z -u "$TOTP_SECRET" 2>/dev/null
 	die 'Unable to compute TOTP hash?'
 fi

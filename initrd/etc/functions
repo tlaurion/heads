@@ -10,7 +10,7 @@ die() {
 	fi
 
 	# ask user to press any key prior to exit
-	read -n 1 -s -r -p "Press any key to continue..."
+	read -n 1 -s -r -p $'Press Enter to continue...\n\n'
 
 	exit 1
 }
@@ -197,7 +197,7 @@ confirm_gpg_card() {
 	echo "GPG User PIN retry attempts left before becoming locked: $user_pin_retries"
 	echo "GPG Admin PIN retry attempts left before becoming locked: $admin_pin_retries"
 	echo ""
-	warn "Your GPG User PIN, followed by Enter key will be required for input at: 'Please unlock the card' next prompt"
+	warn "Your GPG User PIN, followed by Enter will be required for input at: 'Please unlock the card' next prompt"
 	echo ""
 }
 
@@ -538,30 +538,15 @@ TRACE_FUNC() {
 	TRACE "${stack_trace}"
 }
 
-# DEBUG_STACK prints the entire call stack for debugging purposes.
-# This function provides more detailed output than TRACE_FUNC, which is useful
-# for diagnosing errors, tracking function calls, or understanding unexpected behavior.
-#
-# The output format:
-#	call stack: (N frames)
-#	- 0 - /path/to/file(line): function_name
-#	- 1 - /path/to/file(line): function_name
-#
-# Usage:
-#	Call DEBUG_STACK anywhere to display the full stack trace.
+# Show the entire current call stack in debug output - useful if a catastrophic
+# error or something very unexpected occurs, like totally invalid parameters.
 DEBUG_STACK() {
-	local SKIP_FIRST=0
-
-	# If TRACE_FUNC called DEBUG_STACK, remove it from the stack to avoid redundancy.
-	[[ "${FUNCNAME[1]}" == "TRACE_FUNC" ]] && SKIP_FIRST=1  
-
-	# Get the total number of stack frames
-	local FRAMES="${#FUNCNAME[@]}"
-	DEBUG "call stack: ($((FRAMES - 1 - SKIP_FIRST)) frames)"
-
-	# Iterate through the stack and print each function call with file and line number
-	for i in $(seq $((1 + SKIP_FIRST)) "$((FRAMES - 1))"); do
-		DEBUG "- $((i - 1 - SKIP_FIRST)) - ${BASH_SOURCE[$i]}(${BASH_LINENO[$((i - 1))]}): ${FUNCNAME[$i]}"
+	local FRAMES
+	FRAMES="${#FUNCNAME[@]}"
+	DEBUG "call stack: ($((FRAMES - 1)) frames)"
+	# Don't print DEBUG_STACK itself, start from 1
+	for i in $(seq 1 "$((FRAMES - 1))"); do
+		DEBUG "- $((i - 1)) - ${BASH_SOURCE[$i]}(${BASH_LINENO[$((i - 1))]}): ${FUNCNAME[$i]}"
 	done
 }
 
@@ -811,17 +796,21 @@ check_tpm_counter() {
 # Read the TPM counter value from the TPM.
 read_tpm_counter() {
 	TRACE_FUNC
-	tpmr counter_read -ix "$1" | tee "/tmp/counter-$1" >/dev/null 2>&1 ||
-		die "Counter read failed"
+	if [ ! -e /tmp/counter-"$1" ]; then
+		DEBUG "Counter file /tmp/counter-$1 not found. Attempting to read from TPM."
+		DO_WITH_DEBUG tpmr counter_read -ix "$1" | tee /tmp/counter-"$1" >/dev/null 2>&1 ||
+			die "Counter read failed for index $1"
+	fi
+	DEBUG "Counter file /tmp/counter-$1 read successfully."
 }
 
 # Increment the TPM counter value in the TPM.
 increment_tpm_counter() {
 	TRACE_FUNC
 	DO_WITH_DEBUG tpmr counter_increment -ix "$1" -pwdc '' |
-		tee /tmp/counter-$1 >/dev/null 2>&1 ||
-		die "TPM counter increment failed for rollback prevention. Please reset the TPM. Press Enter to continue"
-		#TODO: why the die here needs to say to Press Enter to continue? Should be part of die call?
+		tee /tmp/counter-"$1" >/dev/null 2>&1 ||
+		die "TPM counter increment failed for rollback prevention. Please reset the TPM."
+	DEBUG "TPM counter incremented successfully for index $1"
 }
 
 # Check detached signature on kexec boot params
@@ -846,7 +835,7 @@ check_config() {
 	fi
 
 	if [ "$2" != "force" ]; then
-		DEBUG "$2 != force"
+		DEBUG "second param: $2 != force"
 		# Note that kexec.sig detached signature is solely verifying kexec*.txt files here!
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
 			die 'Invalid signature on kexec boot params'
@@ -1038,7 +1027,6 @@ verify_checksums() {
 		# also make sure that the file & directory structure didn't change
 		# (sha256sum won't detect added files)
 		print_tree >/tmp/tree_output || ret=1
-		#if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output 2>/dev/null; then
 		if ! cmp -s "$TMP_TREE_FILE" /tmp/tree_output; then
 			TRACE_FUNC
 			ret=1
@@ -1046,7 +1034,7 @@ verify_checksums() {
 			# produce a diff that can safely be presented to the user
 			# this is relatively hard as file names may e.g. contain backslashes etc.,
 			# which are interpreted by whiptail, less, ...
-			[ -f "$TMP_TREE_FILE" ] && escape_zero "(new) " <"$TMP_TREE_FILE" >"${TMP_TREE_FILE}.user"
+			escape_zero "(new) " <"$TMP_TREE_FILE" >"${TMP_TREE_FILE}.user"
 			escape_zero "(new) " </tmp/tree_output >/tmp/tree_output.user
 			TRACE_FUNC
 			diff "${TMP_TREE_FILE}.user" /tmp/tree_output.user 2>/dev/null |
