@@ -91,10 +91,15 @@ coreboot-purism_repo := https://source.puri.sm/firmware/coreboot.git
 coreboot-purism_commit_hash := bea9947a1279be7d4a72b38a601d0288d10d1cb8
 $(eval $(call coreboot_module,purism,24.02.01))
 
-# MrChromebox is based on 24.02, but focusing on Chromebooks / Chromeboxes.
+# MrChromebox offer a 24.12 based coreboot branch, focusing on Chromebooks / Chromeboxes.
+#  - Branch: https://github.com/MrChromebox/coreboot/tree/MrChromebox-2412. Use latest commit at time of writing these lines.
+#  - Reuse 24.12 crossgcc env built in tree for other boards, not duplicating crossgcc build env to build coreboot ('call coreboot_module,mrchromebox,24.12,')
+#  - Patches are applied on top of coreboot cloned tree from patches/coreboot-mrchromebox:
+#    - PR0 as of now only since not merged upstream yet for post-skylake
+#      - This is https://review.coreboot.org/c/coreboot/+/85278
 coreboot-mrchromebox_repo := https://github.com/MrChromebox/coreboot.git
-coreboot-mrchromebox_commit_hash := f063753d235b67547736eb022f54ac0cc8dcfa61
-$(eval $(call coreboot_module,mrchromebox,24.02.01,))
+coreboot-mrchromebox_commit_hash := 6c9b0e63ed936ecf19818cec382c89714cc82d86
+$(eval $(call coreboot_module,mrchromebox,24.12,))
 
 # MSI and NovaCustom NV4xPZ, NS5xPU, V560TU boards are based on Dasharo
 # coreboot fork, based on upstream coreboot version 24.02

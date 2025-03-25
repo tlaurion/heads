@@ -37,6 +37,10 @@ xx8x(Kaby Lake Refresh):
 ===
 - [ ] t480: @gaspar-ilom @doritos4mlady @MattClifton76 @notgivenby @akunterkontrolle
 
+ChromeBooks (CR50 based TPM2: does not support TPM unsealed Disk Unlock Key)
+===
+- [ ] Omnigul (AlderLake: Intel 12th Gen): @mdrobnak
+
 Librems:
 ===
 - [ ] Librem 11(JasperLake): @JonathonHall-Purism
