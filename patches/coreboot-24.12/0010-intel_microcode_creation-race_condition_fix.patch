@@ -1,0 +1,13 @@
+--- ./src/cpu/Makefile.mk.orig	2025-03-31 10:05:10.288128121 -0400
++++ ./src/cpu/Makefile.mk	2025-03-31 10:08:54.890140160 -0400
+@@ -55,7 +55,9 @@
+ 	$(if $(cpu_microcode_bins),,false) # fail if no file is given at all
+ 	@printf "    MICROCODE  $(subst $(obj)/,,$(@))\n"
+ 	@echo $(cpu_microcode_bins)
+-	cat $(cpu_microcode_bins) > $@
++	# Concatenate all microcode binaries into a temporary file,
++	# then atomically move it into place so that CBFS only sees a complete file.
++	cat $(cpu_microcode_bins) > $@.tmp && mv $@.tmp $@
+ 
+ cpu_microcode_blob.bin-file ?= $(obj)/cpu_microcode_blob.bin
+ cpu_microcode_blob.bin-type := microcode
