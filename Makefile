@@ -881,38 +881,95 @@ board.move_tested_to_unmaintained:
 	echo "Operation completed for $(BOARD) -> $${NEW_BOARD}"; \
 	echo "Please manually review and remove any unnecessary entries in .circleci/config.yml"
 
-# Inject a GPG key into the image - this is most useful when testing in qemu,
-# since we can't reflash the firmware in qemu to update the keychain.  Instead,
-# inject the public key ahead of time.  Specify the location of the key with
-# PUBKEY_ASC.
-inject_gpg: $(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)
-
-$(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPUT_FILE)
-	cp "$(board_build)/$(CB_OUTPUT_FILE)" \
-		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)"
-	./bin/inject_gpg_key.sh --cbfstool "$(build)/$(coreboot_dir)/cbfstool" \
-		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)" "$(PUBKEY_ASC)"
-
-
-
-#Dev cycles helpers:
-
 # Helper function to overwrite coreboot git repo's .canary file with a bogus commit (.canary checked for matching commit on build)
-#  TODO: Implement a cleaner solution to ensure files created by patches are properly deleted instead of requiring manual intervention.
+# Also reverses Git patches in the corresponding module version directory in reverse order.
 define overwrite_canary_if_coreboot_git
 	@echo "Checking for coreboot directory: build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)"
 	if [ -d "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" ] && \
 	   [ -d "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.git" ]; then \
 		echo "INFO: Recreating .canary file for 'build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)' with placeholder."; \
 		echo BOGUS_COMMIT_ID > "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.canary"; \
-		echo "NOTE: If a patch fails to apply, some files might need to be deleted manually to resolve conflicts."; \
+		if [ -d "patches/coreboot-$(CONFIG_COREBOOT_VERSION)" ]; then \
+			echo "INFO: Reversing patches in reverse order in 'build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)'..."; \
+			for patch in $$(ls -r patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch); do \
+				if [ -f "$$patch" ]; then \
+					echo "Reversing patch: $$patch"; \
+					(cd "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" && git apply -R "../../../$$patch") || exit 1; \
+				fi; \
+			done; \
+		else \
+			echo "INFO: No patches found for coreboot version $(CONFIG_COREBOOT_VERSION), skipping patch reversal."; \
+		fi; \
+		echo "NOTE: If a patch fails to reverse, some files might need to be deleted manually to resolve conflicts."; \
 	else \
-		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite."; \
+		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite and patch reversal."; \
 	fi
 endef
 
+# Dev cycle helpers in order of less to more destructive.
+# Use these helpers based on the level of cleanup required.
+
+# Removes only 'canary' files and clears the './install' directory.
+# Use this when you want to force Heads to rebuild board configurations without wiping other artifacts.
+real.remove_canary_files-extract_patch_rebuild_what_changed:
+	@echo "Removing 'canary' files to force Heads to restart building board configurations..."
+	@echo "The following 'canary' files will be deleted:"
+	@find ./build/ -type f -name ".canary" -print
+	find ./build/ -type f -name ".canary" -print -delete
+	@echo "The following directories under './install' will be cleared:"
+	if [ -d "./install" ]; then \
+		if find ./install/*/* -maxdepth 0 2>/dev/null | grep -q .; then \
+			find ./install/*/* -print; \
+			find ./install/*/* -print -exec rm -rf {} + 2>/dev/null || true; \
+		else \
+			echo "INFO: No directories found under './install', skipping."; \
+		fi; \
+	else \
+		echo "INFO: './install' directory does not exist, skipping."; \
+	fi
+	$(call overwrite_canary_if_coreboot_git)
+
+# Cleans the repository but keeps the 'packages' and 'build' directories intact.
+# Use this when you want to preserve downloaded packages and build artifacts.
+real.gitclean_keep_packages_and_build:
+	@echo "Cleaning the repository using Git ignore file as a base..."
+	@echo "The following files and directories will be deleted, except 'packages' and 'build':"
+	@git clean -fxd -e "packages" -e "build" -n
+	git clean -fxd -e "packages" -e "build"
+	$(call overwrite_canary_if_coreboot_git)
+
+# Cleans the repository but keeps the 'packages' directory intact.
+# Use this when you want to preserve downloaded packages but remove build artifacts.
+real.gitclean_keep_packages:
+	@echo "Cleaning the repository using Git ignore file as a base..."
+	@echo "The following files and directories will be deleted, except 'packages':"
+	@git clean -fxd -e "packages" -n
+	git clean -fxd -e "packages"
+	$(call overwrite_canary_if_coreboot_git)
+
+# Cleans the repository entirely, removing all untracked files and directories.
+# Use this when you want a clean slate but keep downloaded coreboot forks.
+real.gitclean:
+	@echo "Cleaning the repository using Git ignore file as a base..."
+	@echo "The following files and directories will be deleted:"
+	@git clean -fxd -n
+	git clean -fxd
+	$(call overwrite_canary_if_coreboot_git)
+
+# Cleans build artifacts and the './install' directory but leaves crossgcc intact.
+# Use this when you want to rebuild everything except the cross-compilation toolchain.
 real.clean:
 	@echo "Cleaning build artifacts and install directories, leaving crossgcc intact."
+	@echo "The following directories will be deleted:"
+	@for dir in \
+		$(module_dirs) \
+		$(kernel_headers) \
+	; do \
+		if [ ! -z "$$dir" ]; then \
+			echo "  build/${CONFIG_TARGET_ARCH}/$$dir"; \
+		fi; \
+	done
+	@echo "The following directory will be cleared: install/"
 	for dir in \
 		$(module_dirs) \
 		$(kernel_headers) \
@@ -924,33 +981,14 @@ real.clean:
 	cd install && rm -rf -- *
 	$(call overwrite_canary_if_coreboot_git)
 
-real.gitclean:
-	@echo "Cleaning the repository using Git ignore file as a base..."
-	@echo "This will wipe everything not in the Git tree, but keep downloaded coreboot forks (detected as Git repos)."
-	git clean -fxd
-	$(call overwrite_canary_if_coreboot_git)
+# Inject a GPG key into the image - this is most useful when testing in qemu,
+# since we can't reflash the firmware in qemu to update the keychain.  Instead,
+# inject the public key ahead of time.  Specify the location of the key with
+# PUBKEY_ASC.
+inject_gpg: $(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)
 
-real.gitclean_keep_packages:
-	@echo "Cleaning the repository using Git ignore file as a base..."
-	@echo "This will wipe everything not in the Git tree, but keep the 'packages' directory."
-	git clean -fxd -e "packages"
-	$(call overwrite_canary_if_coreboot_git)
-
-real.remove_canary_files-extract_patch_rebuild_what_changed:
-	@echo "Removing 'canary' files to force Heads to restart building board configurations..."
-	@echo "This will check package integrity, extract them, redo patching on files, and rebuild what needs to be rebuilt."
-	@echo "It will also reinstall the necessary files under './install'."
-	@echo "Limitations: If a patch creates a file in an extracted package directory, this approach may fail without further manual actions."
-	@echo "In such cases, Git will inform you about the file that couldn't be created as expected. Simply delete those files and relaunch the build."
-	@echo "This approach economizes time since most build artifacts do not need to be rebuilt, as the file dates should be the same as when you originally built them."
-	@echo "Only a minimal time is needed for rebuilding, which is also good for your SSD."
-	@echo "*** USE THIS APPROACH FIRST ***"
-	find ./build/ -type f -name ".canary" -print -delete
-	find ./install/*/* -print -exec rm -rf {} + 2>/dev/null || true
-	$(call overwrite_canary_if_coreboot_git)
-
-real.gitclean_keep_packages_and_build:
-	@echo "Cleaning the repository using Git ignore file as a base..."
-	@echo "This will wipe everything not in the Git tree, but keep the 'packages' and 'build' directories."
-	git clean -fxd -e "packages" -e "build"
-	$(call overwrite_canary_if_coreboot_git)
+$(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPUT_FILE)
+	cp "$(board_build)/$(CB_OUTPUT_FILE)" \
+		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)"
+	./bin/inject_gpg_key.sh --cbfstool "$(build)/$(coreboot_dir)/cbfstool" \
+		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)" "$(PUBKEY_ASC)"
