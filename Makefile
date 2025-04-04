@@ -156,18 +156,19 @@ endif
 
 # If V is set in the environment, do not redirect the tee
 # command to /dev/null.
-ifeq "$V" ""
+ifeq "$(V)" "1"
+VERBOSE_REDIRECT :=
+# Verbose, so we display what we are doing
+define do =
+	@echo "$(DATE) $1 $(2:$(pwd)/%=%)"
+	$3
+endef
+else
 VERBOSE_REDIRECT := > /dev/null
 # Not verbose, so we only show the header
 define do =
 	@echo "$(DATE) $1 $(2:$(pwd)/%=%)"
 	@$3
-endef
-else
-# Verbose, so we display what we are doing
-define do =
-	@echo "$(DATE) $1 $(2:$(pwd)/%=%)"
-	$3
 endef
 endif
 
@@ -931,17 +932,10 @@ endef
 # Use this when you want to force Heads to rebuild board configurations without wiping other artifacts.
 real.remove_canary_files-extract_patch_rebuild_what_changed:
 	@echo "Removing 'canary' files to force Heads to restart building board configurations..."
-	@echo "The following 'canary' files will be deleted:"
-	@find ./build/ -type f -name ".canary" -print
-	find ./build/ -type f -name ".canary" -print -delete
-	@echo "The following directories under './install' will be cleared:"
-	if [ -d "./install" ]; then \
-		if find ./install/*/* -maxdepth 0 2>/dev/null | grep -q .; then \
-			find ./install/*/* -print; \
-			find ./install/*/* -print -exec rm -rf {} + 2>/dev/null || true; \
-		else \
-			echo "INFO: No directories found under './install', skipping."; \
-		fi; \
+	@find ./build/ -type f -name ".canary" -print -delete
+	@echo "Clearing the './install' directory..."
+	@if [ -d "./install" ]; then \
+		rm -rf ./install/*/*; \
 	else \
 		echo "INFO: './install' directory does not exist, skipping."; \
 	fi
