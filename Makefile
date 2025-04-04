@@ -465,18 +465,34 @@ define define_module =
 	mkdir -p "$$(dir $$@)"
 	tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$$(dir $$@)"
 	if [ -r patches/$($1_patch_name).patch ]; then \
-		( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) ) \
-			< patches/$($1_patch_name).patch \
-			|| exit 1 ; \
+		echo "INFO: Found single patch file patches/$($1_patch_name).patch."; \
+		echo "INFO: Attempting to reverse single patch for $1 (if previously applied). This is a best-effort operation."; \
+		( git apply -R --check --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) patches/$($1_patch_name).patch && \
+		  git apply -R --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) patches/$($1_patch_name).patch ) || \
+		  echo "INFO: Reverse application of the patch failed. This is expected if the patch was not previously applied."; \
+		echo "INFO: Applying single patch for $1."; \
+		( git apply --check --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) patches/$($1_patch_name).patch && \
+		  git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) patches/$($1_patch_name).patch ) || exit 1; \
 	fi
-	if [ -d patches/$($1_patch_name) ] && \
-	   [ -r patches/$($1_patch_name) ] ; then \
-		for patch in patches/$($1_patch_name)/*.patch ; do \
-			echo "Applying patch file : $$$$patch " ;  \
-			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) ) \
-				< $$$$patch \
-				|| exit 1 ; \
-		done ; \
+	if [ -d patches/$($1_patch_name) ]; then \
+		echo "INFO: Found patch directory patches/$($1_patch_name)."; \
+		echo "INFO: Attempting to reverse patches for $1 (if previously applied). This is a best-effort operation."; \
+		for patch in patches/$($1_patch_name)/*.patch; do \
+			if [ -f "$$patch" ]; then \
+				echo "Attempting to reverse patch: $$patch"; \
+				( git apply -R --check --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$patch" && \
+				  git apply -R --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$patch" ) || \
+				  echo "INFO: Reverse application of patch $$patch failed. This is expected if the patch was not previously applied."; \
+			fi; \
+		done; \
+		echo "INFO: Applying patches for $1."; \
+		for patch in patches/$($1_patch_name)/*.patch; do \
+			if [ -f "$$patch" ]; then \
+				echo "Applying patch file: $$patch"; \
+				( git apply --check --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$patch" && \
+				  git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$patch" ) || exit 1; \
+			fi; \
+		done; \
 	fi
 	@touch "$$@"
   endif
@@ -881,6 +897,20 @@ board.move_tested_to_unmaintained:
 	echo "Operation completed for $(BOARD) -> $${NEW_BOARD}"; \
 	echo "Please manually review and remove any unnecessary entries in .circleci/config.yml"
 
+# Inject a GPG key into the image - this is most useful when testing in qemu,
+# since we can't reflash the firmware in qemu to update the keychain.  Instead,
+# inject the public key ahead of time.  Specify the location of the key with
+# PUBKEY_ASC.
+inject_gpg: $(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)
+
+$(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPUT_FILE)
+	cp "$(board_build)/$(CB_OUTPUT_FILE)" \
+		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)"
+	./bin/inject_gpg_key.sh --cbfstool "$(build)/$(coreboot_dir)/cbfstool" \
+		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)" "$(PUBKEY_ASC)"
+
+
+
 # Helper function to overwrite coreboot git repo's .canary file with a bogus commit (.canary checked for matching commit on build)
 # Also reverses Git patches in the corresponding module version directory in reverse order.
 define overwrite_canary_if_coreboot_git
@@ -980,15 +1010,3 @@ real.clean:
 	done
 	cd install && rm -rf -- *
 	$(call overwrite_canary_if_coreboot_git)
-
-# Inject a GPG key into the image - this is most useful when testing in qemu,
-# since we can't reflash the firmware in qemu to update the keychain.  Instead,
-# inject the public key ahead of time.  Specify the location of the key with
-# PUBKEY_ASC.
-inject_gpg: $(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)
-
-$(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPUT_FILE)
-	cp "$(board_build)/$(CB_OUTPUT_FILE)" \
-		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)"
-	./bin/inject_gpg_key.sh --cbfstool "$(build)/$(coreboot_dir)/cbfstool" \
-		"$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)" "$(PUBKEY_ASC)"
