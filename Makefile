@@ -932,19 +932,9 @@ define overwrite_canary_if_coreboot_git
 		else \
 			echo "INFO: No patches found for coreboot version $(CONFIG_COREBOOT_VERSION), skipping patch reversal."; \
 		fi; \
-		echo "INFO: Applying patches in 'patches/coreboot-$(CONFIG_COREBOOT_VERSION)'..."; \
-		if [ -d "patches/coreboot-$(CONFIG_COREBOOT_VERSION)" ]; then \
-			for patch in patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch; do \
-				if [ -f "$$patch" ]; then \
-					echo "Applying patch file: $$patch"; \
-					(cd "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" && git apply "../../../$$patch") || exit 1; \
-				fi; \
-			done; \
-		fi; \
-		echo "INFO: Patches applied successfully. Creating .patched file"; \
-		touch "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.patched"; \
+		echo "NOTE: If a patch fails to reverse, some files might need to be deleted manually to resolve conflicts."; \
 	else \
-		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite and patch application."; \
+		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite and patch reversal."; \
 	fi
 endef
 
