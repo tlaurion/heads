@@ -431,15 +431,15 @@ define define_module =
 				< patches/$($1_patch_name).patch \
 				|| exit 1 ; \
 		fi && \
-		if [ -d patches/$($1_patch_name) ] && \
-		   [ -r patches/$($1_patch_name) ] ; then \
-			for patch in patches/$($1_patch_name)/*.patch ; do \
-				echo "Applying patch file : $$$$patch " ;  \
+		if [ -d patches/$($1_patch_name) ]; then \
+			echo "INFO: Found patch directory patches/$($1_patch_name)."; \
+			for patch in patches/$($1_patch_name)/*.patch; do \
+				echo "Applying patch file: $$patch"; \
 				( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) ) \
-					< $$$$patch \
+					< $$patch \
 					|| exit 1 ; \
-			done ; \
-		fi && \
+			done; \
+		fi; \
 		echo "INFO: Patches applied successfully. Creating .patched file"; \
 		touch "$(build)/$($1_base_dir)/.patched"; \
 	fi
