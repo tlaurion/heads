@@ -230,6 +230,41 @@ $(coreboot_module)_output += $(CONFIG_COREBOOT_BOOTBLOCK)
 $(build)/$(coreboot_dir)/.build: \
 	$(build)/$(BOARD)/$(LINUX_IMAGE_FILE) \
 	$(build)/$(BOARD)/initrd.cpio.xz \
+	$(build)/$(coreboot_dir)/.configured \
+
+	@if [ -e "$(build)/$(coreboot_dir)/.build" ] && \
+	   find "$(build)/$(coreboot_dir)" -type f ! -newer "$(build)/$(coreboot_dir)/.configured" -print -quit | grep -q .; then \
+		echo "INFO: Detected stale artifacts in $(build)/$(coreboot_dir). Rebuilding only affected targets..."; \
+		$(MAKE) -C "$(build)/$(coreboot_base_dir)" \
+			obj="$(build)/$(coreboot_dir)" \
+			DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
+			XGCCPATH="$(build)/$($(coreboot_toolchain_module)_base_dir)/util/crossgcc/xgcc/bin/" \
+			$(COREBOOT_TARGET_CROSS) \
+			BUILD_TIMELESS=1 \
+			$(MAKE_JOBS); \
+	else \
+		$(MAKE) -C "$(build)/$(coreboot_base_dir)" \
+			obj="$(build)/$(coreboot_dir)" \
+			DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
+			XGCCPATH="$(build)/$($(coreboot_toolchain_module)_base_dir)/util/crossgcc/xgcc/bin/" \
+			$(COREBOOT_TARGET_CROSS) \
+			BUILD_TIMELESS=1 \
+			$(MAKE_JOBS); \
+	fi
+	@touch "$(build)/$(coreboot_dir)/.build"
+
+# Add a target to force a clean build for coreboot
+.PHONY: coreboot-force-clean
+coreboot-force-clean:
+	@echo "Performing a clean build for coreboot..."
+	$(MAKE) -C "$(build)/$(coreboot_dir)" clean
+	$(MAKE) -C "$(build)/$(coreboot_base_dir)" \
+		obj="$(build)/$(coreboot_dir)" \
+		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
+		XGCCPATH="$(build)/$($(coreboot_toolchain_module)_base_dir)/util/crossgcc/xgcc/bin/" \
+		$(COREBOOT_TARGET_CROSS) \
+		BUILD_TIMELESS=1 \
+		$(MAKE_JOBS)
 
 # This produces a ROM image that is written with the flashrom program
 ifneq ($(CONFIG_COREBOOT),)

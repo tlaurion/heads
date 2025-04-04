@@ -554,34 +554,22 @@ define define_module =
 	stat $(call outputs,$1) >/dev/null 2>/dev/null || echo FORCE \
   ))
 
+  # Ensure the objdir is rebuilt if stale artifacts are detected
   $(build)/$($1_dir)/.build: $($1.force) \
 		$(foreach d,$($1_depends),$(build)/$($d_dir)/.build) \
 		$(dir $($1_config_file_path)).configured \
 
 	@echo "$(DATE) MAKE $1"
-	+@( \
-		echo "$(MAKE) \
-			-C \"$(build)/$($1_dir)\" \
-			$($1_target)" ;  \
-		$(MAKE) \
-			-C "$(build)/$($1_dir)" \
-			$($1_target)  \
-	) \
-		< /dev/null \
-		2>&1 \
-		| tee "$(log_dir)/$1.log" \
-		$(VERBOSE_REDIRECT) \
-	|| ( \
-		echo "tail $(log_dir)/$1.log"; \
-		echo "-----"; \
-		tail -20 "$(log_dir)/$1.log"; \
-		exit 1; \
-	)
+	@if [ -e "$(build)/$($1_dir)/.build" ] && \
+	   find "$(build)/$($1_dir)" -type f ! -newer "$(dir $($1_config_file_path)).configured" -print -quit | grep -q .; then \
+		echo "INFO: Detected stale artifacts in $(build)/$($1_dir). Rebuilding only affected targets..."; \
+		$(MAKE) -C "$(build)/$($1_dir)" $($1_target); \
+	else \
+		$(MAKE) -C "$(build)/$($1_dir)" $($1_target); \
+	fi
 	$(call do,DONE,$1,\
-		touch $(build)/$($1_dir)/.build \
+		touch "$(build)/$($1_dir)/.build" \
 	)
-
-
 
   $1.clean:
 	-$(RM) "$(build)/$($1_dir)/.configured"
@@ -1010,3 +998,10 @@ real.clean:
 	done
 	cd install && rm -rf -- *
 	$(call overwrite_canary_if_coreboot_git)
+
+# Add a target to force a clean build
+.PHONY: force-clean
+force-clean:
+	@echo "Performing a clean build..."
+	$(MAKE) clean
+	$(MAKE) all
