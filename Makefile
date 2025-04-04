@@ -156,19 +156,18 @@ endif
 
 # If V is set in the environment, do not redirect the tee
 # command to /dev/null.
-ifeq "$(V)" "1"
-VERBOSE_REDIRECT :=
-# Verbose, so we display what we are doing
-define do =
-	@echo "$(DATE) $1 $(2:$(pwd)/%=%)"
-	$3
-endef
-else
+ifeq "$V" ""
 VERBOSE_REDIRECT := > /dev/null
 # Not verbose, so we only show the header
 define do =
 	@echo "$(DATE) $1 $(2:$(pwd)/%=%)"
 	@$3
+endef
+else
+# Verbose, so we display what we are doing
+define do =
+	@echo "$(DATE) $1 $(2:$(pwd)/%=%)"
+	$3
 endef
 endif
 
@@ -398,7 +397,7 @@ define define_module =
     # stable version to compare against.
     #
     # XXX: "git clean -dffx" is a hack for coreboot during commit switching, need
-	#      module-specific cleanup action to get rid of it.
+	  #      module-specific cleanup action to get rid of it.
     $(build)/$($1_base_dir)/.canary: FORCE
 	if [ ! -e "$$@" ]; then \
 		echo "INFO: .canary file not found. Cloning repository $($1_repo) into $(build)/$($1_base_dir)"; \
@@ -435,10 +434,12 @@ define define_module =
 		if [ -d patches/$($1_patch_name) ]; then \
 			echo "INFO: Found patch directory patches/$($1_patch_name)."; \
 			for patch in patches/$($1_patch_name)/*.patch; do \
-				echo "Applying patch file: $$patch"; \
-				( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) ) \
-					< $$patch \
-					|| exit 1 ; \
+				if [ -f "$$patch" ]; then \
+					echo "Applying patch file: $$patch"; \
+					( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$patch" ) || exit 1; \
+				else \
+					echo "WARNING: Patch file $$patch does not exist. Skipping."; \
+				fi; \
 			done; \
 		fi; \
 		echo "INFO: Patches applied successfully. Creating .patched file"; \
@@ -561,13 +562,24 @@ define define_module =
 		$(dir $($1_config_file_path)).configured \
 
 	@echo "$(DATE) MAKE $1"
-	@if [ -e "$(build)/$($1_dir)/.build" ] && \
-	   find "$(build)/$($1_dir)" -type f ! -newer "$(dir $($1_config_file_path)).configured" -print -quit | grep -q .; then \
-		echo "INFO: Detected stale artifacts in $(build)/$($1_dir). Rebuilding only affected targets..."; \
-		$(MAKE) -C "$(build)/$($1_dir)" $($1_target); \
-	else \
-		$(MAKE) -C "$(build)/$($1_dir)" $($1_target); \
-	fi
+	+@( \
+		echo "$(MAKE) \
+			-C \"$(build)/$($1_dir)\" \
+			$($1_target)" ;  \
+		$(MAKE) \
+			-C "$(build)/$($1_dir)" \
+			$($1_target)  \
+	) \
+		< /dev/null \
+		2>&1 \
+		| tee "$(log_dir)/$1.log" \
+		$(VERBOSE_REDIRECT) \
+	|| ( \
+		echo "tail $(log_dir)/$1.log"; \
+		echo "-----"; \
+		tail -20 "$(log_dir)/$1.log"; \
+		exit 1; \
+	)
 	$(call do,DONE,$1,\
 		touch "$(build)/$($1_dir)/.build" \
 	)
@@ -910,18 +922,29 @@ define overwrite_canary_if_coreboot_git
 		echo BOGUS_COMMIT_ID > "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.canary"; \
 		if [ -d "patches/coreboot-$(CONFIG_COREBOOT_VERSION)" ]; then \
 			echo "INFO: Reversing patches in reverse order in 'build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)'..."; \
-			for patch in $$(ls -r patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch); do \
+			for patch in $$(ls -r patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch 2>/dev/null); do \
 				if [ -f "$$patch" ]; then \
 					echo "Reversing patch: $$patch"; \
-					(cd "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" && git apply -R "../../../$$patch") || exit 1; \
+					(cd "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" && git apply -R "../../../$$patch") || \
+					echo "WARNING: Failed to reverse patch $$patch. It might not have been applied."; \
 				fi; \
 			done; \
 		else \
 			echo "INFO: No patches found for coreboot version $(CONFIG_COREBOOT_VERSION), skipping patch reversal."; \
 		fi; \
-		echo "NOTE: If a patch fails to reverse, some files might need to be deleted manually to resolve conflicts."; \
+		echo "INFO: Applying patches in 'patches/coreboot-$(CONFIG_COREBOOT_VERSION)'..."; \
+		if [ -d "patches/coreboot-$(CONFIG_COREBOOT_VERSION)" ]; then \
+			for patch in patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch; do \
+				if [ -f "$$patch" ]; then \
+					echo "Applying patch file: $$patch"; \
+					(cd "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" && git apply "../../../$$patch") || exit 1; \
+				fi; \
+			done; \
+		fi; \
+		echo "INFO: Patches applied successfully. Creating .patched file"; \
+		touch "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.patched"; \
 	else \
-		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite and patch reversal."; \
+		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite and patch application."; \
 	fi
 endef
 
@@ -992,10 +1015,3 @@ real.clean:
 	done
 	cd install && rm -rf -- *
 	$(call overwrite_canary_if_coreboot_git)
-
-# Add a target to force a clean build
-.PHONY: force-clean
-force-clean:
-	@echo "Performing a clean build..."
-	$(MAKE) clean
-	$(MAKE) all
