@@ -251,12 +251,12 @@ $(build)/$(coreboot_dir)/.canary: FORCE
 		git -C "$(build)/$(coreboot_dir)" submodule update --init --checkout && \
 		echo "INFO: Updating .canary file with new repo info"; \
 		echo -n '$($(coreboot_module)_repo)|$($(coreboot_module)_commit_hash)' > "$@"; \
-	fi
+	fi; \
 	if [ -e "$(build)/$(coreboot_dir)/.patched" ]; then \
-		echo "INFO: Reversing patches for coreboot"; \
+		echo "INFO: Found .patched file. Reversing patches for coreboot."; \
 		for patch in $(ls -r patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch 2>/dev/null); do \
-			if [ -f "$$patch" ]; then \
-				echo "Reversing patch file: $$$$patch"; \
+			if [ -f "$$$$patch" ]; then \
+				echo "INFO: Attempting to reverse patch: $$$$patch"; \
 				if git apply --check --directory "$(build)/$(coreboot_dir)" -R "$$$$patch"; then \
 					git apply --verbose --reject --binary --directory "$(build)/$(coreboot_dir)" -R "$$$$patch" || \
 					echo "WARNING: Partial reversal of patch $$$$patch. Cleaning up conflicting files."; \
@@ -266,21 +266,13 @@ $(build)/$(coreboot_dir)/.canary: FORCE
 			fi; \
 		done; \
 		rm -f "$(build)/$(coreboot_dir)/.patched"; \
-	fi
-	# Sync the git repository
-	if [ ! -d "$(build)/$(coreboot_dir)/.git" ]; then \
-		echo "INFO: Cloning coreboot repository"; \
-		git clone $($(coreboot_module)_repo) "$(build)/$(coreboot_dir)"; \
+		echo "INFO: Removed .patched file after reversing patches."; \
 	fi; \
-	echo "INFO: Syncing coreboot repository"; \
-	git -C "$(build)/$(coreboot_dir)" fetch --all; \
-	git -C "$(build)/$(coreboot_dir)" reset --hard $($(coreboot_module)_commit_hash); \
-	# Reapply patches
 	if [ -d patches/coreboot-$(CONFIG_COREBOOT_VERSION) ]; then \
-		echo "INFO: Reapplying patches for coreboot"; \
+		echo "INFO: Applying patches for coreboot."; \
 		for patch in $(ls patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch 2>/dev/null); do \
-			if [ -f "$$patch" ]; then \
-				echo "Applying patch file: $$$$patch"; \
+			if [ -f "$$$$patch" ]; then \
+				echo "INFO: Applying patch file: $$$$patch"; \
 				if ! git apply --check --directory "$(build)/$(coreboot_dir)" "$$$$patch"; then \
 					echo "ERROR: Patch $$$$patch cannot be applied. Please verify the patch and repository state."; \
 					exit 1; \
@@ -289,6 +281,7 @@ $(build)/$(coreboot_dir)/.canary: FORCE
 			fi; \
 		done; \
 		touch "$(build)/$(coreboot_dir)/.patched"; \
+		echo "INFO: Created .patched file after applying patches."; \
 	fi
 
 # Ensure coreboot is configured only after its .canary file exists

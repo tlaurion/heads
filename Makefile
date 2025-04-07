@@ -936,7 +936,7 @@ $(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPU
 # Helper function to overwrite coreboot git repo's .canary file with a bogus commit (.canary checked for matching commit on build)
 # Also reverses Git patches in the corresponding module version directory in reverse order.
 define overwrite_canary_if_coreboot_git
-	@echo "Checking for coreboot directory: build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)"
+	@echo "INFO: Checking for coreboot directory: build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)"
 	if [ -d "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" ] && \
 	   [ -d "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.git" ]; then \
 		echo "INFO: Recreating .canary file for 'build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)' with placeholder."; \
@@ -945,15 +945,20 @@ define overwrite_canary_if_coreboot_git
 			echo "INFO: Reversing patches in reverse order in 'build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)'..."; \
 			for patch in $$(ls -r patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch 2>/dev/null); do \
 				if [ -f "$$patch" ]; then \
-					echo "Reversing patch: $$patch"; \
-					(cd "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" && git apply -R "../../../$$patch") || \
-					echo "WARNING: Failed to reverse patch $$patch. It might not have been applied."; \
+					echo "INFO: Reversing patch: $$patch"; \
+					if git -C "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" apply --check -R "../../../$$patch"; then \
+						git -C "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)" apply --verbose --reject --binary -R "../../../$$patch" || \
+						echo "WARNING: Partial reversal of patch $$patch. Cleaning up conflicting files."; \
+					else \
+						echo "WARNING: Patch $$patch was not applied or cannot be reversed. Skipping."; \
+					fi; \
 				fi; \
 			done; \
+			rm -f "build/${CONFIG_TARGET_ARCH}/coreboot-$(CONFIG_COREBOOT_VERSION)/.patched"; \
+			echo "INFO: Removed .patched file after reversing patches."; \
 		else \
 			echo "INFO: No patches found for coreboot version $(CONFIG_COREBOOT_VERSION), skipping patch reversal."; \
 		fi; \
-		echo "NOTE: If a patch fails to reverse, some files might need to be deleted manually to resolve conflicts."; \
 	else \
 		echo "INFO: Coreboot directory or .git not found, skipping .canary overwrite and patch reversal."; \
 	fi
