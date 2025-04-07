@@ -252,6 +252,22 @@ $(build)/$(coreboot_dir)/.canary: FORCE
 		echo "INFO: Updating .canary file with new repo info"; \
 		echo -n '$($(coreboot_module)_repo)|$($(coreboot_module)_commit_hash)' > "$@"; \
 	fi
+	if [ -e "$(build)/$(coreboot_dir)/.patched" ]; then \
+		echo "INFO: Reversing patches for coreboot"; \
+		for patch in patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch; do \
+			echo "Reversing patch file: $$$$patch"; \
+			( git apply --verbose --reject --binary --directory "$(build)/$(coreboot_dir)" -R "$$$$patch" ) || true; \
+		done; \
+		rm -f "$(build)/$(coreboot_dir)/.patched"; \
+	fi
+	if [ -d patches/coreboot-$(CONFIG_COREBOOT_VERSION) ]; then \
+		echo "INFO: Applying patches for coreboot"; \
+		for patch in patches/coreboot-$(CONFIG_COREBOOT_VERSION)/*.patch; do \
+			echo "Applying patch file: $$$$patch"; \
+			( git apply --verbose --reject --binary --directory "$(build)/$(coreboot_dir)" < "$$$$patch" ) || exit 1; \
+		done; \
+		touch "$(build)/$(coreboot_dir)/.patched"; \
+	fi
 
 # Ensure coreboot is configured only after its .canary file exists
 $(build)/$(coreboot_dir)/.configured: $(build)/$(coreboot_dir)/.canary

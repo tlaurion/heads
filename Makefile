@@ -423,26 +423,20 @@ define define_module =
 		echo "INFO: Updating .canary file with new repo info"; \
 		echo -n '$($1_repo)|$($1_commit_hash)' > "$$@"; \
 	fi
-	if [ ! -e "$(build)/$($1_base_dir)/.patched" ]; then \
-		echo "INFO: .patched file not found. Beginning patch application for $1"; \
-		if [ -r patches/$($1_patch_name).patch ]; then \
-			echo "INFO: Found patch file patches/$($1_patch_name).patch. Applying patch..."; \
-			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) ) \
-				< patches/$($1_patch_name).patch \
-				|| exit 1 ; \
-		fi && \
-		if [ -d patches/$($1_patch_name) ]; then \
-			echo "INFO: Found patch directory patches/$($1_patch_name)."; \
-			for patch in patches/$($1_patch_name)/*.patch; do \
-				if [ -f "$$patch" ]; then \
-					echo "Applying patch file: $$patch"; \
-					( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$patch" ) || exit 1; \
-				else \
-					echo "WARNING: Patch file $$patch does not exist. Skipping."; \
-				fi; \
-			done; \
-		fi; \
-		echo "INFO: Patches applied successfully. Creating .patched file"; \
+	if [ -e "$(build)/$($1_base_dir)/.patched" ]; then \
+		echo "INFO: Reversing patches for $1"; \
+		for patch in patches/$($1_patch_name)/*.patch; do \
+			echo "Reversing patch file: $$$$patch"; \
+			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) -R "$$$$patch" ) || true; \
+		done; \
+		rm -f "$(build)/$($1_base_dir)/.patched"; \
+	fi
+	if [ -d patches/$($1_patch_name) ]; then \
+		echo "INFO: Applying patches for $1"; \
+		for patch in patches/$($1_patch_name)/*.patch; do \
+			echo "Applying patch file: $$$$patch"; \
+			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" ) || exit 1; \
+		done; \
 		touch "$(build)/$($1_base_dir)/.patched"; \
 	fi
   else
@@ -463,7 +457,7 @@ define define_module =
 
     # Unpack the tar file and touch the canary so that we know
     # that the files are all present
-    $(build)/$($1_base_dir)/.canary: $(packages)/$($1_tar)
+    $($1_config_file_path): $(packages)/$($1_tar)
 	mkdir -p "$$(dir $$@)"
 	tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$$(dir $$@)"
 	if [ -r patches/$($1_patch_name).patch ]; then \
