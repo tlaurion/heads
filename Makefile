@@ -425,17 +425,44 @@ define define_module =
 	fi
 	if [ -e "$(build)/$($1_base_dir)/.patched" ]; then \
 		echo "INFO: Reversing patches for $1"; \
-		for patch in patches/$($1_patch_name)/*.patch; do \
-			echo "Reversing patch file: $$$$patch"; \
-			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) -R "$$$$patch" ) || true; \
+		for patch in $(ls -r patches/$($1_patch_name)/*.patch 2>/dev/null); do \
+			if [ -f "$$patch" ]; then \
+				echo "Reversing patch file: $$$$patch"; \
+				if git apply --check --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) -R "$$$$patch"; then \
+					git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) -R "$$$$patch" || \
+					echo "WARNING: Partial reversal of patch $$$$patch. Cleaning up conflicting files."; \
+				else \
+					echo "WARNING: Patch $$$$patch was not applied or cannot be reversed. Skipping."; \
+				fi; \
+			fi; \
 		done; \
 		rm -f "$(build)/$($1_base_dir)/.patched"; \
 	fi
+	# Proceed with unpacking tarballs or syncing git repositories
+	if [ -r "$(packages)/$($1_tar)" ]; then \
+		echo "INFO: Unpacking tarball for $1"; \
+		mkdir -p "$(build)/$($1_base_dir)"; \
+		tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$(build)/$($1_base_dir)"; \
+	elif [ -n "$($1_repo)" ]; then \
+		echo "INFO: Syncing git repository for $1"; \
+		if [ ! -d "$(build)/$($1_base_dir)/.git" ]; then \
+			git clone $($1_repo) "$(build)/$($1_base_dir)"; \
+		fi; \
+		git -C "$(build)/$($1_base_dir)" fetch --all; \
+		git -C "$(build)/$($1_base_dir)" reset --hard $($1_commit_hash); \
+	fi
+	# Reapply patches
 	if [ -d patches/$($1_patch_name) ]; then \
-		echo "INFO: Applying patches for $1"; \
-		for patch in patches/$($1_patch_name)/*.patch; do \
-			echo "Applying patch file: $$$$patch"; \
-			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" ) || exit 1; \
+		echo "INFO: Reapplying patches for $1"; \
+		for patch in $(ls patches/$($1_patch_name)/*.patch 2>/dev/null); do \
+			if [ -f "$$patch" ]; then \
+				echo "Applying patch file: $$$$patch"; \
+				if ! git apply --check --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$$$patch"; then \
+					echo "ERROR: Patch $$$$patch cannot be applied. Please verify the patch and repository state."; \
+					exit 1; \
+				fi; \
+				git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) "$$$$patch" || exit 1; \
+			fi; \
 		done; \
 		touch "$(build)/$($1_base_dir)/.patched"; \
 	fi
