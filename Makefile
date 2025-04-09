@@ -476,7 +476,7 @@ define define_module =
 			( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch ) || exit 1; \
 		fi; \
 	fi
-	if [ -d patches/$($1_patch_name) ] && [ -r patches/$($1_patch_name) ]; then \
+	if [ -d patches/$($1_patch_name) ]; then \
 		for patch in patches/$($1_patch_name)/*.patch; do \
 			echo "INFO: Applying patch file: $$$$patch"; \
 			if ! ( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < $$$$patch ); then \
