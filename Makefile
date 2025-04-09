@@ -432,7 +432,7 @@ define define_module =
 				|| exit 1 ; \
 		fi && \
 		if [ -d patches/$($1_patch_name) ] && \
-		   [ -r patches/$($1_patch_name) ] ; then \
+		   [ -r patches/$($1_patch_name) ] || [ -n "$$(ls patches/$($1_patch_name)/*.patch 2>/dev/null)" ]; then \
 			for patch in patches/$($1_patch_name)/*.patch ; do \
 				echo "Applying patch file : $$$$patch " ;  \
 				( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) ) \
@@ -465,55 +465,36 @@ define define_module =
 	mkdir -p "$$(dir $$@)"
 	tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$$(dir $$@)"
 	if [ ! -e "$$@" ] && [ -e "$(build)/$($1_base_dir)/.patched" ]; then \
-		echo "INFO: .canary file not found but .patched exists. Attempting to apply patches for $1"; \
-		apply_failed=false; \
+		echo "INFO: .canary file not found but .patched exists. Attempting to reapply patches for $1 if any"; \
+		if [ -d patches/$($1_patch_name) ] && [ -n "$$(ls patches/$($1_patch_name)/*.patch 2>/dev/null)" ]; then \
+			for patch in $$(ls -r patches/$($1_patch_name)/*.patch 2>/dev/null); do \
+				echo "INFO: Reversing patch file: $$$$patch"; \
+				( git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < $$$$patch ) || true; \
+			done; \
+		fi; \
 		if [ -r patches/$($1_patch_name).patch ]; then \
-			echo "INFO: Applying main patch file patches/$($1_patch_name).patch."; \
+			echo "INFO: Reversing single patch file patches/$($1_patch_name).patch."; \
+			( git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch ) || true; \
+		fi; \
+		rm -f "$(build)/$($1_base_dir)/.patched"; \
+		if [ -r patches/$($1_patch_name).patch ]; then \
+			echo "INFO: Reapplying single patch file patches/$($1_patch_name).patch."; \
 			if ! ( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch ); then \
-				apply_failed=true; \
+				echo "ERROR: Failed to reapply main patch file patches/$($1_patch_name).patch"; \
+				exit 1; \
 			fi; \
 		fi; \
-		if [ -d patches/$($1_patch_name) ]; then \
+		if [ -d patches/$($1_patch_name) ] && [ -n "$$(ls patches/$($1_patch_name)/*.patch 2>/dev/null)" ]; then \
 			for patch in patches/$($1_patch_name)/*.patch; do \
-				echo "INFO: Applying patch file: $$$$patch"; \
+				echo "INFO: Reapplying patch file: $$$$patch"; \
 				if ! ( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < $$$$patch ); then \
-					apply_failed=true; \
+					echo "ERROR: Failed to reapply patch file: $$$$patch"; \
+					exit 1; \
 				fi; \
 			done; \
 		fi; \
-		if [ "$$apply_failed" = true ]; then \
-			echo "INFO: Patching failed. Reversing patches for $1 and retrying."; \
-			if [ -r patches/$($1_patch_name).patch ]; then \
-				echo "INFO: Reversing main patch file patches/$($1_patch_name).patch."; \
-				( git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch ) || true; \
-			fi; \
-			if [ -d patches/$($1_patch_name) ]; then \
-				for patch in patches/$($1_patch_name)/*.patch; do \
-					echo "INFO: Reversing patch file: $$$$patch"; \
-					( git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < $$$$patch ) || true; \
-				done; \
-			fi; \
-			rm -f "$(build)/$($1_base_dir)/.patched"; \
-			echo "INFO: Reapplying patches for $1."; \
-			if [ -r patches/$($1_patch_name).patch ]; then \
-				echo "INFO: Reapplying main patch file patches/$($1_patch_name).patch."; \
-				if ! ( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch ); then \
-					echo "ERROR: Failed to reapply main patch file patches/$($1_patch_name).patch"; \
-					exit 1; \
-				fi; \
-			fi; \
-			if [ -d patches/$($1_patch_name) ]; then \
-				for patch in patches/$($1_patch_name)/*.patch; do \
-					echo "INFO: Reapplying patch file: $$$$patch"; \
-					if ! ( git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < $$$$patch ); then \
-						echo "ERROR: Failed to reapply patch file: $$$$patch"; \
-						exit 1; \
-					fi; \
-				done; \
-			fi; \
-		fi; \
 	fi; \
-	touch "$(build)/$($1_base_dir)/.patched"
+	touch "$(build)/$($1_base_dir)/.patched" \
 	@touch "$$@"
   endif
 
