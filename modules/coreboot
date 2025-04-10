@@ -148,6 +148,25 @@ endif
 # Define COREBOOT_TOOLCHAIN_DIR based on the resolved toolchain module
 COREBOOT_TOOLCHAIN_DIR := $(build)/$($(coreboot_toolchain_module)_base_dir)
 
+# Define the coreboot configuration logic with cleanup
+$(coreboot_module)_configure := \
+	rm -rf $(build)/$(coreboot_dir)/*; \
+	mkdir -p "$(build)/$(coreboot_dir)"; \
+	$(call install_config,$(pwd)/$(CONFIG_COREBOOT_CONFIG),$(build)/$(coreboot_dir)/.config); \
+	sed -i '/^CONFIG_LOCALVERSION/d' $(build)/$(coreboot_dir)/.config; \
+	echo 'CONFIG_LOCALVERSION=$(CONFIG_COREBOOT_LOCALVERSION)' >> $(build)/$(coreboot_dir)/.config; \
+	sed -i '/^CONFIG_MAINBOARD_SMBIOS_PRODUCT_NAME/d' $(build)/$(coreboot_dir)/.config; \
+	echo 'CONFIG_MAINBOARD_SMBIOS_PRODUCT_NAME="$(CONFIG_COREBOOT_SMBIOS_PRODUCT_NAME)"' >> $(build)/$(coreboot_dir)/.config; \
+	if [ ! -z "$(CONFIG_COREBOOT_SMBIOS_MANUFACTURER)" ]; then \
+		sed -i '/^CONFIG_MAINBOARD_SMBIOS_MANUFACTURER/d' $(build)/$(coreboot_dir)/.config; \
+		echo 'CONFIG_MAINBOARD_SMBIOS_MANUFACTURER="$(CONFIG_COREBOOT_SMBIOS_MANUFACTURER)"' >> $(build)/$(coreboot_dir)/.config; \
+	fi; \
+	$(MAKE) olddefconfig \
+		-C "$(build)/$(coreboot_base_dir)" \
+		obj="$(build)/$(coreboot_dir)" \
+		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
+		BUILD_TIMELESS=1
+
 # Ensure that touching the config file will force a rebuild
 $(build)/$(coreboot_dir)/.configured: $(CONFIG_COREBOOT_CONFIG) $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain
 	@echo "DEBUG: Triggering coreboot configuration for $(coreboot_dir)";
