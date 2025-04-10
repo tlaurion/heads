@@ -130,9 +130,6 @@ CONFIG_COREBOOT_CONFIG ?= config/coreboot-$(BOARD).config
 CONFIG_COREBOOT_LOCALVERSION ?= "$(BRAND_NAME)-$(HEADS_GIT_VERSION)"
 CONFIG_COREBOOT_SMBIOS_PRODUCT_NAME ?= $(BOARD)
 
-# Ensure that touching the config file will force a rebuild
-$(build)/$(coreboot_dir)/.configured: $(CONFIG_COREBOOT_CONFIG)
-
 # Select the coreboot version to use for the toolchain
 ifeq "$($(coreboot_module)_toolchain)" ""
 # Use the same module
@@ -144,34 +141,29 @@ modules-y += $(coreboot_toolchain_module)
 # The toolchain module won't build anything for this board, we just need
 # the module prepped so we can hook up the toolchain target
 $(coreboot_toolchain_module)_output := .nobuild
-$(coreboot-toolchain_module)_configure := echo -e 'all:\n\ttouch .nobuild' > Makefile.nobuild
-$(coreboot-toolchain_module)_target := -f Makefile.nobuild
+$(coreboot_toolchain_module)_configure := echo -e 'all:\n\ttouch .nobuild' > Makefile.nobuild
+$(coreboot_toolchain_module)_target := -f Makefile.nobuild
 endif
 
-$(coreboot_module)_configure := \
-	mkdir -p "$(build)/$(coreboot_dir)"; \
-	$(call install_config,$(pwd)/$(CONFIG_COREBOOT_CONFIG),$(build)/$(coreboot_dir)/.config); \
-	sed -i '/^CONFIG_LOCALVERSION/d' $(build)/$(coreboot_dir)/.config; \
-	echo 'CONFIG_LOCALVERSION=$(CONFIG_COREBOOT_LOCALVERSION)' >> $(build)/$(coreboot_dir)/.config; \
-	sed -i '/^CONFIG_MAINBOARD_SMBIOS_PRODUCT_NAME/d' $(build)/$(coreboot_dir)/.config; \
-	echo 'CONFIG_MAINBOARD_SMBIOS_PRODUCT_NAME="$(CONFIG_COREBOOT_SMBIOS_PRODUCT_NAME)"' >> $(build)/$(coreboot_dir)/.config; \
-	if [ ! -z "$(CONFIG_COREBOOT_SMBIOS_MANUFACTURER)" ]; then \
-		sed -i '/^CONFIG_MAINBOARD_SMBIOS_MANUFACTURER/d' $(build)/$(coreboot_dir)/.config; \
-		echo 'CONFIG_MAINBOARD_SMBIOS_MANUFACTURER="$(CONFIG_COREBOOT_SMBIOS_MANUFACTURER)"' >> $(build)/$(coreboot_dir)/.config; \
-	fi; \
-	$(MAKE) olddefconfig \
-		-C "$(build)/$(coreboot_base_dir)" \
-		obj="$(build)/$(coreboot_dir)" \
-		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
-		BUILD_TIMELESS=1 \
+# Define COREBOOT_TOOLCHAIN_DIR based on the resolved toolchain module
+COREBOOT_TOOLCHAIN_DIR := $(build)/$($(coreboot_toolchain_module)_base_dir)
+
+# Ensure that touching the config file will force a rebuild
+$(build)/$(coreboot_dir)/.configured: $(CONFIG_COREBOOT_CONFIG) $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain
+	@echo "DEBUG: Triggering coreboot configuration for $(coreboot_dir)";
+	$(coreboot_module)_configure
+	@touch $@
 
 # Create a dependency from coreboot to the toolchain.  Use .heads-toolchain to
 # mark that the toolchain was built.
-COREBOOT_TOOLCHAIN_DIR=$(build)/$($(coreboot_toolchain_module)_base_dir)
 $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain: $(COREBOOT_TOOLCHAIN_DIR)/.canary
-	$(MAKE) -C "$(build)/$($(coreboot_toolchain_module)_base_dir)" CPUS=$(CPUS) "crossgcc-$(COREBOOT_TARGET)" \
+	@echo "DEBUG: Building coreboot toolchain in $(COREBOOT_TOOLCHAIN_DIR)";
+	$(MAKE) -C "$(COREBOOT_TOOLCHAIN_DIR)" CPUS=$(CPUS) "crossgcc-$(COREBOOT_TARGET)" \
 		$($(coreboot_toolchain_module)_toolchain_build_args)
-	touch "$@"
+	@touch "$@"
+
+# Ensure the toolchain module is included in the build process
+modules-y += $(coreboot_toolchain_module)
 
 $(build)/$(coreboot_dir)/.configured: $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain
 
