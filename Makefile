@@ -989,3 +989,52 @@ real.gitclean_keep_packages_and_build:
 	@echo "This will wipe everything not in the Git tree, but keep the 'packages' and 'build' directories."
 	git clean -fxd -e "packages" -e "build"
 	$(call overwrite_canary_if_coreboot_git)
+
+# Define a dynamic list for data files
+data_files :=
+
+# Function to register data files
+define register_data_file
+	$(info Registering data file: $1)
+	data_files += $1
+endef
+
+# Install data files into the initrd temporary directory
+define initrd_data_add =
+$(initrd_tmp_dir)/etc/$(1): $(INSTALL)/$(1)
+	$(call do,INSTALL-DATA,$(INSTALL)/$(1),\
+		mkdir -p "$(dir $@)" && cp -a "$<" "$@")
+initrd_data += $(initrd_tmp_dir)/etc/$(1)
+endef
+
+# Process all registered data files
+$(foreach file,$(data_files),$(eval $(call initrd_data_add,$(file))))
+
+# Build data.cpio from the installed data files
+$(build)/$(initrd_dir)/data.cpio: $(initrd_data)
+	$(info Building data.cpio with the following files:)
+	$(foreach file,$(initrd_data),$(info - $(file)))
+	$(call do,CPIO-DATA,$@,\
+		( cd $(initrd_tmp_dir); \
+		find etc \
+		| cpio \
+			--quiet \
+			-H newc \
+			-o \
+		) > "$@.tmp" \
+	)
+	@if ! cmp --quiet "$@.tmp" "$@" ; then \
+		mv "$@.tmp" "$@" ; \
+	else \
+		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
+		rm "$@.tmp" ; \
+	fi
+	@sha256sum "$@" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
+
+# Ensure that the initrd depends on all of the modules that produce
+# data files for it
+$(build)/$(initrd_dir)/data.cpio: $(foreach m,$(modules-y),$(build)/$($m_dir)/.build)
+
+# Include data.cpio in initrd
+initrd-y += $(build)/$(initrd_dir)/data.cpio

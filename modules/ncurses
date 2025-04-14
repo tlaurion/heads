@@ -18,12 +18,18 @@ ncurses_configure := \
 	--without-manpages \
 	--without-shared
 
-#build hack: we cp installed terminfo dir back into build dir to pack terminfo in initrd
+# Build and install ncurses data
 ncurses_target := $(MAKE_JOBS) \
 	$(CROSS_TOOLS) \
 	DESTDIR="$(INSTALL)" \
-	install.data && \
-	cp -vpr $(INSTALL)/usr/share/terminfo "$(build)/$(ncurses_dir)"
+	install.data
+
+# Dynamically register terminfo files for inclusion in initrd with the correct relative path
+$(info DEBUG: Registering terminfo file for initrd: usr/share/terminfo/l/linux -> etc/terminfo/l/linux)
+$(eval $(call register_data_file,usr/share/terminfo/l/linux))
+
+# Explicit debug output to confirm the file exists in the INSTALL directory
+$(shell [ -f "$(INSTALL)/usr/share/terminfo/l/linux" ] && echo "DEBUG: Found $(INSTALL)/usr/share/terminfo/l/linux" || echo "ERROR: Missing $(INSTALL)/usr/share/terminfo/l/linux")
 
 ncurses_data := \
 	terminfo/l/linux
