@@ -784,14 +784,17 @@ $(build)/$(initrd_dir)/heads.cpio: FORCE
 #
 # The tools initrd is made from all of the things that we've
 # created during the submodule build.
-#
 $(build)/$(initrd_dir)/tools.cpio: \
+	$(initrd_libs) \
 	$(initrd_bins) \
 	$(initrd_data) \
-	$(initrd_libs) \
 	$(initrd_tmp_dir)/etc/config \
 
-	$(info Used **BINS**: $(initrd_bins))
+	$(info CPIO root path: $(initrd_tmp_dir))
+	$(info Used **LIBS**: $(foreach lib,$(initrd_libs),$(subst $(initrd_tmp_dir)/,,$(lib))))
+	$(info Used **BINS**: $(foreach bin,$(initrd_bins),$(subst $(initrd_tmp_dir)/,,$(bin))))
+	$(info Used **DATA**: $(foreach data,$(initrd_data),$(subst $(initrd_tmp_dir)/,,$(data))))
+
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
 
@@ -990,51 +993,22 @@ real.gitclean_keep_packages_and_build:
 	git clean -fxd -e "packages" -e "build"
 	$(call overwrite_canary_if_coreboot_git)
 
-# Define a dynamic list for data files
-data_files :=
-
-# Function to register data files
-define register_data_file
-	$(info Registering data file: $1)
-	data_files += $1
+# Collect and display DATA files for debugging purposes
+define collect_data_files =
+$(foreach data,$($(1)_data),\
+	$(info DEBUG: Found DATA file for module $(1): $(data)) \
+	$(eval collected_data_files += $(data)) \
+)
 endef
 
-# Install data files into the initrd temporary directory
-define initrd_data_add =
-$(initrd_tmp_dir)/etc/$(1): $(INSTALL)/$(1)
-	$(call do,INSTALL-DATA,$(INSTALL)/$(1),\
-		mkdir -p "$(dir $@)" && cp -a "$<" "$@")
-initrd_data += $(initrd_tmp_dir)/etc/$(1)
-endef
+# Process DATA files for each module
+$(foreach m,$(modules-y),\
+	$(if $($(m)_data),\
+		$(eval $(call collect_data_files,$m)) \
+	, \
+		$(info DEBUG: No DATA files for module $(m)) \
+	) \
+)
 
-# Process all registered data files
-$(foreach file,$(data_files),$(eval $(call initrd_data_add,$(file))))
-
-# Build data.cpio from the installed data files
-$(build)/$(initrd_dir)/data.cpio: $(initrd_data)
-	$(info Building data.cpio with the following files:)
-	$(foreach file,$(initrd_data),$(info - $(file)))
-	$(call do,CPIO-DATA,$@,\
-		( cd $(initrd_tmp_dir); \
-		find etc \
-		| cpio \
-			--quiet \
-			-H newc \
-			-o \
-		) > "$@.tmp" \
-	)
-	@if ! cmp --quiet "$@.tmp" "$@" ; then \
-		mv "$@.tmp" "$@" ; \
-	else \
-		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
-		rm "$@.tmp" ; \
-	fi
-	@sha256sum "$@" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
-
-# Ensure that the initrd depends on all of the modules that produce
-# data files for it
-$(build)/$(initrd_dir)/data.cpio: $(foreach m,$(modules-y),$(build)/$($m_dir)/.build)
-
-# Include data.cpio in initrd
-initrd-y += $(build)/$(initrd_dir)/data.cpio
+# Debugging: Print all collected DATA files
+$(info Used **DATA**: $(collected_data_files))
