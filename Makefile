@@ -733,6 +733,7 @@ initrd-y += $(pwd)/blobs/dev.cpio
 initrd-y += $(build)/$(initrd_dir)/modules.cpio
 initrd-y += $(build)/$(initrd_dir)/tools.cpio
 initrd-y += $(build)/$(initrd_dir)/board.cpio
+initrd-y += $(build)/$(initrd_dir)/data.cpio
 initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
 
 #$(build)/$(initrd_dir)/.build: $(build)/$(initrd_dir)/initrd.cpio.xz
@@ -787,16 +788,80 @@ $(build)/$(initrd_dir)/heads.cpio: FORCE
 $(build)/$(initrd_dir)/tools.cpio: \
 	$(initrd_libs) \
 	$(initrd_bins) \
-	$(initrd_data) \
 	$(initrd_tmp_dir)/etc/config \
 
-	$(info CPIO root path: $(initrd_tmp_dir))
+	$(info DEBUG: Building tools.cpio with the following files:)
 	$(info Used **LIBS**: $(foreach lib,$(initrd_libs),$(subst $(initrd_tmp_dir)/,,$(lib))))
 	$(info Used **BINS**: $(foreach bin,$(initrd_bins),$(subst $(initrd_tmp_dir)/,,$(bin))))
-	$(info Used **DATA**: $(foreach data,$(initrd_data),$(subst $(initrd_tmp_dir)/,,$(data))))
-
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
+
+# Create a separate temporary directory for data.cpio
+data_tmp_dir := $(shell mktemp -d)
+
+# Build data.cpio for data files only
+$(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_initrd),$(data_tmp_dir)/$(file))
+	$(info DEBUG: Building data.cpio with the following files:)
+	$(foreach file,$(data_initrd),$(info - $(file)))
+	$(call do,CPIO-DATA,$@,\
+		( cd $(data_tmp_dir); \
+		find . \
+		| cpio \
+			--quiet \
+			-H newc \
+			-o \
+		) > "$@.tmp" \
+	)
+	@if ! cmp --quiet "$@.tmp" "$@" ; then \
+		mv "$@.tmp" "$@" ; \
+	else \
+		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
+		rm "$@.tmp" ; \
+	fi
+	@sha256sum "$@" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
+
+# Debugging: Print the final state of tools.cpio and data.cpio after both are prepared
+debug-final-state: $(build)/$(initrd_dir)/tools.cpio $(build)/$(initrd_dir)/data.cpio
+	$(info DEBUG: Final state of tools.cpio and data.cpio:)
+	$(info DEBUG: tools.cpio includes: $(initrd_bins) $(initrd_libs))
+	$(info DEBUG: data.cpio includes: $(data_initrd))
+
+# Define a function to register DATA files for inclusion in data.cpio
+define register_data_file
+$(eval src := $(word 1,$(subst |, ,$1)))
+$(eval dst := $(word 2,$(subst |, ,$1)))
+$(if $(src),,$(error ERROR: Source path is empty in register_data_file))
+$(if $(dst),,$(error ERROR: Destination path is empty in register_data_file))
+$(if $(wildcard $(INSTALL)/$(src)),,$(error ERROR: Source file does not exist: $(INSTALL)/$(src)))
+$(info DEBUG: Registering DATA file for data.cpio: Source: $(INSTALL)/$(src), Destination: $(dst))
+$(shell mkdir -p "$(data_tmp_dir)/$(dir $(dst))" && \
+	cp -a "$(INSTALL)/$(src)" "$(data_tmp_dir)/$(dst)" || echo "ERROR: Failed to copy $(INSTALL)/$(src) to $(data_tmp_dir)/$(dst)")
+$(eval data_initrd += $(dst))
+endef
+
+# Exclude files registered for data.cpio from tools.cpio
+initrd_data := $(filter-out $(data_initrd),$(initrd_data))
+
+# Collect and display DATA files for debugging purposes
+define collect_data_files =
+$(foreach data,$($(1)_data),\
+	$(info DEBUG: Found DATA file for module $(1): $(data)) \
+	$(eval collected_data_files += $(data)) \
+)
+endef
+
+# Process DATA files for each module
+$(foreach m,$(modules-y),\
+	$(if $($(m)_data),\
+		$(eval $(call collect_data_files,$m)) \
+	, \
+		$(info DEBUG: No DATA files for module $(m)) \
+	) \
+)
+
+# Debugging: Print all collected DATA files after processing
+$(info DEBUG: Collected DATA files: $(collected_data_files))
 
 $(initrd_tmp_dir)/etc/config: FORCE
 	@mkdir -p $(dir $@)
@@ -1010,5 +1075,5 @@ $(foreach m,$(modules-y),\
 	) \
 )
 
-# Debugging: Print all collected DATA files
-$(info Used **DATA**: $(collected_data_files))
+# Debugging: Print all collected DATA files after processing
+$(info DEBUG: Collected DATA files: $(collected_data_files))

@@ -24,9 +24,9 @@ ncurses_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
 	install.data
 
-# Dynamically register terminfo files for inclusion in initrd with the correct relative path
-$(info DEBUG: Registering terminfo file for initrd: usr/share/terminfo/l/linux -> etc/terminfo/l/linux)
-$(eval $(call register_data_file,usr/share/terminfo/l/linux))
+# Dynamically register terminfo files for inclusion in data.cpio with the correct relative path
+$(info DEBUG: Registering terminfo file for data.cpio: usr/share/terminfo/l/linux -> etc/terminfo/l/linux)
+$(eval $(call register_data_file,usr/share/terminfo/l/linux|etc/terminfo/l/linux))
 
 # Explicit debug output to confirm the file exists in the INSTALL directory
 $(shell [ -f "$(INSTALL)/usr/share/terminfo/l/linux" ] && echo "DEBUG: Found $(INSTALL)/usr/share/terminfo/l/linux" || echo "ERROR: Missing $(INSTALL)/usr/share/terminfo/l/linux")
