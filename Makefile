@@ -821,13 +821,11 @@ $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_initrd),$(data_tmp_dir)/
 	@sha256sum "$@" | tee -a "$(HASHES)"
 	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
 
-# Debugging: Print the final state of data.cpio after it is built
-debug-data-cpio: $(build)/$(initrd_dir)/data.cpio
-	$(info DEBUG: Final state of data.cpio includes:)
-	$(foreach file,$(data_initrd),$(info - $(file)))
-
-# Exclude files registered for data.cpio from tools.cpio
-initrd_data := $(filter-out $(data_initrd),$(initrd_data))
+# Debugging: Print the final state of tools.cpio and data.cpio after both are prepared
+debug-final-state: $(build)/$(initrd_dir)/tools.cpio $(build)/$(initrd_dir)/data.cpio
+	$(info DEBUG: Final state of tools.cpio and data.cpio:)
+	$(info DEBUG: tools.cpio includes: $(initrd_bins) $(initrd_libs))
+	$(info DEBUG: data.cpio includes: $(data_initrd))
 
 # Define a function to register DATA files for inclusion in data.cpio
 define register_data_file
@@ -835,29 +833,24 @@ $(eval src := $(word 1,$(subst |, ,$1)))
 $(eval dst := $(word 2,$(subst |, ,$1)))
 $(if $(src),,$(error ERROR: Source path is empty in register_data_file))
 $(if $(dst),,$(error ERROR: Destination path is empty in register_data_file))
-$(info DEBUG: Registering DATA file mapping: Source: $(src), Destination: $(dst))
+$(if $(wildcard $(INSTALL)/$(src)),,$(error ERROR: Source file does not exist: $(INSTALL)/$(src)))
+$(info DEBUG: Registering DATA file for data.cpio: Source: $(INSTALL)/$(src), Destination: $(dst))
+$(shell mkdir -p "$(data_tmp_dir)/$(dir $(dst))" && \
+	cp -a "$(INSTALL)/$(src)" "$(data_tmp_dir)/$(dst)" || echo "ERROR: Failed to copy $(INSTALL)/$(src) to $(data_tmp_dir)/$(dst)")
 $(eval data_initrd += $(dst))
 endef
 
 # Process DATA files for each module
 define collect_data_files =
 $(foreach data,$($(1)_data),\
-	$(info DEBUG: Module $(1) registered DATA file: $(data)) \
+	$(info DEBUG: Found DATA file for module $(1): $(data)) \
 	$(eval collected_data_files += $(data)) \
 )
 endef
 
-# Iterate over modules and collect registered DATA files
-$(foreach m,$(modules-y),\
-	$(if $($(m)_data),\
-		$(eval $(call collect_data_files,$m)) \
-	, \
-		$(info DEBUG: Module $(m) has no registered DATA files) \
-	) \
-)
 
-# Debugging: Print all registered DATA files after processing
-$(info DEBUG: Registered DATA files: $(collected_data_files))
+# Debugging: Print all collected DATA files after processing
+$(info DEBUG: Collected DATA files: $(collected_data_files))
 
 $(initrd_tmp_dir)/etc/config: FORCE
 	@mkdir -p $(dir $@)
