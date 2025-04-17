@@ -32,6 +32,3 @@ $(ncurses_post_build): $(ncurses_target)
 
 # Explicit debug output to confirm the file exists in the INSTALL directory
 $(shell [ -f "$(INSTALL)/usr/share/terminfo/l/linux" ] && echo "DEBUG: Found $(INSTALL)/usr/share/terminfo/l/linux" || echo "ERROR: Missing $(INSTALL)/usr/share/terminfo/l/linux")
-
-ncurses_data := \
-	terminfo/l/linux
