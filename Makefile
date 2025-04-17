@@ -1055,14 +1055,5 @@ $(foreach data,$($(1)_data),\
 )
 endef
 
-# Process DATA files for each module
-$(foreach m,$(modules-y),\
-	$(if $($(m)_data),\
-		$(eval $(call collect_data_files,$m)) \
-	, \
-		$(info DEBUG: No DATA files for module $(m)) \
-	) \
-)
 
-# Debugging: Print all collected DATA files after processing
-$(info DEBUG: Collected DATA files: $(collected_data_files))
+
