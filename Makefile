@@ -175,7 +175,6 @@ endif
 # Create a temporary directory for the initrd
 initrd_dir	:= $(BOARD)
 initrd_tmp_dir	:= $(shell mktemp -d)
-initrd_data_dir	:= $(initrd_tmp_dir)/etc/terminfo/l
 initrd_lib_dir	:= $(initrd_tmp_dir)/lib
 initrd_bin_dir	:= $(initrd_tmp_dir)/bin
 modules-y += initrd
@@ -796,61 +795,16 @@ $(build)/$(initrd_dir)/tools.cpio: \
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
 
-# Create a separate temporary directory for data.cpio
-data_tmp_dir := $(shell mktemp -d)
-
-# Build data.cpio for data files only
-$(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_initrd),$(data_tmp_dir)/$(file))
-	$(info DEBUG: Building data.cpio with the following files:)
-	$(foreach file,$(data_initrd),$(info - $(file)))
-	$(call do,CPIO-DATA,$@,\
-		( cd $(data_tmp_dir); \
-		find . \
-		| cpio \
-			--quiet \
-			-H newc \
-			-o \
-		) > "$@.tmp" \
-	)
-	@if ! cmp --quiet "$@.tmp" "$@" ; then \
-		mv "$@.tmp" "$@" ; \
-	else \
-		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
-		rm "$@.tmp" ; \
-	fi
-	@sha256sum "$@" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
-
-# Debugging: Print the final state of tools.cpio and data.cpio after both are prepared
-debug-final-state: $(build)/$(initrd_dir)/tools.cpio $(build)/$(initrd_dir)/data.cpio
-	$(info DEBUG: Final state of tools.cpio and data.cpio:)
-	$(info DEBUG: tools.cpio includes: $(initrd_bins) $(initrd_libs))
-	$(info DEBUG: data.cpio includes: $(data_initrd))
-
 # Define a function to register DATA files for inclusion in data.cpio
 define register_data_file
 $(eval src := $(word 1,$(subst |, ,$1)))
 $(eval dst := $(word 2,$(subst |, ,$1)))
 $(if $(src),,$(error ERROR: Source path is empty in register_data_file))
 $(if $(dst),,$(error ERROR: Destination path is empty in register_data_file))
-$(if $(wildcard $(INSTALL)/$(src)),,$(error ERROR: Source file does not exist: $(INSTALL)/$(src)))
-$(info DEBUG: Registering DATA file for data.cpio: Source: $(INSTALL)/$(src), Destination: $(dst))
-$(shell mkdir -p "$(data_tmp_dir)/$(dir $(dst))" && \
-	cp -a "$(INSTALL)/$(src)" "$(data_tmp_dir)/$(dst)" || echo "ERROR: Failed to copy $(INSTALL)/$(src) to $(data_tmp_dir)/$(dst)")
+$(info DEBUG: Registering DATA file for data.cpio: Source: $(src), Destination: $(dst))
 $(eval data_initrd += $(dst))
+$(eval data_files += $(src)|$(dst))
 endef
-
-# Process DATA files for each module
-define collect_data_files =
-$(foreach data,$($(1)_data),\
-	$(info DEBUG: Found DATA file for module $(1): $(data)) \
-	$(eval collected_data_files += $(data)) \
-)
-endef
-
-
-# Debugging: Print all collected DATA files after processing
-$(info DEBUG: Collected DATA files: $(collected_data_files))
 
 $(initrd_tmp_dir)/etc/config: FORCE
 	@mkdir -p $(dir $@)
@@ -1046,14 +1000,3 @@ real.gitclean_keep_packages_and_build:
 	@echo "This will wipe everything not in the Git tree, but keep the 'packages' and 'build' directories."
 	git clean -fxd -e "packages" -e "build"
 	$(call overwrite_canary_if_coreboot_git)
-
-# Collect and display DATA files for debugging purposes
-define collect_data_files =
-$(foreach data,$($(1)_data),\
-	$(info DEBUG: Found DATA file for module $(1): $(data)) \
-	$(eval collected_data_files += $(data)) \
-)
-endef
-
-
-

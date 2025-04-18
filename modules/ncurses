@@ -24,6 +24,7 @@ ncurses_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
 	install.data
 
+
 # Dynamically register terminfo files for inclusion in data.cpio with the correct relative path
 $(info DEBUG: Registering terminfo file for data.cpio: usr/share/terminfo/l/linux -> etc/terminfo/l/linux)
 $(eval $(call register_data_file,usr/share/terminfo/l/linux|etc/terminfo/l/linux))
