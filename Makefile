@@ -825,19 +825,19 @@ $(initrd_tmp_dir)/etc/config: FORCE
 data_initrd_dir := $(build)/$(initrd_dir)/data_initrd
 
 # Define a function to register DATA files for inclusion in data.cpio
+# Use := for data_files to ensure it is a global variable, not target/local.
+data_files :=
 define register_data_file
-$(eval src := $(word 1,$(subst |, ,$1)))
-$(eval dst := $(word 2,$(subst |, ,$1)))
-$(if $(src),,$(error ERROR: Source path is empty in register_data_file))
-$(if $(dst),,$(error ERROR: Destination path is empty in register_data_file))
-$(info DEBUG: Registering DATA file for data.cpio: Source: $(src), Destination: $(dst))
-$(eval data_files += $(src)|$(dst))
+data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1))
+$(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
+$(info data_files now: $(data_files))
 endef
 
 # Build data.cpio for data files only
 $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word 1,$(subst |, ,$(file))))
 	$(info DEBUG: Building data.cpio with the following files:)
 	$(foreach file,$(data_files),$(info - $(word 1,$(subst |, ,$(file))) -> $(word 2,$(subst |, ,$(file)))))
+	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
 	@rm -rf $(data_initrd_dir)
 	@mkdir -p $(data_initrd_dir)
 	@set -e; \
@@ -845,9 +845,12 @@ $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word
 		src=$$(echo $$file | cut -d'|' -f1); \
 		dst=$$(echo $$file | cut -d'|' -f2); \
 		if [ -n "$$src" ] && [ -n "$$dst" ]; then \
-			mkdir -p "$(data_initrd_dir)/$$(dirname $$dst)"; \
-			if ! cp -a "$(INSTALL)/$$src" "$(data_initrd_dir)/$$dst"; then \
-				echo "ERROR: Failed to copy $(INSTALL)/$$src to $(data_initrd_dir)/$$dst"; \
+			if [ -e "$(INSTALL)/$$src" ]; then \
+				echo "`date --rfc-3339=seconds` INSTALL-DATA $(INSTALL)/$$src -> $(data_initrd_dir)/$$dst"; \
+				mkdir -p "$(data_initrd_dir)/$$(dirname $$dst)"; \
+				cp -a "$(INSTALL)/$$src" "$(data_initrd_dir)/$$dst"; \
+			else \
+				echo "WARNING: DATA file $(INSTALL)/$$src not found, skipping!"; \
 			fi; \
 		fi; \
 	done
@@ -860,8 +863,8 @@ $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word
 			-o \
 		) > "$@.tmp" \
 	)
-	@if ! cmp --quiet "$@.tmp" "$@" ; then \
-		mv "$@.tmp" "$@" ; \
+	@if ! cmp --quiet "$@.tmp" "$@"; then \
+		mv "$@.tmp" "$@"; \
 	else \
 		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
 		rm "$@.tmp" ; \
@@ -872,12 +875,15 @@ $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word
 # Ensure data.cpio is included in initrd.cpio.xz
 initrd-y += $(build)/$(initrd_dir)/data.cpio
 
+# Ensure data.cpio is always built as part of the main build
+all: $(build)/$(initrd_dir)/data.cpio
+
 # Ensure that the initrd depends on all of the modules that produce
 # binaries for it
 $(build)/$(initrd_dir)/tools.cpio: $(foreach d,$(bin_modules-y),$(build)/$($d_dir)/.build)
 
 # Ensure that data.cpio depends on all real modules being built (not initrd)
-$(build)/$(initrd_dir)/data.cpio: $(foreach m,$(modules-real),$(build)/$($m_dir)/.build)
+# Remove any dependency on $(build)/$(initrd_dir)/data.cpio from any module's .build or .configured rules!
 
 # List of all modules, excluding the slow to-build modules
 modules-slow := musl musl-cross-make kernel_headers

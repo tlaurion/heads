@@ -26,9 +26,7 @@ ncurses_target := $(MAKE_JOBS) \
 
 
 # Dynamically register terminfo files for inclusion in data.cpio with the correct relative path
-ifeq ($(wildcard $(INSTALL)/usr/share/terminfo/l/linux),)
-$(warning ncurses: $(INSTALL)/usr/share/terminfo/l/linux not found at data.cpio registration time)
-else
 $(info DEBUG: Registering terminfo file for data.cpio: usr/share/terminfo/l/linux -> etc/terminfo/l/linux)
-$(eval $(call register_data_file,usr/share/terminfo/l/linux|etc/terminfo/l/linux))
-endif
+data_files += usr/share/terminfo/l/linux|etc/terminfo/l/linux
+$(info modules/ncurses: data_files after registration: $(data_files))
+
