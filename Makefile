@@ -177,9 +177,10 @@ initrd_dir	:= $(BOARD)
 initrd_tmp_dir	:= $(shell mktemp -d)
 initrd_lib_dir	:= $(initrd_tmp_dir)/lib
 initrd_bin_dir	:= $(initrd_tmp_dir)/bin
+# Do not define initrd_data_dir here; data file destinations are handled dynamically via register_data_file
 modules-y += initrd
 
-$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)")
+$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)")
 
 # We are running our own version of make,
 # proceed with the build.
@@ -464,7 +465,7 @@ define define_module =
 
     # Unpack the tar file and touch the canary so that we know
     # that the files are all present
-    $(build)/$($1_base_dir)/.canary: $(packages)/$($1_tar)
+    $($1_config_file_path): $(packages)/$($1_tar)
 	mkdir -p "$$(dir $$@)"
 	tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$$(dir $$@)"
 	if [ -r patches/$($1_patch_name).patch ]; then \
@@ -741,6 +742,8 @@ initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
 #$(build)/$(initrd_dir)/.build: $(build)/$(initrd_dir)/initrd.cpio.xz
 
 $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
+	$(info DEBUG: Building initrd.cpio.xz from the following cpio parts:)
+	$(foreach part,$(initrd-y),$(info - $(part)))
 	$(call do,CPIO-XZ  ,$@,\
 	$(pwd)/bin/cpio-clean \
 		$^ \
@@ -834,7 +837,7 @@ endef
 # Build data.cpio for data files only
 $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word 1,$(subst |, ,$(file))))
 	$(info DEBUG: Building data.cpio with the following files:)
-	$(foreach file,$(data_files),$(info - $(word 2,$(subst |, ,$(file)))))
+	$(foreach file,$(data_files),$(info - $(word 1,$(subst |, ,$(file))) -> $(word 2,$(subst |, ,$(file)))))
 	@rm -rf $(data_initrd_dir)
 	@mkdir -p $(data_initrd_dir)
 	@set -e; \
