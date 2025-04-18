@@ -601,7 +601,10 @@ define define_module =
 
 endef
 
-$(call map, define_module, $(modules-y))
+# Only generate .canary/.configured/.build targets for real modules, not for the initrd pseudo-module
+# Remove 'initrd' from modules-y before calling map/define_module
+modules-real := $(filter-out initrd,$(modules-y))
+$(call map, define_module, $(modules-real))
 
 # hack to force musl-cross-make to be built before musl
 #$(build)/$(musl_dir)/.configured: $(build)/$(musl-cross-make_dir)/../../crossgcc/x86_64-linux-musl/bin/x86_64-musl-linux-gcc
@@ -795,17 +798,6 @@ $(build)/$(initrd_dir)/tools.cpio: \
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
 
-# Define a function to register DATA files for inclusion in data.cpio
-define register_data_file
-$(eval src := $(word 1,$(subst |, ,$1)))
-$(eval dst := $(word 2,$(subst |, ,$1)))
-$(if $(src),,$(error ERROR: Source path is empty in register_data_file))
-$(if $(dst),,$(error ERROR: Destination path is empty in register_data_file))
-$(info DEBUG: Registering DATA file for data.cpio: Source: $(src), Destination: $(dst))
-$(eval data_initrd += $(dst))
-$(eval data_files += $(src)|$(dst))
-endef
-
 $(initrd_tmp_dir)/etc/config: FORCE
 	@mkdir -p $(dir $@)
 	$(call do,INSTALL,$(CONFIG), \
@@ -826,10 +818,63 @@ $(initrd_tmp_dir)/etc/config: FORCE
 		>> $@ ; \
 	)
 
+# Temporary directory for data.cpio
+data_initrd_dir := $(build)/$(initrd_dir)/data_initrd
+
+# Define a function to register DATA files for inclusion in data.cpio
+define register_data_file
+$(eval src := $(word 1,$(subst |, ,$1)))
+$(eval dst := $(word 2,$(subst |, ,$1)))
+$(if $(src),,$(error ERROR: Source path is empty in register_data_file))
+$(if $(dst),,$(error ERROR: Destination path is empty in register_data_file))
+$(info DEBUG: Registering DATA file for data.cpio: Source: $(src), Destination: $(dst))
+$(eval data_files += $(src)|$(dst))
+endef
+
+# Build data.cpio for data files only
+$(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word 1,$(subst |, ,$(file))))
+	$(info DEBUG: Building data.cpio with the following files:)
+	$(foreach file,$(data_files),$(info - $(word 2,$(subst |, ,$(file)))))
+	@rm -rf $(data_initrd_dir)
+	@mkdir -p $(data_initrd_dir)
+	@set -e; \
+	for file in $(data_files); do \
+		src=$$(echo $$file | cut -d'|' -f1); \
+		dst=$$(echo $$file | cut -d'|' -f2); \
+		if [ -n "$$src" ] && [ -n "$$dst" ]; then \
+			mkdir -p "$(data_initrd_dir)/$$(dirname $$dst)"; \
+			if ! cp -a "$(INSTALL)/$$src" "$(data_initrd_dir)/$$dst"; then \
+				echo "ERROR: Failed to copy $(INSTALL)/$$src to $(data_initrd_dir)/$$dst"; \
+			fi; \
+		fi; \
+	done
+	$(call do,CPIO-DATA,$@,\
+		( cd $(data_initrd_dir); \
+		find . \
+		| cpio \
+			--quiet \
+			-H newc \
+			-o \
+		) > "$@.tmp" \
+	)
+	@if ! cmp --quiet "$@.tmp" "$@" ; then \
+		mv "$@.tmp" "$@" ; \
+	else \
+		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
+		rm "$@.tmp" ; \
+	fi
+	@sha256sum "$@" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
+
+# Ensure data.cpio is included in initrd.cpio.xz
+initrd-y += $(build)/$(initrd_dir)/data.cpio
+
 # Ensure that the initrd depends on all of the modules that produce
 # binaries for it
 $(build)/$(initrd_dir)/tools.cpio: $(foreach d,$(bin_modules-y),$(build)/$($d_dir)/.build)
 
+# Ensure that data.cpio depends on all real modules being built (not initrd)
+$(build)/$(initrd_dir)/data.cpio: $(foreach m,$(modules-real),$(build)/$($m_dir)/.build)
 
 # List of all modules, excluding the slow to-build modules
 modules-slow := musl musl-cross-make kernel_headers
