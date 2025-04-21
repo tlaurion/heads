@@ -295,6 +295,7 @@ endef
 # BEFORE the include modules/* line, so modules can append to data_files at parse time.
 
 data_files :=
+export data_files
 define register_data_file
 data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1))
 $(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
@@ -837,6 +838,7 @@ data_initrd_dir := $(build)/$(initrd_dir)/data_initrd
 # Define a function to register DATA files for inclusion in data.cpio
 # Use := for data_files to ensure it is a global variable, not target/local.
 data_files :=
+export data_files
 define register_data_file
 data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1))
 $(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
@@ -852,9 +854,12 @@ $(build)/$(initrd_dir)/data.cpio::
 	@rm -rf $(data_initrd_dir)
 	@mkdir -p $(data_initrd_dir)
 	@set -e; \
-	for file in $(data_files); do \
-		src=$$(echo $$file | cut -d'|' -f1); \
-		dst=$$(echo $$file | cut -d'|' -f2); \
+	list="$(data_files)"; \
+	while [ -n "$$list" ]; do \
+		entry=$${list%% *}; \
+		list=$${list#* }; \
+		src=$${entry%%|*}; \
+		dst=$${entry#*|}; \
 		if [ -n "$$src" ] && [ -n "$$dst" ]; then \
 			if [ -e "$$src" ]; then \
 				echo "`date --rfc-3339=seconds` INSTALL-DATA $$src -> $(data_initrd_dir)/$$dst"; \
@@ -864,6 +869,7 @@ $(build)/$(initrd_dir)/data.cpio::
 				echo "WARNING: DATA file $$src not found, skipping!"; \
 			fi; \
 		fi; \
+		[ "$$list" = "$$entry" ] && break; \
 	done
 	$(call do,CPIO-DATA,$@,\
 		( cd $(data_initrd_dir); \
