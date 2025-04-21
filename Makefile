@@ -291,6 +291,16 @@ define map =
 $(foreach _,$2,$(eval $(call $1,$_)))
 endef
 
+# Move the definition and initialization of data_files and the register_data_file macro
+# BEFORE the include modules/* line, so modules can append to data_files at parse time.
+
+data_files :=
+define register_data_file
+data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1))
+$(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
+$(info data_files now: $(data_files))
+endef
+
 # Bring in all of the module definitions;
 # these are the external pieces that will be downloaded and built
 # as part of creating the Heads firmware image.
@@ -834,8 +844,9 @@ $(info data_files now: $(data_files))
 endef
 
 # Build data.cpio for data files only
-$(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word 1,$(subst |, ,$(file))))
+$(build)/$(initrd_dir)/data.cpio::
 	$(info DEBUG: Building data.cpio with the following files:)
+	@echo "data_files at build time: '$(data_files)'"
 	$(foreach file,$(data_files),$(info - $(word 1,$(subst |, ,$(file))) -> $(word 2,$(subst |, ,$(file)))))
 	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
 	@rm -rf $(data_initrd_dir)
@@ -845,12 +856,12 @@ $(build)/$(initrd_dir)/data.cpio: $(foreach file,$(data_files),$(INSTALL)/$(word
 		src=$$(echo $$file | cut -d'|' -f1); \
 		dst=$$(echo $$file | cut -d'|' -f2); \
 		if [ -n "$$src" ] && [ -n "$$dst" ]; then \
-			if [ -e "$(INSTALL)/$$src" ]; then \
-				echo "`date --rfc-3339=seconds` INSTALL-DATA $(INSTALL)/$$src -> $(data_initrd_dir)/$$dst"; \
+			if [ -e "$$src" ]; then \
+				echo "`date --rfc-3339=seconds` INSTALL-DATA $$src -> $(data_initrd_dir)/$$dst"; \
 				mkdir -p "$(data_initrd_dir)/$$(dirname $$dst)"; \
-				cp -a "$(INSTALL)/$$src" "$(data_initrd_dir)/$$dst"; \
+				cp -a "$$src" "$(data_initrd_dir)/$$dst"; \
 			else \
-				echo "WARNING: DATA file $(INSTALL)/$$src not found, skipping!"; \
+				echo "WARNING: DATA file $$src not found, skipping!"; \
 			fi; \
 		fi; \
 	done

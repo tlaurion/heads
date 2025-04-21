@@ -24,9 +24,19 @@ ncurses_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
 	install.data
 
-
-# Dynamically register terminfo files for inclusion in data.cpio with the correct relative path
-$(info DEBUG: Registering terminfo file for data.cpio: usr/share/terminfo/l/linux -> etc/terminfo/l/linux)
-data_files += usr/share/terminfo/l/linux|etc/terminfo/l/linux
+# Register terminfo file for data.cpio: source is in install, destination is etc/terminfo/l/linux in initrd
+# Do NOT use ifeq/ifneq here, just append unconditionally so it is always present at parse time.
+$(info DEBUG: Registering terminfo file for data.cpio: $(INSTALL)/usr/lib/terminfo/l/linux -> etc/terminfo/l/linux)
+data_files += $(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux
 $(info modules/ncurses: data_files after registration: $(data_files))
+
+# Register all terminfo files in the l/ directory for data.cpio
+# This will ensure at least one file exists and is registered.
+define ncurses_register_terminfo_files
+$(foreach f,$(wildcard $(INSTALL)/usr/lib/terminfo/l/*),\
+  $(eval data_files += $(f)|etc/terminfo/l/$(notdir $(f))) \
+  $(info modules/ncurses: data_files += $(f)|etc/terminfo/l/$(notdir $(f))) \
+)
+endef
+$(eval $(call ncurses_register_terminfo_files))
 
