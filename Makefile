@@ -642,10 +642,21 @@ initrd_bins += $(initrd_bin_dir)/$(notdir $1)
 endef
 
 define initrd_data_add =
-$(initrd_data_dir)/$(notdir $1): $1
-	$(call do,INSTALL-DATA,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
-initrd_data += $(initrd_data_dir)/$(notdir $1)
+$(data_initrd_dir)/$(2): $(1)
+	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%),\
+		mkdir -p "$(dir $(data_initrd_dir)/$(2))"; \
+		cp -a --remove-destination "$(1)" "$(data_initrd_dir)/$(2)"; \
+	)
+	@sha256sum "$(data_initrd_dir)/$(2)" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$(data_initrd_dir)/$(2)" | tee -a "$(SIZES)"
 endef
+
+# Register all data_files for installation
+$(foreach entry,$(data_files),\
+  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
+  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
+  $(eval $(call initrd_data_add,$(src),$(dst))) \
+)
 
 define initrd_lib_add =
 $(initrd_lib_dir)/$(notdir $1): $1
@@ -835,48 +846,33 @@ $(initrd_tmp_dir)/etc/config: FORCE
 # Temporary directory for data.cpio
 data_initrd_dir := $(build)/$(initrd_dir)/data_initrd
 
-# Define a function to register DATA files for inclusion in data.cpio
-# Use := for data_files to ensure it is a global variable, not target/local.
-data_files :=
-export data_files
-define register_data_file
-data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1))
-$(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
-$(info data_files now: $(data_files))
+# Macro to install a single data file (like BIN/LIB)
+define initrd_data_add =
+$(data_initrd_dir)/$(2): $(1)
+	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%),\
+		mkdir -p "$(dir $(data_initrd_dir)/$(2))"; \
+		cp -a --remove-destination "$(1)" "$(data_initrd_dir)/$(2)"; \
+	)
+	@sha256sum "$(data_initrd_dir)/$(2)" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$(data_initrd_dir)/$(2)" | tee -a "$(SIZES)"
 endef
 
+# Register all data_files for installation
+$(foreach entry,$(data_files),\
+  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
+  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
+  $(eval $(call initrd_data_add,$(src),$(dst))) \
+)
+
+# List of all installed DATA files (for cpio input and hash logging)
+data_initrd_files := $(foreach entry,$(data_files),$(data_initrd_dir)/$(word 2,$(subst |, ,$(entry))))
+
 # Build data.cpio for data files only
-$(build)/$(initrd_dir)/data.cpio::
+$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files)
 	$(info DEBUG: Building data.cpio with the following files:)
-	@echo "data_files at build time: '$(data_files)'"
-	$(foreach file,$(data_files),$(info - $(word 1,$(subst |, ,$(file))) -> $(word 2,$(subst |, ,$(file)))))
+	$(foreach entry,$(data_files),$(info - $(word 1,$(subst |, ,$(entry))) -> $(word 2,$(subst |, ,$(entry)))))
 	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
-	@rm -rf $(data_initrd_dir)
-	@mkdir -p $(data_initrd_dir)
-	@set -e; \
-	list="$(data_files)"; \
-	while [ -n "$$list" ]; do \
-		entry=$${list%% *}; \
-		list=$${list#* }; \
-		src=$${entry%%|*}; \
-		dst=$${entry#*|}; \
-		if [ -n "$$src" ] && [ -n "$$dst" ]; then \
-			if [ -e "$$src" ]; then \
-				echo "`date --rfc-3339=seconds` INSTALL-DATA $$src -> $(data_initrd_dir)/$$dst"; \
-				mkdir -p "$(data_initrd_dir)/$$(dirname $$dst)"; \
-				cp -a "$$src" "$(data_initrd_dir)/$$dst"; \
-			else \
-				echo "WARNING: DATA file $$src not found, skipping!"; \
-			fi; \
-		fi; \
-		[ "$$list" = "$$entry" ] && break; \
-	done
 	@echo "Used **DATA**: $$(cd $(data_initrd_dir) && find . -type f | sort)"
-	@cd $(data_initrd_dir); \
-	for f in $$(find . -type f | sort); do \
-		sha256sum "$$f" | tee -a "$(HASHES)" >/dev/null; \
-		stat -c "%8s:%n" "$$f" >> "$(SIZES)"; \
-	done
 	$(call do,CPIO-DATA,$@,\
 		( cd $(data_initrd_dir); \
 		find . \
@@ -894,6 +890,22 @@ $(build)/$(initrd_dir)/data.cpio::
 	fi
 	@sha256sum "$@" | tee -a "$(HASHES)"
 	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
+	$(call do,HASHES   , $@,\
+		( cd $(data_initrd_dir); \
+		echo "-----" ; \
+		find . -type f -print0 \
+		| xargs -0 sha256sum ; \
+		echo "-----" ; \
+		) >> "$(HASHES)" \
+	)
+	$(call do,SIZES    , $@,\
+		( cd $(data_initrd_dir); \
+		echo "-----" ; \
+		find . -type f -print0 \
+		| xargs -0 stat -c "%8s:%n" ; \
+		echo "-----" ; \
+		) >> "$(SIZES)" \
+	)
 
 # Ensure data.cpio is included in initrd.cpio.xz
 initrd-y += $(build)/$(initrd_dir)/data.cpio
