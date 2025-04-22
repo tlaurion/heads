@@ -476,7 +476,7 @@ define define_module =
 
     # Unpack the tar file and touch the canary so that we know
     # that the files are all present
-    $($1_config_file_path): $(packages)/$($1_tar)
+    $(build)/$($1_base_dir)/.canary: $(packages)/$($1_tar)
 	mkdir -p "$$(dir $$@)"
 	tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$$(dir $$@)"
 	if [ -r patches/$($1_patch_name).patch ]; then \
