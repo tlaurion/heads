@@ -874,8 +874,8 @@ $(build)/$(initrd_dir)/data.cpio::
 	@echo "Used **DATA**: $$(cd $(data_initrd_dir) && find . -type f | sort)"
 	@cd $(data_initrd_dir); \
 	for f in $$(find . -type f | sort); do \
-		echo -n "sha256sum "; sha256sum "$$f" | tee -a "$(HASHES)"; \
-		echo -n "stat "; stat -c "%8s:%n" "$$f" | tee -a "$(SIZES)"; \
+		sha256sum "$$f" | tee -a "$(HASHES)" >/dev/null; \
+		stat -c "%8s:%n" "$$f" >> "$(SIZES)"; \
 	done
 	$(call do,CPIO-DATA,$@,\
 		( cd $(data_initrd_dir); \
