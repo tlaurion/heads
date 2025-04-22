@@ -852,39 +852,7 @@ $(build)/$(initrd_dir)/data.cpio: $(data_initrd_files)
 	$(foreach entry,$(data_files),$(info - $(word 1,$(subst |, ,$(entry))) -> $(word 2,$(subst |, ,$(entry)))))
 	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
 	@echo "Used **DATA**: $$(cd $(initrd_data_dir) && find . -type f | sort)"
-	$(call do,CPIO-DATA,$@,\
-		( cd $(initrd_data_dir); \
-		find . \
-		| cpio \
-			--quiet \
-			-H newc \
-			-o \
-		) > "$@.tmp" \
-	)
-	@if ! cmp --quiet "$@.tmp" "$@"; then \
-		mv "$@.tmp" "$@"; \
-	else \
-		echo "$(DATE) UNCHANGED $(@:$(pwd)/%=%)" ; \
-		rm "$@.tmp" ; \
-	fi
-	@sha256sum "$@" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
-	$(call do,HASHES   , $@,\
-		( cd $(initrd_data_dir); \
-		echo "-----" ; \
-		find . -type f -print0 \
-		| xargs -0 sha256sum ; \
-		echo "-----" ; \
-		) >> "$(HASHES)" \
-	)
-	$(call do,SIZES    , $@,\
-		( cd $(initrd_data_dir); \
-		echo "-----" ; \
-		find . -type f -print0 \
-		| xargs -0 stat -c "%8s:%n" ; \
-		echo "-----" ; \
-		) >> "$(SIZES)" \
-	)
+	$(call do-cpio,$@,$(initrd_data_dir))
 
 # Ensure data.cpio is included in initrd.cpio.xz
 initrd-y += $(build)/$(initrd_dir)/data.cpio
