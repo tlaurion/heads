@@ -847,11 +847,15 @@ $(initrd_tmp_dir)/etc/config: FORCE
 data_initrd_files := $(foreach entry,$(data_files),$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry))))
 
 # Build data.cpio for data files only
-$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files)
+$(build)/$(initrd_dir)/data.cpio:
 	$(info DEBUG: Building data.cpio with the following files:)
 	$(foreach entry,$(data_files),$(info - $(word 1,$(subst |, ,$(entry))) -> $(word 2,$(subst |, ,$(entry)))))
 	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
-	@echo "Used **DATA**: $$(cd $(initrd_data_dir) && find . -type f | sort)"
+	@echo "Used **DATA**: $(foreach entry,$(data_files),$(word 2,$(subst |, ,$(entry))))"
+	$(foreach entry,$(data_files), \
+		mkdir -p "$(initrd_data_dir)/$(dir $(word 2,$(subst |, ,$(entry))))"; \
+		cp -a --remove-destination "$(word 1,$(subst |, ,$(entry)))" "$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry)))"; \
+	)
 	$(call do-cpio,$@,$(initrd_data_dir))
 
 # Ensure data.cpio is included in initrd.cpio.xz
