@@ -613,10 +613,7 @@ define define_module =
 
 endef
 
-# Only generate .canary/.configured/.build targets for real modules, not for the initrd pseudo-module
-# Remove 'initrd' from modules-y before calling map/define_module
-modules-real := $(filter-out initrd,$(modules-y))
-$(call map, define_module, $(modules-real))
+$(call map, define_module, $(modules-y))
 
 # hack to force musl-cross-make to be built before musl
 #$(build)/$(musl_dir)/.configured: $(build)/$(musl-cross-make_dir)/../../crossgcc/x86_64-linux-musl/bin/x86_64-musl-linux-gcc
@@ -843,10 +840,16 @@ data_initrd_files := $(foreach entry,$(data_files),$(initrd_data_dir)/$(word 2,$
 
 # Build data.cpio for data files only
 $(build)/$(initrd_dir)/data.cpio: FORCE
-	@$(foreach entry,$(data_files), \
-		mkdir -p "$(initrd_data_dir)/$(dir $(word 2,$(subst |, ,$(entry))))"; \
-		cp -a --remove-destination "$(word 1,$(subst |, ,$(entry)))" "$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry)))"; \
-	)
+	@mkdir -p "$(initrd_data_dir)"
+	@echo "$(data_files)" | tr ' ' '\n' | while IFS="|" read -r src dst; do \
+		if [ -z "$$src" ] || [ -z "$$dst" ]; then continue; fi; \
+		if [ -e "$$src" ]; then \
+			mkdir -p "$(initrd_data_dir)/$$(dirname $$dst)"; \
+			cp -a --remove-destination "$$src" "$(initrd_data_dir)/$$dst"; \
+		else \
+			echo "WARNING: Skipping missing data file: $$src" >&2; \
+		fi; \
+	done
 	$(call do-cpio,$@,$(initrd_data_dir))
 
 # Ensure data.cpio is included in initrd.cpio.xz
@@ -859,8 +862,6 @@ all: $(build)/$(initrd_dir)/data.cpio
 # binaries for it
 $(build)/$(initrd_dir)/tools.cpio: $(foreach d,$(bin_modules-y),$(build)/$($d_dir)/.build)
 
-# Ensure that data.cpio depends on all real modules being built (not initrd)
-# Remove any dependency on $(build)/$(initrd_dir)/data.cpio from any module's .build or .configured rules!
 
 # List of all modules, excluding the slow to-build modules
 modules-slow := musl musl-cross-make kernel_headers
