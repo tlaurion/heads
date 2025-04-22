@@ -177,10 +177,10 @@ initrd_dir	:= $(BOARD)
 initrd_tmp_dir	:= $(shell mktemp -d)
 initrd_lib_dir	:= $(initrd_tmp_dir)/lib
 initrd_bin_dir	:= $(initrd_tmp_dir)/bin
-# Do not define initrd_data_dir here; data file destinations are handled dynamically via register_data_file
+initrd_data_dir	:= $(initrd_tmp_dir)/data
 modules-y += initrd
 
-$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)")
+$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)")
 
 # We are running our own version of make,
 # proceed with the build.
@@ -642,13 +642,13 @@ initrd_bins += $(initrd_bin_dir)/$(notdir $1)
 endef
 
 define initrd_data_add =
-$(data_initrd_dir)/$(2): $(1)
+$(initrd_data_dir)/$(2): $(1)
 	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%),\
-		mkdir -p "$(dir $(data_initrd_dir)/$(2))"; \
-		cp -a --remove-destination "$(1)" "$(data_initrd_dir)/$(2)"; \
+		mkdir -p "$(dir $(initrd_data_dir)/$(2))"; \
+		cp -a --remove-destination "$(1)" "$(initrd_data_dir)/$(2)"; \
 	)
-	@sha256sum "$(data_initrd_dir)/$(2)" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$(data_initrd_dir)/$(2)" | tee -a "$(SIZES)"
+	@sha256sum "$(initrd_data_dir)/$(2)" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$(initrd_data_dir)/$(2)" | tee -a "$(SIZES)"
 endef
 
 # Register all data_files for installation
@@ -843,38 +843,17 @@ $(initrd_tmp_dir)/etc/config: FORCE
 		>> $@ ; \
 	)
 
-# Temporary directory for data.cpio
-data_initrd_dir := $(build)/$(initrd_dir)/data_initrd
-
-# Macro to install a single data file (like BIN/LIB)
-define initrd_data_add =
-$(data_initrd_dir)/$(2): $(1)
-	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%),\
-		mkdir -p "$(dir $(data_initrd_dir)/$(2))"; \
-		cp -a --remove-destination "$(1)" "$(data_initrd_dir)/$(2)"; \
-	)
-	@sha256sum "$(data_initrd_dir)/$(2)" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$(data_initrd_dir)/$(2)" | tee -a "$(SIZES)"
-endef
-
-# Register all data_files for installation
-$(foreach entry,$(data_files),\
-  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
-  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
-  $(eval $(call initrd_data_add,$(src),$(dst))) \
-)
-
 # List of all installed DATA files (for cpio input and hash logging)
-data_initrd_files := $(foreach entry,$(data_files),$(data_initrd_dir)/$(word 2,$(subst |, ,$(entry))))
+data_initrd_files := $(foreach entry,$(data_files),$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry))))
 
 # Build data.cpio for data files only
 $(build)/$(initrd_dir)/data.cpio: $(data_initrd_files)
 	$(info DEBUG: Building data.cpio with the following files:)
 	$(foreach entry,$(data_files),$(info - $(word 1,$(subst |, ,$(entry))) -> $(word 2,$(subst |, ,$(entry)))))
 	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
-	@echo "Used **DATA**: $$(cd $(data_initrd_dir) && find . -type f | sort)"
+	@echo "Used **DATA**: $$(cd $(initrd_data_dir) && find . -type f | sort)"
 	$(call do,CPIO-DATA,$@,\
-		( cd $(data_initrd_dir); \
+		( cd $(initrd_data_dir); \
 		find . \
 		| cpio \
 			--quiet \
@@ -891,7 +870,7 @@ $(build)/$(initrd_dir)/data.cpio: $(data_initrd_files)
 	@sha256sum "$@" | tee -a "$(HASHES)"
 	@stat -c "%8s:%n" "$@" | tee -a "$(SIZES)"
 	$(call do,HASHES   , $@,\
-		( cd $(data_initrd_dir); \
+		( cd $(initrd_data_dir); \
 		echo "-----" ; \
 		find . -type f -print0 \
 		| xargs -0 sha256sum ; \
@@ -899,7 +878,7 @@ $(build)/$(initrd_dir)/data.cpio: $(data_initrd_files)
 		) >> "$(HASHES)" \
 	)
 	$(call do,SIZES    , $@,\
-		( cd $(data_initrd_dir); \
+		( cd $(initrd_data_dir); \
 		echo "-----" ; \
 		find . -type f -print0 \
 		| xargs -0 stat -c "%8s:%n" ; \
