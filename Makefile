@@ -761,9 +761,9 @@ initrd-y += $(build)/$(initrd_dir)/board.cpio
 initrd-y += $(build)/$(initrd_dir)/data.cpio
 initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
 
+#$(build)/$(initrd_dir)/.build: $(build)/$(initrd_dir)/initrd.cpio.xz
+
 $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
-	$(info DEBUG: Building initrd.cpio.xz from the following cpio parts:)
-	$(foreach part,$(initrd-y),$(info - $(part)))
 	$(call do,CPIO-XZ  ,$@,\
 	$(pwd)/bin/cpio-clean \
 		$^ \
@@ -815,9 +815,6 @@ $(build)/$(initrd_dir)/tools.cpio: \
 	$(initrd_bins) \
 	$(initrd_tmp_dir)/etc/config \
 
-	$(info DEBUG: Building tools.cpio with the following files:)
-	$(info Used **LIBS**: $(foreach lib,$(initrd_libs),$(subst $(initrd_tmp_dir)/,,$(lib))))
-	$(info Used **BINS**: $(foreach bin,$(initrd_bins),$(subst $(initrd_tmp_dir)/,,$(bin))))
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
 
@@ -846,10 +843,6 @@ data_initrd_files := $(foreach entry,$(data_files),$(initrd_data_dir)/$(word 2,$
 
 # Build data.cpio for data files only
 $(build)/$(initrd_dir)/data.cpio: FORCE
-	$(info DEBUG: Building data.cpio with the following files:)
-	$(foreach entry,$(data_files),$(info - $(word 1,$(subst |, ,$(entry))) -> $(word 2,$(subst |, ,$(entry)))))
-	$(if $(data_files),,$(info NOTE: No data files registered for data.cpio!))
-	@echo "Used **DATA**: $(foreach entry,$(data_files),$(word 2,$(subst |, ,$(entry))))"
 	@$(foreach entry,$(data_files), \
 		mkdir -p "$(initrd_data_dir)/$(dir $(word 2,$(subst |, ,$(entry))))"; \
 		cp -a --remove-destination "$(word 1,$(subst |, ,$(entry)))" "$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry)))"; \
