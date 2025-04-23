@@ -291,9 +291,8 @@ define map =
 $(foreach _,$2,$(eval $(call $1,$_)))
 endef
 
-# Move the definition and initialization of data_files and the register_data_file macro
-# BEFORE the include modules/* line, so modules can append to data_files at parse time.
-
+# Data files can be specied in modules/* to be added into data.cpio
+#  format is data_files += path/after/build|path/desired/into/initramfs)
 data_files :=
 export data_files
 define register_data_file
@@ -320,7 +319,6 @@ endef
 define outputs =
 $(foreach m,$1,\
 	$(call bins,$m)\
-	$(call data,$m)\
 	$(call libs,$m)\
 )
 endef
@@ -578,7 +576,8 @@ define define_module =
 	stat $(call outputs,$1) >/dev/null 2>/dev/null || echo FORCE \
   ))
 
-  $(build)/$($1_dir)/.build: $($1.force) \
+  #TODO: something better then removing .build: $($1.force) so that newt/ncurses are not rebuilt inconditionally?
+  $(build)/$($1_dir)/.build: \
 		$(foreach d,$($1_depends),$(build)/$($d_dir)/.build) \
 		$(dir $($1_config_file_path)).configured \
 
@@ -790,7 +789,7 @@ all: $(bundle-y)
 
 ifeq ($(wildcard $(pwd)/boards/$(BOARD)/initrd),)
 $(build)/$(initrd_dir)/board.cpio:
-	@cpio --quiet -H newc -o </dev/null >"$@"
+	cpio -H newc -o </dev/null >"$@"
 else
 $(build)/$(initrd_dir)/board.cpio: FORCE
 	$(call do-cpio,$@,$(pwd)/boards/$(BOARD)/initrd)
@@ -808,8 +807,8 @@ $(build)/$(initrd_dir)/heads.cpio: FORCE
 # The tools initrd is made from all of the things that we've
 # created during the submodule build.
 $(build)/$(initrd_dir)/tools.cpio: \
-	$(initrd_libs) \
 	$(initrd_bins) \
+	$(initrd_libs) \
 	$(initrd_tmp_dir)/etc/config \
 
 	$(call do-cpio,$@,$(initrd_tmp_dir))
