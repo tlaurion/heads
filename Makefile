@@ -305,7 +305,8 @@ endef
 include modules/*
 
 # Collect all data files from enabled modules
-data_files += $(call data,$(modules-y))
+data_files :=
+$(foreach m,$(modules-y),$(eval data_files += $($(m)_data)))
 
 define bins =
 $(foreach m,$1,$(call prefix,$(build)/$($m_dir)/,$($m_output)))
@@ -753,10 +754,23 @@ initrd-y += $(pwd)/blobs/dev.cpio
 initrd-y += $(build)/$(initrd_dir)/modules.cpio
 initrd-y += $(build)/$(initrd_dir)/tools.cpio
 initrd-y += $(build)/$(initrd_dir)/board.cpio
-initrd-y += $(build)/$(initrd_dir)/data.cpio
 initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
 
-#$(build)/$(initrd_dir)/.build: $(build)/$(initrd_dir)/initrd.cpio.xz
+# Only build data.cpio if there are data files
+ifneq ($(strip $(data_files)),)
+
+# Build data.cpio for data files only
+$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) FORCE
+	@mkdir -p "$(initrd_data_dir)"
+	$(call do-cpio,$@,$(initrd_data_dir))
+
+# Ensure data.cpio is included in initrd.cpio.xz
+initrd-y += $(build)/$(initrd_dir)/data.cpio
+
+# Ensure data.cpio is always built as part of the main build
+all: $(build)/$(initrd_dir)/data.cpio
+
+endif
 
 $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 	$(call do,CPIO-XZ  ,$@,\

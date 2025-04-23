@@ -1,3 +1,5 @@
+modules-$(CONFIG_NEWT) += ncurses
+
 ncurses_depends := $(musl_dep)
 
 ncurses_version := 6.5
