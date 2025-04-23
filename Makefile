@@ -628,7 +628,7 @@ endef
 
 #
 # Files that should be copied into the initrd
-# THis should probably be done in a more scalable manner
+# This should probably be done in a more scalable manner
 #
 define initrd_bin_add =
 $(initrd_bin_dir)/$(notdir $1): $1
@@ -643,8 +643,6 @@ $(initrd_data_dir)/$(2): $(1)
 		mkdir -p "$(dir $(initrd_data_dir)/$(2))"; \
 		cp -a --remove-destination "$(1)" "$(initrd_data_dir)/$(2)"; \
 	)
-	@sha256sum "$(initrd_data_dir)/$(2)" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$(initrd_data_dir)/$(2)" | tee -a "$(SIZES)"
 endef
 
 # Register all data_files for installation
