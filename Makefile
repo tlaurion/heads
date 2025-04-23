@@ -291,12 +291,22 @@ define map =
 $(foreach _,$2,$(eval $(call $1,$_)))
 endef
 
-# Data files can be specied in modules/* to be added into data.cpio
-#  format is data_files += path/after/build|path/desired/into/initramfs)
+# Data files can be specified in modules/* to be added into data.cpio.
+# To register a file, append to data_files using:
+#   $(eval data_files += path/after/build|path/desired/into/initramfs)
+# This must be done at parse time (not in a recipe) so that the rules
+# for copying files into the initrd are generated correctly.
+#
+# Alternatively, use the register_data_file macro:
+#   $(eval $(call register_data_file,src|dst))
+# Example:
+#   $(eval data_files += $(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux)
+# or
+#   $(eval $(call register_data_file,$(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux))
 data_files :=
 export data_files
 define register_data_file
-data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1))
+$(eval data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1)))
 $(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
 $(info data_files now: $(data_files))
 endef
