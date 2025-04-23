@@ -340,12 +340,12 @@ define do-cpio =
 	)
 	@if ! cmp --quiet "$1.tmp" "$1" ; then \
 		mv "$1.tmp" "$1" ; \
+		sha256sum "$1" | tee -a "$(HASHES)"; \
+		stat -c "%8s:%n" "$1" | tee -a "$(SIZES)"; \
 	else \
 		echo "$(DATE) UNCHANGED $(1:$(pwd)/%=%)" ; \
 		rm "$1.tmp" ; \
 	fi
-	@sha256sum "$1" | tee -a "$(HASHES)"
-	@stat -c "%8s:%n" "$1" | tee -a "$(SIZES)"
 	$(call do,HASHES   , $1,\
 		( cd "$2"; \
 		echo "-----" ; \
