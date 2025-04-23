@@ -340,12 +340,12 @@ define do-cpio =
 	)
 	@if ! cmp --quiet "$1.tmp" "$1" ; then \
 		mv "$1.tmp" "$1" ; \
-		sha256sum "$1" | tee -a "$(HASHES)"; \
-		stat -c "%8s:%n" "$1" | tee -a "$(SIZES)"; \
 	else \
 		echo "$(DATE) UNCHANGED $(1:$(pwd)/%=%)" ; \
 		rm "$1.tmp" ; \
 	fi
+	@sha256sum "$1" | tee -a "$(HASHES)"
+	@stat -c "%8s:%n" "$1" | tee -a "$(SIZES)"
 	$(call do,HASHES   , $1,\
 		( cd "$2"; \
 		echo "-----" ; \
@@ -785,11 +785,10 @@ all: $(bundle-y)
 # The board.cpio is built from the board's initrd/ directory.  It contains
 # board-specific support scripts.
 
+$(build)/$(initrd_dir)/board.cpio: FORCE
 ifeq ($(wildcard $(pwd)/boards/$(BOARD)/initrd),)
-$(build)/$(initrd_dir)/board.cpio:
 	cpio -H newc -o </dev/null >"$@"
 else
-$(build)/$(initrd_dir)/board.cpio: FORCE
 	$(call do-cpio,$@,$(pwd)/boards/$(BOARD)/initrd)
 endif
 
@@ -808,6 +807,7 @@ $(build)/$(initrd_dir)/tools.cpio: \
 	$(initrd_bins) \
 	$(initrd_libs) \
 	$(initrd_tmp_dir)/etc/config \
+	FORCE
 
 	$(call do-cpio,$@,$(initrd_tmp_dir))
 	@$(RM) -rf "$(initrd_tmp_dir)"
