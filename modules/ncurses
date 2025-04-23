@@ -24,5 +24,5 @@ ncurses_target := $(MAKE_JOBS) \
 	DESTDIR="$(INSTALL)" \
 	install.data
 
-# Register terminfo files for data.cpio (use register_data_file for clarity)
-$(eval $(call register_data_file,$(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux))
+# Specify terminfo file for data.cpio if ncurses is enabled
+ncurses_data += $(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux

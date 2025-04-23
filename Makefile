@@ -292,29 +292,20 @@ $(foreach _,$2,$(eval $(call $1,$_)))
 endef
 
 # Data files can be specified in modules/* to be added into data.cpio.
-# To register a file, append to data_files using:
-#   $(eval data_files += path/after/build|path/desired/into/initramfs)
-# This must be done at parse time (not in a recipe) so that the rules
-# for copying files into the initrd are generated correctly.
+# Each module should set <modulename>_data += src|dst
+# Example (in modules/ncurses):
+#   ncurses_data += $(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux
 #
-# Alternatively, use the register_data_file macro:
-#   $(eval $(call register_data_file,src|dst))
-# Example:
-#   $(eval data_files += $(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux)
-# or
-#   $(eval $(call register_data_file,$(INSTALL)/usr/lib/terminfo/l/linux|etc/terminfo/l/linux))
-data_files :=
-export data_files
-define register_data_file
-$(eval data_files += $(word 1,$(subst |, ,$1))|$(word 2,$(subst |, ,$1)))
-$(info register_data_file called: $(word 1,$(subst |, ,$1)) -> $(word 2,$(subst |, ,$1)))
-$(info data_files now: $(data_files))
-endef
+# The main Makefile will collect all data files from enabled modules:
+#   $(call data,$(modules-y))
 
 # Bring in all of the module definitions;
 # these are the external pieces that will be downloaded and built
 # as part of creating the Heads firmware image.
 include modules/*
+
+# Collect all data files from enabled modules
+data_files += $(call data,$(modules-y))
 
 define bins =
 $(foreach m,$1,$(call prefix,$(build)/$($m_dir)/,$($m_output)))
@@ -845,6 +836,9 @@ $(initrd_tmp_dir)/etc/config: FORCE
 # List of all installed DATA files (for cpio input and hash logging)
 data_initrd_files := $(foreach entry,$(data_files),$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry))))
 
+# Only build data.cpio if there are data files
+ifneq ($(strip $(data_files)),)
+
 # Build data.cpio for data files only
 $(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) FORCE
 	@mkdir -p "$(initrd_data_dir)"
@@ -855,6 +849,8 @@ initrd-y += $(build)/$(initrd_dir)/data.cpio
 
 # Ensure data.cpio is always built as part of the main build
 all: $(build)/$(initrd_dir)/data.cpio
+
+endif
 
 # Ensure that the initrd depends on all of the modules that produce
 # binaries for it
