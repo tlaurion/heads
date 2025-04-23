@@ -578,7 +578,8 @@ define define_module =
 	stat $(call outputs,$1) >/dev/null 2>/dev/null || echo FORCE \
   ))
 
-  $(build)/$($1_dir)/.build: $($1.force) \
+  # Remove $($1.force) from the dependency list to avoid always rebuilding
+  $(build)/$($1_dir)/.build: \
 		$(foreach d,$($1_depends),$(build)/$($d_dir)/.build) \
 		$(dir $($1_config_file_path)).configured \
 
