@@ -640,7 +640,7 @@ endef
 
 define initrd_data_add =
 $(initrd_data_dir)/$(2): $(1)
-	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%),\
+	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%) => $(2),\
 		mkdir -p "$(dir $(initrd_data_dir)/$(2))"; \
 		cp -a --remove-destination "$(1)" "$(initrd_data_dir)/$(2)"; \
 	)
@@ -839,17 +839,8 @@ $(initrd_tmp_dir)/etc/config: FORCE
 data_initrd_files := $(foreach entry,$(data_files),$(initrd_data_dir)/$(word 2,$(subst |, ,$(entry))))
 
 # Build data.cpio for data files only
-$(build)/$(initrd_dir)/data.cpio: FORCE
+$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) FORCE
 	@mkdir -p "$(initrd_data_dir)"
-	@echo "$(data_files)" | tr ' ' '\n' | while IFS="|" read -r src dst; do \
-		if [ -z "$$src" ] || [ -z "$$dst" ]; then continue; fi; \
-		if [ -e "$$src" ]; then \
-			mkdir -p "$(initrd_data_dir)/$$(dirname $$dst)"; \
-			cp -a --remove-destination "$$src" "$(initrd_data_dir)/$$dst"; \
-		else \
-			echo "WARNING: Skipping missing data file: $$src" >&2; \
-		fi; \
-	done
 	$(call do-cpio,$@,$(initrd_data_dir))
 
 # Ensure data.cpio is included in initrd.cpio.xz
