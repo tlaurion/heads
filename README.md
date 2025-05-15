@@ -131,7 +131,7 @@ Redo the steps above in case the flake.nix or nix.lock changes. Commit changes. 
 #put relevant things in variables:
 docker_version="vx.y.z" && docker_hub_repo="tlaurion/heads-dev-env"
 #update pinned packages to latest available ones if needed, modify flake.nix derivatives if needed:
-nix flakes update
+nix flake update
 #modify CircleCI image to use newly pushed docker image
 sed "s@\(image: \)\(.*\):\(v[0-9]*\.[0-9]*\.[0-9]*\)@\1\2:$docker_version@" -i .circleci/config.yml
 # commit changes
