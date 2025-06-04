@@ -114,6 +114,13 @@ do
 		fi
 		module_number=`expr $module_number + 1`
 		kexeccmd="$kexeccmd --module \"$filepath $cmdline\""
+		if [ "$CONFIG_TPM" = "y" -o "$CONFIG_TPM2_TOOLS" = "y" ] \
+			   && [ "$CONFIG_MEASURE_KERNEL" = "y" -a "$dryrun" != "y" ]; then
+			# Measure the module into PCR 9, permit failure.
+			tpmr extend -ix 9 -if "$filepath" || true
+			# Measure the cmd line into PCR 8, permit failure.
+			tpmr extend -ix 8 -ic "$cmdline" || true
+		fi
 	fi
 	if [ "$key" = "initrd" ]; then
 		fix_file_path
@@ -129,6 +136,11 @@ do
 			filepath="$firmware_initrd"
 		fi
 		kexeccmd="$kexeccmd --initrd=$filepath"
+		if [ "$CONFIG_TPM" = "y" -o "$CONFIG_TPM2_TOOLS" = "y" ] \
+			   && [ "$CONFIG_MEASURE_KERNEL" = "y" -a "$dryrun" != "y" ]; then
+			# Measure the initrd into PCR 9, permit failure.
+			tpmr extend -ix 9 -if "$filepath" || true
+		fi
 	fi
 	if [ "$key" = "append" ]; then
 		cmdline="$firstval $restval"
@@ -142,6 +154,11 @@ EOF
 if [ "$adjusted_cmd_line" = "n" ]; then
 	if [ "$kexectype" = "elf" ]; then
 		kexeccmd="$kexeccmd --append=\"$cmdadd\""
+		if [ "$CONFIG_TPM" = "y" -o "$CONFIG_TPM2_TOOLS" = "y" ] \
+			   && [ "$CONFIG_MEASURE_KERNEL" = "y" -a "$dryrun" != "y" ]; then
+			# Measure the cmd line into PCR 8, permit failure.
+			tpmr extend -ix 8 -ic "$cmdadd" || true
+		fi
 	else
 		die "Failed to add required kernel commands: $cmdadd"
 	fi

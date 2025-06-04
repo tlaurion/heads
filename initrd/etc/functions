@@ -297,7 +297,7 @@ recovery() {
 
 	DEBUG "Board $CONFIG_BOARD - version $(fw_version)"
 
-	if [ "$CONFIG_TPM" = "y" ]; then
+	if [ "$CONFIG_TPM" = "y" -o "$CONFIG_TPM2_TOOLS" = "y" ]; then
 		INFO "TPM: Extending PCR[4] to prevent any further secret unsealing"
 		tpmr extend -ix 4 -ic recovery
 	fi
@@ -411,6 +411,70 @@ enable_usb() {
 }
 
 # ------- End of functions coming from /etc/ash_functions
+
+enable_sata()
+{
+	for mod in libata libahci ahci; do
+		if ! lsmod | grep -q "^$(echo $mod | sed 's/-/_/g') " ; then
+			insmod "/lib/modules/$mod.ko" \
+				|| die "$mod: Unable to load module"
+		fi
+	done
+
+	if [ ! -z "$1" ]; then
+		exec mount "$@"
+	fi
+}
+
+enable_nvme()
+{
+	for mod in nvme-core nvme; do
+		if ! lsmod | grep -q "^$(echo $mod | sed 's/-/_/g') " ; then
+			insmod "/lib/modules/$mod.ko" \
+				|| die "$mod: Unable to load module"
+		fi
+	done
+
+	if [ ! -z "$1" ]; then
+		exec mount "$@"
+	fi
+}
+
+enable_mmc()
+{
+	enable_mmc_core
+	for mod in sdhci cqhci sdhci-acpi sdhci-pci rtsx_pci rtsx_pci_sdmmc; do
+		if ! lsmod | grep -q "^$(echo $mod | sed 's/-/_/g') " ; then
+			insmod "/lib/modules/$mod.ko" \
+				|| die "$mod: Unable to load module"
+		fi
+	done
+
+	if [ -r /lib/modules/sdhci-pltfm.ko ]; then
+		for mod in sdhci-pltfm bcm2835 dw_mmc dw_mmc-pltfm dw_mmc-k3 \
+				       dw_mmc-rockchip meson-gx-mmc crc7 crc-itu-t \
+				       of_mmc_spi mmc_spi sdhci-esdhc-imx sdhci_f_sdh30 \
+				       sdhci-iproc sdhci-msm sdhci-of-arasan sdhci-of-esdhc \
+				       sdhci-tegra sdhci-xenon-driver sunxi-mmc; do
+			if ! lsmod | grep -q "^$(echo $mod | sed 's/-/_/g') " ; then
+				insmod "/lib/modules/$mod.ko" \
+					|| die "$mod: Unable to load module"
+			fi
+		done
+	fi
+
+	# minor drivers, only loaded while existing
+	for mod in cb710 cb710-mmc tifm_core tifm_sd toshsd via-sdmmc bcm2835-mmc; do
+		if [ -r "/lib/modules/$mod.ko" ] && ! lsmod | grep -q "^$(echo $mod | sed 's/-/_/g') " ; then
+			insmod "/lib/modules/$mod.ko" \
+				|| die "$mod: Unable to load module"
+		fi
+	done
+
+	if [ ! -z "$1" ]; then
+		exec mount "$@"
+	fi
+}
 
 # Print <hidden> or <empty> depending on whether $1 is empty.  Useful to mask an
 # optional password parameter.
@@ -559,10 +623,10 @@ DEBUG_STACK() {
 }
 
 pcrs() {
-	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
-		tpm2 pcrread sha256
-	elif [ "$CONFIG_TPM" = "y" ]; then
+	if [ "$CONFIG_TPM" = "y" ]; then
 		head -8 /sys/class/tpm/tpm0/pcrs
+	elif [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
+		tpm2 pcrread sha256
 	fi
 }
 
@@ -840,6 +904,19 @@ check_config() {
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
 			die 'Invalid signature on kexec boot params'
 		fi
+		if [ "$CONFIG_VERIFY_INITRD" = "y" ]; then
+			local entry=`cat $1/kexec_default.*.txt | head -1`
+			local initrd=`kexec-boot -b "$1" -e "$entry" -i`
+			if ! grep -q "`basename ${initrd}`" \
+				"$1/kexec_default_hashes.txt" ; then
+				if [ -r "${initrd}.sig" ] \
+					&& gpgv "${initrd}.sig" "${initrd}" ; then
+					echo "+++ Found verified `basename ${initrd}`"
+				else
+					die "No valid signature on `basename ${initrd}`"
+				fi
+			fi
+		fi
 	fi
 
 	INFO "+++ Found verified kexec boot params"
@@ -922,6 +999,20 @@ update_checksums() {
 	mount -o ro,remount /boot
 
 	return $rv
+}
+
+# evaluate key-value pair like 'LABEL=boot' to real path
+# busybox's blkid only supports LABEL and UUID
+evaluate_boot_device()
+{
+	if echo "$1" | grep -q '^/'; then
+		# if $1 contains an absolute path, output it as-is
+		echo "$1"
+	else
+		key="$(echo $1 | cut -f1 -d =)"
+		value="$(echo $1 | cut -f2 -d =)"
+		blkid | grep "$key=\"$value\"" | cut -f1 -d ':'
+	fi
 }
 
 # Print the file and directory structure of /boot to caller's stdout
@@ -1456,5 +1547,19 @@ load_keymap() {
 	# have a specific function on that board.
 	if [ -f /etc/board_keys.map ]; then
 		DO_WITH_DEBUG loadkeys /etc/board_keys.map
+	fi
+}
+
+# evaluate key-value pair like 'LABEL=boot' to real path
+# busybox's blkid only supports LABEL and UUID
+evaluate_boot_device()
+{
+	if echo "$1" | grep -q '^/'; then
+		# if $1 contains an absolute path, output it as-is
+		echo "$1"
+	else
+		key="$(echo $1 | cut -f1 -d =)"
+		value="$(echo $1 | cut -f2 -d =)"
+		blkid | grep "$key=\"$value\"" | cut -f1 -d ':'
 	fi
 }

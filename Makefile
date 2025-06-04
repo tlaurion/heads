@@ -201,6 +201,7 @@ SHELL := /usr/bin/env bash
 include modules/musl-cross-make
 
 musl_dep	:= musl-cross-make
+host		:= $(shell cc -dumpmachine)
 target		:= $(shell echo $(CROSS) | grep -Eoe '([^/]*?)-linux-musl')
 arch		:= $(subst -linux-musl, , $(target))
 heads_cc	:= $(CROSS)gcc \
@@ -230,8 +231,13 @@ CROSS_TOOLS := \
 	$(CROSS_TOOLS_NOCC) \
 
 # Targets to build payload only
-.PHONY: payload
+.PHONY: payload gwpl
 payload: $(build)/$(BOARD)/bzImage $(build)/$(initrd_dir)/initrd.cpio.xz
+
+# gwpl means "grub-wrapped payload"
+gwpl: $(build)/$(BOARD)/gwpl.elf
+$(build)/$(BOARD)/gwpl.elf: $(build)/$(BOARD)/bzImage $(build)/$(initrd_dir)/initrd.cpio.xz
+	bin/grub-wrap $< $(word 2,$^) $@
 
 ifeq ($(CONFIG_COREBOOT), y)
 
@@ -273,7 +279,7 @@ else
 $(error "$(BOARD): neither CONFIG_COREBOOT nor CONFIG_LINUXBOOT is set?")
 endif
 
-all payload:
+all payload gwpl:
 	@sha256sum $< | tee -a "$(HASHES)"
 	@stat -c "%8s:%n" $< | tee -a "$(SIZES)"
 
@@ -378,7 +384,7 @@ define do-copy =
 		if cmp --quiet "$1" "$2" ; then \
 			echo "$(DATE) UNCHANGED $(1:$(pwd)/%=%)" ; \
 		fi ; \
-		cp -a --remove-destination "$1" "$2" ; \
+		cp -a "$1" "$2" ; \
 	)
 	@sha256sum "$(2:$(pwd)/%=%)"
 	@stat -c "%8s:%n" "$(2:$(pwd)/%=%)"
@@ -632,7 +638,7 @@ $(call map, define_module, $(modules-y))
 #
 define install =
 	@-mkdir -p "$(dir $2)"
-	$(call do,INSTALL,$2,cp -a --remove-destination "$1" "$2")
+	$(call do,INSTALL,$2,cp -a "$1" "$2")
 endef
 
 #
@@ -641,7 +647,7 @@ endef
 #
 define initrd_bin_add =
 $(initrd_bin_dir)/$(notdir $1): $1
-	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a --remove-destination "$$<" "$$@")
+	$(call do,INSTALL-BIN,$$(<:$(pwd)/%=%),cp -a "$$<" "$$@")
 	@$(CROSS)strip --preserve-dates "$$@" 2>&-; true
 initrd_bins += $(initrd_bin_dir)/$(notdir $1)
 endef
@@ -678,7 +684,10 @@ bin_modules-$(CONFIG_NKSTORECLI) += nkstorecli
 bin_modules-$(CONFIG_UTIL_LINUX) += util-linux
 bin_modules-$(CONFIG_OPENSSL) += openssl
 bin_modules-$(CONFIG_TPM2_TOOLS) += tpm2-tools
+bin_modules-$(CONFIG_CURL) += curl
+bin_modules-$(CONFIG_ATTEST_TOOLS) += attest-tools
 bin_modules-$(CONFIG_BASH) += bash
+bin_modules-$(CONFIG_VIM_XXD) += vim-xxd
 bin_modules-$(CONFIG_POWERPC_UTILS) += powerpc-utils
 bin_modules-$(CONFIG_IO386) += io386
 bin_modules-$(CONFIG_IOPORT) += ioport
@@ -817,6 +826,7 @@ $(initrd_tools_dir)/etc/config: FORCE
 		echo export CONFIG_BOARD=$(BOARD) \
 		>> $@ ; \
 		echo export CONFIG_BRAND_NAME=$(BRAND_NAME) \
+		echo export BUILD_TIME=\'$(BUILD_TIME)\' \
 		>> $@ ; \
 	)
 

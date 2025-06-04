@@ -138,6 +138,55 @@ linux_modules-$(CONFIG_LINUX_NVME)	+= drivers/nvme/host/nvme-core.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei.ko
 linux_modules-$(CONFIG_LINUX_MEI)	+= drivers/misc/mei/mei-me.ko
 
+# MMC/sdard support through sdhci rtsx_pci_sdmmc and rtsx_usb_sdmmc support
+# Common MMC
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/core/mmc_core.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/core/mmc_block.ko
+# SDHCI
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/sdhci.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/cqhci.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/sdhci-acpi.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/sdhci-pci.ko
+# RTSX
+ifneq "$(linux_arch)" "arm64"
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mfd/mfd-core.ko
+endif
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/misc/cardreader/rtsx_pci.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/rtsx_pci_sdmmc.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/misc/cardreader/rtsx_usb.ko
+linux_modules-$(CONFIG_LINUX_MMC) += drivers/mmc/host/rtsx_usb_sdmmc.ko
+# minor drivers
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/misc/cb710/cb710.ko
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/mmc/host/cb710-mmc.ko
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/misc/tifm_core.ko
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/mmc/host/tifm_sd.ko
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/mmc/host/toshsd.ko
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/mmc/host/via-sdmmc.ko
+linux_modules-$(CONFIG_LINUX_MMC_MINOR) += drivers/mmc/host/vub300.ko
+
+# Support for sdhci on non-enumerable buses for aarch64
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-pltfm.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/bcm2835.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/dw_mmc.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/dw_mmc-pltfm.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/dw_mmc-k3.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/dw_mmc-rockchip.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/meson-gx-mmc.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/meson-gx-mmc.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += lib/crc7.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += lib/crc-itu-t.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/mmc_spi.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/of_mmc_spi.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-esdhc-imx.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci_f_sdh30.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-iproc.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-msm.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-of-arasan.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-of-esdhc.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-tegra.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sdhci-xenon-driver.ko
+linux_modules-$(CONFIG_LINUX_MMC_AARCH64) += drivers/mmc/host/sunxi-mmc.ko
+
 EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
 
 ifeq "$(CONFIG_LINUX_VERSION)" "4.14.62"

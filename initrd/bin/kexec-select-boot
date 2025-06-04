@@ -81,6 +81,15 @@ if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
 	fi
 fi
 
+# check whether $bootdir is the root of the target system
+if [ -d "$bootdir/boot" -a -d "$bootdir/dev" \
+	-a -d "$bootdir/etc" -a -d "$bootdir/home" \
+	-a -d "$bootdir/var" ]; then
+	# "$bootdir" seems to be root, without a dedicated
+	# boot partition, limit searching inside "$bootdir/boot"
+	subdir="boot"
+fi
+
 verify_global_hashes() {
 	INFO "+++ Checking verified boot hash file "
 	# Check the hashes of all the files
@@ -137,6 +146,17 @@ get_menu_option() {
 	num_options=$(cat $TMP_MENU_FILE | wc -l)
 	if [ $num_options -eq 0 ]; then
 		die "No boot options"
+	fi
+
+	if [ -z "$TMP_DEFAULT_FILE" -o ! -r "$TMP_DEFAULT_FILE" ]; then
+		find_suggested_default
+		local sdi=" suggested default $(grep -Fn "$(cat \
+			"$suggested_default_entry_file")" \
+			"$TMP_MENU_FILE" | head -1 | cut -d: -f1),"
+	fi
+
+	if [ "$CONFIG_SIGN_BOOT_CONFIG" != "y" ]; then
+		skipnote=", 0 to use default without saving"
 	fi
 
 	if [ $num_options -eq 1 -a $first_menu = "y" ]; then
@@ -221,11 +241,42 @@ scan_options() {
 	fi
 }
 
+# Find default boot entry out of existing bootloader config file, and
+# make a "default entry file" with index 0 at runtime.
+find_suggested_default() {
+	suggested_default_entry_file="/tmp/kexec/kexec_default.0.txt"
+	# Try to find default entry from grub.cfg
+	local default_orig_idx=$(calc 1+$(find $bootdir/$subdir -name "$config" | \
+		xargs cat | grep -E 'set default="[0-9]+"' | head -1 | cut -d\" -f2))
+	if [ -n "$default_orig_idx" ]; then
+		head -n "$default_orig_idx" "$option_file" | tail -1 \
+			> "$suggested_default_entry_file"
+	else
+		# Try to find default entry from grubenv
+		local default_entry=$(find $bootdir/$subdir -name grubenv | \
+			xargs cat | grep 'saved_entry=' | head -1 | \
+			cut -d= -f2).conf
+		if [ "$default_entry" != ".conf" ]; then
+			for i in `find $bootdir/$subdir -name "$config"`; do
+				kexec-parse-bls "$bootdir" "$i" \
+					"$bootdir/$subdir/loader/entries/$default_entry" \
+					> "$suggested_default_entry_file"
+			done
+		fi
+	fi
+}
+
 save_default_option() {
+	local note=""
 	if [ "$gui_menu" != "y" ]; then
+		if [ "$CONFIG_SIGN_BOOT_CONFIG" = "y" ]; then
+			note="Saving a default"
+		else
+			note="Advanced config"
+		fi
 		read \
 			-n 1 \
-			-p "Saving a default will modify the disk. Proceed? (Y/n): " \
+			-p "$note will modify the disk. Proceed? (Y/n): " \
 			default_confirm
 		echo
 	fi
@@ -421,11 +472,18 @@ while true; do
 		fi
 	fi
 
-	if [ "$default_failed" != "y" \
+	if [ "$CONFIG_SIGN_BOOT_CONFIG" != "y" \
+		-a ! -r "$TMP_DEFAULT_FILE" ]; then
+		# No saved default entry, generate and use suggested default entry
+		find_suggested_default
+		TMP_DEFAULT_FILE="$suggested_default_entry_file"
+	fi
+
+	if [ "$CONFIG_SIGN_BOOT_CONFIG" != "y" \
+		-o -r "$TMP_DEFAULT_HASH_FILE" ] \
+		&& [ "$default_failed" != "y" \
 		-a "$force_menu" = "n" \
-		-a -r "$TMP_DEFAULT_FILE" \
-		-a -r "$TMP_DEFAULT_HASH_FILE" ] \
-		; then
+		-a -r "$TMP_DEFAULT_FILE" ]; then
 		default_select
 		default_failed="y"
 	else

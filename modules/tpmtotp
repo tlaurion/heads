@@ -1,4 +1,5 @@
 modules-$(CONFIG_TPMTOTP) += tpmtotp
+modules-$(CONFIG_TPMTOTP) += qrencode
 
 tpmtotp_depends := mbedtls qrencode $(musl_dep)
 

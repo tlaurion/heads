@@ -1,0 +1,150 @@
+diff --git a/src/include/cpu/x86/smm.h b/src/include/cpu/x86/smm.h
+index b6d778b4c9..2b45147c6f 100644
+--- a/src/include/cpu/x86/smm.h
++++ b/src/include/cpu/x86/smm.h
+@@ -27,6 +27,7 @@
+ #define APM_CNT_SMMINFO		0xec
+ #define APM_CNT_SMMSTORE	0xed
+ #define APM_CNT_ELOG_GSMI	0xef
++#define APM_CNT_VAULT		0xfa
+ #define APM_STS		0xb3
+ 
+ /* Send cmd to APM_CNT with HAVE_SMI_HANDLER checking. */
+diff --git a/src/soc/intel/common/block/smm/smihandler.c b/src/soc/intel/common/block/smm/smihandler.c
+index 0a277f0744..ccaabb0a3e 100644
+--- a/src/soc/intel/common/block/smm/smihandler.c
++++ b/src/soc/intel/common/block/smm/smihandler.c
+@@ -6,6 +6,7 @@
+ #include <cpu/x86/cache.h>
+ #include <cpu/x86/msr.h>
+ #include <cpu/x86/smm.h>
++#include <cpu/x86/msr.h>
+ #include <cpu/intel/em64t100_save_state.h>
+ #include <cpu/intel/em64t101_save_state.h>
+ #include <cpu/intel/msr.h>
+@@ -19,6 +20,7 @@
+ #include <intelblocks/smihandler.h>
+ #include <intelblocks/tco.h>
+ #include <intelblocks/uart.h>
++#include <intelblocks/pcr.h>
+ #include <smmstore.h>
+ #include <soc/nvs.h>
+ #include <soc/pci_devs.h>
+@@ -28,6 +30,10 @@
+ #include <soc/smbus.h>
+ #include <spi-generic.h>
+ #include <stdint.h>
++#include <soc/msr.h>
++#include <soc/pcr_ids.h>
++
++void vault_lock(void);
+ 
+ /* SoC overrides. */
+ 
+@@ -364,6 +370,74 @@ static void finalize(void)
+ 	smihandler_soc_at_finalize();
+ }
+ 
++static void msr_set_bit(unsigned int reg, unsigned int bit)
++{
++	msr_t msr = rdmsr(reg);
++
++	if (bit < 32) {
++		if (msr.lo & (1 << bit))
++			return;
++		msr.lo |= 1 << bit;
++	} else {
++		if (msr.hi & (1 << (bit - 32)))
++			return;
++		msr.hi |= 1 << (bit - 32);
++	}
++
++	wrmsr(reg, msr);
++}
++
++void vault_lock(void)
++{
++	// bugy impl?
++//      fast_spi_enable_wp();
++//      fast_spi_set_lock_enable();
++
++#if defined(__SIMPLE_DEVICE__)
++	pci_devfn_t dev = PCH_DEV_SPI;
++#else
++	struct device *dev = PCH_DEV_SPI;
++#endif
++	uint8_t bios_cntl;
++	uint32_t bios_fracc;
++	uint32_t hsfsts_cntl;
++
++	// Precondition to meet FRACC tuning: HSFSTS_CNTL.WET
++	hsfsts_cntl = pci_read_config32(dev, 0x4);
++	hsfsts_cntl |= 1 << 21;
++	pci_write_config32(dev, 0x4, hsfsts_cntl);
++
++	// BIOS_FRACC: 0x50
++	bios_fracc = pci_read_config32(dev, 0x50);
++	bios_fracc = 0;
++	//bios_fracc = 0x4acf0000;
++	// ((0x4a << 8) || 0xcf) << 16;
++	pci_write_config32(dev, 0x50, bios_fracc);
++
++	// BIOS_CNTL: 0xdc
++	bios_cntl = pci_read_config8(dev, 0xdc);
++	bios_cntl &= ~(1 << 0); // BIOSWE
++	bios_cntl |= (1 << 1); // BLE
++	pci_write_config8(dev, 0xdc, bios_cntl);
++
++
++	// MEMLOCK
++	msr_set_bit(MSR_LT_LOCK_MEMORY, 0);
++
++	// RTCLOCK
++	pcr_rmw32(PID_RTC, 0x3400, ~(1 << 3), (1 << 3)); // LL: 128-byte
++	pcr_rmw32(PID_RTC, 0x3400, ~(1 << 4), (1 << 4)); // UL: 128-byte
++
++	hsfsts_cntl = pci_read_config32(dev, 0x4);
++	hsfsts_cntl &= ~(1 << 21);
++	hsfsts_cntl |= 1 << 12;
++	pci_write_config32(dev, 0x4, hsfsts_cntl);
++
++	// FLOCKDN
++	fast_spi_pr_dlock();
++	fast_spi_lock_bar();
++}
++
+ void smihandler_southbridge_apmc(
+ 	const struct smm_save_state_ops *save_state_ops)
+ {
+@@ -388,6 +462,9 @@ void smihandler_southbridge_apmc(
+ 	case APM_CNT_FINALIZE:
+ 		finalize();
+ 		break;
++	case APM_CNT_VAULT:
++		vault_lock();
++		break;
+ 	}
+ 
+ 	mainboard_smi_apmc(reg8);
+diff --git a/src/soc/intel/common/pch/lockdown/lockdown.c b/src/soc/intel/common/pch/lockdown/lockdown.c
+index f8eb511889..e3acbdfc40 100644
+--- a/src/soc/intel/common/pch/lockdown/lockdown.c
++++ b/src/soc/intel/common/pch/lockdown/lockdown.c
+@@ -58,7 +58,7 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
+ 	fast_spi_set_opcode_menu();
+ 
+ 	/* Discrete Lock Flash PR registers */
+-	fast_spi_pr_dlock();
++	//fast_spi_pr_dlock();
+ 
+ 	/* Check if SPI transaction is pending */
+ 	fast_spi_cycle_in_progress();
+@@ -67,7 +67,7 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
+ 	fast_spi_clear_outstanding_status();
+ 
+ 	/* Lock FAST_SPIBAR */
+-	fast_spi_lock_bar();
++	//fast_spi_lock_bar();
+ 
+ 	/* Set Vendor Component Lock (VCL) */
+ 	fast_spi_vscc0_lock();
