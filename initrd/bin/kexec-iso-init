@@ -19,8 +19,117 @@ fi
 
 ISO_PATH="${ISO_PATH##/}"
 
-gpgv --homedir=/etc/distro/ "$ISOSIG" "$MOUNTED_ISO_PATH" \
-	|| die 'ISO signature failed'
+# Check for detached signed digests first
+DIGEST_VERIFIED=false
+
+# Function to verify digest file
+verify_digest_file() {
+	local digest_file="$1"
+	local digest_sig="$2"
+	local hash_command="$3"
+	local digest_name="$4"
+	
+	if [ -r "$digest_file" ] && [ -r "$digest_sig" ]; then
+		echo "+++ Found detached ${digest_name} digest, verifying signature"
+		if gpgv --homedir=/etc/distro/ "$digest_sig" "$digest_file"; then
+			echo "+++ Digest signature verified, computing ISO hash"
+			COMPUTED_HASH=$($hash_command "$MOUNTED_ISO_PATH" | cut -d' ' -f1)
+			
+			# Extract hash from digest file - try to find matching line
+			if EXPECTED_HASH=$(grep -i "$(basename "$MOUNTED_ISO_PATH")" "$digest_file" | cut -d' ' -f1); then
+				if [ -n "$EXPECTED_HASH" ]; then
+					if [ "$COMPUTED_HASH" = "$EXPECTED_HASH" ]; then
+						echo "+++ ISO hash matches signed digest"
+						return 0
+					else
+						echo "!!! ISO hash mismatch for $digest_name digest"
+						echo "!!! Expected: $EXPECTED_HASH"
+						echo "!!! Computed: $COMPUTED_HASH"
+					fi
+				fi
+			else
+				# Try first line if no filename match
+				EXPECTED_HASH=$(cut -d' ' -f1 "$digest_file" | head -n 1)
+				if [ -n "$EXPECTED_HASH" ] && [ "$COMPUTED_HASH" = "$EXPECTED_HASH" ]; then
+					echo "+++ ISO hash matches signed digest"
+					return 0
+				fi
+			fi
+		else
+			echo "!!! Digest signature verification failed for $digest_name"
+		fi
+	fi
+	return 1
+}
+
+# Check standard per-file digest formats (file.iso.sha256, file.iso.sha256.sig)
+for digest_type in sha256 sha1 md5; do
+	DIGEST_FILE="$MOUNTED_ISO_PATH.$digest_type"
+	DIGEST_SIG="$DIGEST_FILE.sig"
+	if ! [ -r "$DIGEST_SIG" ]; then
+		DIGEST_SIG="$DIGEST_FILE.asc"
+	fi
+	
+	case "$digest_type" in
+		sha256) hash_cmd="sha256sum" ;;
+		sha1) hash_cmd="sha1sum" ;;
+		md5) hash_cmd="md5sum" ;;
+	esac
+	
+	if verify_digest_file "$DIGEST_FILE" "$DIGEST_SIG" "$hash_cmd" "$digest_type"; then
+		DIGEST_VERIFIED=true
+		break
+	fi
+done
+
+# Check common distribution digest formats if standard ones not found
+if [ "$DIGEST_VERIFIED" = false ]; then
+	ISO_DIR="$(dirname "$MOUNTED_ISO_PATH")"
+	
+	# Ubuntu/Debian style: SHA256SUMS, SHA256SUMS.gpg
+	for digest_name in SHA256SUMS SHA1SUMS MD5SUMS; do
+		DIGEST_FILE="$ISO_DIR/$digest_name"
+		DIGEST_SIG="$DIGEST_FILE.gpg"
+		if ! [ -r "$DIGEST_SIG" ]; then
+			DIGEST_SIG="$DIGEST_FILE.sign"
+		fi
+		
+		case "$digest_name" in
+			SHA256SUMS) hash_cmd="sha256sum" ;;
+			SHA1SUMS) hash_cmd="sha1sum" ;;
+			MD5SUMS) hash_cmd="md5sum" ;;
+		esac
+		
+		if verify_digest_file "$DIGEST_FILE" "$DIGEST_SIG" "$hash_cmd" "$digest_name"; then
+			DIGEST_VERIFIED=true
+			break
+		fi
+	done
+fi
+
+# Check Arch Linux style: sha256sums.txt
+if [ "$DIGEST_VERIFIED" = false ]; then
+	DIGEST_FILE="$ISO_DIR/sha256sums.txt"
+	DIGEST_SIG="$DIGEST_FILE.sig"
+	if ! [ -r "$DIGEST_SIG" ]; then
+		DIGEST_SIG="$DIGEST_FILE.asc"
+	fi
+	
+	if verify_digest_file "$DIGEST_FILE" "$DIGEST_SIG" "sha256sum" "sha256sums.txt"; then
+		DIGEST_VERIFIED=true
+	fi
+fi
+
+# Fall back to direct ISO signature verification if no detached digest was verified
+if [ "$DIGEST_VERIFIED" = false ]; then
+	echo "+++ No valid detached digest found, trying direct ISO signature"
+	if [ -r "$ISOSIG" ]; then
+		gpgv --homedir=/etc/distro/ "$ISOSIG" "$MOUNTED_ISO_PATH" \
+			|| die 'ISO signature failed'
+	else
+		die 'No valid signature found for ISO'
+	fi
+fi
 
 echo '+++ Mounting ISO and booting'
 mount -t iso9660 -o loop $MOUNTED_ISO_PATH /boot \
