@@ -64,6 +64,8 @@ If direct ISO signature verification fails, the script attempts checksum-based v
 
 All signature verifications use the GPG keyring located at `/etc/distro/`. Distribution public keys should be added to this keyring for verification to succeed.
 
+See [Distribution Keys Documentation](distro-keys.md) for information about obtaining and adding distribution public keys.
+
 ## Error Handling
 
 The enhanced script provides better error reporting:
