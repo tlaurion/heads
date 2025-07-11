@@ -11,16 +11,143 @@ ISO_PATH="$2"
 DEV="$3"
 
 echo '+++ Verifying ISO'
-# Verify the signature on the hashes
-ISOSIG="$MOUNTED_ISO_PATH.sig"
-if ! [ -r "$ISOSIG" ]; then
-	ISOSIG="$MOUNTED_ISO_PATH.asc"
-fi
-
+# Verify the signature on the ISO
 ISO_PATH="${ISO_PATH##/}"
 
-gpgv --homedir=/etc/distro/ "$ISOSIG" "$MOUNTED_ISO_PATH" \
-	|| die 'ISO signature failed'
+# Function to verify ISO signature with various detached signature patterns
+verify_iso_signature() {
+    local iso_file="$1"
+    local iso_basename
+    local iso_dir
+    iso_basename="$(basename "$iso_file")"
+    iso_dir="$(dirname "$iso_file")"
+    local tried_files=""
+    
+    # List of signature file patterns to try, in order of preference
+    # This supports major OS distribution signature conventions
+    local signature_patterns=(
+        "$iso_file.sig"           # Standard .sig format (Arch, Fedora, etc.)
+        "$iso_file.asc"           # ASCII armored signature (openSUSE, Debian, etc.)
+        "$iso_file.gpg"           # Binary GPG signature (sometimes used)
+        "$iso_dir/${iso_basename%.*}.sig"   # Same name without extension + .sig
+        "$iso_dir/${iso_basename%.*}.asc"   # Same name without extension + .asc
+    )
+    
+    DEBUG "Attempting to verify signature for: $iso_file"
+    
+    # Try each signature pattern
+    for sig_file in "${signature_patterns[@]}"; do
+        if [ -r "$sig_file" ]; then
+            DEBUG "Found signature file: $sig_file"
+            if gpgv --homedir=/etc/distro/ "$sig_file" "$iso_file" 2>/tmp/gpg_error; then
+                echo "+++ ISO signature verified using: $sig_file"
+                return 0
+            else
+                warn "Signature verification failed for: $sig_file"
+                DEBUG "GPG verification error: $(cat /tmp/gpg_error)"
+            fi
+        else
+            DEBUG "Signature file not found: $sig_file"
+        fi
+        tried_files="$tried_files $sig_file"
+    done
+    
+    # If direct ISO signature verification failed, try checksum-based verification
+    if verify_iso_checksum_signature "$iso_file" "$iso_dir"; then
+        return 0
+    fi
+    
+    # If all attempts failed, show what was tried
+    die "ISO signature verification failed. Tried signature files:$tried_files"
+}
+
+# Function to verify ISO using signed checksum files (used by some distributions)
+verify_iso_checksum_signature() {
+    local iso_file="$1"
+    local iso_dir="$2"
+    local iso_basename
+    iso_basename="$(basename "$iso_file")"
+    
+    # Common checksum file patterns used by distributions
+    local checksum_patterns=(
+        "$iso_dir/SHA256SUMS"
+        "$iso_dir/SHA256SUMS.txt"
+        "$iso_dir/sha256sum.txt"
+        "$iso_dir/CHECKSUM"
+        "$iso_dir/${iso_basename%.*}.sha256"
+        "$iso_dir/checksums.txt"
+    )
+    
+    DEBUG "Attempting checksum-based signature verification for: $iso_file"
+    
+    for checksum_file in "${checksum_patterns[@]}"; do
+        if [ -r "$checksum_file" ]; then
+            DEBUG "Found checksum file: $checksum_file"
+            
+            # Look for corresponding signature files
+            local checksum_sig_patterns=(
+                "$checksum_file.sig"
+                "$checksum_file.asc"
+                "$checksum_file.gpg"
+            )
+            
+            for sig_file in "${checksum_sig_patterns[@]}"; do
+                if [ -r "$sig_file" ]; then
+                    DEBUG "Found checksum signature file: $sig_file"
+                    
+                    # Verify the checksum file signature
+                    if gpgv --homedir=/etc/distro/ "$sig_file" "$checksum_file" 2>/tmp/gpg_error; then
+                        DEBUG "Checksum file signature verified: $sig_file"
+                        
+                        # Verify the ISO against the checksums
+                        if verify_iso_against_checksums "$iso_file" "$checksum_file"; then
+                            echo "+++ ISO verified using signed checksums: $checksum_file (signature: $sig_file)"
+                            return 0
+                        else
+                            warn "ISO checksum verification failed against: $checksum_file"
+                        fi
+                    else
+                        DEBUG "Checksum signature verification failed for: $sig_file"
+                        DEBUG "GPG verification error: $(cat /tmp/gpg_error)"
+                    fi
+                fi
+            done
+        fi
+    done
+    
+    return 1
+}
+
+# Function to verify ISO against checksum file
+verify_iso_against_checksums() {
+    local iso_file="$1"
+    local checksum_file="$2"
+    local iso_basename
+    iso_basename="$(basename "$iso_file")"
+    
+    DEBUG "Verifying ISO $iso_basename against checksums in $checksum_file"
+    
+    # Change to the directory containing the ISO for relative path matching
+    local iso_dir
+    local current_dir
+    iso_dir="$(dirname "$iso_file")"
+    current_dir="$(pwd)"
+    
+    cd "$iso_dir" || return 1
+    
+    # Try to verify the ISO using the checksum file
+    if sha256sum -c "$checksum_file" 2>/tmp/checksum_error | grep -q "$(basename "$iso_file").*OK$"; then
+        cd "$current_dir"
+        return 0
+    else
+        DEBUG "Checksum verification failed: $(cat /tmp/checksum_error)"
+        cd "$current_dir"
+        return 1
+    fi
+}
+
+# Perform the signature verification
+verify_iso_signature "$MOUNTED_ISO_PATH"
 
 echo '+++ Mounting ISO and booting'
 mount -t iso9660 -o loop $MOUNTED_ISO_PATH /boot \
