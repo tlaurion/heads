@@ -742,25 +742,66 @@ tpm2_reset() {
 
 	# Set the dictionary attack parameters.  TPM2 defaults vary widely, we
 	# want consistent behavior on any TPM.
-	# * --max-tries=10: Allow 10 failures before lockout.  This allows the
-	#   user to quickly "burst" 10 failures without significantly impacting
-	#   the rate allowed for a dictionary attacker.
-	#   Most TPM2 flows ask for the TPM Owner Password 2-4 times, so this allows
-	#   a handful of mistypes and some headroom for an expected unseal
-	#   failure if firmware is updated.
-	#   Remember that an auth failure is also counted any time an unclean
-	#   shutdown occurs (see TPM2 spec part 1, section 19.8.6, "Non-orderly
-	#   Shutdown").
-	# * --recovery-time=3600: Forget an auth failure every 1 hour.
-	# * --lockout-recovery-time: After a failed lockout recovery auth, the
+	#
+	# DICTIONARY ATTACK BEHAVIOR EXPLANATION:
+	# The DA counter increments on EVERY auth failure, including:
+	# - Wrong TPM Owner Password attempts
+	# - Wrong TPM DUK password attempts (but Heads limits to 3 per boot)
+	# - Unclean shutdowns (power cuts, crashes, forced resets)
+	# - Failed unsealing due to PCR mismatches with password auth
+	#
+	# Each failure is "forgotten" after recovery-time seconds.
+	#
+	# Per TPM2 spec Part 1 Section 19.8.6 "Dictionary Attack and Non-orderly Shutdown":
+	# - Each auth failure (including unclean shutdowns) increments DA counter
+	# - Each auth failure has independent timer - ages out after recovery-time
+	#
+	# Example with recovery-time=300 (5 minutes):
+	# - Failure 1 at 10:00 → forgotten at 10:05
+	# - Failure 2 at 10:02 → forgotten at 10:07
+	# - Failure 3 at 10:04 → forgotten at 10:09
+	# - Failure 4 at 10:06 → forgotten at 10:11
+	# - Failure 5 at 10:08 → forgotten at 10:13
+	# - Failure 6 at 10:10 → forgotten at 10:15
+	# - Failure 7 at 10:12 → forgotten at 10:17
+	# - Failure 8 at 10:14 → forgotten at 10:19
+	# - Failure 9 at 10:16 → forgotten at 10:21
+	# - Failure 10 at 10:18 → TPM LOCKOUT until 10:23
+	# So failures accumulate if they occur faster than recovery-time!
+	#
+	# HEADS TPM LOCKOUT POLICY - TAMPER EVIDENCE:
+	# * lockout-recovery-time=0: NO automatic lockout recovery
+	# * Random lockout password: NO manual lockout recovery
+	# * TPM reset REQUIRED: Only way to recover from DA lockout
+	#
+	# WHY THIS POLICY:
+	# - Provides TAMPER EVIDENCE, not tamper proofing
+	# - If someone attempts brute force → permanent lockout evidence
+	# - Forces conscious decision to reset TPM and re-seal all secrets
+	# - Prevents silent recovery that could hide attack evidence
+	# - User must acknowledge potential compromise via TPM reset process
+	#
+	# RECOMMENDED PARAMETERS:
+	# * --max-tries=10: Conservative default - allows several legitimate failures
+	#   Most TPM2 flows ask for passwords 2-4 times, this provides headroom for
+	#   an expected unseal failure if firmware is updated.
+	# * --recovery-time=300: Each auth failure forgotten after 5 minutes
+	#   Fast enough recovery for legitimate users, slow enough for security
+	# * --lockout-recovery-time=0: NO automatic lockout recovery
+	#   Per TPM2 spec: prevents automatic recovery from lockout state
 	#   TPM must be reset to try again.
 	#
-	# Heads does not offer a way to reset dictionary attack lockout, instead
-	# the TPM can be reset and new secrets sealed.
-	DEBUG "Setting TPM2 DA lockout parameters: max-tries=10, recovery-time=3600"
+	# These defaults are designed to be safe for all hardware implementations
+	# while being more user-friendly than the previous 1-hour recovery time.
+	#
+	DEBUG "Setting TPM2 DA lockout parameters: max-tries=10, recovery-time=300s"
+	DEBUG "DA Policy: Each auth failure (including unclean shutdowns) increments counter"
+	DEBUG "DA Policy: Each failure is forgotten after 300 seconds"
+	DEBUG "DA Policy: Lockout occurs after 10 failures within recovery window"
+	DEBUG "DA Policy: NO lockout recovery - TPM reset required for tamper evidence"
 	tpm2 dictionarylockout -Q --setup-parameters \
 		--max-tries=10 \
-		--recovery-time=3600 \
+		--recovery-time=300 \
 		--lockout-recovery-time=0 \
 		--auth="session:$ENC_SESSION_FILE" >/dev/null 2>&1 || LOG "Unable to set dictionary lockout parameters"
 
