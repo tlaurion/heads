@@ -352,6 +352,10 @@ tpm2_counter_create() {
 tpm2_startsession() {
 	TRACE_FUNC
 	mkdir -p "$SECRET_DIR"
+	
+	# Track DA status at session start
+	tpm2_da_status "startsession_begin"
+	
 	tpm2 flushcontext -Q \
 		--transient-object ||
 		die "tpm2_flushcontext: unable to flush transient handles"
@@ -369,6 +373,9 @@ tpm2_startsession() {
 	#TODO: do the right thing to not have to suppress "WARN: check public portion the tpmkey manually" see https://github.com/linuxboot/heads/pull/1630#issuecomment-2075120429
 	tpm2 startauthsession -Q -c "$PRIMARY_HANDLE_FILE" --hmac-session -S "$DEC_SESSION_FILE" >/dev/null 2>&1
 	tpm2 sessionconfig -Q --disable-encrypt "$DEC_SESSION_FILE" >/dev/null 2>&1
+	
+	# Track DA status after session start
+	tpm2_da_status "startsession_end"
 }
 
 # Use cleanup_session() with at_exit to release a TPM2 session and delete the
@@ -393,6 +400,49 @@ cleanup_session() {
 cleanup_shred() {
 	TRACE_FUNC
 	shred -n 10 -z -u "$1" 2>/dev/null || true
+}
+
+# tpm2_da_status: Get current Dictionary Attack counter and lockout state for debugging
+# This helps track what operations increment the DA counter
+tpm2_da_status() {
+	TRACE_FUNC
+	local context="$1"
+	if ! DA_INFO=$(tpm2 getcap properties-variable 2>/dev/null | grep -E "(TPM2_PT_LOCKOUT_COUNTER|TPM2_PT_LOCKOUT_INTERVAL|TPM2_PT_MAX_AUTH_FAIL)"); then
+		DEBUG "TPM DA Status [$context]: Unable to read DA properties"
+		return
+	fi
+	
+	local lockout_counter_hex max_tries_hex lockout_interval_hex
+	lockout_counter_hex=$(echo "$DA_INFO" | grep "TPM2_PT_LOCKOUT_COUNTER" | awk '{print $2}' || echo "unknown")
+	max_tries_hex=$(echo "$DA_INFO" | grep "TPM2_PT_MAX_AUTH_FAIL" | awk '{print $2}' || echo "unknown")
+	lockout_interval_hex=$(echo "$DA_INFO" | grep "TPM2_PT_LOCKOUT_INTERVAL" | awk '{print $2}' || echo "unknown")
+	
+	# Convert hex to decimal for human readability
+	local lockout_counter max_tries lockout_interval
+	if [ "$lockout_counter_hex" != "unknown" ]; then
+		lockout_counter=$((lockout_counter_hex))
+	else
+		lockout_counter="unknown"
+	fi
+	
+	if [ "$max_tries_hex" != "unknown" ]; then
+		max_tries=$((max_tries_hex))
+	else
+		max_tries="unknown"
+	fi
+	
+	if [ "$lockout_interval_hex" != "unknown" ]; then
+		lockout_interval=$((lockout_interval_hex))
+	else
+		lockout_interval="unknown"
+	fi
+	
+	DEBUG "TPM DA Status [$context]: Counter=$lockout_counter/$max_tries ($lockout_counter_hex/$max_tries_hex), Interval=${lockout_interval}s ($lockout_interval_hex)"
+	
+	# Warn if we're getting close to lockout (using decimal values)
+	if [ "$lockout_counter" != "unknown" ] && [ "$max_tries" != "unknown" ] && [ "$lockout_counter" -ge $((max_tries - 2)) ]; then
+		WARN "TPM DA Status [$context]: Close to lockout! Counter=$lockout_counter/$max_tries"
+	fi
 }
 
 # tpm2_destroy: Destroy a sealed file in the TPM.  The mechanism differs by
@@ -584,6 +634,9 @@ tpm2_unseal() {
 
 	DEBUG "tpm2_unseal: handle=$handle pcrl=$pcrl file=$file pass=$(mask_param "$pass")"
 
+	# Track DA status before unseal attempt
+	tpm2_da_status "before_unseal_$index"
+
 	# If we don't have the primary handle (TPM hasn't been reset), tpm2 will
 	# print nonsense error messages about an unexpected handle value.  We
 	# can't do anything without a primary handle.
@@ -608,6 +661,9 @@ tpm2_unseal() {
 		tpm2 policypassword -Q -S "$POLICY_SESSION"
 		# When unsealing, include the password with the auth session
 		UNSEAL_PASS_SUFFIX="+$(tpm2_password_hex "$pass")"
+		DEBUG "tpm2_unseal: Using password authentication for handle=$handle"
+	else
+		DEBUG "tpm2_unseal: PCR-only authentication for handle=$handle (should NOT increment DA)"
 	fi
 
 	# tpm2 unseal will write the unsealed data to stdout and any errors to
@@ -615,10 +671,16 @@ tpm2_unseal() {
 	if ! tpm2 unseal -Q -c "$handle" -p "session:$POLICY_SESSION$UNSEAL_PASS_SUFFIX" \
 		-S "$ENC_SESSION_FILE" >"$file" 2> >(SINK_LOG "tpm2 stderr"); then
 		INFO "Unable to unseal secret from TPM NVRAM"
+		
+		# Track DA status after failed unseal
+		tpm2_da_status "after_failed_unseal_$index"
 
 		# should succeed, exit if it doesn't
 		exit 1
 	fi
+	
+	# Track DA status after successful unseal
+	tpm2_da_status "after_successful_unseal_$index"
 	rm -f "$TMP_ERR_FILE"
 }
 
@@ -661,6 +723,10 @@ tpm2_reset() {
 	TRACE_FUNC
 	tpm_owner_password="$1"
 	mkdir -p "$SECRET_DIR"
+	
+	# Track DA status before reset (shows inherited DA state)
+	tpm2_da_status "reset_begin"
+	
 	# output TPM Owner Password to a file to be reused in this boot session until recovery shell/reboot
 	DEBUG "Caching TPM Owner Password to $SECRET_DIR/tpm_owner_password"
 	echo -n "$tpm_owner_password" >"$SECRET_DIR/tpm_owner_password"
@@ -691,6 +757,7 @@ tpm2_reset() {
 	#
 	# Heads does not offer a way to reset dictionary attack lockout, instead
 	# the TPM can be reset and new secrets sealed.
+	DEBUG "Setting TPM2 DA lockout parameters: max-tries=10, recovery-time=3600"
 	tpm2 dictionarylockout -Q --setup-parameters \
 		--max-tries=10 \
 		--recovery-time=3600 \
@@ -703,8 +770,12 @@ tpm2_reset() {
 	#
 	# The default lockout password is empty, so we must set this, and we
 	# don't need to provide any auth (use the default empty password).
+	DEBUG "Setting random TPM2 DA lockout password"
 	tpm2 changeauth -Q -c lockout \
 		"hex:$(dd if=/dev/urandom bs=32 count=1 status=none 2>/dev/null | xxd -p | tr -d ' \n')" >/dev/null 2>&1 || LOG "Unable to set lockout password"
+	
+	# Track DA status after reset completion (should be 0/10 for fresh reset)
+	tpm2_da_status "reset_complete"
 }
 tpm1_reset() {
 	TRACE_FUNC
@@ -750,11 +821,18 @@ tpm2_kexec_finalize() {
 
 tpm2_shutdown() {
 	TRACE_FUNC
+	
+	# Track DA status before shutdown
+	tpm2_da_status "shutdown_begin"
 
 	# Prepare for shutdown.
 	# This is a "clear" shutdown (do not preserve runtime state) since we
 	# are not going to resume later, we are powering off (or rebooting).
+	DEBUG "Performing TPM2 orderly shutdown to avoid DA counter increment"
 	tpm2 shutdown -Q --clear
+	
+	# Track DA status after shutdown (if TPM is still responsive)
+	tpm2_da_status "shutdown_complete" 2>/dev/null || DEBUG "TPM not responsive after shutdown (expected)"
 }
 
 if [ "$CONFIG_TPM" != "y" ]; then
@@ -831,6 +909,10 @@ fi
 
 # TPM2 - all commands implemented as wrappers around tpm2
 PCR_SIZE=32 # We use the SHA-256 PCRs
+
+# Track TPM2 DA status at command start (helps identify startup issues)
+tpm2_da_status "tpm2_command_start_$1"
+
 subcmd="$1"
 shift 1
 case "$subcmd" in
