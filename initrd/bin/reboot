@@ -3,6 +3,11 @@
 
 TRACE_FUNC
 
+# Shut down TPM
+if [ "$CONFIG_TPM" = "y" ]; then
+	tpmr shutdown
+fi
+
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then 
 	#Generalize user prompt to continue reboot or go to recovery shell 
 	read -r -n 1 -s -p "Press any key to continue reboot or 'r' to go to recovery shell: " REPLY 
@@ -10,11 +15,6 @@ if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 	if [ "$REPLY" = "r" ] || [ "$REPLY" = "R" ]; then 
 		recovery "Reboot call bypassed to go into recovery shell to debug"
 	fi 
-fi
-
-# Shut down TPM
-if [ "$CONFIG_TPM" = "y" ]; then
-	tpmr shutdown
 fi
 
 # Sync all mounted filesystems

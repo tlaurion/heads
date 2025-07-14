@@ -3,15 +3,6 @@
 
 TRACE_FUNC
 
-if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then 
-	#Generalize user prompt to continue poweroff or go to recovery shell 
-	read -r -n 1 -s -p "Press any key to continue poweroff or 'r' to go to recovery shell: " REPLY 
-	echo 
-	if [ "$REPLY" = "r" ] || [ "$REPLY" = "R" ]; then 
-		recovery "Poweroff call bypassed to go into recovery shell to debug"
-	fi 
-fi
-
 # Shut down TPM
 if [ "$CONFIG_TPM" = "y" ]; then
 	tpmr shutdown
