@@ -441,7 +441,7 @@ tpm2_da_status() {
 	
 	# Warn if we're getting close to lockout (using decimal values)
 	if [ "$lockout_counter" != "unknown" ] && [ "$max_tries" != "unknown" ] && [ "$lockout_counter" -ge $((max_tries - 2)) ]; then
-		WARN "TPM DA Status [$context]: Close to lockout! Counter=$lockout_counter/$max_tries"
+		warn "TPM DA Status [$context]: Close to lockout! Counter=$lockout_counter/$max_tries"
 	fi
 }
 
