@@ -14,5 +14,10 @@ echo s > /proc/sysrq-trigger
 # Remount all mounted filesystems in read-only mode
 echo u > /proc/sysrq-trigger
 
+if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
+	DEBUG "TPM shutdown and filesystem operations complete"
+	read -r -p "Press Enter to issue final poweroff sysrq trigger: "
+fi
+
 # Shut off the system
 echo o > /proc/sysrq-trigger
