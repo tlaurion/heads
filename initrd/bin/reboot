@@ -25,9 +25,15 @@ fi
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 	DEBUG "DEBUG: TPM shutdown and filesystem operations complete"
-	read -r -p "Press Enter to issue final reboot sysrq trigger: "
-	#TODO: FIGURE OUT WHY A REBOOT INCREASES TPM DA LOCKOUT COUNT 
+	read -r -p "Press Enter to issue final reboot syscall: "
 fi
 
-# Immediately reboot the system, without unmounting or syncing filesystems
-echo b > /proc/sysrq-trigger
+# Use busybox reboot explicitly (symlinks removed to avoid conflicts)
+if busybox --help 2>&1 | grep -q reboot; then
+	DEBUG "Using busybox reboot syscall for orderly shutdown"
+	busybox reboot -f
+else
+	# Fallback to sysrq if busybox doesn't have reboot support
+	DEBUG "Busybox reboot not available, falling back to sysrq"
+	echo b > /proc/sysrq-trigger
+fi

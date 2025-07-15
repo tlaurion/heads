@@ -16,7 +16,7 @@ echo u > /proc/sysrq-trigger
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 	DEBUG "TPM shutdown and filesystem operations complete"
-	read -r -p "Press Enter to issue final poweroff sysrq trigger: "
+	read -r -p "Press Enter to issue final poweroff: "
 fi
 
 # Shut off the system
