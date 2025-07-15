@@ -747,8 +747,10 @@ tpm2_reset() {
 	# The DA counter increments on EVERY auth failure, including:
 	# - Wrong TPM Owner Password attempts
 	# - Wrong TPM DUK password attempts (but Heads limits to 3 per boot)
-	# - Unclean shutdowns (power cuts, crashes, forced resets)
+	# - Unclean shutdowns (power cuts, crashes, automated power removal/RTE)
 	# - Failed unsealing due to PCR mismatches with password auth
+	#
+	# NOTE: Orderly shutdowns (sysrq poweroff, syscall reboot) do NOT increment counter
 	#
 	# Each failure is "forgotten" after recovery-time seconds.
 	#
@@ -756,18 +758,33 @@ tpm2_reset() {
 	# - Each auth failure (including unclean shutdowns) increments DA counter
 	# - Each auth failure has independent timer - ages out after recovery-time
 	#
-	# Example with recovery-time=300 (5 minutes):
-	# - Failure 1 at 10:00 → forgotten at 10:05
-	# - Failure 2 at 10:02 → forgotten at 10:07
-	# - Failure 3 at 10:04 → forgotten at 10:09
-	# - Failure 4 at 10:06 → forgotten at 10:11
-	# - Failure 5 at 10:08 → forgotten at 10:13
-	# - Failure 6 at 10:10 → forgotten at 10:15
-	# - Failure 7 at 10:12 → forgotten at 10:17
-	# - Failure 8 at 10:14 → forgotten at 10:19
-	# - Failure 9 at 10:16 → forgotten at 10:21
-	# - Failure 10 at 10:18 → TPM LOCKOUT until 10:23
-	# So failures accumulate if they occur faster than recovery-time!
+	# Example scenario with recovery-time=300 (5 minutes):
+	# Time    Event                      DA Counter  Status
+	# 08:00   Test 1 - unclean shutdown    1/10      ✅ OK  
+	# 08:02   Test 2 - unclean shutdown    2/10      ✅ OK
+	# 08:04   Test 3 - unclean shutdown    3/10      ✅ OK
+	# 08:05   First failure ages out      2/10      ✅ One recovered
+	# 08:06   Test 4 - unclean shutdown    3/10      ✅ OK
+	# 08:07   Second failure ages out     2/10      ✅ Another recovered
+	# 08:09   Third failure ages out      1/10      ✅ Another recovered
+	# [...sustainable pattern continues...]
+	# 08:15   Test cluster begins         0/10      ✅ All prior failures aged out
+	# 08:15   Test - unclean shutdown     1/10      ✅ OK
+	# 08:16   Test - unclean shutdown     2/10      ✅ OK
+	# 08:17   Test - unclean shutdown     3/10      ✅ OK
+	# 08:18   Test - unclean shutdown     4/10      ✅ OK
+	# 08:19   Test - unclean shutdown     5/10      ⚠️ Accumulating
+	# 08:20   Test - unclean shutdown     6/10      ⚠️ Accumulating
+	# 08:20   08:15 failure ages out      5/10      ✅ One recovered (simultaneous)
+	# 08:21   Test - unclean shutdown     6/10      ⚠️ Back up
+	# 08:21   08:16 failure ages out      5/10      ✅ Another recovered
+	# 08:22   Test - unclean shutdown     6/10      ⚠️ Cycling pattern
+	# 08:22   08:17 failure ages out      5/10      ✅ Another recovered
+	# 08:23   Test - unclean shutdown     6/10      ⚠️ Sustainable at this rate
+	#
+	# Key insight: Failures accumulate if they occur faster than recovery-time!
+	# Any cluster of 10 unclean shutdowns within 5 minutes causes permanent lockout.
+	# Automated testing with power cuts/RTE can trigger this scenario.
 	#
 	# HEADS TPM LOCKOUT POLICY - TAMPER EVIDENCE:
 	# * lockout-recovery-time=0: NO automatic lockout recovery
@@ -796,6 +813,7 @@ tpm2_reset() {
 	#
 	DEBUG "Setting TPM2 DA lockout parameters: max-tries=10, recovery-time=300s"
 	DEBUG "DA Policy: Each auth failure (including unclean shutdowns) increments counter"
+	DEBUG "DA Policy: Orderly shutdowns (sysrq poweroff, syscall reboot) do NOT increment counter"
 	DEBUG "DA Policy: Each failure is forgotten after 300 seconds"
 	DEBUG "DA Policy: Lockout occurs after 10 failures within recovery window"
 	DEBUG "DA Policy: NO lockout recovery - TPM reset required for tamper evidence"
