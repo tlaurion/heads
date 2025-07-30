@@ -7,7 +7,7 @@ kexec-tools_url := https://kernel.org/pub/linux/utils/kernel/kexec/$(kexec-tools
 kexec-tools_hash := ddaaa65b02b4f8aa9222586b1f26565b93a4baeffd35bcbd523f15fae7aa4897
 
 kexec-tools_configure := \
-	CFLAGS="-g -Os -fno-strict-aliasing -Wall -Wstrict-prototypes" \
+	CFLAGS="-g -Oz -fno-strict-aliasing -Wall -Wstrict-prototypes" \
 	./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
