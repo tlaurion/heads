@@ -92,11 +92,11 @@ coreboot-purism_commit_hash := bea9947a1279be7d4a72b38a601d0288d10d1cb8
 $(eval $(call coreboot_module,purism,24.02.01))
 
 # MSI and NovaCustom NV4xPZ, NS5xPU, V560TU boards are based on Dasharo
-# coreboot fork, based on upstream coreboot version 24.02
+# coreboot fork, based on upstream coreboot version 24.12
 # This is Dasharo 1.0.0 RC5
 coreboot-dasharo_repo := https://github.com/dasharo/coreboot
 coreboot-dasharo_commit_hash := c36beacbdc21d20c2810329b9ec2375d8ddcedd1
-$(eval $(call coreboot_module,dasharo,24.02.01))
+$(eval $(call coreboot_module,dasharo,24.12))
 #coreboot-dasharo_patch_version := unreleased
 
 # T480 is based on coreboot ~24.12 release
