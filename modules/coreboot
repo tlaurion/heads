@@ -98,7 +98,7 @@ $(eval $(call coreboot_module,purism,24.02.01))
 coreboot-dasharo_repo := https://github.com/dasharo/coreboot
 coreboot-dasharo_commit_hash := f3fa15ddbdf22bef541889efa6a4edcefbe88ee0
 $(eval $(call coreboot_module,dasharo,24.12))
-#coreboot-dasharo_patch_version := unreleased
+coreboot-dasharo_patch_version := unreleased
 
 # T480 is based on coreboot ~24.12 release
 #  coreboot 24.12 doesn't include t480 support which is still under review at https://review.coreboot.org/c/coreboot/+/83274
