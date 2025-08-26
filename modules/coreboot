@@ -98,7 +98,7 @@ $(eval $(call coreboot_module,purism,24.02.01))
 coreboot-dasharo_repo := https://github.com/dasharo/coreboot
 coreboot-dasharo_commit_hash := f3fa15ddbdf22bef541889efa6a4edcefbe88ee0
 $(eval $(call coreboot_module,dasharo,24.12))
-#coreboot-dasharo_patch_version := unreleased
+coreboot-dasharo_patch_version := unreleased
 
 # T480 is based on coreboot ~25.09 release
 #  coreboot 25.09 doesn't include Thunderbolt support and support of the lower USB-C port which is still under review at https://review.coreboot.org/c/coreboot/+/75286 and https://review.coreboot.org/c/coreboot/+/88490
