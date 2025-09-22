@@ -91,13 +91,14 @@ coreboot-purism_repo := https://source.puri.sm/firmware/coreboot.git
 coreboot-purism_commit_hash := bea9947a1279be7d4a72b38a601d0288d10d1cb8
 $(eval $(call coreboot_module,purism,24.02.01))
 
-# This is Dasharo 1.0.0 RC6, rebased atop coreboot 24.12
+# This is Dasharo 1.0.0+ (FIXME: rebased atop coreboot 25.03?)
 #  The NovaCustom NV4xPZ (nv40pz), V560TU and V540TU boards are based on Dasharo's coreboot fork
-#  This is latest commit (20250721) of this branch https://github.com/Dasharo/coreboot/tree/mtl-v54-rc5
-#  This includes 3rdparty/intel-microcode 2025-08-11
+#  This includes 3rdparty/intel-microcode 20251111
+# TODO: Split dasharo fork per board.... MSI(24.12) != V56TU (25.03) != NV41x (4.21)
+# TODO: This is to test v540tu/v560tu bump
 coreboot-dasharo_repo := https://github.com/dasharo/coreboot
-coreboot-dasharo_commit_hash := f3fa15ddbdf22bef541889efa6a4edcefbe88ee0
-$(eval $(call coreboot_module,dasharo,24.12))
+coreboot-dasharo_commit_hash := 91420dbce609774f70c0ef66a864b1bfdf7d053b
+$(eval $(call coreboot_module,dasharo))
 coreboot-dasharo_patch_version := unreleased
 
 # T480 is based on coreboot ~25.09 release
