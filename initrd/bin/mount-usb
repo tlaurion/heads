@@ -103,6 +103,45 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
 fi
 
 USB_MOUNT_DEVICE=""
+# Prefer whole-disk when it contains boot options (useful for hybrid ISOs).
+# Try mounting the raw block device (e.g. /dev/sda) read-only and check for
+# grub/config files or use kexec-parse-boot if available. If a whole-disk
+# contains boot options, prefer it over individual partitions.
+DEBUG "Probing whole-disk devices for boot options"
+for base in $(cat /tmp/usb_block_devices | sed -E 's/[0-9]+$//' | sort -u); do
+  DEBUG "Testing whole-disk candidate: $base"
+  # Make sure mountpoint is clean
+  umount "$MOUNTPOINT" >/dev/null 2>&1 || true
+  if mount -o ro "$base" "$MOUNTPOINT" >/dev/null 2>&1; then
+    found_boot_opts=0
+    # Prefer using kexec-parse-boot to detect valid boot entries when available
+    if command -v kexec-parse-boot >/dev/null 2>&1; then
+      # check common locations
+      for cfg in "$MOUNTPOINT/boot/grub/grub.cfg" "$MOUNTPOINT/boot/grub/config.cfg" "$MOUNTPOINT/boot/grub/loopback.cfg" "$MOUNTPOINT/boot/grub/x86_64-efi/grub.cfg"; do
+        if [ -f "$cfg" ]; then
+          if kexec-parse-boot "$MOUNTPOINT" "$cfg" >/dev/null 2>&1; then
+            found_boot_opts=1
+            break
+          fi
+        fi
+      done
+    else
+      # Fallback: just check for common grub files
+      if [ -f "$MOUNTPOINT/boot/grub/grub.cfg" ] || [ -f "$MOUNTPOINT/boot/grub/config.cfg" ] || [ -f "$MOUNTPOINT/boot/grub/loopback.cfg" ]; then
+        found_boot_opts=1
+      fi
+    fi
+
+    umount "$MOUNTPOINT" >/dev/null 2>&1 || true
+    if [ "$found_boot_opts" -eq 1 ]; then
+      DEBUG "Whole-disk $base contains boot options; selecting it"
+      USB_MOUNT_DEVICE="$base"
+      break
+    fi
+  else
+    DEBUG "Unable to mount whole-disk $base (skipping)"
+  fi
+done
 # Check if the user has specified a USB device
 if [ -n "$DEVICE" ]; then
   DEBUG "Checking if "$DEVICE" is a USB detected block device"
