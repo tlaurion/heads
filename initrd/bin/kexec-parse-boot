@@ -59,7 +59,17 @@ echo_entry() {
 	# wouldn't work anyway.  This could happen if there was a
 	# GRUB variable in the kernel path, etc.
 	if ! check_path "$path"; then return; fi
-	entry="$name|$kexectype|kernel $path"
+	# Compact label: sanitize original name and append short EFI/BIOS tag
+	if echo "$filedir" | grep -qi efi; then
+		efi_tag="EFI"
+	else
+		efi_tag="BIOS"
+	fi
+	# Replace any '|' with '-' and collapse repeated spaces
+	clean_name="${name//|/-}"
+	clean_name="$(echo "$clean_name" | tr -s ' ' )"
+	disp_name="$clean_name [$efi_tag]"
+	entry="$disp_name|$kexectype|kernel $path"
 
 	case "$kexectype" in
 		elf)
@@ -85,8 +95,11 @@ echo_entry() {
 
 	# Double-expand here in case there are variables in the kernel
 	# parameters - some configs do this and can boot with empty
-	# expansions (Debian Live ISOs use this for loopback boots)
-	echo $(eval "echo \"$entry\"")
+	# expansions (Debian Live ISOs use this for loopback boots).
+	# Emit a DEBUG trace with the constructed display name and source file
+	DEBUG "Parsed menu name: $disp_name from $(basename "$file")"
+	DEBUG "Emitting entry: $entry"
+	eval "echo \"$entry\""
 }
 
 search_entry() {
@@ -205,7 +218,7 @@ syslinux_entry() {
 	case $trimcmd in
 		menu* | MENU* )
 			cmd2=`echo $trimcmd | cut -d \  -f2`
-			if [ "$cmd2" = "label" -o "$cmd2" = "LABEL" ]; then
+			if [ "$cmd2" = "label" ] || [ "$cmd2" = "LABEL" ]; then
 				name=`echo $trimcmd | cut -c11- | tr -d '^'`
 			fi
 			;;
@@ -227,7 +240,7 @@ syslinux_entry() {
 			DEBUG "initrd= $initrd"
 			;;
 		append* | APPEND* )
-			if [ "$kexectype" = "multiboot" -o "$kexectype" = "xen" ]; then
+			if [ "$kexectype" = "multiboot" ] || [ "$kexectype" = "xen" ]; then
 				syslinux_multiboot_append
 			else
 				append="$val"

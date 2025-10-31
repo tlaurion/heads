@@ -41,7 +41,17 @@ echo_entry() {
 		if [ -z "$kernel" ]; then return; fi
 
 		fix_path $kernel
-		entry="$name|$kexectype|kernel $path"
+		# Compact label: sanitize original title and append short EFI/BIOS tag
+		if echo "$(dirname "$f")" | grep -qi efi; then
+			efi_tag="EFI"
+		else
+			efi_tag="BIOS"
+		fi
+		# Replace any '|' with '-' and collapse repeated spaces
+		clean_name="${name//|/-}"
+		clean_name="$(echo "$clean_name" | tr -s ' ' )"
+		disp_name="$clean_name [$efi_tag]"
+		entry="$disp_name|$kexectype|kernel $path"
 		if [ -n "$initrd" ]; then
 			fix_path $initrd
 			entry="$entry|initrd $path"
@@ -50,13 +60,17 @@ echo_entry() {
 			entry="$entry|append $append"
 		fi
 
-		echo $(eval "echo \"$entry\"")
+	DEBUG "Parsed menu name: $disp_name"
+	DEBUG "Emitting entry: $entry"
+	eval "echo \"$entry\""
 	fi
-	if [ "$kexectype" = "multiboot" -o "$kexectype" = "xen" ]; then
+	if [ "$kexectype" = "multiboot" ] || [ "$kexectype" = "xen" ]; then
 		if [ -z "$kernel" ]; then return; fi
 
 		fix_path $kernel
-		echo $(eval "echo \"$name|$kexectype|kernel $path$modules\"")
+	DEBUG "Parsed menu name: $disp_name"
+	DEBUG "Emitting entry: $name|$kexectype|kernel $path$modules"
+	eval "echo \"$name|$kexectype|kernel $path$modules\""
 	fi
 }
 
