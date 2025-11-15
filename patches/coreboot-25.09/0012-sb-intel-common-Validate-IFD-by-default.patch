@@ -1,0 +1,30 @@
+From 49b642e5695c630f3b083d21db96f31d8bdd94e6 Mon Sep 17 00:00:00 2001
+From: Maximilian Brune <maximilian.brune@9elements.com>
+Date: Sun, 5 Mar 2023 05:00:11 +0100
+Subject: [PATCH] sb/intel/common: Validate IFD by default
+
+The results from overlapping IFD regions into FMAP regions can get hard
+to debug. To avoid that enable validation by default.
+
+Signed-off-by: Maximilian Brune <maximilian.brune@9elements.com>
+Change-Id: Ia11f56a5bbe3259c3ebae810036d1aac00a911f7
+---
+ src/southbridge/intel/common/Kconfig.common | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/southbridge/intel/common/Kconfig.common b/src/southbridge/intel/common/Kconfig.common
+index 0da0d70742..c5fbc79d2d 100644
+--- a/src/southbridge/intel/common/Kconfig.common
++++ b/src/southbridge/intel/common/Kconfig.common
+@@ -86,7 +86,7 @@ config INTEL_DESCRIPTOR_MODE_REQUIRED
+ config VALIDATE_INTEL_DESCRIPTOR
+ 	depends on INTEL_DESCRIPTOR_MODE_CAPABLE
+ 	bool "Validate Intel firmware descriptor"
+-	default n
++	default y if HAVE_IFD_BIN
+ 	help
+ 	  This config enables validating the Intel firmware descriptor against the
+ 	  fmap layout. If the firmware descriptor layout does not match the fmap
+-- 
+2.47.3
+
