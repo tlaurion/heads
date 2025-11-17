@@ -963,6 +963,17 @@ board.move_tested_to_untested:
 	echo "Replacing $(BOARD) with $${NEW_BOARD} in .circleci/config.yml"; \
 	sed -i "s/$(BOARD)/$${NEW_BOARD}/g" .circleci/config.yml
 
+board.rename_board_to_board-hotp:
+	@echo "NEW_BOARD variable will append hotp prefix to $(BOARD)"
+	@NEW_BOARD=$$(echo $(BOARD)-hotp); \
+	rm -rf boards/$${NEW_BOARD}; \
+	echo "Renaming boards/$(BOARD)/$(BOARD).config to boards/$(BOARD)/$${NEW_BOARD}.config"; \
+	git mv boards/$(BOARD)/$(BOARD).config boards/$(BOARD)/$${NEW_BOARD}.config; \
+	echo "Renaming boards/$(BOARD) to boards/$${NEW_BOARD}"; \
+	git mv boards/$(BOARD) boards/$${NEW_BOARD}; \
+	echo "Replacing $(BOARD) with $${NEW_BOARD} in .circleci/config.yml"; \
+	sed -i "s/$(BOARD)/$${NEW_BOARD}/g" .circleci/config.yml
+
 board.move_tested_to_EOL:
 	@echo "NEW_BOARD variable will EOL_$(BOARD)"
 	@NEW_BOARD=EOL_$(BOARD); \
