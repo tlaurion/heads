@@ -239,8 +239,8 @@ workflows:
 
       # coreboot 24.02.01
       - build_and_persist:
-          name: novacustom-nv4x_adl
-          target: novacustom-nv4x_adl
+          name: novacustom-nv4x_adl-hotp
+          target: novacustom-nv4x_adl-hotp
           subcommand: ""
           requires:
             - x86-musl-cross-make
@@ -251,7 +251,7 @@ workflows:
           target: librem_14
           subcommand: ""
           requires:
-            - novacustom-nv4x_adl
+            - novacustom-nv4x_adl-hotp
 
       # t480 is based on 25.09 coreboot release, not sharing any buildstack from now, depend on muscl-cross cache
       - build_and_persist:
@@ -541,19 +541,19 @@ workflows:
           target: UNTESTED_nitropad-ns50
           subcommand: ""
           requires:
-            - novacustom-nv4x_adl
+            - novacustom-nv4x_adl-hotp
 
       #NovaCustom v56 boards are based on coreboot 24.02.01 fork, so depend on x230
       - build:
-          name: novacustom-v560tu
-          target: novacustom-v560tu
+          name: novacustom-v560tu-hotp
+          target: novacustom-v560tu-hotp
           subcommand: ""
           requires:
-            - novacustom-nv4x_adl
+            - novacustom-nv4x_adl-hotp
 
       - build:
-          name: novacustom-v540tu
-          target: novacustom-v540tu
+          name: novacustom-v540tu-hotp
+          target: novacustom-v540tu-hotp
           subcommand: ""
           requires:
-            - novacustom-nv4x_adl
+            - novacustom-nv4x_adl-hotp
