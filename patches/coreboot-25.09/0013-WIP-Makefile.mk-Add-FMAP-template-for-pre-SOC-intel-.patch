@@ -1,0 +1,71 @@
+From f607374d6b561480ed4f213904bda1de2c4290f5 Mon Sep 17 00:00:00 2001
+From: Maximilian Brune <maximilian.brune@9elements.com>
+Date: Wed, 19 Nov 2025 02:52:43 +0100
+Subject: [PATCH] [WIP] Makefile.mk: Add FMAP template for pre SOC intel gens
+
+Pre "soc" generations usually don't set CONFIG_IFD_CHIPSET, but that
+shouldn't mean they can't take advantage of generating the FMAP from the
+IFD.
+
+It also doesn't add any FMAP regions for IFD regions which have a size
+of 0, because the fmaptool doesn't like that.
+
+TODO: need to figure out what to do with boards that have known broken
+IFDs.
+
+BUG=https://ticket.coreboot.org/issues/617
+
+Signed-off-by: Maximilian Brune <maximilian.brune@9elements.com>
+Change-Id: Ib41129cee1a03e0f4b69a137ac82820352c48dcc
+---
+ Makefile.mk            | 13 ++++++++-----
+ util/ifdtool/ifdtool.c |  3 ++-
+ 2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/Makefile.mk b/Makefile.mk
+index 93a26d0d95..217d074857 100644
+--- a/Makefile.mk
++++ b/Makefile.mk
+@@ -1085,15 +1085,18 @@ ifeq ($(CONFIG_FMDFILE),)
+ ifeq ($(CONFIG_ARCH_X86),y)
+ 
+ DEFAULT_FLASHMAP:=$(top)/util/cbfstool/default-x86.fmd
+-# check if IFD_CHIPSET is set and if yes generate a FMAP template from IFD descriptor
+-ifneq ($(CONFIG_IFD_CHIPSET),)
++# check if HAVE_IFD_BIN is set and if yes generate a FMAP template from IFD descriptor
+ ifeq ($(CONFIG_HAVE_IFD_BIN),y)
+ DEFAULT_FLASHMAP:=$(obj)/fmap-template.fmd
++
++ifneq ($(CONFIG_IFD_CHIPSET),)
++ifdtool_platform_param:=-p $(CONFIG_IFD_CHIPSET)
++endif # ifneq($(CONFIG_IFD_CHIPSET),)
++
+ $(DEFAULT_FLASHMAP): $(call strip_quotes,$(CONFIG_IFD_BIN_PATH)) $(IFDTOOL)
+-	echo "    IFDTOOL    -p $(CONFIG_IFD_CHIPSET) -F $@ $<"
+-	$(IFDTOOL) -p $(CONFIG_IFD_CHIPSET) -F $@ $<
++	echo "    IFDTOOL    $(ifdtool_platform_param) -F $@ $<"
++	$(IFDTOOL) $(ifdtool_platform_param) -F $@ $<
+ endif # ifeq($(CONFIG_HAVE_IFD_BIN),y)
+-endif # ifneq($(CONFIG_IFD_CHIPSET),)
+ 
+ # entire flash
+ FMAP_ROM_SIZE := $(CONFIG_ROM_SIZE)
+diff --git a/util/ifdtool/ifdtool.c b/util/ifdtool/ifdtool.c
+index fc0cb5fa4e..df2c0e172c 100644
+--- a/util/ifdtool/ifdtool.c
++++ b/util/ifdtool/ifdtool.c
+@@ -1109,9 +1109,10 @@ static void create_fmap_template(char *image, int size, const char *layout_fname
+ 		struct region region = get_region(frba, i);
+ 
+ 		/* A region limit of 0 is an indicator of an unused region
++		 * A region size of 0 is an indicator of an unused region
+ 		 * A region base of 7FFFh is an indicator of a reserved region
+ 		 */
+-		if (region.limit == 0 || region.base == 0x07FFF000)
++		if (region.limit == 0 || region.base == 0x07FFF000 || region.size == 0)
+ 			continue;
+ 
+ 		/* Is there an FMAP equivalent? IFD reserved regions are usually thrown out
+-- 
+2.47.3
+
