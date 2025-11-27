@@ -312,7 +312,7 @@ ifneq ($(CONFIG_COREBOOT),)
 		--config "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" \
 		--fix || exit 1
 	@echo ""
-	@echo "Configuration updated. Next build will use the new CBFS size."
+	@echo "If CONFIG_CBFS_SIZE was adjusted, next build will use the new size."
 else
 	@echo "Board $(BOARD) does not use coreboot, nothing to fix"
 endif

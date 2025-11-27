@@ -146,126 +146,141 @@ if [ -z "$IFD_VALIDATION_SKIPPED" ] && [ -f "$IFD_PATH" ] && [ -n "$IFDTOOL" ]; 
     echo "IFD vs CBFS Size Validation"
     echo "==================================================================="
     
-    # Get BIOS region from IFD - try different platform versions
-    # Try without platform flag first (auto-detect), then try all known versions
-    IFD_OUTPUT=$("$IFDTOOL" -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform ifd2 -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform ifd1 -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform sklkbl -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform aplk -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform cnl -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform lbg -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform icl -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform tgl -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform adl -d "$IFD_PATH" 2>/dev/null || \
-                 "$IFDTOOL" --platform mtl -d "$IFD_PATH" 2>/dev/null || \
-                 true)
-    
-    if [ -n "$IFD_OUTPUT" ]; then
-        # Extract BIOS region line (Flash Region 1)
-        BIOS_REGION=$(echo "$IFD_OUTPUT" | grep "Flash Region 1 (BIOS):" | head -1)
-        
-        if [ -n "$BIOS_REGION" ]; then
-            # Parse start and end addresses - format is "00021000 - 00bfffff"
-            BIOS_START=$(echo "$BIOS_REGION" | awk '{print $(NF-2)}')
-            BIOS_END=$(echo "$BIOS_REGION" | awk '{print $NF}')
-            
-            # Calculate BIOS region size
-            BIOS_SIZE=$(( 0x$BIOS_END - 0x$BIOS_START + 1 ))
-            
-            echo "IFD BIOS Region: 0x$BIOS_START - 0x$BIOS_END"
-            echo "IFD BIOS Size:   0x$(printf '%X' $BIOS_SIZE) ($BIOS_SIZE bytes)"
-            echo "CONFIG_CBFS_SIZE: $CBFS_SIZE ($CBFS_SIZE_DEC bytes)"
-            echo ""
-            
-            # Compare sizes
-            if [ $CBFS_SIZE_DEC -gt $BIOS_SIZE ]; then
-                OVERFLOW=$(( CBFS_SIZE_DEC - BIOS_SIZE ))
-                
-                if [ $FIX_MODE -eq 1 ]; then
-                    echo "🔧 AUTO-FIX MODE: Updating CONFIG_CBFS_SIZE"
-                    echo ""
-                    echo "   Current CONFIG_CBFS_SIZE: 0x$(printf '%X' $CBFS_SIZE_DEC) ($CBFS_SIZE_DEC bytes)"
-                    echo "   New CONFIG_CBFS_SIZE:     0x$(printf '%X' $BIOS_SIZE) ($BIOS_SIZE bytes)"
-                    echo "   Reducing by: $OVERFLOW bytes (0x$(printf '%X' $OVERFLOW))"
-                    echo ""
-                    
-                    # Update the config file
-                    sed -i "s/CONFIG_CBFS_SIZE=0x[0-9A-Fa-f]*/CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)/" "$CONFIG_FILE"
-                    
-                    echo "✓ Updated $CONFIG_FILE"
-                    echo "  New value: CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)"
-                    echo ""
-                    exit 0
-                else
-                    echo ""
-                    echo "=================================================================="
-                    echo "❌ VALIDATION FAILED: CONFIG_CBFS_SIZE exceeds IFD BIOS region!"
-                    echo "=================================================================="
-                    echo "   Overflow: $OVERFLOW bytes (0x$(printf '%X' $OVERFLOW))"
-                    echo ""
-                    echo "   Current CONFIG_CBFS_SIZE: 0x$(printf '%X' $CBFS_SIZE_DEC) ($CBFS_SIZE_DEC bytes)"
-                    echo "   Maximum allowed (IFD):    0x$(printf '%X' $BIOS_SIZE) ($BIOS_SIZE bytes)"
-                    echo ""
-                    echo "   This will cause coreboot build failures or runtime issues."
-                    echo "   CONFIG_CBFS_SIZE must be <= IFD BIOS region size."
-                    echo ""
-                    echo "To fix this issue, update CONFIG_CBFS_SIZE in:"
-                    echo "   $CONFIG_FILE"
-                    echo ""
-                    echo "Set CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)"
-                    echo ""
-                    if [ -n "$BOARD" ]; then
-                        echo "Or run: make BOARD=$BOARD fix_cbfs_ifd"
-                        echo "Or (docker wrapper): ./docker_repro.sh make BOARD=$BOARD fix_cbfs_ifd"
-                    else
-                        echo "Or run: make BOARD=<board> fix_cbfs_ifd"
-                    fi
-                    echo "=================================================================="
-                    echo ""
-                    exit 1
-                fi
-            elif [ $CBFS_SIZE_DEC -eq $BIOS_SIZE ]; then
-                echo "✓ CONFIG_CBFS_SIZE exactly matches IFD BIOS region size"
-            else
-                FREE_SPACE=$(( BIOS_SIZE - CBFS_SIZE_DEC ))
-                echo "✓ CONFIG_CBFS_SIZE fits within IFD BIOS region"
-                echo "   Free space in BIOS region: $FREE_SPACE bytes (0x$(printf '%X' $FREE_SPACE))"
-            fi
-
-            # CBFS space usage analysis (always report, even if zero)
-            if [ -n "$CBFSTOOL" ] && [ -f "$COREBOOT_DIR/coreboot.rom" ]; then
-                echo ""
-                CBFS_OUTPUT=$("$CBFSTOOL" "$COREBOOT_DIR/coreboot.rom" print 2>&1 || true)
-                
-                # Sum all (empty) entry sizes; if none, treat as 0
-                FREE_BYTES=$(echo "$CBFS_OUTPUT" | awk '/\(empty\)/ {sum += $4} END {print sum+0}')
-                FREE_KB=$((FREE_BYTES / 1024))
-                echo "CBFS Free Space: $FREE_BYTES bytes ($FREE_KB KiB)"
-                
-                # Show optimization opportunity only if BIOS region larger than configured CBFS
-                if [ $CBFS_SIZE_DEC -lt $BIOS_SIZE ]; then
-                    ADDITIONAL_SPACE=$(( BIOS_SIZE - CBFS_SIZE_DEC ))
-                    ADDITIONAL_KB=$((ADDITIONAL_SPACE / 1024))
-                    POTENTIAL_TOTAL=$((FREE_BYTES + ADDITIONAL_SPACE))
-                    POTENTIAL_KB=$((POTENTIAL_TOTAL / 1024))
-                    echo ""
-                    echo "Optimization opportunity: CONFIG_CBFS_SIZE could be increased by"
-                    echo "  $ADDITIONAL_SPACE bytes ($ADDITIONAL_KB KiB) to match IFD BIOS region"
-                    echo "  This would provide $POTENTIAL_TOTAL bytes ($POTENTIAL_KB KiB) total free space"
-                    echo ""
-                    echo "To maximize CBFS size automatically, run:"
-                    echo "  make BOARD=$BOARD fix_cbfs_ifd"
-                fi
-            fi
-            
-            echo ""
-            VALIDATION_PERFORMED=1
+    # Try to get platform-specific ifdtool flag
+    PLATFORM=""
+    # First: check explicit CONFIG_IFD_CHIPSET
+    PLATFORM=$(grep '^CONFIG_IFD_CHIPSET=' "$CONFIG_FILE" | cut -d'"' -f2 || true)
+    # Second: auto-detect for Haswell/Broadwell (they need ifd2 flag)
+    if [ -z "$PLATFORM" ]; then
+        if grep -qE 'CONFIG_SOUTHBRIDGE_INTEL_LYNXPOINT|CONFIG_SOUTHBRIDGE_INTEL_WILDCATPOINT' "$CONFIG_FILE"; then
+            PLATFORM="ifd2"
+            echo "Auto-detected platform: ifd2 (Haswell/Broadwell)"
         fi
     fi
-fi
+    
+    # Run ifdtool to parse the descriptor
+    IFD_OUTPUT=""
+    if [ -n "$PLATFORM" ]; then
+        # Try with platform flag first
+        IFD_OUTPUT=$("$IFDTOOL" --platform "$PLATFORM" -d "$IFD_PATH" 2>/dev/null || true)
+        if [ -n "$IFD_OUTPUT" ]; then
+            echo "Using platform-specific parse: $PLATFORM"
+        else
+            # Platform flag failed, fall back to generic
+            echo "Warning: --platform $PLATFORM failed, using generic parse"
+            IFD_OUTPUT=$("$IFDTOOL" -d "$IFD_PATH" 2>/dev/null || true)
+        fi
+    else
+        # No platform needed (e.g., Sandy/Ivy Bridge), use generic parse
+        IFD_OUTPUT=$("$IFDTOOL" -d "$IFD_PATH" 2>/dev/null || true)
+    fi
+    
+    
+    # Extract BIOS region from IFD output
+    BIOS_REGION=$(echo "$IFD_OUTPUT" | grep "Flash Region 1 (BIOS):" | head -1)
+    if [ -z "$BIOS_REGION" ]; then
+        echo "Error: Could not find BIOS region in IFD" >&2
+        exit 1
+    fi
+    
+    # Parse BIOS region addresses (format: "00021000 - 00bfffff")
+    BIOS_START=$(echo "$BIOS_REGION" | awk '{print $(NF-2)}')
+    BIOS_END=$(echo "$BIOS_REGION" | awk '{print $NF}')
+    BIOS_SIZE=$(( 0x$BIOS_END - 0x$BIOS_START + 1 ))
+    BIOS_SIZE_KB=$((BIOS_SIZE / 1024))
+    CBFS_SIZE_KB=$((CBFS_SIZE_DEC / 1024))
+    
+    echo "IFD BIOS Region: 0x$BIOS_START - 0x$BIOS_END"
+    echo "IFD BIOS Size:   0x$(printf '%X' $BIOS_SIZE) ($BIOS_SIZE_KB KiB)"
+    echo "CONFIG_CBFS_SIZE: $CBFS_SIZE ($CBFS_SIZE_KB KiB)"
+    echo ""
+    
+    # CASE 1: CONFIG_CBFS_SIZE is too large
+    if [ $CBFS_SIZE_DEC -gt $BIOS_SIZE ]; then
+        OVERFLOW=$(( CBFS_SIZE_DEC - BIOS_SIZE ))
+        OVERFLOW_KB=$((OVERFLOW / 1024))
+        
+        if [ $FIX_MODE -eq 1 ]; then
+            # Check if current CBFS content will fit after shrinking
+            if [ -n "$CBFSTOOL" ] && [ -f "$COREBOOT_DIR/coreboot.rom" ]; then
+                CBFS_PRINT=$("$CBFSTOOL" "$COREBOOT_DIR/coreboot.rom" print 2>/dev/null || true)
+                FREE_BYTES=$(echo "$CBFS_PRINT" | awk '/\(empty\)/ {sum += $4} END {print sum+0}')
+                USED_BYTES=$(( CBFS_SIZE_DEC - FREE_BYTES ))
+                USED_KB=$((USED_BYTES / 1024))
+                
+                if [ $USED_BYTES -gt $BIOS_SIZE ]; then
+                    echo "❌ Cannot shrink: Current CBFS content ($USED_KB KiB) won't fit in IFD BIOS region ($BIOS_SIZE_KB KiB)" >&2
+                    echo "   Remove payloads/modules before retrying" >&2
+                    exit 1
+                fi
+            fi
+            
+            # Perform shrink to exact IFD size
+            SHRINK_KB=$(( (CBFS_SIZE_DEC - BIOS_SIZE) / 1024 ))
+            echo "🔧 Shrinking CONFIG_CBFS_SIZE by $SHRINK_KB KiB"
+            sed -i "s/CONFIG_CBFS_SIZE=0x[0-9A-Fa-f]*/CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)/" "$CONFIG_FILE"
+            echo "✓ Updated: CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)"
+            exit 0
+        else
+            # Report error
+            echo "❌ VALIDATION FAILED: CONFIG_CBFS_SIZE exceeds IFD BIOS region by $OVERFLOW_KB KiB"
+            echo ""
+            echo "Fix: Set CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE) in $CONFIG_FILE"
+            if [ -n "$BOARD" ]; then
+                echo "Or run: make BOARD=$BOARD fix_cbfs_ifd"
+            fi
+            exit 1
+        fi
+    fi
+    
+    # CASE 2: CONFIG_CBFS_SIZE equals IFD size
+    if [ $CBFS_SIZE_DEC -eq $BIOS_SIZE ]; then
+        echo "✓ CONFIG_CBFS_SIZE exactly matches IFD BIOS region"
+    fi
+    
+    # CASE 3: CONFIG_CBFS_SIZE is smaller than IFD (normal case)
+    if [ $CBFS_SIZE_DEC -lt $BIOS_SIZE ]; then
+        FREE_SPACE=$(( BIOS_SIZE - CBFS_SIZE_DEC ))
+        FREE_SPACE_KB=$((FREE_SPACE / 1024))
+        FREE_BYTES=$(( FREE_SPACE % 1024 ))
+        echo "✓ CONFIG_CBFS_SIZE fits within IFD BIOS region"
+        
+        if [ $FREE_SPACE_KB -eq 0 ] && [ $FREE_SPACE -gt 0 ]; then
+            echo "   Unused IFD capacity: $FREE_SPACE bytes (< 1 KiB)"
+        else
+            echo "   Unused IFD capacity: $FREE_SPACE_KB KiB"
+        fi
+        
+        # Only expand if explicitly requested via fix_cbfs_ifd
+        if [ $FIX_MODE -eq 1 ]; then
+            # Expand to full IFD size (no artificial margin)
+            # Note: For platforms needing FMAP margin (e.g., Meteor Lake), manually set CONFIG_CBFS_SIZE smaller
+            GAIN=$(( BIOS_SIZE - CBFS_SIZE_DEC ))
+            GAIN_KB=$((GAIN / 1024))
+            
+            # Only expand if gain is > 128 KiB
+            if [ $GAIN -gt 131072 ]; then
+                echo ""
+                echo "🔧 Expanding CONFIG_CBFS_SIZE by $GAIN_KB KiB"
+                sed -i "s/CONFIG_CBFS_SIZE=0x[0-9A-Fa-f]*/CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)/" "$CONFIG_FILE"
+                echo "✓ Updated: CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)"
+                exit 0
+            else
+                echo "   Note: Expansion gain too small ($GAIN_KB KiB < 128 KiB threshold), keeping current size"
+            fi
+        fi
+    fi
 
-if [ "$VALIDATION_PERFORMED" = "1" ]; then
+    # Report CBFS free space
+    if [ -n "$CBFSTOOL" ] && [ -f "$COREBOOT_DIR/coreboot.rom" ]; then
+        echo ""
+        CBFS_OUTPUT=$("$CBFSTOOL" "$COREBOOT_DIR/coreboot.rom" print 2>&1 || true)
+        FREE_BYTES=$(echo "$CBFS_OUTPUT" | awk '/\(empty\)/ {sum += $4} END {print sum+0}')
+        FREE_KB=$((FREE_BYTES / 1024))
+        echo "CBFS Free Space: $FREE_BYTES bytes ($FREE_KB KiB)"
+    fi
+    
+    echo ""
     echo "==================================================================="
     echo "✓ Validation complete"
     echo "==================================================================="
