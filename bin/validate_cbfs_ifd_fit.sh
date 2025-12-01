@@ -253,17 +253,49 @@ if [ -z "$IFD_VALIDATION_SKIPPED" ] && [ -f "$IFD_PATH" ] && [ -n "$IFDTOOL" ]; 
         
         # Only expand if explicitly requested via fix_cbfs_ifd
         if [ $FIX_MODE -eq 1 ]; then
-            # Expand to full IFD size (no artificial margin)
-            # Note: For platforms needing FMAP margin (e.g., Meteor Lake), manually set CONFIG_CBFS_SIZE smaller
-            GAIN=$(( BIOS_SIZE - CBFS_SIZE_DEC ))
+            # CRITICAL: Intel SPI flash architecture limitation
+            # Intel chipsets only memory-map the top 16 MiB of SPI flash to the fixed decode
+            # window at 0xFF000000-0xFFFFFFFF (just below 4GB boundary). This is where the CPU
+            # must execute XIP (Execute-In-Place) boot stages.
+            #
+            # cbfstool enforces DEFAULT_DECODE_WINDOW_MAX_SIZE = 16 MiB and will fail with
+            # "Assertion `IS_HOST_SPACE_ADDRESS(host_space_address)' failed" when converting
+            # XIP stages if CBFS_SIZE > 16 MiB, because the calculated addresses fall outside
+            # the memory-mapped region.
+            #
+            # Exceeding 16 MiB will brick hardware - the CPU cannot fetch boot code from
+            # addresses outside the decode window.
+            #
+            # References:
+            # - coreboot util/cbfstool/cbfstool.c: DEFAULT_DECODE_WINDOW_MAX_SIZE
+            # - coreboot util/cbfstool/fit.c: "FIT must reside in the top 16MiB"
+            # - IS_HOST_SPACE_ADDRESS macro: checks if address is in memory-mapped space
+            
+            MAX_CBFS_SIZE=0x1000000  # 16 MiB - Intel SPI decode window limit
+            
+            # Calculate safe expansion target: min(IFD BIOS size, 16 MiB limit)
+            if [ $BIOS_SIZE -gt $MAX_CBFS_SIZE ]; then
+                TARGET_SIZE=$MAX_CBFS_SIZE
+                TARGET_SIZE_KB=$((TARGET_SIZE / 1024))
+                BIOS_SIZE_MB=$((BIOS_SIZE / 1024 / 1024))
+                echo ""
+                echo "⚠️  IFD BIOS region ($BIOS_SIZE_MB MiB) exceeds Intel 16 MiB decode window limit"
+                echo "   Capping CONFIG_CBFS_SIZE at 0x$(printf '%X' $MAX_CBFS_SIZE) ($TARGET_SIZE_KB KiB)"
+                echo "   Reason: Intel chipsets only memory-map top 16 MiB of SPI flash"
+                echo "   Exceeding this limit will brick hardware (CPU cannot execute boot code)"
+            else
+                TARGET_SIZE=$BIOS_SIZE
+            fi
+            
+            GAIN=$(( TARGET_SIZE - CBFS_SIZE_DEC ))
             GAIN_KB=$((GAIN / 1024))
             
             # Only expand if gain is > 128 KiB
             if [ $GAIN -gt 131072 ]; then
                 echo ""
                 echo "🔧 Expanding CONFIG_CBFS_SIZE by $GAIN_KB KiB"
-                sed -i "s/CONFIG_CBFS_SIZE=0x[0-9A-Fa-f]*/CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)/" "$CONFIG_FILE"
-                echo "✓ Updated: CONFIG_CBFS_SIZE=0x$(printf '%X' $BIOS_SIZE)"
+                sed -i "s/CONFIG_CBFS_SIZE=0x[0-9A-Fa-f]*/CONFIG_CBFS_SIZE=0x$(printf '%X' $TARGET_SIZE)/" "$CONFIG_FILE"
+                echo "✓ Updated: CONFIG_CBFS_SIZE=0x$(printf '%X' $TARGET_SIZE)"
                 exit 0
             else
                 echo "   Note: Expansion gain too small ($GAIN_KB KiB < 128 KiB threshold), keeping current size"
