@@ -1,0 +1,52 @@
+From: Thierry Laurion <insurgo@riseup.net>
+Date: Sat, 30 Nov 2025 18:37:00 +0000
+Subject: [PATCH] Makefile: Skip FMAP 64K alignment when using IFD templates
+
+When using an IFD-generated FMAP template (fmap-template.fmd), the BIOS
+region offset and size are defined by the Intel Flash Descriptor and may
+not be 64K-aligned (e.g., starting at 0x0088b000 instead of 0x008b0000).
+
+The current FMAP generation unconditionally aligns FMAP_BIOS_BASE up and
+FMAP_BIOS_SIZE down to 64K boundaries, which causes a mismatch with the
+IFD when CONFIG_VALIDATE_INTEL_DESCRIPTOR is enabled:
+
+  "Region mismatch between bios and SI_BIOS"
+
+Skip both alignments when DEFAULT_FLASHMAP points to fmap-template.fmd,
+using the exact values from ROM_SIZE and CONFIG_CBFS_SIZE instead. This
+ensures FMAP matches the IFD BIOS region exactly.
+
+Non-IFD builds (using default-x86.fmd) retain the original 64K alignment.
+
+Tested on novacustom-v560tu and novacustom-v540tu with non-aligned IFD
+offsets (0x0088b000).
+
+Signed-off-by: Thierry Laurion <insurgo@riseup.net>
+---
+ Makefile.mk | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile.mk b/Makefile.mk
+index 1111111111..2222222222 100644
+--- a/Makefile.mk
++++ b/Makefile.mk
+@@ -1025,8 +1025,15 @@ endif # ifneq($(CONFIG_IFD_CHIPSET),)
+ FMAP_ROM_SIZE := $(CONFIG_ROM_SIZE)
+ # entire "BIOS" region (everything directly of concern to the host system)
+ # relative to ROM_BASE
+-FMAP_BIOS_BASE := $(call int-align, $(call int-subtract, $(CONFIG_ROM_SIZE) $(CONFIG_CBFS_SIZE)), 0x10000)
+-FMAP_BIOS_SIZE := $(call int-align-down, $(shell echo $(CONFIG_CBFS_SIZE) | tr A-F a-f), 0x10000)
++# When using IFD template, don't align as IFD may not be 64K-aligned
++ifeq ($(DEFAULT_FLASHMAP),$(obj)/fmap-template.fmd)
++# IFD template: use exact offset and size from descriptor (no alignment)
++FMAP_BIOS_BASE := $(call int-subtract, $(CONFIG_ROM_SIZE) $(CONFIG_CBFS_SIZE))
++FMAP_BIOS_SIZE := $(shell echo $(CONFIG_CBFS_SIZE) | tr A-F a-f)
++else
++FMAP_BIOS_BASE := $(call int-align, $(call int-subtract, $(CONFIG_ROM_SIZE) $(CONFIG_CBFS_SIZE)), 0x10000)
++FMAP_BIOS_SIZE := $(call int-align-down, $(shell echo $(CONFIG_CBFS_SIZE) | tr A-F a-f), 0x10000)
++endif
+ # position and size of flashmap, relative to BIOS_BASE
+ 
+ #
+-- 
+2.34.1
