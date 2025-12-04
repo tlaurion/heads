@@ -94,9 +94,9 @@ run: $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE) $(USB_FD_IMG)
 		--machine q35,accel=kvm:tcg \
 		-rtc base=utc \
 		-smp 1 \
-		-vga std \
+		-nographic \
 		-m "$$(cat "$(MEMORY_SIZE_FILE)")" \
-		-serial stdio \
+		-serial mon:stdio \
 		--bios "$(QEMU_BOOT_ROM)" \
 		-object rng-random,filename=/dev/urandom,id=rng0 \
 		-device virtio-rng-pci,rng=rng0 \
