@@ -172,6 +172,43 @@ show_system_info() {
 	cpustr=$(cat /proc/cpuinfo | grep 'model name' | uniq | sed -r 's/\(R\)//;s/\(TM\)//;s/CPU //;s/model name.*: //')
 	kernel=$(uname -s -r)
 
+	# Build disk info using top-level block devices from sysfs (avoid partitions)
+	disk_info=""
+	DEBUG "show_system_info: Enumerating disks via list_block_devices"
+	while IFS= read -r dev; do
+		devname=$(basename "$dev")
+		DEBUG "show_system_info: Processing device $dev (devname=$devname)"
+		size_sectors=$(cat "/sys/block/$devname/size" 2>/dev/null || echo 0)
+		DEBUG "show_system_info: /dev/${devname} size_sectors=$size_sectors from /sys/block/$devname/size"
+		if [ -n "$size_sectors" ] && [ "$size_sectors" -gt 0 ]; then
+			# get per-device sector size if available
+			sector_size=512
+			if [ -r "/sys/block/$devname/queue/hw_sector_size" ]; then
+				sector_size=$(cat "/sys/block/$devname/queue/hw_sector_size" 2>/dev/null || echo 512)
+				DEBUG "show_system_info: /dev/${devname} hw_sector_size=$sector_size"
+			elif [ -r "/sys/block/$devname/queue/logical_block_size" ]; then
+				sector_size=$(cat "/sys/block/$devname/queue/logical_block_size" 2>/dev/null || echo 512)
+				DEBUG "show_system_info: /dev/${devname} logical_block_size=$sector_size"
+			else
+				DEBUG "show_system_info: /dev/${devname} using default sector_size=$sector_size"
+			fi
+			# Convert from sectors * sector_size to bytes, then to decimal GB.
+			#
+			# Explanation of the constants:
+			# - We divide by 1,000,000,000 (1000000000) to report decimal GB (10^9 bytes),
+			#   consistent with the previous behavior.
+			# - Shell arithmetic is integer-only; adding 500,000,000 (half the divisor)
+			#   before dividing implements rounding to the nearest GB instead of truncating.
+			#	For binary GiB use 1073741824 and half 536870912, or use external tools
+			#	for fractional precision.
+			size_gb=$(((size_sectors * sector_size + 500000000) / 1000000000))
+			DEBUG "show_system_info: /dev/${devname} calculated as ${size_gb} GB ($size_sectors sectors * $sector_size bytes = $((size_sectors * sector_size)) bytes)"
+			disk_info="${disk_info}Disk /dev/${devname}: ${size_gb} GB\n"
+		else
+			DEBUG "show_system_info: /dev/${devname} skipped (size_sectors=$size_sectors is empty or zero)"
+		fi
+	done < <(list_block_devices)
+
 	local msgbox="${BOARD_NAME}
 
 	FW_VER: ${FW_VER}
@@ -181,8 +218,7 @@ show_system_info() {
 	Microcode: $(cat /proc/cpuinfo | grep microcode | uniq | cut -d':' -f2 | tr -d ' ')
 	RAM: ${memtotal} GB
 	$battery_status
-	$(fdisk -l 2>/dev/null | grep -e '/dev/sd.:' -e '/dev/nvme.*:' | sed 's/B,.*/B/')
-	"
+	${disk_info}"
 
 	local msgbox_rm_tabs=$(echo "$msgbox" | tr -d "\t")
 
