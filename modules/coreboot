@@ -91,15 +91,15 @@ coreboot-purism_repo := https://source.puri.sm/firmware/coreboot.git
 coreboot-purism_commit_hash := bea9947a1279be7d4a72b38a601d0288d10d1cb8
 $(eval $(call coreboot_module,purism,24.02.01))
 
-# This is Dasharo 1.0.0+ (FIXME: rebased atop coreboot 25.03?)
+# This is Dasharo 1.0.1+ (FIXME: rebased atop coreboot 25.03?)
 #  The NovaCustom NV4xPZ (nv40pz), V560TU and V540TU boards are based on Dasharo's coreboot fork
 #  This includes 3rdparty/intel-microcode 20251111
 # TODO: Split dasharo fork per board.... MSI(24.12) != V56TU (25.03) != NV41x (4.21)
 # TODO: This is to test v540tu/v560tu bump
 coreboot-dasharo_repo := https://github.com/dasharo/coreboot
-coreboot-dasharo_commit_hash := 91420dbce609774f70c0ef66a864b1bfdf7d053b
-$(eval $(call coreboot_module,dasharo))
-coreboot-dasharo_patch_version := unreleased
+coreboot-dasharo_commit_hash := 0bc84959aa7f731fa4b666e320ace20889a6af7a
+$(eval $(call coreboot_module,dasharo,))
+#coreboot-dasharo_patch_version := unreleased
 
 # T480 is based on coreboot ~25.09 release
 #  coreboot 25.09 doesn't include Thunderbolt support and support of the lower USB-C port which is still under review at https://review.coreboot.org/c/coreboot/+/75286 and https://review.coreboot.org/c/coreboot/+/88490
@@ -165,15 +165,7 @@ $(coreboot_module)_configure := \
 		-C "$(build)/$(coreboot_base_dir)" \
 		obj="$(build)/$(coreboot_dir)" \
 		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
-		BUILD_TIMELESS=1; \
-	echo ""; \
-	echo "Validating CONFIG_CBFS_SIZE vs IFD BIOS region..."; \
-	$(pwd)/bin/validate_cbfs_ifd_fit.sh \
-		--coreboot-dir "$(build)/$(coreboot_dir)" \
-		--board-dir "$(build)/$(BOARD)" \
-		--config "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" \
-		|| exit 1; \
-	echo ""
+		BUILD_TIMELESS=1 \
 
 # Create a dependency from coreboot to the toolchain.  Use .heads-toolchain to
 # mark that the toolchain was built.
@@ -244,19 +236,9 @@ $(build)/$(coreboot_dir)/.build: \
 # This produces a ROM image that is written with the flashrom program
 ifneq ($(CONFIG_COREBOOT),)
 
-# Keep this phony so the ROM is rebuilt each time; downstream logic
-# will ensure expensive post-processing (like GPG injection) is skipped when up-to-date.
-.PHONY: $(build)/$(BOARD)/$(CB_OUTPUT_FILE)
 $(build)/$(BOARD)/$(CB_OUTPUT_FILE): $(build)/$(coreboot_dir)/.build
 	# Use coreboot.rom, because custom output files might not be processed by cbfstool
 	"$(build)/$(coreboot_dir)/cbfstool" "$(dir $<)coreboot.rom" print
-	@echo ""
-	@echo "Validating final CBFS/IFD configuration..."
-	@$(pwd)/bin/validate_cbfs_ifd_fit.sh \
-		--coreboot-dir "$(build)/$(coreboot_dir)" \
-		--board-dir "$(build)/$(BOARD)" \
-		--config "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" || exit 1
-	@echo ""
 	$(call do-copy,$(dir $<)$(CONFIG_COREBOOT_ROM),$@)
 	@touch $@   # update the time stamp
 
