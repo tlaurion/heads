@@ -738,15 +738,39 @@ list_block_devices() {
 disk_info_sysfs() {
 	TRACE_FUNC
 	local disk_info=""
+	DEBUG "disk_info_sysfs: Starting disk enumeration"
 	for dev in /sys/block/sd* /sys/block/nvme* /sys/block/vd* /sys/block/hd*; do
 		if [ -e "$dev" ]; then
 			local devname=$(basename "$dev")
+			DEBUG "disk_info_sysfs: Found device $dev (devname=$devname)"
 			local size_bytes=$(cat "$dev/size" 2>/dev/null)
+			DEBUG "disk_info_sysfs: /dev/${devname} reports size_bytes=$size_bytes sectors from $dev/size"
 			if [ -n "$size_bytes" ] && [ "$size_bytes" -gt 0 ]; then
-				# Convert from 512-byte sectors to bytes, then to GB (decimal, matching previous behavior)
-				local size_gb=$(((size_bytes * 512 + 500000000) / 1000000000))
+				# Determine sector size for this device from sysfs; prefer hw_sector_size
+				local sector_size=512
+				if [ -r "$dev/queue/hw_sector_size" ]; then
+					sector_size=$(cat "$dev/queue/hw_sector_size" 2>/dev/null || echo 512)
+					DEBUG "disk_info_sysfs: /dev/${devname} using hw_sector_size=$sector_size from $dev/queue/hw_sector_size"
+				elif [ -r "$dev/queue/logical_block_size" ]; then
+					sector_size=$(cat "$dev/queue/logical_block_size" 2>/dev/null || echo 512)
+					DEBUG "disk_info_sysfs: /dev/${devname} using logical_block_size=$sector_size from $dev/queue/logical_block_size"
+				else
+					DEBUG "disk_info_sysfs: /dev/${devname} using default sector_size=$sector_size (no queue info available)"
+				fi
+				# Convert from sectors * sector_size to bytes, then to decimal GB.
+				#
+				# Explanation of the constants:
+				# - We divide by 1,000,000,000 (1000000000) to report decimal GB (10^9 bytes),
+				#   which matches the historical output used elsewhere in Heads.
+				# - Shell arithmetic is integer-only, so to round to the nearest GB we add
+				#   half the divisor (500,000,000) before dividing. This implements
+				#   rounding instead of truncation.
+				#	If you prefer binary GiB (1024^3), replace the divisor and half-divisor
+				#	with 1073741824 and 536870912 respectively, or use `awk`/`printf`
+				#	for fractional output.
+				local size_gb=$(((size_bytes * sector_size + 500000000) / 1000000000))
 				disk_info="${disk_info}Disk /dev/${devname}: ${size_gb} GB\n"
-				DEBUG "Block device /dev/${devname}: ${size_gb} GB (${size_bytes} sectors)"
+				DEBUG "disk_info_sysfs: /dev/${devname} calculated as ${size_gb} GB (${size_bytes} sectors * ${sector_size} bytes/sector = $((size_bytes * sector_size)) bytes)"
 			fi
 		fi
 	done
