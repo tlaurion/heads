@@ -269,9 +269,8 @@ $(build)/$(coreboot_dir)/.build: \
 # This produces a ROM image that is written with the flashrom program
 ifneq ($(CONFIG_COREBOOT),)
 
-# Keep this phony so the ROM is rebuilt each time; downstream logic
+# Let make rebuild the ROM only when inputs change; downstream logic
 # will ensure expensive post-processing (like GPG injection) is skipped when up-to-date.
-.PHONY: $(build)/$(BOARD)/$(CB_OUTPUT_FILE)
 $(build)/$(BOARD)/$(CB_OUTPUT_FILE): $(build)/$(coreboot_dir)/.build
 	# Use coreboot.rom, because custom output files might not be processed by cbfstool
 	"$(build)/$(coreboot_dir)/cbfstool" "$(dir $<)coreboot.rom" print
