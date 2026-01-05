@@ -1,5 +1,7 @@
 modules-$(CONFIG_KEXEC) += kexec-tools
 
+# Sticking to 2.0.31 (Dec 2024) for now; 2.0.32 exists but needs compatibility
+# verification with our patches before bumping.
 kexec-tools_version := 2.0.31
 kexec-tools_dir := kexec-tools-$(kexec-tools_version)
 kexec-tools_tar := kexec-tools-$(kexec-tools_version).tar.gz
