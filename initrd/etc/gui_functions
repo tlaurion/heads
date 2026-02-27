@@ -165,6 +165,12 @@ file_selector() {
 
 show_system_info() {
 	TRACE_FUNC
+	# ensure EC_VER is populated; this mirrors the behaviour of the
+	# init script which exports EC_VER early, but calling the helper
+	# here makes the GUI menu self‑contained.
+	if [ -z "$EC_VER" ]; then
+		EC_VER=$(ec_version)
+	fi
 	battery_status="$(print_battery_state)"
 
 	memtotal=$(cat /proc/meminfo | grep 'MemTotal' | tr -s ' ' | cut -f2 -d ' ')

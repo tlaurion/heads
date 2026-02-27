@@ -105,7 +105,7 @@ fw_version() {
 ec_version() {
 	# EC firmware version from DMI type 11 OEM Strings (if present).
 	# The raw sysfs entry has a 5-byte header followed by null-terminated strings.
-	local raw="/sys/firmware/dmi/entries/11-0/raw"
+	local raw="/sys/firmware/dmi/tables/DMI"
 	[ -f "$raw" ] || return
 	tail -c +6 "$raw" | tr '\0' '\n' | sed -n 's/^EC firmware version: *//p'
 }
@@ -321,7 +321,10 @@ recovery() {
 	touch /tmp/config
 	. /tmp/config
 
-	DEBUG "Board $CONFIG_BOARD - version $(fw_version)"
+	# Log board and firmware/EC versions in one go.  ec_version() will
+	# return an empty string if nothing is available, so the output is still
+	# well-formed even on systems without an EC version string.
+	DEBUG "Board $CONFIG_BOARD - version $(fw_version) EC_VER: $(ec_version)"
 
 	if [ "$CONFIG_TPM" = "y" ]; then
 		INFO "TPM: Extending PCR[4] to prevent any further secret unsealing"
@@ -1654,6 +1657,14 @@ show_totp_until_esc() {
 	local now_str status_line current_totp ch
 	local last_totp_time=0 last_totp=""
 	printf "\n" # reserve a line for updates
+
+	# Clear any pending keystrokes before we start displaying the TOTP.
+	# In particular, a stray Escape key from the previous passphrase
+	# prompt could be sitting in the input buffer and would cause the
+	# function to immediately return on the next iteration, confusing
+	# the user when they try to hit Esc again.  Drain stdin until it's
+	# empty.
+	while IFS= read -r -t 0 -n 1 junk; do :; done
 
 	# Poll frequently (200ms) for responsiveness, but only refresh the
 	# displayed timestamp/TOTP when the displayed second changes. Cache
