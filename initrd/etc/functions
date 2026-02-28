@@ -14,6 +14,18 @@ die() {
 	# ask user to press Enter prior to exit
 	read -r -p $'Press Enter to continue...\n\n'
 
+	# Exiting PID 1 causes kernel panic (Attempted to kill init).  In init
+	# context, keep fatal semantics by entering recovery shell instead.
+	if [ "$$" -eq 1 ]; then
+		if [ "$IN_RECOVERY" = "y" ]; then
+			DEBUG "die: running in PID 1 while already in recovery; returning non-zero to avoid recursive recovery"
+			return 1
+		fi
+		DEBUG "die: running in PID 1 context, entering recovery instead of exit"
+		recovery "Fatal error: $*"
+		return 1
+	fi
+
 	exit 1
 }
 
@@ -307,6 +319,7 @@ gpg_auth() {
 
 recovery() {
 	TRACE_FUNC
+	IN_RECOVERY=y
 	echo >&2 "!!!!! $*"
 
 	# Remove any temporary secret files that might be hanging around
@@ -338,7 +351,10 @@ recovery() {
 	fi
 	while [ true ]; do
 		#Going to recovery shell should be authenticated if supported
-		gpg_auth
+		if ! gpg_auth; then
+			DEBUG "recovery: authentication failed, returning to recovery prompt"
+			continue
+		fi
 
 		#if we have DEBUG_OUTPUT=y, we instruct users to use the debug log
 		if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
@@ -769,7 +785,9 @@ reseal_tpm_disk_decryption_key() {
 		attempt=1
 		while ! update_checksums; do
 			warn "Attempt $attempt: Checksums were not signed. Preceding errors should explain possible causes"
+			DEBUG "reseal_tpm_disk_decryption_key: update_checksums failed on attempt $attempt"
 			if [ "$attempt" -ge 3 ]; then
+				DEBUG "reseal_tpm_disk_decryption_key: giving up after 3 failures; invoking die"
 				die "Failed to sign checksums after 3 attempts"
 			fi
 			attempt=$((attempt + 1))

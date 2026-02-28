@@ -206,14 +206,14 @@ echo
 if [ "$boot_option" = "r" ]; then
 	# Start an interactive shell
 	recovery 'User requested recovery shell'
-	# just in case...
-	exit
+	# recovery should not return; keep a safe fallback if it does
+	recovery 'Recovery shell returned unexpectedly'
 elif [ "$boot_option" = "o" ]; then
 	# Launch OEM Factory Reset mode
 	echo -e "***** Entering OEM Factory Reset mode\n" >/dev/tty0
 	oem-factory-reset --mode oem
-	# just in case...
-	exit
+	# OEM mode should reboot/transition itself; if it returns, enter recovery
+	recovery 'OEM factory reset returned unexpectedly'
 fi
 
 if [ "$CONFIG_BASIC" = "y" ]; then
