@@ -766,14 +766,8 @@ reseal_tpm_disk_decryption_key() {
 		done
 		NOTE "LUKS header hash changed under /boot/kexec_luks_hdr_hash.txt"
 		echo "Updating checksums and signing all files under /boot/kexec.sig"
-		attempt=1
-		while ! update_checksums; do
-			warn "Attempt $attempt: Checksums were not signed. Preceding errors should explain possible causes"
-			if [ "$attempt" -ge 3 ]; then
-				die "Failed to sign checksums after 3 attempts"
-			fi
-			attempt=$((attempt + 1))
-		done
+		update_checksums ||
+			die "Failed to sign checksums. Resolution: select 'Options --> Update checksums and sign all files in /boot' after correcting the preceding error."
 		NOTE "Rebooting in 3 seconds to enable booting default boot option"
 		sleep 3
 		reboot
@@ -842,20 +836,10 @@ disk_info_sysfs() {
 			local devname=$(basename "$dev")
 			DEBUG "disk_info_sysfs: Found device $dev (devname=$devname)"
 			local size_bytes=$(cat "$dev/size" 2>/dev/null)
-			DEBUG "disk_info_sysfs: /dev/${devname} reports size_bytes=$size_bytes sectors from $dev/size"
+			DEBUG "disk_info_sysfs: /dev/${devname} reports size_512_sectors=$size_bytes from $dev/size"
 			if [ -n "$size_bytes" ] && [ "$size_bytes" -gt 0 ]; then
-				# Determine sector size for this device from sysfs; prefer hw_sector_size
-				local sector_size=512
-				if [ -r "$dev/queue/hw_sector_size" ]; then
-					sector_size=$(cat "$dev/queue/hw_sector_size" 2>/dev/null || echo 512)
-					DEBUG "disk_info_sysfs: /dev/${devname} using hw_sector_size=$sector_size from $dev/queue/hw_sector_size"
-				elif [ -r "$dev/queue/logical_block_size" ]; then
-					sector_size=$(cat "$dev/queue/logical_block_size" 2>/dev/null || echo 512)
-					DEBUG "disk_info_sysfs: /dev/${devname} using logical_block_size=$sector_size from $dev/queue/logical_block_size"
-				else
-					DEBUG "disk_info_sysfs: /dev/${devname} using default sector_size=$sector_size (no queue info available)"
-				fi
-				# Convert from sectors * sector_size to bytes, then to decimal GB.
+				# /sys/block/<dev>/size is always in 512-byte sectors.
+				# Convert from 512-byte sectors to bytes, then to decimal GB.
 				#
 				# Explanation of the constants:
 				# - We divide by 1,000,000,000 (1000000000) to report decimal GB (10^9 bytes),
@@ -866,9 +850,9 @@ disk_info_sysfs() {
 				#	If you prefer binary GiB (1024^3), replace the divisor and half-divisor
 				#	with 1073741824 and 536870912 respectively, or use `awk`/`printf`
 				#	for fractional output.
-				local size_gb=$(((size_bytes * sector_size + 500000000) / 1000000000))
+				local size_gb=$(((size_bytes * 512 + 500000000) / 1000000000))
 				disk_info="${disk_info}Disk /dev/${devname}: ${size_gb} GB\n"
-				DEBUG "disk_info_sysfs: /dev/${devname} calculated as ${size_gb} GB (${size_bytes} sectors * ${sector_size} bytes/sector = $((size_bytes * sector_size)) bytes)"
+				DEBUG "disk_info_sysfs: /dev/${devname} calculated as ${size_gb} GB (${size_bytes} * 512-byte sectors = $((size_bytes * 512)) bytes)"
 			fi
 		fi
 	done
@@ -1033,16 +1017,30 @@ increment_tpm_counter() {
 	# Try to increment the counter
 	if ! DO_WITH_DEBUG tpmr counter_increment -ix "$counter_id" -pwdc '' |
 		tee /tmp/counter-"$counter_id" >/dev/null 2>&1; then
-		
-		# Check if we need to create a new counter
-		DEBUG "TPM counter increment failed. Attempting to create a new counter..."
-		
-		if DO_WITH_DEBUG tpmr counter_create -pwdc '' -la 3135106223 >/tmp/new-counter 2>/dev/null; then
-			NEW_COUNTER=$(cut -d: -f1 </tmp/new-counter | tr -d '\n')
-			DEBUG "Created new TPM counter: $NEW_COUNTER. Update kexec_rollback.txt to use this counter."
+		# Try to recover by creating and using a new counter.
+		DEBUG "TPM counter increment failed for $counter_id. Attempting to create and switch to a new counter..."
+
+		if ! DO_WITH_DEBUG tpmr counter_create -pwdc '' -la 3135106223 >/tmp/new-counter; then
+			die "TPM rollback counter recovery failed (could not create a new counter). Resolution: select 'Options --> TPM/TOTP/HOTP Options --> Reset the TPM'."
 		fi
-		
-		die "TPM counter increment failed for rollback prevention. Please reset the TPM or update kexec_rollback.txt with a new counter."
+
+		local new_counter
+		new_counter=$(cut -d: -f1 </tmp/new-counter | tr -d '\n')
+		if [ -z "$new_counter" ]; then
+			die "TPM rollback counter recovery failed (new counter id empty). Resolution: select 'Options --> TPM/TOTP/HOTP Options --> Reset the TPM'."
+		fi
+
+		DEBUG "Created new TPM counter: $new_counter. Switching rollback flow to this counter"
+		TPM_COUNTER="$new_counter"
+		counter_id="$new_counter"
+
+		# Increment the new counter so rollback file captures post-increment state.
+		if ! DO_WITH_DEBUG tpmr counter_increment -ix "$counter_id" -pwdc '' |
+			tee /tmp/counter-"$counter_id" >/dev/null 2>&1; then
+			die "TPM rollback counter recovery failed (new counter could not be incremented). Resolution: select 'Options --> TPM/TOTP/HOTP Options --> Reset the TPM'."
+		fi
+
+		DEBUG "TPM rollback counter recovered and incremented successfully with new counter $counter_id"
 	fi
 	
 	DEBUG "TPM counter incremented successfully for index $counter_id"
@@ -1073,7 +1071,7 @@ check_config() {
 		DEBUG "second param: $2 != force"
 		# Note that kexec.sig detached signature is solely verifying kexec*.txt files here!
 		if ! sha256sum $(find $1/kexec*.txt) | gpgv $1/kexec.sig -; then
-			die 'Invalid signature on kexec boot params'
+			die "Invalid signature on kexec boot params. Resolution: select 'Options --> Update checksums and sign all files in /boot' only if you trust current /boot contents."
 		fi
 	fi
 
@@ -1331,18 +1329,19 @@ is_gpt_bios_grub() {
 
 	NUMBER="${BASH_REMATCH[1]}"
 
-	# Check partition type using sysfs if available, otherwise check for grub type
-	# For GPT disks, check /sys/class/block/<dev>/<partition>/uevent for PARTTYPENAME
+	# Check partition type using sysfs if available.
+	# For GPT disks, check /sys/class/block/<dev>/<partition>/uevent for PARTTYPE
+	# matching the BIOS boot GUID (21686148-6449-6E6F-744E-656564454649).
 	local part_sys="/sys/class/block/$DEVICE/$(basename "$PART_DEV")"
 	if [ -e "$part_sys/uevent" ]; then
-		if grep -q "PARTTYPENAME=BIOS boot" "$part_sys/uevent"; then
-			TRACE "$PART_DEV is a GPT BIOS grub partition"
+		# Kernel-exported type GUID check.
+		if grep -qi "PARTTYPE=21686148-6449-6E6F-744E-656564454649" "$part_sys/uevent"; then
+			DEBUG "$PART_DEV is a GPT BIOS grub partition (PARTTYPE GUID)"
 			return 0
 		fi
 	fi
 
-	# Fallback: try to detect using other sysfs attributes if available
-	# For MBR disks, we would need to check partition type differently
+	# For MBR disks, this check does not apply.
 	DEBUG "$PART_DEV - unable to confirm it's a bios-grub partition via sysfs"
 	return 1
 }

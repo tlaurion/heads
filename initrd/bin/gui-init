@@ -175,8 +175,81 @@ generate_totp_hotp() {
 		printf "\033c"
 	else
 		warn "Unsealing TOTP/HOTP secret from previous sealed measurements failed"
-		warn 'Try "Generate new HOTP/TOTP secret" option if you updated firmware content'
+		warn 'Try "Generate new TOTP/HOTP secret" option if you updated firmware content'
+		warn 'If generating a new secret fails, use "Options --> TPM/TOTP/HOTP Options --> Reset the TPM" and retry'
+		return 1
 	fi
+}
+
+tpm_primary_handle_mismatch() {
+	TRACE_FUNC
+	local primhash_file="/boot/kexec_primhdl_hash.txt"
+	local primary_handle_file="/tmp/secret/primary.handle"
+
+	if [ "$CONFIG_TPM2_TOOLS" != "y" ]; then
+		DEBUG "tpm_primary_handle_mismatch: CONFIG_TPM2_TOOLS is not enabled, skipping check"
+		return 1
+	fi
+
+	if [ ! -s "$primhash_file" ]; then
+		DEBUG "$primhash_file missing or empty, skipping handle-hash check"
+		return 1
+	fi
+
+	if [ ! -s "$primary_handle_file" ]; then
+		DEBUG "$primary_handle_file missing or empty, cannot evaluate handle hash"
+		return 1
+	fi
+
+	DEBUG "about to compare $primhash_file with stored primary handle hash"
+
+	if ! sha256sum -c "$primhash_file" >/dev/null 2>&1; then
+		DEBUG "TPM primary handle hash mismatch detected from $primhash_file"
+		return 0
+	fi
+
+	DEBUG "primary handle hash matches"
+
+	return 1
+}
+
+# show warning and run automated remediation when the primary-handle
+# hash does not match the expectation.
+show_primary_handle_mismatch_menu() {
+	TRACE_FUNC
+	# mismatch means /boot hash and current TPM handle diverged.
+	# warn user, then run required recovery steps automatically.
+	whiptail_error --title "ERROR: TOTP Generation Failed" \
+		--msgbox "$CONFIG_BRAND_NAME detected a TPM primary-handle mismatch.\n\n"\
+		"This is expected after a disk swap between machines.\n"\
+		"If no disk swap occurred, this may indicate tampering.\n\n"\
+		"Heads will now run required recovery steps automatically:\n"\
+		"1) Regenerate TOTP/HOTP\n"\
+		"2) Reseal and re-sign /boot\n"\
+		"3) Select and save a new default boot option\n"\
+		"   (rebuilds /boot/kexec_primhdl_hash.txt)" 0 80
+
+	INFO "Disk-swap recovery: regenerating TOTP/HOTP for current TPM state"
+	if ! generate_totp_hotp; then
+		recovery "TOTP/HOTP secret regeneration failed during disk-swap recovery"
+	fi
+	if ! unseal-totp >/dev/null 2>&1; then
+		recovery "TOTP/HOTP regeneration completed, but unseal verification failed"
+	fi
+
+	INFO "Disk-swap recovery: resealing and re-signing /boot"
+	if ! reseal_tpm_disk_decryption_key; then
+		recovery "TOTP/HOTP regeneration completed, but reseal/signing /boot failed"
+	fi
+
+	DEBUG "primary-handle-mismatch: launching boot menu to set a new default"
+	if ! DO_WITH_DEBUG kexec-select-boot -m -s -b /boot -c "grub.cfg" -g; then
+		recovery "Failed to set a new default boot entry required for disk-swap recovery"
+	fi
+
+	BG_COLOR_MAIN_MENU="normal"
+	skip_to_menu="true"
+	return 1
 }
 
 update_totp() {
@@ -189,8 +262,20 @@ update_totp() {
 	else
 		TOTP=$(unseal-totp)
 		if [ $? -ne 0 ]; then
+			DEBUG "update_totp: unseal-totp failed"
+			# guide user if the primary-handle hash does not yet exist
+			if [ ! -s /boot/kexec_primhdl_hash.txt ]; then
+				whiptail_error --title "ERROR: TPM Unseal Failed" \
+					--msgbox "Heads could not unseal the TOTP secret because the TPM primary-handle hash is missing.\n"\
+					"Heads will run automatic disk-swap recovery now:\n"\
+					"- regenerate TOTP/HOTP\n- re-sign /boot\n- set a new default boot option.\n\n"\
+					"This is required to restore TPM unseal after disk migration." 0 80
+				# missing hash means the user must set a new default
+				show_primary_handle_mismatch_menu || return 1
+			fi
 			BG_COLOR_MAIN_MENU="error"
 			if [ "$skip_to_menu" = "true" ]; then
+				DEBUG "update_totp: skip_to_menu=true, returning to caller"
 				return 1 # Already asked to skip to menu from a prior error
 			fi
 
@@ -198,6 +283,11 @@ update_totp() {
 			DEBUG "CONFIG_TPM2_TOOLS: $CONFIG_TPM2_TOOLS"
 			DEBUG "Show PCRs"
 			DEBUG "$(pcrs)"
+
+			if tpm_primary_handle_mismatch; then
+				show_primary_handle_mismatch_menu || return 1
+			fi
+
 
 			whiptail_error --title "ERROR: TOTP Generation Failed!" \
 				--menu "    ERROR: $CONFIG_BRAND_NAME couldn't generate the TOTP code.\n
@@ -218,7 +308,16 @@ update_totp() {
 			g)
 				if (whiptail_warning --title 'Generate new TOTP/HOTP secret' \
 					--yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80); then
-					generate_totp_hotp && update_totp && BG_COLOR_MAIN_MENU="normal" && reseal_tpm_disk_decryption_key
+					if generate_totp_hotp && update_totp; then
+						BG_COLOR_MAIN_MENU="normal"
+						if ! (reseal_tpm_disk_decryption_key); then
+							BG_COLOR_MAIN_MENU="error"
+							return 1
+						fi
+					else
+						BG_COLOR_MAIN_MENU="error"
+						return 1
+					fi
 				fi
 				;;
 			i)
@@ -226,7 +325,13 @@ update_totp() {
 				return 1
 				;;
 			p)
-				reset_tpm && update_totp && BG_COLOR_MAIN_MENU="normal" && reseal_tpm_disk_decryption_key
+				if reset_tpm && update_totp; then
+					BG_COLOR_MAIN_MENU="normal"
+					if ! (reseal_tpm_disk_decryption_key); then
+						BG_COLOR_MAIN_MENU="error"
+						return 1
+					fi
+				fi
 				;;
 			x)
 				recovery "User requested recovery shell"
@@ -290,7 +395,16 @@ update_hotp() {
 		g)
 			if (whiptail_warning --title 'Generate new TOTP/HOTP secret' \
 				--yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 0 80); then
-				generate_totp_hotp && BG_COLOR_MAIN_MENU="normal" && reseal_tpm_disk_decryption_key
+				if generate_totp_hotp; then
+					BG_COLOR_MAIN_MENU="normal"
+					if ! (reseal_tpm_disk_decryption_key); then
+						BG_COLOR_MAIN_MENU="error"
+						return 1
+					fi
+				else
+					BG_COLOR_MAIN_MENU="error"
+					return 1
+				fi
 			fi
 			;;
 		i)
@@ -510,10 +624,23 @@ show_tpm_totp_hotp_options_menu() {
 	option=$(cat /tmp/whiptail)
 	case "$option" in
 	g)
-		generate_totp_hotp && reseal_tpm_disk_decryption_key
+		if generate_totp_hotp; then
+			if ! (reseal_tpm_disk_decryption_key); then
+				BG_COLOR_MAIN_MENU="error"
+				return 1
+			fi
+		else
+			BG_COLOR_MAIN_MENU="error"
+			return 1
+		fi
 		;;
 	r)
-		reset_tpm && reseal_tpm_disk_decryption_key
+		if reset_tpm; then
+			if ! (reseal_tpm_disk_decryption_key); then
+				BG_COLOR_MAIN_MENU="error"
+				return 1
+			fi
+		fi
 		;;
 	t)
 		prompt_totp_mismatch
@@ -566,7 +693,7 @@ reset_tpm() {
 			DEBUG "TPM_COUNTER: $TPM_COUNTER"
 			#TPM_COUNTER can be empty
 
-			increment_tpm_counter $TPM_COUNTER>/dev/null 2>&1 ||
+			increment_tpm_counter "$TPM_COUNTER" ||
 				die "Unable to increment tpm counter"
 
 			DO_WITH_DEBUG sha256sum /tmp/counter-$TPM_COUNTER >/boot/kexec_rollback.txt ||
@@ -612,13 +739,30 @@ attempt_default_boot() {
 	fi
 	DEFAULT_FILE=$(find /boot/kexec_default.*.txt 2>/dev/null | head -1)
 	if [ -r "$DEFAULT_FILE" ]; then
+		# compute additional options if special handling required
+		extra=""
+		if [ ! -s /boot/kexec_primhdl_hash.txt ]; then
+			BG_COLOR_MAIN_MENU="error"
+			whiptail_error --title 'ERROR: TPM Primary Handle Missing' \
+				--msgbox "A default boot entry exists, but the TPM primary-handle hash is missing.\n"\
+				"This happens after swapping disks between machines.\n"\
+				"You must select a new default boot option (Options -> Boot Options -> Show OS Boot Menu -> <Pick OS> -> Make default)\n"\
+				"before proceeding; the act of saving the default will generate the hash." 0 80
+			extra="-m -s"
+		fi
 		TRACE_FUNC
-		DO_WITH_DEBUG kexec-select-boot -b /boot -c "grub.cfg" -g ||
-			recovery "Failed default boot"
+		if ! DO_WITH_DEBUG kexec-select-boot $extra -b /boot -c "grub.cfg" -g; then
+			BG_COLOR_MAIN_MENU="error"
+			warn "Default boot failed. Returning to main menu"
+			return 1
+		fi
+		# if we invoked with extra flags due to missing hash, bail back to menu
+		[ -n "$extra" ] && return 1
 	elif (whiptail_warning --title 'No Default Boot Option Configured' \
-		--yesno "There is no default boot option configured yet.\nWould you like to load a menu of boot options?\nOtherwise you will return to the main menu." 0 80); then
+		--yesno "There is no default boot option configured yet.\n\nSelecting Yes opens a one-time boot menu only.\nIt will not set a default option and will not run default-save TPM DUK reseal flow.\n\nTo set a persistent default, use:\nOptions -> Boot Options -> Show OS Boot Menu -> <Pick OS> -> Make default.\n\nWould you like to continue with one-time boot selection now?" 0 80); then
 		TRACE_FUNC
-		DO_WITH_DEBUG kexec-select-boot -m -b /boot -c "grub.cfg" -g
+		DEBUG "attempt_default_boot: no default configured, using one-time boot menu (-s) to avoid default-save actions"
+		DO_WITH_DEBUG kexec-select-boot -m -s -b /boot -c "grub.cfg" -g
 	fi
 }
 

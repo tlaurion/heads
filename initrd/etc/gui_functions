@@ -33,20 +33,40 @@ mount_usb() {
 }
 
 # -- Display related functions --
+# Produce debug output for whiptail invocations with shell-quoted args
+whiptail_debug_args() {
+	local helper="$1"
+	shift
+	local quoted_args=""
+	local arg
+
+	for arg in "$@"; do
+		quoted_args+=" $(printf '%q' "$arg")"
+	done
+
+	DEBUG "$helper: argc=$# argv:${quoted_args:- <none>}"
+}
+
 # Produce a whiptail prompt with 'warning' background, works for fbwhiptail and newt
 whiptail_warning() {
+	whiptail_debug_args "whiptail_warning" "$@"
 	if [ -x /bin/fbwhiptail ]; then
+		DEBUG "whiptail_warning: backend=fbwhiptail bg=$BG_COLOR_WARNING"
 		whiptail $BG_COLOR_WARNING "$@"
 	else
+		DEBUG "whiptail_warning: backend=newt NEWT_COLORS=root=,$TEXT_BG_COLOR_WARNING"
 		env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail "$@"
 	fi
 }
 
 # Produce a whiptail prompt with 'error' background, works for fbwhiptail and newt
 whiptail_error() {
+	whiptail_debug_args "whiptail_error" "$@"
 	if [ -x /bin/fbwhiptail ]; then
+		DEBUG "whiptail_error: backend=fbwhiptail bg=$BG_COLOR_ERROR"
 		whiptail $BG_COLOR_ERROR "$@"
 	else
+		DEBUG "whiptail_error: backend=newt NEWT_COLORS=root=,$TEXT_BG_COLOR_ERROR"
 		env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail "$@"
 	fi
 }
@@ -55,6 +75,7 @@ whiptail_error() {
 whiptail_type() {
 	local TYPE="$1"
 	shift
+	whiptail_debug_args "whiptail_type($TYPE)" "$@"
 	case "$TYPE" in
 	error)
 		whiptail_error "$@"
@@ -63,6 +84,11 @@ whiptail_type() {
 		whiptail_warning "$@"
 		;;
 	normal)
+		DEBUG "whiptail_type(normal): backend=default"
+		whiptail "$@"
+		;;
+	*)
+		warn "whiptail_type: unknown TYPE='$TYPE', falling back to normal"
 		whiptail "$@"
 		;;
 	esac

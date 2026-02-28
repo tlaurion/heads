@@ -10,7 +10,7 @@ TRACE_FUNC
 if [ "$CONFIG_TPM" = "y" ]; then
 	DO_WITH_DEBUG --mask-position 5 \
 		tpmr unseal 4d47 0,1,2,3,4,7 312 "$TOTP_SECRET" ||
-			die "Unable to unseal TOTP secret from TPM"
+			die "Unable to unseal TOTP secret from TPM. Resolution: select 'Options --> TPM/TOTP/HOTP Options --> Generate new TOTP/HOTP secret'. If generation fails, select 'Options --> TPM/TOTP/HOTP Options --> Reset the TPM'."
 fi
 
 if ! DO_WITH_DEBUG totp -q <"$TOTP_SECRET"; then
