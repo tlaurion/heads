@@ -769,6 +769,11 @@ reseal_tpm_disk_decryption_key() {
 		DEBUG "LUKS TPM Disk Unlock Key is allowed in board configs. Continuing"
 	fi
 
+	if [ "$CONFIG_TPM" = "y" ] && ! unseal-totp >/dev/null 2>&1; then
+		warn "Skipping TPM Disk Unlock Key reseal because TOTP secret could not be unsealed"
+		return 1
+	fi
+
 	if ! grep -q /boot /proc/mounts; then
 		mount -o ro /boot ||
 			recovery "Unable to mount /boot"
@@ -1674,6 +1679,7 @@ load_keymap() {
 show_totp_until_esc() {
 	local now_str status_line current_totp ch
 	local last_totp_time=0 last_totp=""
+	local totp_unseal_failed="n"
 	printf "\n" # reserve a line for updates
 
 	# Clear any pending keystrokes before we start displaying the TOTP.
@@ -1695,15 +1701,17 @@ show_totp_until_esc() {
 		local now_sec=$now_epoch
 
 		# Refresh TOTP at most once every 1 second
-		if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_TOTP_SKIP_QRCODE" != "y" ]; then
+		if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_TOTP_SKIP_QRCODE" != "y" ] && [ "$totp_unseal_failed" != "y" ]; then
 			if [ $((now_epoch - last_totp_time)) -ge 1 ] || [ -z "$last_totp" ]; then
 				if current_totp=$(unseal-totp 2>/dev/null); then
 					last_totp="$current_totp"
 					last_totp_time=$now_epoch
 				else
-					# If unseal fails, clear cached value so we retry later
+					# If unseal fails, avoid repeated retries/log spam while this
+					# screen is displayed. User can still press Esc to continue.
 					last_totp=""
 					last_totp_time=0
+					totp_unseal_failed="y"
 				fi
 			fi
 		fi
@@ -1721,7 +1729,7 @@ show_totp_until_esc() {
 					totp_field=" | TOTP unavailable"
 				fi
 			fi
-			status_line="[$now_str]${totp_field} | Press Esc to continue..."
+			status_line="[$now_str]${totp_field} | Press Esc to continue or Ctrl+Alt+Del to reboot..."
 			printf "\r%s\033[K" "$status_line"
 		fi
 

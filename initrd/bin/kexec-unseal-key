@@ -25,6 +25,18 @@ DEBUG "CONFIG_TPM2_TOOLS: $CONFIG_TPM2_TOOLS"
 DEBUG "Show PCRs"
 DEBUG "$(pcrs)"
 
+# If TOTP cannot be unsealed, do not ask for TPM DUK passphrase. In this
+# state, user should reseal TOTP/HOTP secret or reset TPM; booting can proceed
+# with the Disk Recovery Key path instead.
+totp_probe_file="/tmp/secret/totp.key.probe"
+if [ "$CONFIG_TPM" = "y" ] && ! DO_WITH_DEBUG --mask-position 5 \
+	tpmr unseal 4d47 0,1,2,3,4,7 312 "$totp_probe_file"; then
+	shred -n 10 -z -u "$totp_probe_file" 2>/dev/null || true
+	warn "Unable to unseal TOTP secret from TPM. Reseal TOTP/HOTP secret or reset TPM. Boot can continue only with the LUKS Disk Recovery Key passphrase."
+	exit 1
+fi
+shred -n 10 -z -u "$totp_probe_file" 2>/dev/null || true
+
 for tries in 1 2 3; do
 	# Show updating timestamp/TOTP until user presses Esc to continue to the
 	# passphrase prompt. This gives the user context while they prepare to
