@@ -26,12 +26,6 @@ fi
 
 paramsdir="${paramsdir%%/}"
 
-PRIMHASH_FILE="$paramsdir/kexec_primhdl_hash.txt"
-if [ "$CONFIG_TPM2_TOOLS" = "y" ] && [ -s "$PRIMHASH_FILE" ]; then
-	sha256sum -c "$PRIMHASH_FILE" >/dev/null 2>&1 ||
-		die $"$paramsdir: TPM2 primary handle hash does not match the expected value.\nThis is expected when this disk was swapped from another computer.\nIf disk swap did not occur, this may indicate tampering.\nIf you trust this disk and just flashed trusted firmware, reset the TPM.\nOtherwise, flash clean trusted firmware first, then reset TPM.\nAfter reset, regenerate TOTP/HOTP secret and re-sign /boot checksums."
-fi
-
 assert_signable
 TRACE_FUNC
 
@@ -100,7 +94,7 @@ if [ "$rollback" = "y" ]; then
 
 	# Increment the TPM counter
 	DEBUG "rollback=y: Incrementing counter $TPM_COUNTER."
-	increment_tpm_counter "$TPM_COUNTER" ||
+	increment_tpm_counter $TPM_COUNTER >/dev/null 2>&1 ||
 		die "$paramsdir: Unable to increment tpm counter"
 
 	# Ensure the incremented counter file exists

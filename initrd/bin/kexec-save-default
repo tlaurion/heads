@@ -282,7 +282,6 @@ if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
 		sha256sum /tmp/secret/primary.handle > "$PRIMHASH_FILE" ||
 			die "ERROR: Failed to Hash TPM2 primary key handle!"
 		DEBUG "TPM2 primary key handle hash saved to $PRIMHASH_FILE"
-		INFO "TPM primary-handle hash written; future TPM disk-unlock keys will be able to unseal."
 	else
 		die "ERROR: TPM2 primary key handle file does not exist!"
 	fi

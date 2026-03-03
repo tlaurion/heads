@@ -64,19 +64,19 @@ if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
 		#PRIMHASH_FILE (normally /boot/kexec_primhdl_hash.txt) exists and is not empty
 		sha256sum -c "$PRIMHASH_FILE" >/dev/null 2>&1 ||
 			{
+				echo "FATAL: Hash of TPM2 primary key handle mismatch!"
+				warn "If you have not intentionally regenerated TPM2 primary key,"
+				warn "your system may have been compromised"
 				DEBUG "Hash of TPM2 primary key handle mismatched for $PRIMHASH_FILE"
 				DEBUG "Contents of $PRIMHASH_FILE:"
 				DEBUG "$(cat $PRIMHASH_FILE)"
-				die $'TPM2 primary handle hash does not match the expected value.\nThis is expected when this disk was swapped from another computer.\nIf disk swap did not occur, this may indicate tampering.\nIf you trust this disk and just flashed trusted firmware, reset the TPM.\nOtherwise, flash clean trusted firmware first, then reset TPM.\nAfter reset, regenerate TOTP/HOTP secret and re-sign /boot checksums.'
 			}
 	else
 		warn "Hash of TPM2 primary key handle does not exist"
-		warn "Without a default boot the TPM disk‑unlock key will not unseal on later boots, so set one now."
 		warn "Please rebuild the TPM2 primary key handle hash by setting a default OS to boot."
 		warn "Select Options-> Boot Options -> Show OS Boot Menu -> <Pick OS> -> Make default"
 		#TODO: Simplify/Automatize TPM2 firmware upgrade process. Today: upgrade, reboot, reseal(type TPM Owner Password), resign, boot
-		# Missing hash is warning-only: do not force user-select/default-save flow,
-		# otherwise auto/default boot can unexpectedly trigger TPM DUK reseal paths.
+		default_failed="y"
 		DEBUG "Hash of TPM2 primary key handle does not exist under $PRIMHASH_FILE"
 	fi
 fi
@@ -187,8 +187,8 @@ confirm_menu_option() {
 		whiptail_warning --title "Confirm boot details" \
 			--menu "Confirm the boot details for $name:\n\n$(echo $kernel | fold -s -w 80) \n\n" 0 80 8 \
 			-- 'd' "${default_text}" 'y' "Boot one time" \
-			2>/tmp/whiptail || die "Aborting boot attempt"		# NOTE: selecting a default will also write a TPM primary-handle hash
-		# which is required for TPM disk-unlock keys to unseal on later boots
+			2>/tmp/whiptail || die "Aborting boot attempt"
+
 		option_confirm=$(cat /tmp/whiptail)
 	else
 		echo "+++ Please confirm the boot details for $name:"
@@ -225,7 +225,7 @@ save_default_option() {
 	if [ "$gui_menu" != "y" ]; then
 		read \
 			-n 1 \
-			-p "Saving a default will modify the disk and record the TPM primary-handle hash used for disk-unlock keys. Proceed? (Y/n): " \
+			-p "Saving a default will modify the disk. Proceed? (Y/n): " \
 			default_confirm
 		echo
 	fi
