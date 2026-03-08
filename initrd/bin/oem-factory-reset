@@ -725,22 +725,25 @@ generate_checksums() {
 	if [ "$CONFIG_TPM" = "y" ]; then
 		if [ "$CONFIG_IGNORE_ROLLBACK" != "y" ]; then
 			tpmr counter_create \
-				-pwdc '' \
+				-pwdc "${TPM_PASS:-}" \
 				-la -3135106223 |
 				tee /tmp/counter >/dev/null 2>&1 ||
 				whiptail_error_die "Unable to create TPM counter"
 			TPM_COUNTER=$(cut -d: -f1 </tmp/counter)
 
-			if [ -s /tmp/counter-$TPM_COUNTER ]; then
+			[ -n "$TPM_COUNTER" ] || whiptail_error_die "Unable to parse TPM counter id"
 
-				# increment TPM counter
-				increment_tpm_counter $TPM_COUNTER >/dev/null 2>&1 ||
-					whiptail_error_die "Unable to increment tpm counter"
+			# increment TPM counter so /tmp/counter-$TPM_COUNTER is populated,
+			# then persist rollback metadata under /boot for next-boot preflight.
+			increment_tpm_counter "$TPM_COUNTER" ||
+				whiptail_error_die "Unable to increment TPM counter"
 
-				# create rollback file
-				sha256sum /tmp/counter-$TPM_COUNTER >/boot/kexec_rollback.txt 2>/dev/null ||
-					whiptail_error_die "Unable to create rollback file"
-			fi
+			[ -s /tmp/counter-"$TPM_COUNTER" ] ||
+				whiptail_error_die "TPM counter increment did not produce counter state for rollback file"
+
+			# create rollback file
+			sha256sum /tmp/counter-"$TPM_COUNTER" >/boot/kexec_rollback.txt 2>/dev/null ||
+				whiptail_error_die "Unable to create rollback file"
 		fi
 
 		# If HOTP is enabled from board config, create HOTP counter
@@ -854,76 +857,6 @@ set_default_boot_option() {
 	TRACE_FUNC
 }
 
-report_integrity_measurements() {
-	TRACE_FUNC
-
-	#check for GPG key in keyring
-	GPG_KEY_COUNT=$(gpg -k 2>/dev/null | wc -l)
-	if [ "$GPG_KEY_COUNT" -ne 0 ]; then
-		# Check and report TOTP
-		# update the TOTP code every thirty seconds
-		date=$(date "+%Y-%m-%d %H:%M:%S %Z")
-		seconds=$(date "+%s")
-		half=$(expr \( "$seconds" % 60 \) / 30)
-		if [ "$CONFIG_TPM" != "y" ]; then
-			TOTP="NO TPM"
-		elif [ "$half" != "$last_half" ]; then
-			last_half=$half
-			TOTP=$(unseal-totp) >/dev/null 2>&1
-		fi
-
-		# Check and report on HOTP status
-		if [ -x /bin/hotp_verification ]; then
-			HOTP="Unverified"
-			enable_usb
-			for attempt in 1 2 3; do
-				if ! hotp_verification info >/dev/null 2>&1; then
-					whiptail_warning --title "WARNING: Please insert your HOTP enabled USB Security dongle (Attempt $attempt/3)" --msgbox "Your HOTP enabled USB Security dongle was not detected.\n\nPlease remove it and insert it again." 0 80
-				else
-					break
-				fi
-			done
-
-			if [ $attempt -eq 3 ]; then
-				die "No HOTP enabled USB Security dongle detected. Please disable 'CONFIG_HOTPKEY' in the board config and rebuild."
-			fi
-
-			# Don't output HOTP codes to screen, so as to make replay attacks harder
-			HOTP=$(unseal-hotp) >/dev/null 2>&1
-			hotp_verification check $HOTP
-			case "$?" in
-			0)
-				HOTP="Success"
-				;;
-			4)
-				HOTP="Invalid code"
-				BG_COLOR_MAIN_MENU="error"
-				;;
-			*)
-				HOTP="Error checking code, Insert USB Security dongle and retry"
-				BG_COLOR_MAIN_MENU="warning"
-				;;
-			esac
-		else
-			HOTP='N/A'
-		fi
-		# Check for detached signed digest and report on /boot integrity status
-		check_config /boot force
-		TMP_HASH_FILE="/tmp/kexec/kexec_hashes.txt"
-
-		if (cd /boot && sha256sum -c "$TMP_HASH_FILE" >/tmp/hash_output); then
-			HASH="OK"
-		else
-			HASH="ALTERED"
-		fi
-
-		#Show results
-		whiptail_type $BG_COLOR_MAIN_MENU --title "Measured Integrity Report" --msgbox "$date\nTOTP: $TOTP | HOTP: $HOTP\n/BOOT INTEGRITY: $HASH\n\nPress OK to continue or Ctrl+Alt+Delete to reboot" 0 80
-	fi
-
-	TRACE_FUNC
-}
-
 usb_security_token_capabilities_check() {
 	TRACE_FUNC
 
@@ -978,8 +911,14 @@ fi
 
 #Make sure /boot is mounted if board config defines default
 mount_boot
-# We show current integrity measurements status and time
-report_integrity_measurements
+# Show integrity report only when prior Heads trust metadata exists.
+# On fresh installs / first ownership (no kexec trust files), this report is
+# not actionable and can be confused with a tampering warning.
+if has_prior_boot_trust_metadata /boot/kexec_rollback.txt; then
+	report_integrity_measurements
+else
+	DEBUG "Skipping integrity report in OEM Factory Reset: no prior /boot trust metadata detected (fresh first-ownership path)"
+fi
 
 # Clear the screen
 clear
@@ -1315,8 +1254,8 @@ else
 	generate_OEM_gpg_keys
 fi
 
-# Obtain GPG key ID
-GPG_GEN_KEY=$(gpg --list-keys --with-colons | grep "^fpr" | cut -d: -f10 | head -n1)
+# Obtain GPG key ID without printing trustdb maintenance chatter to console
+GPG_GEN_KEY=$(gpg --list-keys --with-colons 2>/dev/null | grep "^fpr" | cut -d: -f10 | head -n1)
 #Where to export the public key
 PUBKEY="/tmp/${GPG_GEN_KEY}.asc"
 
@@ -1478,11 +1417,26 @@ while true; do
 done
 
 ## all done -- reboot
-whiptail --msgbox "
-    OEM Factory Reset / Re-Ownership has completed successfully\n\n
-    After rebooting, you will need to generate new TOTP/HOTP secrets\n
-    when prompted in order to complete the setup process.\n\n
-    Press Enter to reboot.\n" \
+if [ "${CONFIG_TPM_DISK_UNLOCK_KEY:-n}" = "y" ]; then
+	boot_next_steps="Then open: Options -> Boot Options -> Show OS boot menu
+and set a new default boot option.
+This step also configures/reseals the TPM Disk Unlock Key (DUK).
+"
+else
+	boot_next_steps="Then open: Options -> Boot Options -> Show OS boot menu
+and set a new default boot option.
+"
+fi
+
+completion_msg="OEM Factory Reset / Re-Ownership has completed successfully
+
+After rebooting, you will need to generate new TOTP/HOTP secrets
+when prompted in order to complete the setup process.
+
+${boot_next_steps}
+Press Enter to reboot."
+
+whiptail --msgbox "${completion_msg}" \
 	$HEIGHT $WIDTH --title "OEM Factory Reset / Re-Ownership Complete"
 
 # Clean LUKS secrets

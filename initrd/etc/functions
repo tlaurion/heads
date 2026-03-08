@@ -20,6 +20,7 @@ esac
 
 die() {
 	TRACE_FUNC
+	DEBUG "!!! ERROR: $* !!!"
 	#TODO: add colors to output, here red for ERROR?
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 		echo -e " !!! ERROR: $* !!!" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
@@ -38,6 +39,7 @@ die() {
 # Do not overuse this!  See doc/logging.md.
 warn() {
 	TRACE_FUNC
+	DEBUG " *** WARNING: $* ***"
 	#TODO: add colors to output, here yellow for WARNING?
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 		echo -e " *** WARNING: $* ***" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
@@ -94,6 +96,7 @@ NOTE() {
 # knowledge of how Heads works.  See doc/logging.md.
 INFO() {
 	TRACE_FUNC
+	DEBUG "$*"
 	#TODO: add colors to output, here green for INFO?
 
 	# if not CONFIG_QUIET_MODE=y, output to console. If not, output to debug.log
@@ -110,6 +113,27 @@ INFO() {
 #  Main consumer is DO_WITH_DEBUG, which uses this to log command output
 LOG() {
 	echo "LOG: $*" >>/tmp/debug.log
+}
+
+# Filter known harmless LVM warning noise while preserving all other stderr.
+_filter_lvm_stderr() {
+	while IFS= read -r line; do
+		case "$line" in
+		*"Failed to set up async io, using sync io."*)
+			continue
+			;;
+		*"leaked on lvm invocation"*)
+			continue
+			;;
+		esac
+		printf '%s\n' "$line" >&2
+	done
+}
+
+# Wrapper for all runtime lvm invocations so users don't see benign async-io
+# fallback warnings, especially in quiet mode.
+run_lvm() {
+	command lvm "$@" 2> >(_filter_lvm_stderr)
 }
 
 fw_version() {
@@ -169,13 +193,17 @@ confirm_gpg_card() {
 	read -r -n 1 -p $'\n'"$message" card_confirm
 	echo
 
-	if [ "$card_confirm" != "y" \
+	while [ "$card_confirm" != "y" \
 		-a "$card_confirm" != "Y" \
 		-a "$card_confirm" != "b" \
 		-a -n "$card_confirm" ] \
-		; then
-		die "gpg card not confirmed"
-	fi
+		; do
+		read -r -n 1 -p $'\nGPG card not confirmed. Insert card and press Enter to retry, or "x" to abort: ' card_confirm
+		echo
+		if [ "$card_confirm" = "x" ]; then
+			die "gpg card not confirmed"
+		fi
+	done
 
 	# If user has known GPG key material Thumb drive backup and asked to use it
 	if [[ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" && "$card_confirm" == "b" ]]; then
@@ -323,10 +351,7 @@ gpg_auth() {
 
 recovery() {
 	TRACE_FUNC
-	echo >&2 "!!!!! $*"
-
-	# Remove any temporary secret files that might be hanging around
-	# but recreate the directory so that new tools can use it.
+	# Remove any temporary secret files, but recreate the directory so that new tools can use it.
 
 	#safe to always be true. Otherwise "set -e" would make it exit here
 	shred -n 10 -z -u /tmp/secret/* 2>/dev/null || true
@@ -365,6 +390,10 @@ recovery() {
 		if [ "$CONFIG_DEBUG_OUTPUT" != "y" ]; then
 			#User can enable DEBUG_OUTPUT=y and TRACE_FUNCTION_TRACING_OUTPUT=y from Configuration Options
 			NOTE "If you want to file a bug, please enable Debug mode through 'Options --> Change configuration settings > Configure Heads informational'"
+		fi
+		# display any custom recovery message just before the banner
+		if [ -n "$*" ]; then
+			printf '\n!!!!! %s\n\n' "$*" >&2
 		fi
 		echo >&2 "!!!!! Starting recovery shell"
 
@@ -724,6 +753,78 @@ pcrs() {
 	fi
 }
 
+# Marker helpers for TPM state that requires reset before reseal/generate paths.
+tpm_reset_required_marker_path() {
+	printf %s "/tmp/secret/tpm_reset_required"
+}
+
+tpm_reset_required_reason_path() {
+	printf %s "/tmp/secret/tpm_reset_required.reason"
+}
+
+tpm_reset_required_source_path() {
+	printf %s "/tmp/secret/tpm_reset_required.source"
+}
+
+tpm_reset_required_timestamp_path() {
+	printf %s "/tmp/secret/tpm_reset_required.timestamp"
+}
+
+debug_tpm_reset_required_state() {
+	TRACE_FUNC
+	local marker reason source when
+	marker="$(tpm_reset_required_marker_path)"
+	reason="$(tpm_reset_required_reason_path)"
+	source="$(tpm_reset_required_source_path)"
+	when="$(tpm_reset_required_timestamp_path)"
+
+	if [ -f "$marker" ]; then
+		DEBUG "TPM reset marker: PRESENT path=$marker"
+		DEBUG "TPM reset marker: reason=$(cat "$reason" 2>/dev/null || echo '<unset>')"
+		DEBUG "TPM reset marker: source=$(cat "$source" 2>/dev/null || echo '<unset>')"
+		DEBUG "TPM reset marker: timestamp=$(cat "$when" 2>/dev/null || echo '<unset>')"
+	else
+		DEBUG "TPM reset marker: ABSENT path=$marker"
+	fi
+}
+
+set_tpm_reset_required() {
+	TRACE_FUNC
+	local reason source
+	reason="${1:-TPM state marked invalid by unknown caller}"
+	source="${2:-unknown}"
+	mkdir -p /tmp/secret || true
+	echo "$reason" >"$(tpm_reset_required_reason_path)" 2>/dev/null || true
+	echo "$source" >"$(tpm_reset_required_source_path)" 2>/dev/null || true
+	date -u "+%Y-%m-%d %H:%M:%S UTC" >"$(tpm_reset_required_timestamp_path)" 2>/dev/null || true
+	: >"$(tpm_reset_required_marker_path)"
+	DEBUG "Set TPM reset-required marker: reason='$reason' source='$source'"
+	debug_tpm_reset_required_state
+}
+
+clear_tpm_reset_required() {
+	TRACE_FUNC
+	rm -f "$(tpm_reset_required_marker_path)"
+	rm -f "$(tpm_reset_required_reason_path)"
+	rm -f "$(tpm_reset_required_source_path)"
+	rm -f "$(tpm_reset_required_timestamp_path)"
+	DEBUG "Cleared TPM reset-required marker and metadata"
+	debug_tpm_reset_required_state
+}
+
+tpm_reset_required() {
+	TRACE_FUNC
+	local marker
+	marker="$(tpm_reset_required_marker_path)"
+	if [ -f "$marker" ]; then
+		DEBUG "tpm_reset_required: yes"
+		debug_tpm_reset_required_state
+		return 0
+	fi
+	DEBUG "tpm_reset_required: no"
+	return 1
+}
+
 confirm_totp() {
 	TRACE_FUNC
 	prompt="$1"
@@ -765,6 +866,24 @@ confirm_totp() {
 
 reseal_tpm_disk_decryption_key() {
 	TRACE_FUNC
+	local GPG_KEY_COUNT
+	if tpm_reset_required; then
+		warn "Cannot reseal TPM disk decryption key while TPM state is marked invalid. Reset the TPM first (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+		return 1
+	fi
+	# Resealing disk-unlock material eventually requires signing /boot updates;
+	# do not proceed if keyring is empty.
+	GPG_KEY_COUNT=$(gpg -k 2>/dev/null | wc -l)
+	if [ "$GPG_KEY_COUNT" -eq 0 ]; then
+		DEBUG "Skipping TPM disk-key reseal: GPG keyring is empty (caller handles user guidance)"
+		return 1
+	fi
+
+	# only relevant for TPM2; TPM1 has no primary handle concept
+	if [ "$CONFIG_TPM2_TOOLS" = "y" ] && [ ! -f "/tmp/secret/primary.handle" ]; then
+		warn "Cannot reseal TPM disk decryption key; no TPM primary handle. Use the GUI menu (Options -> TPM/TOTP/HOTP Options -> Reset the TPM) to reset the TPM first."
+		return 1
+	fi
 	#For robustness, exit early if LUKS TPM Disk Unlock Key is prohibited in board configs
 	if [ "$CONFIG_TPM_DISK_UNLOCK_KEY" == "n" ]; then
 		DEBUG "LUKS TPM Disk Unlock Key is prohibited in board configs"
@@ -779,11 +898,12 @@ reseal_tpm_disk_decryption_key() {
 	fi
 
 	if [ -s /boot/kexec_key_devices.txt ] || [ -s /boot/kexec_key_lvm.txt ]; then
+		preflight_rollback_counter_before_reseal
 		NOTE "LUKS TPM sealed Disk Unlock Key secret needs to be resealed alongside TOTP/HOTP secret"
 		echo "Resealing LUKS TPM Disk Unlock Key to be unsealed by LUKS TPM Disk Unlock Key passphrase"
-		while ! kexec-seal-key /boot; do
-			warn "Recovery Disk Encryption key passphrase/TPM Owner Password may be invalid. Please try again"
-		done
+		if ! kexec-seal-key /boot; then
+			die "Failed to reseal LUKS TPM Disk Unlock Key. See preceding errors from kexec-seal-key for validation/retry outcome."
+		fi
 		NOTE "LUKS header hash changed under /boot/kexec_luks_hdr_hash.txt"
 		echo "Updating checksums and signing all files under /boot/kexec.sig"
 		attempt=1
@@ -998,17 +1118,146 @@ check_tpm_counter() {
 			warn "TPM Owner Password is required to create a new TPM counter for /boot content rollback prevention"
 		fi
 
+		# attempt to make a new counter, capturing any stderr for debugging
+		DEBUG "Invoking tpmr counter_create with label $LABEL"
+		# run it, then record the exit status explicitly; the '!' operator
+		# cannot be used because it would hide the real return code.
 		tpmr counter_create \
-			-pwdc '' \
-			-la $LABEL |
-			tee /tmp/counter >/dev/null 2>&1 ||
-			die "Unable to create TPM counter"
+			-pwdc "${tpm_password:-}" \
+			-la $LABEL \
+			> /tmp/counter 2> >(tee >(SINK_LOG "tpm counter_create stderr") >&2)
+		local rc=$?
+		if [ $rc -ne 0 ]; then
+			DEBUG "tpmr counter_create failed with status $rc"
+			# don't tell the user to reset again; the TPM was just reset
+			die "Unable to create TPM counter; TPM appears to be in a bad state. Perform OEM Factory Reset / re-ownership and try again."
+		fi
 		TPM_COUNTER=$(cut -d: -f1 </tmp/counter | tr -d '\n')
 		DEBUG "Created new TPM_COUNTER: '$TPM_COUNTER'"
 	fi
 
 	if [ -z "$TPM_COUNTER" ]; then
 		die "No TPM counter could be found or created."
+	fi
+}
+
+# Return the numeric value of the rollback counter stored in the given file
+# (typically /boot/kexec_rollback.txt).  Returns an empty string if the file
+# doesn't exist or doesn't contain a counter entry.
+get_rollback_counter_id() {
+	TRACE_FUNC
+	local rollback_file="$1"
+	if [ -r "$rollback_file" ]; then
+		grep -Eo 'counter-[0-9a-fA-F]+' "$rollback_file" | sed -n 's/counter-//p' | head -n1 | tr -d '\n'
+	fi
+}
+
+# Return success when /boot appears to have prior Heads trust metadata.
+# This distinguishes first ownership/fresh install from an initialized system
+# where missing TPM metadata is suspicious.
+has_prior_boot_trust_metadata() {
+	local rollback_file
+	rollback_file="${1:-/boot/kexec_rollback.txt}"
+	[ -r "$rollback_file" ] || [ -r /boot/kexec_default_hashes.txt ] || [ -r /boot/kexec.sig ]
+}
+
+# Test whether the current TPM rollback counter (the one referenced by
+# /boot/kexec_rollback.txt) can still be read.  Exit 0 if the counter can be
+# read, non-zero otherwise.  This can be used to decide whether the TPM needs a
+# full reset instead of merely resealing secrets.
+counter_readable() {
+	TRACE_FUNC
+	# rely on colon-free output in case caller wraps in DO_WITH_DEBUG
+	local id
+	id=$(get_rollback_counter_id /boot/kexec_rollback.txt)
+	if [ -n "$id" ]; then
+		if tpmr counter_read -ix "$id" >/dev/null 2>&1; then
+			return 0
+		fi
+	fi
+	return 1
+}
+
+# Validate rollback counter state before expensive operations.
+# This is a non-mutating preflight intended to fail early when the configured
+# rollback counter is clearly unusable.
+# Parameters:
+#   $1 optional rollback file path (default: /boot/kexec_rollback.txt)
+#   $2 optional explicit counter id override
+#   $3 optional on-error mode: 'die' (default) or 'return'
+preflight_rollback_counter_before_reseal() {
+	TRACE_FUNC
+	local rollback_file counter_id attrs_lc on_error error_file
+	rollback_file="${1:-/boot/kexec_rollback.txt}"
+	counter_id="$2"
+	on_error="${3:-die}"
+	local reset_required_marker="/tmp/secret/rollback_reset_required"
+	error_file="/tmp/rollback_preflight_error"
+
+	fail_preflight() {
+		local message="$1"
+		mkdir -p /tmp/secret || true
+		: >"$reset_required_marker"
+		set_tpm_reset_required "$message" "preflight_rollback_counter_before_reseal"
+		if [ "$on_error" = "return" ]; then
+			echo "$message" >"$error_file"
+			return 1
+		fi
+		die "$message"
+	}
+
+	if [ "$CONFIG_TPM" != "y" ] || [ "$CONFIG_IGNORE_ROLLBACK" = "y" ]; then
+		DEBUG "Skipping rollback counter preflight: rollback checks are disabled"
+		return 0
+	fi
+
+	if [ -z "$counter_id" ]; then
+		counter_id="$(get_rollback_counter_id "$rollback_file")"
+	fi
+	if [ -z "$counter_id" ]; then
+		# If rollback metadata is missing on an already initialized system,
+		# this is an inconsistent TPM/boot state and should be handled before
+		# TOTP/HOTP recovery workflows.
+		if has_prior_boot_trust_metadata "$rollback_file"; then
+			fail_preflight "TPM rollback metadata is missing or unreadable in '$rollback_file'. System appears initialized but rollback state cannot be validated. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+			return 1
+		fi
+		DEBUG "Skipping rollback counter preflight: no counter id in $rollback_file (likely first-time initialization)"
+		return 0
+	fi
+
+	DEBUG "Preflight: validating rollback counter $counter_id before protected operations"
+	if ! tpmr counter_read -ix "$counter_id" >/dev/null 2>&1; then
+		fail_preflight "TPM rollback counter '$counter_id' cannot be read. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+		return 1
+	fi
+
+	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
+		if attrs_lc="$(tpm2 nvreadpublic "0x$counter_id" 2>/dev/null | tr '[:upper:]' '[:lower:]')"; then
+			if [ -n "$attrs_lc" ]; then
+				if echo "$attrs_lc" | grep -q "ownerwrite" && ! echo "$attrs_lc" | grep -q "authwrite"; then
+					fail_preflight "TPM rollback counter '$counter_id' uses ownerwrite-only policy, which does not match Heads rollback increment path. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+					return 1
+				fi
+				if ! echo "$attrs_lc" | grep -Eq "authwrite|ownerwrite"; then
+					fail_preflight "TPM rollback counter '$counter_id' has no writable attribute. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+					return 1
+				fi
+			else
+				fail_preflight "TPM rollback counter '$counter_id' attributes are empty. TPM state is inconsistent. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+				return 1
+			fi
+		else
+			fail_preflight "TPM rollback counter '$counter_id' attributes cannot be read. TPM state is inconsistent. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+			return 1
+		fi
+	fi
+
+	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
+		DEBUG "Preflight: rollback counter $counter_id is readable and has acceptable TPM2 write attributes"
+	else
+		DEBUG "Preflight: rollback counter $counter_id is readable on TPM1"
+		DEBUG "Preflight: post OEM Factory Reset / Re-Ownership, TOTP unseal may be unavailable until a new TOTP/HOTP secret is generated"
 	fi
 }
 
@@ -1027,30 +1276,101 @@ read_tpm_counter() {
 
 increment_tpm_counter() {
 	TRACE_FUNC
-	local counter_id
+	local counter_id counter_present tpm_password increment_ok
 	counter_id="$(echo "$1" | tr -d '\n')"
+	tpm_password="$2"
+	counter_present="n"
+	increment_ok="n"
+	local reset_required_marker="/tmp/secret/rollback_reset_required"
+
+	# Prefer explicit password, otherwise reuse cached TPM owner password.
+	if [ -z "$tpm_password" ] && [ -s /tmp/secret/tpm_owner_password ]; then
+		tpm_password="$(cat /tmp/secret/tpm_owner_password)"
+		DEBUG "increment_tpm_counter: using cached TPM owner password"
+	fi
+
+	# TPM1 counter_increment requires owner auth in practice on this path.
+	# origin/master typically reached this with cached owner password already set,
+	# but the newer reseal/update flows can call this later in the session after
+	# that cache is absent. Prompt once and cache to avoid empty -pwdc failures.
+	if [ "$CONFIG_TPM2_TOOLS" != "y" ] && [ -z "$tpm_password" ]; then
+		warn "TPM Owner Password is required to update rollback counter before signing updated /boot metadata."
+		DEBUG "increment_tpm_counter: TPM1 path has no cached/provided owner password; prompting now"
+		prompt_tpm_owner_password
+		tpm_password="$tpm_owner_password"
+		DEBUG "increment_tpm_counter: TPM1 owner password obtained and cached"
+	fi
 	
 	# Check if counter exists by reading it first
+	DEBUG "reading TPM counter $counter_id"
 	if ! DO_WITH_DEBUG tpmr counter_read -ix "$counter_id" >/tmp/counter-check 2>/dev/null; then
 		DEBUG "TPM counter $counter_id could not be read before incrementing"
 		# Continue with increment attempt anyway to get detailed error messages
 	else
 		DEBUG "TPM counter $counter_id exists and was read successfully"
+		counter_present="y"
 	fi
 
-	# Try to increment the counter
-	if ! DO_WITH_DEBUG tpmr counter_increment -ix "$counter_id" -pwdc '' |
-		tee /tmp/counter-"$counter_id" >/dev/null 2>&1; then
+	# Try to increment the counter.  We normally hide the verbose
+	# output of tpmr commands to avoid overwhelming the console, but we
+	# must *not* swallow any interactive prompts.  The previous implementation
+	# redirected the entire `tpmr counter_create` invocation to a file and
+	# /dev/null, which meant that when the counter was missing the password
+	# prompt could not be seen by the user even though tpmr printed it to the
+	# controlling terminal.  Instead, capture just the stdout in a temporary
+	# file while still letting stdout appear on the console (and logging
+	# stderr to debug log).
+	DEBUG "incrementing TPM counter $counter_id"
+
+	if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
+		# TPM2 counters created with authwrite commonly require index auth (often
+		# empty auth) for nvincrement. Try that first, then owner auth fallback.
+		DEBUG "increment_tpm_counter: TPM2 trying index-auth nvincrement first"
+		if (set -o pipefail; DO_WITH_DEBUG --mask-position 5 \
+			tpmr counter_increment -ix "$counter_id" -pwdc "" \
+			2> >(SINK_LOG "tpm counter_increment stderr") \
+			| tee /tmp/counter-"$counter_id" >/dev/null); then
+			increment_ok="y"
+		elif [ -n "$tpm_password" ]; then
+			DEBUG "increment_tpm_counter: TPM2 index-auth increment failed; trying owner-auth fallback"
+			if (set -o pipefail; DO_WITH_DEBUG --mask-position 5 \
+				tpmr counter_increment -ix "$counter_id" -pwdc "${tpm_password}" \
+				2> >(SINK_LOG "tpm counter_increment stderr") \
+				| tee /tmp/counter-"$counter_id" >/dev/null); then
+				increment_ok="y"
+			fi
+		fi
+	else
+		# TPM1 path uses owner auth in practice.
+		if (set -o pipefail; DO_WITH_DEBUG --mask-position 5 \
+			tpmr counter_increment -ix "$counter_id" -pwdc "${tpm_password:-}" \
+			2> >(SINK_LOG "tpm counter_increment stderr") \
+			| tee /tmp/counter-"$counter_id" >/dev/null); then
+			increment_ok="y"
+		fi
+	fi
+
+	if [ "$increment_ok" != "y" ]; then
+		if [ "$counter_present" = "y" ]; then
+			mkdir -p /tmp/secret || true
+			: >"$reset_required_marker"
+			die "TPM rollback counter '$counter_id' is readable but not incrementable. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+		fi
 		
 		# Check if we need to create a new counter
 		DEBUG "TPM counter increment failed. Attempting to create a new counter..."
 		
-		if DO_WITH_DEBUG tpmr counter_create -pwdc '' -la 3135106223 >/tmp/new-counter 2>/dev/null; then
+		# run counter_create but tee its stdout to a file so we still see
+		# the interactive prompt and any informational messages.
+		if (set -o pipefail; DO_WITH_DEBUG --mask-position 3 \
+			tpmr counter_create -pwdc "${tpm_password:-}" -la 3135106223 \
+			2> >(tee >(SINK_LOG "tpm counter_create stderr") >&2) \
+			| tee /tmp/new-counter >/dev/null); then
 			NEW_COUNTER=$(cut -d: -f1 </tmp/new-counter | tr -d '\n')
-			DEBUG "Created new TPM counter: $NEW_COUNTER. Update kexec_rollback.txt to use this counter."
+			DEBUG "Created new TPM counter: $NEW_COUNTER. (counter won't be usable without reset)"
 		fi
 		
-		die "TPM counter increment failed for rollback prevention. Please reset the TPM or update kexec_rollback.txt with a new counter."
+		die "TPM counter increment failed for rollback prevention. Reset the TPM using the GUI menu (Options -> TPM/TOTP/HOTP Options -> Reset the TPM) to clear the counter and allow a fresh one to be created."
 	fi
 	
 	DEBUG "TPM counter incremented successfully for index $counter_id"
@@ -1136,9 +1456,39 @@ secret_from_rom_hash() {
 	sha256sum "${ROM_IMAGE}" | cut -f1 -d ' ' | fromhex_plain
 }
 
+# Refresh /boot hash of the TPM2 primary handle when available.
+# This prevents a follow-up prompt to "set default boot" solely to rebuild
+# kexec_primhdl_hash.txt after TPM reset/reseal flows.
+refresh_tpm2_primary_handle_hash() {
+	TRACE_FUNC
+	local primhash_file="${1:-/boot/kexec_primhdl_hash.txt}"
+
+	if [ "$CONFIG_TPM2_TOOLS" != "y" ]; then
+		DEBUG "Skipping TPM2 primary handle hash refresh: CONFIG_TPM2_TOOLS != y"
+		return 0
+	fi
+
+	if [ ! -s /tmp/secret/primary.handle ]; then
+		DEBUG "Skipping TPM2 primary handle hash refresh: /tmp/secret/primary.handle not available"
+		return 0
+	fi
+
+	DEBUG "Refreshing TPM2 primary key handle hash into $primhash_file"
+	if ! DO_WITH_DEBUG sha256sum /tmp/secret/primary.handle >"$primhash_file"; then
+		warn "Failed to refresh TPM2 primary key handle hash at $primhash_file"
+		DEBUG "Failed to refresh TPM2 primary key handle hash at $primhash_file"
+		return 1
+	fi
+
+	DEBUG "TPM2 primary key handle hash saved to $primhash_file"
+	return 0
+}
+
 # Update the checksums of the files in /boot and sign them
 update_checksums() {
 	TRACE_FUNC
+	local reset_required_marker="/tmp/secret/rollback_reset_required"
+	local signing_targets
 	# ensure /boot mounted
 	if ! grep -q /boot /proc/mounts; then
 		mount -o ro /boot ||
@@ -1156,7 +1506,32 @@ update_checksums() {
 			extparam=-r
 		fi
 	fi
-	if ! DO_WITH_DEBUG kexec-sign-config -p /boot -u $extparam; then
+
+	# Keep this best-effort and run it before signing while /boot is RW.
+	# Running after kexec-sign-config can fail because that path may remount
+	# /boot read-only before returning.
+	if ! refresh_tpm2_primary_handle_hash; then
+		warn "Proceeding without refreshed TPM2 primary key handle hash"
+		DEBUG "Proceeding without refreshed TPM2 primary key handle hash"
+	fi
+
+	signing_targets="$(find /boot/kexec*.txt 2>/dev/null | tr '\n' ' ')"
+	DEBUG "update_checksums: signing targets under /boot: ${signing_targets:-<none>}"
+	DEBUG "update_checksums: rollback marker path is $reset_required_marker"
+	DEBUG "update_checksums: extparam='$extparam' CONFIG_TPM='${CONFIG_TPM:-}' CONFIG_IGNORE_ROLLBACK='${CONFIG_IGNORE_ROLLBACK:-}'"
+	DEBUG "update_checksums: signing is required because /boot metadata changed (rollback counter and/or resealed secrets) and must be re-trusted"
+
+	warn "About to sign Heads verified boot metadata under /boot (kexec*.txt, kexec_hashes.txt, rollback metadata). This is required after TPM reset/reseal so the next boot can trust updated state. A GPG smartcard/PIN prompt is expected next."
+	DEBUG "About to sign Heads verified boot metadata under /boot (kexec*.txt, kexec_hashes.txt, rollback metadata). This is required after TPM reset/reseal so the next boot can trust updated state. A GPG smartcard/PIN prompt is expected next."
+
+	# signing may prompt for TPM password; avoid DO_WITH_DEBUG which
+	# severs the controlling tty for the child process.
+	DEBUG "running kexec-sign-config -p /boot -u $extparam"
+	rm -f "$reset_required_marker"
+	if ! kexec-sign-config -p /boot -u $extparam; then
+		if [ -e "$reset_required_marker" ]; then
+			die "TPM rollback counter state is invalid for secure rollback protection. Reset TPM from GUI (Options -> TPM/TOTP/HOTP Options -> Reset the TPM)."
+		fi
 		rv=1
 	else
 		rv=0
@@ -1309,9 +1684,9 @@ find_lvm_vg_name() {
 	mkdir -p /tmp/root-hashes-gui
 	# Try to query whether DEVICE is an LVM physical volume.  On systems
 	# without LVM the command may not exist; treat that like "not a PV".
-	if ! lvm pvs --noheadings -o vg_name "$DEVICE" >/tmp/root-hashes-gui/lvm_vg 2>/tmp/root-hashes-gui/lvm_err; then
-		# It's not an LVM PV, or lvm failed entirely.  Log stderr for debugging.
-		DEBUG "lvm pvs failed for $DEVICE, stderr:" "$(cat /tmp/root-hashes-gui/lvm_err)"
+	if ! run_lvm pvs --noheadings -o vg_name "$DEVICE" >/tmp/root-hashes-gui/lvm_vg; then
+		# It's not an LVM PV, or lvm failed entirely.
+		DEBUG "lvm pvs failed for $DEVICE"
 		# try any children shown by lsblk (handles LUKS containers with
 		# internal partitions such as dm-0, dm-1 etc).
 		if command -v lsblk >/dev/null 2>&1; then
@@ -1319,7 +1694,7 @@ find_lvm_vg_name() {
 			for part in $(lsblk -np -l -o NAME "$DEVICE" | tail -n +2); do
 				[ -b "$part" ] || continue
 				DEBUG "find_lvm_vg_name: testing child $part"
-				if lvm pvs --noheadings -o vg_name "$part" >/tmp/root-hashes-gui/lvm_vg 2>/tmp/root-hashes-gui/lvm_err; then
+				if run_lvm pvs --noheadings -o vg_name "$part" >/tmp/root-hashes-gui/lvm_vg; then
 					VG="$(awk 'NF {print $1; exit}' /tmp/root-hashes-gui/lvm_vg)"
 					[ -n "$VG" ] && { echo "$VG"; return 0; }
 				fi

@@ -189,7 +189,7 @@ open_block_device_lvm() {
   local VG="$1"
   local LV MAPPER_VG MAPPER_LV name lvpath FIRST_LV_PREFERRED FIRST_LV_FALLBACK
 
-  if ! lvm vgchange -ay "$VG"; then
+  if ! run_lvm vgchange -ay "$VG"; then
     DEBUG "Can't open LVM VG: $VG"
     return 1
   fi
@@ -207,7 +207,7 @@ open_block_device_lvm() {
     FIRST_LV_FALLBACK=""
     DEBUG "LVM VG $VG has no 'root' LV, enumerating all LVs"
     # list LV names and prefer root-like names
-    for name in $(lvm lvs --noheadings -o lv_name --separator ' ' "$VG" 2>/dev/null); do
+    for name in $(run_lvm lvs --noheadings -o lv_name --separator ' ' "$VG" 2>/dev/null); do
       # thin pool/metadata and swap-like LVs are not root filesystems
       case "$name" in
         *pool*|*tmeta*|*tdata*|*tpool*|swap*)
@@ -272,7 +272,7 @@ open_block_device_luks() {
   # volumes.  This is harmless on systems without lvm installed.
   if command -v lvm >/dev/null 2>&1; then
     DEBUG "running vgscan to populate /dev/mapper after unlocking LUKS"
-    lvm vgscan --mknodes >/dev/null 2>&1 || true
+    run_lvm vgscan --mknodes >/dev/null 2>&1 || true
   fi
 
   open_block_device_layers "/dev/mapper/$LUKSDEV"
@@ -365,7 +365,7 @@ close_block_device_lvm() {
   local VG="$1"
   # Deactivate the VG directly. This avoids recursive LV close probing noise
   # for LV paths that are not PVs and matches the minimal initrd workflow.
-  lvm vgchange -an "$VG" || \
+  run_lvm vgchange -an "$VG" || \
     DEBUG "Can't close LVM VG: $VG"
 }
 

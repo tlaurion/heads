@@ -36,6 +36,40 @@ Since TRACE is for execution flow, show the unprocessed parameters as provided b
 
 You can invoke TRACE to show specific execution flow when needed, but if you are tracing the result of a decision, consider using DEBUG instead.
 
+### Reading TRACE_FUNC output
+
+Each TRACE_FUNC call emits the full call chain leading to the current function.
+The format is:
+
+```text
+TRACE: caller(file:line) -> ... -> current_func(file:line)
+```
+
+The line number in each entry means something different depending on position:
+
+* **Non-last entries**: the line number is the **call site** — the line within that function where it called the next function in the chain.
+* **Last entry**: the line number is where **TRACE_FUNC itself** is called inside the current function (typically the first line of the function body).
+
+Example — a `tpmr unseal` call triggered from `gui-init` (line numbers are illustrative; they will vary with code changes):
+
+```text
+TRACE: main(/init:0) -> main(/bin/gui-init:0) -> main(/bin/tpmr:0) -> main(/bin/tpmr:1037) -> tpm2_unseal(/bin/tpmr:635)
+```
+
+Dissecting each entry:
+
+* `main(/init:0)` — `/init` is the root script; `:0` marks a cross-process boundary (the exact call site is not tracked across subprocess invocations)
+* `main(/bin/gui-init:0)` — `gui-init` was launched by `/init` as a subprocess; `:0` again for the cross-process boundary
+* `main(/bin/tpmr:0)` — `tpmr` was launched by `gui-init` as a subprocess; `:0` for the cross-process boundary
+* `main(/bin/tpmr:1037)` — line 1037 in `tpmr`'s `main` is where it called `tpm2_unseal "$@"` (call site within `main`)
+* `tpm2_unseal(/bin/tpmr:635)` — line 635 is where `TRACE_FUNC` is in `tpm2_unseal` — the function that just entered
+
+To read the trace, open `tpmr` and go to the line numbers shown.
+For example, line 1037 (`tpm2_unseal "$@"`) confirms `main` called `tpm2_unseal` there,
+and line 635 (`TRACE_FUNC`) confirms that is the entry point of `tpm2_unseal`.
+
+This means you can pinpoint the exact call path — including cross-process subprocess chains — that led to any point in execution.
+
 Use this in situations like:
 * Following control flow - use TRACE_FUNC when entering a script or function
 * Showing the parameters used to invoke a script/function, when they are especially relevant and not excessively verbose
