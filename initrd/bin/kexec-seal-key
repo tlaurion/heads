@@ -86,7 +86,7 @@ while [ $attempts -lt 3 ] && [ $luks_drk_passphrase_valid -eq 0 ]; do
 			all_devices_unlocked=0
 			break
 		else
-			echo "++++++ $dev: LUKS device unlocked successfully with the DRK passphrase"
+			STATUS "$dev: LUKS device unlocked successfully with the Disk Recovery Key passphrase"
 		fi
 	done
 
@@ -134,7 +134,7 @@ fi
 
 # Generate key file
 echo
-echo "++++++ Generating new randomized 128 bytes key file that will be sealed/unsealed by LUKS TPM Disk Unlock Key passphrase"
+STATUS "Generating new randomized 128-byte key file for LUKS TPM Disk Unlock Key"
 dd \
 	if=/dev/urandom \
 	of="$DUK_KEY_FILE" \
@@ -214,7 +214,7 @@ for dev in $key_devices; do
 			fi
 
 			if [ "$wipe_desired" == "yes" ] && [ "$keyslot" != "$drk_key_slot" ]; then
-				echo "++++++ $dev: Wiping LUKS key slot $keyslot"
+				STATUS "$dev: Wiping LUKS key slot $keyslot"
 				DO_WITH_DEBUG cryptsetup luksKillSlot \
 					--key-file "$DISK_RECOVERY_KEY_FILE" \
 					$dev $keyslot ||
@@ -223,7 +223,7 @@ for dev in $key_devices; do
 		fi
 	done
 
-	echo "++++++ $dev: Adding LUKS TPM Disk Unlock Key to LUKS key slot $duk_keyslot"
+	STATUS "$dev: Adding LUKS TPM Disk Unlock Key to key slot $duk_keyslot"
 	DO_WITH_DEBUG cryptsetup luksAddKey \
 		--key-file "$DISK_RECOVERY_KEY_FILE" \
 		--new-key-slot $duk_keyslot \

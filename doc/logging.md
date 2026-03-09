@@ -124,6 +124,22 @@ The intent is the same as INFO.
 
 Avoid using this, and change existing console output to INFO or another level.
 
+## STATUS
+
+STATUS is for progress and action announcements that all users must see regardless of output mode.
+
+Use STATUS when an action is starting, in progress, or just completed — things users need to track what Heads is actively doing:
+
+* "Verifying ISO" — user needs to know a signature check is running
+* "Building initrd" — a potentially slow step the user should track
+* "LUKS device unlocked" — confirmation of a security-relevant operation
+* "Executing default boot for $name" — what is about to boot
+
+Unlike INFO, STATUS is always visible in all output modes — a user in quiet mode must still be able to see what Heads is doing.
+Unlike NOTE, STATUS does not sleep — it is for routine progress and action confirmation, not unexpected behavior.
+
+**Future**: STATUS is the placeholder for color output (yellow = in-progress, green = success, red = failure) and eventual whiptail transformation for actionable items.
+
 ## NOTE
 
 NOTE is for contextual information explaining something that is _likely_ to be unexpected or confusing to users new to Heads.

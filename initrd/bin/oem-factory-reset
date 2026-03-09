@@ -967,7 +967,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
 		-o "$prompt_output" == "Y" ] \
 		; then
 		GPG_GEN_KEY_IN_MEMORY="y"
-		echo " ++++ Master key and subkeys will be generated in memory, backed up to dedicated LUKS container +++"
+		STATUS "Master key and subkeys will be generated in memory and backed up to a dedicated LUKS container"
 		echo -e -n "Would you like in-memory generated subkeys to be copied to USB Security dongle's OpenPGP smartcard?\n (Highly recommended so the smartcard is used on daily basis and backup is kept safe, but not required) [Y/n]: "
 		read -n 1 prompt_output
 		echo
@@ -977,7 +977,7 @@ if [ "$use_defaults" == "n" -o "$use_defaults" == "N" ]; then
 			warn "Your GPG key material backup thumb drive should be cloned to a second thumb drive for redundancy for production environements"
 			GPG_GEN_KEY_IN_MEMORY_COPY_TO_SMARTCARD="n"
 		else
-			echo "++++ Subkeys will be copied to USB Security dongle's OpenPGP smartcard ++++"
+			STATUS "Subkeys will be copied to USB Security dongle's OpenPGP smartcard"
 			warn "Please keep your GPG key material backup thumb drive safe"
 			GPG_GEN_KEY_IN_MEMORY_COPY_TO_SMARTCARD="y"
 		fi
@@ -1185,11 +1185,11 @@ killall gpg-agent >/dev/null 2>&1 || true
 rm -rf /.gnupg/*.kbx /.gnupg/*.gpg >/dev/null 2>&1 || true
 
 # detect and set /boot device
-echo -e "\nDetecting and setting boot device...\n"
+STATUS "Detecting and setting boot device"
 if ! detect_boot_device; then
 	SKIP_BOOT="y"
 else
-	echo -e "Boot device set to $CONFIG_BOOT_DEV\n"
+	STATUS "Boot device set to $CONFIG_BOOT_DEV"
 fi
 
 # update configs
@@ -1212,7 +1212,7 @@ fi
 
 ## reset TPM and set password
 if [ "$CONFIG_TPM" = "y" ]; then
-	echo -e "\nResetting TPM...\n"
+	STATUS "Resetting TPM"
 	tpmr reset "$TPM_PASS" >/dev/null 2>/tmp/error
 fi
 if [ $? -ne 0 ]; then

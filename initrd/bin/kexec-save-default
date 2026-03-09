@@ -117,10 +117,10 @@ prompt_for_existing_encrypted_lvms_or_disks() {
 			}
 		done
 	elif [ "$num_lvms" -eq 1 ]; then
-		echo "Single Encrypted LVM found at $lvm_suggest."
+		INFO "Single Encrypted LVM found at $lvm_suggest"
 		key_lvms=$lvm_suggest
 	else
-		echo "No encrypted LVMs found."
+		INFO "No encrypted LVMs found"
 	fi
 
 	# Create an associative array to store the suggested devices and their paths
@@ -166,10 +166,10 @@ prompt_for_existing_encrypted_lvms_or_disks() {
 			}
 		done
 	elif [ "$num_devices" -eq 1 ]; then
-		echo "Single Encrypted Disk found at $devices_suggest."
+		INFO "Single Encrypted Disk found at $devices_suggest"
 		key_devices=$devices_suggest
 	else
-		echo "No encrypted devices found."
+		INFO "No encrypted devices found"
 	fi
 
 	DEBUG "Multiple LUKS devices selected: $key_devices"
@@ -304,7 +304,7 @@ if [ "$save_key" = "y" ]; then
 	# Get initrd filename selected to be default initrd that OS could be using to configure LUKS on boot by deploying crypttab files
 	current_default_initrd=$(cat /boot/kexec_default_hashes.txt | grep initr | awk -F " " {'print $NF'} | sed 's/\.\//\/boot\//g')
 
-	echo "+++ Extracting current selected default boot's $current_default_initrd to find crypttab files..."
+	DEBUG "Extracting $current_default_initrd to find crypttab files"
 	unpack_initramfs.sh "$current_default_initrd" "$initrd_decompressed"
 	crypttab_files=$(find "$initrd_decompressed" | grep crypttab 2>/dev/null) || true
 
@@ -329,14 +329,14 @@ if [ "$save_key" = "y" ]; then
 		done
 
 		#insert current default boot's initrd crypttab locations into tracking file to be overwritten into initramfs at kexec-inject-key
-		echo "+++ The following OS crypttab file:entry were modified from default boot's initrd:"
+		STATUS "The following OS crypttab entries were modified from default boot's initrd:"
 		cat $bootdir/kexec_initrd_crypttab_overrides.txt
-		echo "+++ Heads added /secret.key in those entries and saved them under $bootdir/kexec_initrd_crypttab_overrides.txt"
-		echo "+++ Those overrides will be part of detached signed digests and used to prepare cpio injected at kexec of selected default boot entry."
+		STATUS "Heads added /secret.key to those entries and saved overrides for signing"
+		DEBUG "Crypttab overrides will be included in signed digests and injected via cpio at kexec"
 	else
-		echo "+++ No crypttab file found in extracted initrd. A generic crypttab will be generated"
+		STATUS "No crypttab found in initrd; a generic crypttab will be generated"
 		if [ -e "$bootdir/kexec_initrd_crypttab_overrides.txt" ]; then
-			echo "+++ Removing $bootdir/kexec_initrd_crypttab_overrides.txt"
+			DEBUG "Removing $bootdir/kexec_initrd_crypttab_overrides.txt"
 			rm -f "$bootdir/kexec_initrd_crypttab_overrides.txt"
 		fi
 	fi

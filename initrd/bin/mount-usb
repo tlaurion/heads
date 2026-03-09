@@ -86,7 +86,7 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
     whiptail_warning --title 'USB Drive Missing' \
       --msgbox "Insert your USB drive and press Enter to continue." 0 80
   else
-    echo "+++ USB Drive Missing! Insert your USB drive and press Enter to continue."
+    echo "USB Drive Missing! Insert your USB drive and press Enter to continue."
     read
   fi
   sleep 1
@@ -145,7 +145,7 @@ else
       fi
       option_index=$(cat /tmp/whiptail)
     else
-      echo "+++ Select your USB disk:"
+      echo "Select your USB disk:"
       n=0
       while read option
       do

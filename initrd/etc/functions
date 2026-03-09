@@ -34,9 +34,25 @@ die() {
 	exit 1
 }
 
-# Use warn only for output that indicates a _likely_ problem, is _actionable_ to
-# correct, and when we are able to continue with degraded functionalty.
-# Do not overuse this!  See doc/logging.md.
+# warn - a likely problem the user should act on.
+#
+# Use warn when ALL of the following are true:
+#   - There is a _likely_ problem (not a rare or remote possibility)
+#   - We are able to continue, possibly with degraded functionality
+#   - The warning is _actionable_: there is a reasonable change the user
+#     can make to silence it
+# Do NOT use warn for:
+#   - Informational messages about normal operations (use INFO)
+#   - Rare or unlikely edge cases that are not actionable (use DEBUG)
+#   - Fatal errors where we cannot continue (use die)
+#
+# Output modes (always visible in all modes):
+#   Quiet (CONFIG_QUIET_MODE=y):          console (stderr) + debug.log
+#   Info  (CONFIG_QUIET_MODE=n):          console (stderr) + debug.log
+#   Debug (CONFIG_DEBUG_OUTPUT=y):        console (stderr) + debug.log
+#
+# Do not overuse - warn only has value when it is infrequent enough that
+# users still notice and act on it.  See doc/logging.md.
 warn() {
 	TRACE_FUNC
 	DEBUG " *** WARNING: $* ***"
@@ -49,10 +65,25 @@ warn() {
 	sleep 1
 }
 
-# Use DEBUG to track decisions made in script/function logic and the context
-# relating to those decisions.  Generally, focus on decision points, because
-# straight-line execution can usually be followed without further tracing.  See
-# doc/logging.md.
+# DEBUG - decision points and developer-relevant context.
+#
+# Use DEBUG to show the information that influences logical decisions and the
+# result of those decisions.  Focus on if/else/case branches: what information
+# led to the branch, and which branch was taken.
+# Use DO_WITH_DEBUG to capture command invocations (command+args at DEBUG
+# level, stdout/stderr at LOG level) rather than calling DEBUG directly.
+# Messages may freely include internal variable names, file paths, and
+# technical subsystem details - this level targets Heads developers only.
+# Do NOT use DEBUG for:
+#   - Command output or dumps of uncontrolled length (use LOG or DO_WITH_DEBUG)
+#   - Actions a non-developer user would understand (use INFO)
+#
+# Output modes (only visible in Debug mode):
+#   Quiet (CONFIG_QUIET_MODE=y):          silent
+#   Info  (CONFIG_QUIET_MODE=n):          silent
+#   Debug (CONFIG_DEBUG_OUTPUT=y):        console + debug.log
+#
+# See doc/logging.md.
 DEBUG() {
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 		# fold -s -w 960 will wrap lines at 960 characters on the last space before the limit
@@ -62,60 +93,156 @@ DEBUG() {
 	fi
 }
 
-# Use TRACE to trace control flow through Heads.  This is usually called by
-# TRACE_FUNC, but you can use it to additionally trace parameter values, etc.
-# Usually, use this to display unprocessed parameters that your script or
-# function received.  For information about the logic occurring in your script
-# or function, use DEBUG.  See doc/logging.md.
+# TRACE / TRACE_FUNC - execution flow through scripts and functions.
+#
+# TRACE_FUNC MUST be called as the first line of every script and function.
+# It emits the full call chain (including cross-process subprocess boundaries)
+# leading to the current location:
+#   TRACE: caller(file:line) -> ... -> current_func(file:line)
+# Use TRACE directly (in addition to TRACE_FUNC) only to show the raw
+# unprocessed parameters received by a script or function from its caller.
+# Do NOT use TRACE for logic or decisions inside the function - use DEBUG.
+# Do NOT use TRACE to show processed/interpreted values - use DEBUG.
+#
+# Output modes (only visible in Debug mode, requires function tracing config):
+#   Quiet (CONFIG_QUIET_MODE=y):                    silent
+#   Info  (CONFIG_QUIET_MODE=n):                    silent
+#   Debug (CONFIG_ENABLE_FUNCTION_TRACING_OUTPUT=y): console + debug.log
+#
+# See doc/logging.md.
 TRACE() {
 	if [ "$CONFIG_ENABLE_FUNCTION_TRACING_OUTPUT" = "y" ]; then
 		echo "TRACE: $*" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
 	fi
 }
 
-# Use NOTE to explain behaviors that are _likely_ to be unexpected or confusing.
-# Unlike INFO, this cannot be hidden, as the explained behavior would be too
-# confusing without this output.
-# Don't overuse this - too much NOTE output will cause users to ignore it.  See
-# doc/logging.md.
+# NOTE - explains behaviors that are _likely_ to be unexpected or confusing
+#        to users new to Heads.
+#
+# Use NOTE only when the behavior is so unexpected that users need this
+# explanation to make sense of what they are seeing.  Examples:
+#   - An automatic reboot the user did not explicitly request
+#   - A GPG PIN prompt appearing at a point the user would not anticipate
+#   - A required action before the next step can proceed
+# Unlike INFO, NOTE cannot be hidden: it always appears in every output mode.
+# NOTE sleeps after printing to bring the message to the user's awareness
+# and ensure it is not scrolled past before they can read it.
+# Do NOT overuse: prefer INFO if the behavior is only sometimes unexpected.
+# Too many NOTE messages train users to ignore them, defeating their purpose.
+#
+# Output modes (always visible in all modes):
+#   Quiet (CONFIG_QUIET_MODE=y):          console + debug.log
+#   Info  (CONFIG_QUIET_MODE=n):          console + debug.log
+#   Debug (CONFIG_DEBUG_OUTPUT=y):        console + debug.log
+#
+# See doc/logging.md.
 NOTE() {
 	#TODO: add colors to output, here blue for NOTE?
 
-	# Make sure the user sees this message: seperate it from the rest of the output
+	# Blank lines and the NOTE: prefix make the message stand out from surrounding output
 	echo
 	echo "NOTE:" "$@" | tee -a /tmp/debug.log
 	echo
 
-	# Sleep for a second to give the user time to read the message
-	sleep 1
+	# Sleep to bring the message to the user's awareness: NOTE is infrequent
+	# and important enough that the user must not scroll past it unread
+	sleep 3
 }
 
-# Use INFO for contextual information that might make sense to non-developers,
-# but that isn't generally needed to use Heads.  Non-developers might use this
-# level to troubleshoot basic problems, so it must make sense without deep
-# knowledge of how Heads works.  See doc/logging.md.
+# STATUS - announces an action currently in progress or just completed.
+#
+# Use STATUS for progress and action announcements that all users must see
+# regardless of output mode.  Examples:
+#   - An action starting or running: "Verifying ISO", "Building initrd",
+#     "Calculating hashes - this may take a while"
+#   - Completion of a security-relevant operation: "ISO signature verified",
+#     "LUKS device unlocked", "Verified root hashes"
+#   - A boot-path milestone: "Executing default boot for $name"
+#
+# Unlike INFO, STATUS is always visible in all output modes - a user in
+# quiet mode must still be able to see what Heads is actively doing.
+# Unlike NOTE, STATUS does not sleep - it is for routine progress and action
+# confirmation, not unexpected behavior requiring deliberate user attention.
+#
+# TODO: add colors to distinguish states - e.g. yellow for in-progress,
+#       green for success/completion, red for failure
+# TODO: evaluate whiptail transformation for actionable STATUS items
+#
+# Output modes (always visible in all modes):
+#   Quiet (CONFIG_QUIET_MODE=y):          console + debug.log
+#   Info  (CONFIG_QUIET_MODE=n):          console + debug.log
+#   Debug (CONFIG_DEBUG_OUTPUT=y):        console + debug.log
+#
+# See doc/logging.md.
+STATUS() {
+	#TODO: replace prefix with colors when color support is added
+	echo " >> $*" | tee -a /tmp/debug.log
+}
+
+# INFO - high-level operational context for non-developer users.
+#
+# INFO is what makes "Info" output mode meaningful.  A security-conscious
+# user who enables Info mode expects to see a readable audit trail of what
+# Heads is doing: what is being measured, verified, sealed, or decided.
+# Use INFO for:
+#   - TPM PCR extensions: what is being measured and when
+#     (e.g. "TPM: Extending PCR[4] with boot configuration")
+#   - High-level operational decisions driven by user configuration
+#     (e.g. "Not booting automatically, automatic boot is disabled")
+# Do NOT use INFO for:
+#   - Action progress or milestones the user must see in all modes (use STATUS)
+#   - Heads-internal details: file paths, variable values, CBFS operations,
+#     code-flow steps with no user-visible effect (use DEBUG instead)
+#   - Messages that require Heads developer knowledge to interpret (use DEBUG)
+#   - Behaviors so unexpected users need to be warned (use NOTE instead)
+#
+# Output modes:
+#   Quiet (CONFIG_QUIET_MODE=y):          silent
+#   Info  (CONFIG_QUIET_MODE=n):          console only  (labeled "INFO:" in debug.log if captured)
+#   Debug (CONFIG_DEBUG_OUTPUT=y):        console + debug.log (labeled "INFO:")
+#
+# See doc/logging.md.
 INFO() {
 	TRACE_FUNC
-	DEBUG "$*"
 	#TODO: add colors to output, here green for INFO?
-
-	# if not CONFIG_QUIET_MODE=y, output to console. If not, output to debug.log
+	# Debug mode: console + debug.log
+	# Info mode: console only
+	# Quiet mode: silent (not on console, not in debug.log)
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
-		echo "$*" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
-	elif [ "$CONFIG_QUIET_MODE" = "y" ]; then
-		echo "$*" >>/tmp/debug.log
-	else
+		echo "INFO: $*" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
+	elif [ "$CONFIG_QUIET_MODE" != "y" ]; then
 		echo "$*"
 	fi
 }
 
-# Write directly to the debug log (but not kmsg), never appears on console
-#  Main consumer is DO_WITH_DEBUG, which uses this to log command output
+# LOG - command output and verbose state dumps, always to debug.log only.
+#
+# Use LOG to capture raw output of commands (lsblk, lsusb, gpg --list-keys,
+# tpm2 pcrread, etc.) and any output of uncontrolled or potentially large
+# length.  LOG never appears on the console in any output mode - it is purely
+# for post-hoc analysis of a submitted debug log.
+# Prefer DO_WITH_DEBUG over calling LOG directly: DO_WITH_DEBUG captures the
+# command and its arguments at DEBUG level, and routes stdout/stderr to LOG.
+# Call LOG directly only when capturing output that is not a direct command
+# invocation (e.g. filtering another command's stderr, state summaries).
+# Do NOT use LOG for:
+#   - Short, fixed-length messages about decisions (use DEBUG)
+#   - Messages a user should ever see on console (use INFO, NOTE, or warn)
+#
+# Output modes (never on console in any mode):
+#   Quiet (CONFIG_QUIET_MODE=y):          debug.log only
+#   Info  (CONFIG_QUIET_MODE=n):          debug.log only
+#   Debug (CONFIG_DEBUG_OUTPUT=y):        debug.log only
+#
+# See doc/logging.md.
 LOG() {
 	echo "LOG: $*" >>/tmp/debug.log
 }
 
 # Filter known harmless LVM warning noise while preserving all other stderr.
+# Messages that are expected during device scanning (e.g. "not an LVM PV") are
+# redirected to the debug log only - they are not errors and should not appear
+# on the console, especially in quiet mode.
 _filter_lvm_stderr() {
 	while IFS= read -r line; do
 		case "$line" in
@@ -123,6 +250,11 @@ _filter_lvm_stderr() {
 			continue
 			;;
 		*"leaked on lvm invocation"*)
+			continue
+			;;
+		*"Cannot use "*": device is too small"* \
+		| *"Failed to find physical volume"*)
+			LOG "lvm: $line"
 			continue
 			;;
 		esac
@@ -158,7 +290,7 @@ preserve_rom() {
 	for old_file in $(echo $old_files); do
 		new_file=$(cbfs.sh -o $1 -l | grep -x $old_file)
 		if [ -z "$new_file" ]; then
-			echo "+++ Adding $old_file to $1"
+			DEBUG "Adding $old_file to $1"
 			cbfs -t 50 -r $old_file >/tmp/rom.$$ ||
 				die "Failed to read cbfs file from ROM"
 			cbfs.sh -o $1 -a $old_file -f /tmp/rom.$$ ||
@@ -224,7 +356,7 @@ confirm_gpg_card() {
 			#prompt user to select the proper encrypted partition, which should the first one on next prompt
 			warn "Please select encrypted LUKS on GPG key material backup thumb drive (not public labeled one)"
 			mount-usb --pass "$gpg_admin_pin" || die "Unable to mount USB with provided GPG Admin PIN"
-			echo "++++ Testing detach-sign operation and verifiying against fused public key in ROM"
+			STATUS "Testing detach-sign operation and verifying against public key in ROM"
 			gpg --pinentry-mode=loopback --passphrase-file <(echo -n "${gpg_admin_pin}") --import /media/subkeys.sec >/dev/null 2>&1 ||
 				die "Unable to import GPG private subkeys"
 			#Do a detach signature to ensure gpg material is usable and cache passphrase to sign /boot from caller functions
@@ -234,7 +366,7 @@ confirm_gpg_card() {
 				die "Unable to detach-sign $CR_NONCE with GPG private signing subkey using GPG Admin PIN"
 			#verify detached signature against public key in rom
 			gpg --verify "$CR_SIG" "$CR_NONCE" >/dev/null 2>&1 &&
-				echo "++++ Local GPG keyring can be used to sign/encrypt/authenticate in this boot session ++++" ||
+				STATUS "Local GPG keyring is available for signing, encryption, and authentication this boot session" ||
 				die "Unable to verify $CR_SIG detached signature against public key in ROM"
 			#Wipe any previous CR_NONCE and CR_SIG
 			shred -n 10 -z -u "$CR_NONCE" "$CR_SIG" >/dev/null 2>&1 || true
@@ -388,8 +520,9 @@ recovery() {
 
 		#Guide user into enabling debug output in case of a discovered bug
 		if [ "$CONFIG_DEBUG_OUTPUT" != "y" ]; then
-			#User can enable DEBUG_OUTPUT=y and TRACE_FUNCTION_TRACING_OUTPUT=y from Configuration Options
-			NOTE "If you want to file a bug, please enable Debug mode through 'Options --> Change configuration settings > Configure Heads informational'"
+			NOTE "To file a bug report with debug logs:"
+			NOTE "  1. Options --> Change configuration settings --> Configure $CONFIG_BRAND_NAME informational / debug output --> select Debug, save and flash firmware changes"
+			NOTE "  2. After reboot: Options --> TPM/TOTP/HOTP Options --> Generate new TOTP/HOTP secret to reseal secrets"
 		fi
 		# display any custom recovery message just before the banner
 		if [ -n "$*" ]; then
@@ -1405,7 +1538,7 @@ check_config() {
 		fi
 	fi
 
-	INFO "+++ Found verified kexec boot params"
+	STATUS "Found verified kexec boot params"
 	cp $1/kexec*.txt /tmp/kexec ||
 		die "Failed to copy kexec boot params to tmp"
 }

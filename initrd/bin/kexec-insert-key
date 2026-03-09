@@ -47,8 +47,7 @@ if [ -e /boot/kexec_lukshdr_hash.txt ] && [ -e /tmp/luksDump.txt ]; then
 		exit 1
 	else
 		#LUKS header hash part of detached signed hash digest matches
-		echo "+++ Encrypted disk keys have not been changed since sealed in TPM Disk Unlock Key"
-		#TODO: remove "+++" with boot info helper when added, same with "!!!" currently for info.
+		STATUS "Encrypted disk keys have not changed since sealed in TPM Disk Unlock Key"
 	fi
 else
 	warn "Could not check for tampering of Encrypted disk keys"
@@ -88,7 +87,7 @@ if [ "$unseal_failed" = "y" ]; then
 fi
 
 echo
-echo '+++ Building initrd'
+STATUS "Building initrd"
 # pad the initramfs (dracut doesn't pad the last gz blob)
 # without this the kernel init/initramfs.c fails to read
 # the subsequent uncompressed/compressed cpio
@@ -98,8 +97,8 @@ dd if="$INITRD" of="$SECRET_CPIO" bs=512 conv=sync > /dev/null 2>&1 ||
 if [ "$unseal_failed" = "n" ]; then
 	# kexec-save-default might have created crypttab overrides to be injected in initramfs through additional cpio
 	if [ -r "$bootdir/kexec_initrd_crypttab_overrides.txt" ]; then
-		echo "+++ $bootdir/kexec_initrd_crypttab_overrides.txt found..."
-		echo "+++ Preparing initramfs crypttab overrides as defined under $bootdir/kexec_initrd_crypttab_overrides.txt to be injected through cpio at next kexec call..."
+		DEBUG "$bootdir/kexec_initrd_crypttab_overrides.txt found"
+		DEBUG "Preparing initramfs crypttab overrides from $bootdir/kexec_initrd_crypttab_overrides.txt"
 		# kexec-save-default has found crypttab files under initrd and saved them
 		cat "$bootdir/kexec_initrd_crypttab_overrides.txt" | while read line; do
 			crypttab_file=$(echo "$line" | awk -F ':' {'print $1'})
@@ -107,7 +106,7 @@ if [ "$unseal_failed" = "n" ]; then
 			# Replace each initrd crypttab file with modified entry containing /secret.key path
 			mkdir -p "$INITRD_DIR/$(dirname $crypttab_file)"
 			echo "$crypttab_entry" | tee -a "$INITRD_DIR/$crypttab_file" >/dev/null
-			echo "+++ initramfs's $crypttab_file will be overriden with: $crypttab_entry"
+			DEBUG "initramfs $crypttab_file will be overridden with: $crypttab_entry"
 		done
 	else
 		# No crypttab files were found under selected default boot option's initrd file
@@ -116,7 +115,7 @@ if [ "$unseal_failed" = "n" ]; then
 		for crypttab_file in $crypttab_files; do
 			mkdir -p "$INITRD_DIR/$(dirname $crypttab_file)"
 			# overwrite crypttab to mirror behavior of seal-key
-			echo "+++ The following $crypttab_file overrides will be passed through concatenated secret/initrd.cpio at kexec call:"
+			DEBUG "The following $crypttab_file overrides will be injected via cpio at kexec:"
 			for uuid in $(cat "$TMP_KEY_DEVICES" | cut -d\  -f2); do
 				# NOTE: discard operation (TRIM) is activated by default if no crypptab found in initrd
 				echo "luks-$uuid UUID=$uuid /secret.key luks,discard" | tee -a "$INITRD_DIR/$crypttab_file"

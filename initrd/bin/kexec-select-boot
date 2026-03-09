@@ -83,10 +83,10 @@ if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
 fi
 
 verify_global_hashes() {
-	INFO "+++ Checking verified boot hash file "
+	STATUS "Checking verified boot hash file"
 	# Check the hashes of all the files
 	if verify_checksums "$bootdir" "$gui_menu"; then
-		INFO "+++ Verified boot hashes "
+		STATUS "Verified boot hashes"
 		valid_hash='y'
 		valid_global_hash='y'
 	else
@@ -100,7 +100,7 @@ verify_global_hashes() {
 	# If user enables it, check root hashes before boot as well
 	if [[ "$CONFIG_ROOT_CHECK_AT_BOOT" = "y" && "$force_menu" == "n" ]]; then
 		if root-hashes-gui.sh -c; then
-			echo "+++ Verified root hashes, continuing boot "
+			STATUS "Verified root hashes, continuing boot"
 			# if user re-signs, it wipes out saved options, so scan the boot directory and generate
 			if [ ! -r "$TMP_MENU_FILE" ]; then
 				scan_options
@@ -159,7 +159,7 @@ get_menu_option() {
 
 		option_index=$(cat /tmp/whiptail)
 	else
-		echo "+++ Select your boot option:"
+		echo "Select your boot option:"
 		n=0
 		while read option; do
 			parse_option
@@ -192,7 +192,7 @@ confirm_menu_option() {
 
 		option_confirm=$(cat /tmp/whiptail)
 	else
-		echo "+++ Please confirm the boot details for $name:"
+		echo "Please confirm the boot details for $name:"
 		echo $option
 
 		read \
@@ -209,7 +209,7 @@ parse_option() {
 }
 
 scan_options() {
-	INFO "+++ Scanning for unsigned boot options"
+	STATUS "Scanning for unsigned boot options"
 	option_file="/tmp/kexec_options.txt"
 	scan_boot_options "$bootdir" "$config" "$option_file"
 	if [ ! -s $option_file ]; then
@@ -239,7 +239,7 @@ save_default_option() {
 			-p "$paramsdir" \
 			-i "$option_index" \
 			; then
-			echo "+++ Saved defaults to device"
+			STATUS "Saved defaults to device"
 
 			default_failed="n"
 			force_menu="n"
@@ -273,10 +273,10 @@ default_select() {
 
 	if [ "$CONFIG_BASIC" != "y" ]; then
 		# Enforce that default option hashes are valid
-		INFO "+++ Checking verified default boot hash file "
+		STATUS "Checking verified default boot hash file"
 		# Check the hashes of all the files
 		if (cd $bootdir && sha256sum -c "$TMP_DEFAULT_HASH_FILE" >/tmp/hash_output); then
-			echo "+++ Verified default boot hashes "
+			STATUS "Verified default boot hashes"
 			valid_hash='y'
 		else
 			if [ "$gui_menu" = "y" ]; then
@@ -287,7 +287,7 @@ default_select() {
 		fi
 	fi
 
-	echo "+++ Executing default boot for $name:"
+	STATUS "Executing default boot for $name"
 	do_boot
 	warn "Failed to boot default option"
 }

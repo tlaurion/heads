@@ -46,7 +46,7 @@ update_root_checksums() {
   fi
 
   DEBUG "calculating hashes for $CONFIG_ROOT_DIRLIST_PRETTY on $ROOT_MOUNT"
-  echo "+++ Calculating hashes for all files in $CONFIG_ROOT_DIRLIST_PRETTY "
+  STATUS "Calculating hashes for all files in $CONFIG_ROOT_DIRLIST_PRETTY"
   # Intentional wordsplit
   # shellcheck disable=SC2086
   (cd "$ROOT_MOUNT" && find ${CONFIG_ROOT_DIRLIST} -type f ! -name '*kexec*' -print0 | xargs -0 sha256sum) >"${HASH_FILE}"
@@ -99,7 +99,7 @@ check_root_checksums() {
       fi
   fi
 
-  echo "+++ Checking root hash file signature "
+  STATUS "Checking root hash file signature"
   if ! sha256sum `find /boot/kexec*.txt` | gpgv /boot/kexec.sig - > /tmp/hash_output; then
     ERROR=`cat /tmp/hash_output`
     whiptail_error --title 'ERROR: Signature Failure' \
@@ -108,7 +108,7 @@ check_root_checksums() {
     die 'Invalid signature'
   fi
 
-  echo "+++ Checking for new files in $CONFIG_ROOT_DIRLIST_PRETTY "
+  STATUS "Checking for new files in $CONFIG_ROOT_DIRLIST_PRETTY"
   (cd "$ROOT_MOUNT" && find ${CONFIG_ROOT_DIRLIST} -type f ! -name '*kexec*') | sort > /tmp/new_file_list
   cut -d' ' -f3- ${HASH_FILE} | sort | diff -U0 - /tmp/new_file_list > /tmp/new_file_diff || new_files_found=y
   if [ "$new_files_found" == "y" ]; then
@@ -121,12 +121,12 @@ check_root_checksums() {
     echo "Type \"q\" to exit the list and return to the menu." >> /tmp/new_file_diff
     less /tmp/new_file_diff
   else
-    echo "+++ Verified no files added/removed "
+    STATUS "Verified no files added or removed"
   fi
 
-  echo "+++ Checking hashes for all files in $CONFIG_ROOT_DIRLIST_PRETTY (this might take a while) "
+  STATUS "Checking hashes for all files in $CONFIG_ROOT_DIRLIST_PRETTY (this may take a while)"
   if (cd $ROOT_MOUNT && sha256sum -c ${HASH_FILE} > /tmp/hash_output 2>/dev/null); then
-    echo "+++ Verified root hashes "
+    STATUS "Verified root hashes"
     valid_hash='y'
     unmount_root_device
 
@@ -441,7 +441,7 @@ detect_root_device()
 {
   TRACE_FUNC
 
-  echo "+++ Detecting root device "
+  STATUS "Detecting root device"
 
   if [ ! -e $ROOT_MOUNT ]; then
     mkdir -p $ROOT_MOUNT
