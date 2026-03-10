@@ -56,11 +56,12 @@ die() {
 warn() {
 	TRACE_FUNC
 	DEBUG " *** WARNING: $* ***"
-	#TODO: add colors to output, here yellow for WARNING?
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
-		echo -e " *** WARNING: $* ***" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
+		# debug mode: plain to debug.log and kmsg - no ANSI, kmsg does not render colors
+		echo " *** WARNING: $* ***" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
 	else
-		echo -e " *** WARNING: $* ***" >&2
+		# non-debug: bold yellow to stderr so it stands out on console
+		echo -e "\033[1;33m *** WARNING: $* ***\033[0m" >&2
 	fi
 	sleep 1
 }
@@ -137,11 +138,11 @@ TRACE() {
 #
 # See doc/logging.md.
 NOTE() {
-	#TODO: add colors to output, here blue for NOTE?
-
-	# Blank lines and the NOTE: prefix make the message stand out from surrounding output
 	echo
-	echo "NOTE:" "$@" | tee -a /tmp/debug.log
+	# Console: bold blue NOTE: prefix so it stands out from STATUS and INFO output
+	echo -e "\033[1;34mNOTE:\033[0m $*"
+	# Log file: plain text - no ANSI codes in debug.log
+	echo "NOTE: $*" >> /tmp/debug.log
 	echo
 
 	# Sleep to bring the message to the user's awareness: NOTE is infrequent
@@ -164,8 +165,9 @@ NOTE() {
 # Unlike NOTE, STATUS does not sleep - it is for routine progress and action
 # confirmation, not unexpected behavior requiring deliberate user attention.
 #
-# TODO: add colors to distinguish states - e.g. yellow for in-progress,
-#       green for success/completion, red for failure
+# Console color: cyan >> prefix (see STATUS() implementation).
+# TODO: extend to carry a state parameter (in-progress/success/failure) for
+#       yellow/green/red differentiation once callers are updated
 # TODO: evaluate whiptail transformation for actionable STATUS items
 #
 # Output modes (always visible in all modes):
@@ -175,8 +177,12 @@ NOTE() {
 #
 # See doc/logging.md.
 STATUS() {
-	#TODO: replace prefix with colors when color support is added
-	echo " >> $*" | tee -a /tmp/debug.log
+	# Console: cyan >> prefix distinguishes active progress from NOTE/warn/INFO
+	# TODO: extend to carry a state parameter (in-progress/success/failure)
+	# for yellow/green/red differentiation when callers are updated
+	echo -e "\033[0;36m >>\033[0m $*"
+	# Log file: plain text - no ANSI codes in debug.log
+	echo " >> $*" >> /tmp/debug.log
 }
 
 # INFO - high-level operational context for non-developer users.
@@ -204,14 +210,13 @@ STATUS() {
 # See doc/logging.md.
 INFO() {
 	TRACE_FUNC
-	#TODO: add colors to output, here green for INFO?
-	# Debug mode: console + debug.log
-	# Info mode: console only
-	# Quiet mode: silent (not on console, not in debug.log)
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
+		# debug mode: plain to debug.log and kmsg - no ANSI, maintains ordering
+		# with DEBUG messages which also route through kmsg
 		echo "INFO: $*" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
 	elif [ "$CONFIG_QUIET_MODE" != "y" ]; then
-		echo "$*"
+		# info mode: green text to console only
+		echo -e "\033[0;32m$*\033[0m"
 	fi
 }
 

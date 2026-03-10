@@ -183,23 +183,19 @@ For example:
 
 Users can choose one of three output levels for extra console information.
 
-* None - Show no extra output.  Only warnings appear on console.  (Some 'console' level output appears that has not been addressed yet.)
-* Info - Show information about operations in Heads.  (INFO and below.)
-* Debug - Show detailed information suitable for debugging Heads.  (TRACE and below.)  Log file captures all levels.
+* None - Show no extra output.  STATUS, NOTE and warn always appear on console.
+* Info - Show information about operations in Heads.  (INFO and above.)
+* Debug - Show detailed information suitable for debugging Heads.  (TRACE and above.)  Log file captures all levels.
 
-TODO: Document what happens for kernel messages too.
-This is more complex though since it is influenced by the board's config and user config differently (maybe we should improve that.)
-
-TODO: Document the variables that control these levels
+Console output is colored: STATUS=cyan, INFO=green, NOTE=bold blue, warn=bold yellow.
+debug.log and /dev/kmsg always receive plain text without ANSI codes.
 
 ## None - no extra output
 
-| Sink                    | LOG | TRACE | DEBUG | INFO | console | NOTE | warn |
-|-------------------------|-----|-------|-------|------|---------|------|------|
-| Console (via /dev/kmsg) |     |       |       |      | Yes*    | Yes  | Yes  |
-| /tmp/debug.log          | Yes |       |       |      |         |      |      |
-
-* Most 'console' output should be changed to INFO, that content isn't intended to be displayed in quiet mode
+| Sink           | LOG | TRACE | DEBUG | INFO | STATUS | NOTE | warn |
+|----------------|-----|-------|-------|------|--------|------|------|
+| Console        |     |       |       |      | Yes    | Yes  | Yes  |
+| /tmp/debug.log | Yes |       |       |      | Yes    | Yes  |      |
 
 No extra output is specified with:
 
@@ -211,10 +207,10 @@ CONFIG_QUIET_MODE=y
 
 ## Info
 
-| Sink                    | LOG | TRACE | DEBUG | INFO | console | NOTE | warn |
-|-------------------------|-----|-------|-------|------|---------|------|------|
-| Console (via /dev/kmsg) |     |       |       | Yes  | Yes     | Yes  | Yes  |
-| /tmp/debug.log          | Yes |       |       |      |         |      |      |
+| Sink           | LOG | TRACE | DEBUG | INFO | STATUS | NOTE | warn |
+|----------------|-----|-------|-------|------|--------|------|------|
+| Console        |     |       |       | Yes  | Yes    | Yes  | Yes  |
+| /tmp/debug.log | Yes |       |       |      | Yes    | Yes  |      |
 
 Info output is enabled with:
 
@@ -226,10 +222,10 @@ CONFIG_QUIET_MODE=n
 
 ## Debug
 
-| Sink                    | LOG | TRACE | DEBUG | INFO | console | NOTE | warn |
-|-------------------------|-----|-------|-------|------|---------|------|------|
-| Console (via /dev/kmsg) |     | Yes   | Yes   | Yes  | Yes     | Yes  | Yes  |
-| /tmp/debug.log          | Yes | Yes   | Yes   | Yes  | Yes     | Yes  | Yes  |
+| Sink           | LOG | TRACE | DEBUG | INFO | STATUS | NOTE | warn |
+|----------------|-----|-------|-------|------|--------|------|------|
+| Console        |     | Yes   | Yes   | Yes  | Yes    | Yes  | Yes  |
+| /tmp/debug.log | Yes | Yes   | Yes   | Yes  | Yes    | Yes  | Yes  |
 
 Debug output is enabled with:
 
