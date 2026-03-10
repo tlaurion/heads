@@ -219,9 +219,7 @@ STATUS() {
 	# Bold (no color) is used so STATUS is readable in any terminal color theme
 	# including high-contrast and monochrome modes.  The >> prefix + spacing
 	# provide visual differentiation without relying on color perception.
-	echo
 	echo -e "\033[1m >>\033[0m $*"
-	echo
 	# Log file: plain text - no ANSI codes in debug.log
 	echo " >> $*" >> /tmp/debug.log
 }
@@ -322,8 +320,11 @@ INPUT() {
 	# is redirected; bold white gives maximum contrast (21:1) on VGA/dark consoles
 	# without relying on any specific color, so it is readable under all color
 	# deficiency types and monochrome modes.
-	echo >&2
+
+	# Make sure input will be in a fresh new line
+	echo
 	echo -e "\033[1;37m$prompt\033[0m" >&2
+	echo
 	# Log file: plain text - no ANSI codes in debug.log
 	echo "INPUT: $prompt" >>/tmp/debug.log
 	# Forward remaining args (read flags + variable name) directly to read.
@@ -1122,7 +1123,7 @@ reseal_tpm_disk_decryption_key() {
 	if [ -s /boot/kexec_key_devices.txt ] || [ -s /boot/kexec_key_lvm.txt ]; then
 		preflight_rollback_counter_before_reseal
 		NOTE "LUKS TPM sealed Disk Unlock Key secret needs to be resealed alongside TOTP/HOTP secret"
-		echo "Resealing LUKS TPM Disk Unlock Key to be unsealed by LUKS TPM Disk Unlock Key passphrase"
+		STATUS "Resealing LUKS TPM Disk Unlock Key to be unsealed by LUKS TPM Disk Unlock Key passphrase"
 		if ! kexec-seal-key /boot; then
 			die "Failed to reseal LUKS TPM Disk Unlock Key. See preceding errors from kexec-seal-key for validation/retry outcome."
 		fi
