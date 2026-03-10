@@ -86,8 +86,7 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
     whiptail_warning --title 'USB Drive Missing' \
       --msgbox "Insert your USB drive and press Enter to continue." 0 80
   else
-    echo "USB Drive Missing! Insert your USB drive and press Enter to continue."
-    read
+    INPUT "USB Drive Missing! Insert your USB drive and press Enter to continue."
   fi
   sleep 1
   list_usb_storage > /tmp/usb_block_devices
@@ -96,7 +95,7 @@ if [ -z "$(cat /tmp/usb_block_devices)" ]; then
       whiptail_error --title 'ERROR: USB Drive Missing' \
         --msgbox "USB Drive Missing! Aborting mount attempt.\n\nPress Enter to continue." 0 80
     else
-      echo "!!! ERROR: USB Drive Missing! Aborting mount. Press Enter to continue."
+      die "USB Drive Missing! Aborting mount."
     fi
     exit 1
   fi
@@ -153,9 +152,7 @@ else
         echo "$n. $option"
       done < /tmp/usb_disk_list
 
-      read \
-        -p "Choose your USB disk [1-$n, a to abort]: " \
-        option_index
+      INPUT "Choose your USB disk [1-$n, a to abort]:" -r option_index
     fi
 
     if [ "$option_index" = "a" ]; then

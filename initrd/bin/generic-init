@@ -33,9 +33,9 @@ while true; do
 
 	if [ "$totp_confirm" = "n" ]; then
 		echo ""
-		echo "To correct clock drift: 'date -s HH:MM:SS'"
-		echo "and save it to the RTC: 'hwclock -w'"
-		echo "then reboot and try again"
+		INFO "To correct clock drift: date -s HH:MM:SS"
+		INFO "and save it to the RTC: hwclock -w"
+		INFO "then reboot and try again"
 		echo ""
 		recovery "TOTP mismatch"
 	fi

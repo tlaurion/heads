@@ -66,8 +66,7 @@ DO_WITH_DEBUG killall gpg-agent scdaemon >/dev/null 2>&1 || true
 # While making sure the key is inserted, capture the status so we can check how
 # many PIN attempts remain
 if ! hotp_token_info="$(hotp_verification info)"; then
-	echo -e "\nInsert your $HOTPKEY_BRANDING and press Enter to configure it"
-	read
+	INPUT "Insert your $HOTPKEY_BRANDING and press Enter to configure it"
 	if ! hotp_token_info="$(hotp_verification info)"; then
 		# don't leak key on failure
 		shred -n 10 -z -u "$HOTP_SECRET" 2>/dev/null
@@ -122,18 +121,17 @@ month_secs="$((30 * 24 * 60 * 60))"
 admin_pin_status=1
 if [ "$((now_date - gpg_key_create_time))" -gt "$month_secs" ]; then
 	# Remind what the default PIN was in case it still hasn't been changed
-	echo "Not trying default PIN ($admin_pin)"
+	DEBUG "Not trying default PIN ($admin_pin)"
 # Never consume an attempt if there are less than 3 attempts left, otherwise
 # attempting the default PIN could cause an unexpected lockout before getting a
 # chance to enter the correct PIN
 elif [ "$admin_pin_retries" -lt 3 ]; then
-	echo "Not trying default PIN ($admin_pin), only $admin_pin_retries attempt(s) left"
+	DEBUG "Not trying default PIN ($admin_pin): only $admin_pin_retries attempt(s) left"
 else
-	echo "Trying $prompt_message PIN ($admin_pin) to seal HOTP secret on $HOTPKEY_BRANDING..."
+	STATUS "Trying $prompt_message PIN to seal HOTP secret on $HOTPKEY_BRANDING"
 	#if we deal with the nk3, say to the user that touch will be required
 	if lsusb | grep -q "20a0:42b2"; then
 		warn "Nitrokey 3 requires physical presence : touch the dongle when prompted"
-		echo
 	fi
 	#TODO: silence the output of hotp_initialize once https://github.com/Nitrokey/nitrokey-hotp-verification/issues/41 is fixed
 	#hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value "$HOTPKEY_BRANDING" >/dev/null 2>&1
@@ -144,12 +142,10 @@ fi
 if [ "$admin_pin_status" -ne 0 ]; then
 
 	# prompt user for PIN and retry
-	read -r -s -p $'\nEnter your '"$HOTPKEY_BRANDING $prompt_message"' PIN: ' admin_pin
-	echo
+	INPUT "Enter your $HOTPKEY_BRANDING $prompt_message PIN:" -r -s admin_pin
 	hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value "$HOTPKEY_BRANDING"
 	if [ $? -ne 0 ]; then
-		read -r -s -p $'\nError setting HOTP secret, re-enter '"$prompt_message"' PIN and try again: ' admin_pin
-		echo
+		INPUT "Error setting HOTP secret, re-enter $prompt_message PIN and try again:" -r -s admin_pin
 		if ! hotp_initialize "$admin_pin" $HOTP_SECRET $counter_value "$HOTPKEY_BRANDING"; then
 			# don't leak key on failure
 			shred -n 10 -z -u "$HOTP_SECRET" 2>/dev/null
@@ -188,7 +184,6 @@ echo $HOTPKEY_BRANDING >$HOTP_KEY ||
 #|| die "Unable to create hotp counter file"
 mount -o remount,ro /boot
 
-echo -e "\n$HOTPKEY_BRANDING initialized successfully. Press Enter to continue."
-read
+STATUS "$HOTPKEY_BRANDING initialized successfully"
 
 exit 0

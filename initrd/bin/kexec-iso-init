@@ -35,11 +35,10 @@ else
 			die "Unsigned ISO boot cancelled by user"
 		fi
 	else
-		echo "WARNING: The selected ISO file does not have a detached signature"
-		echo "This means the integrity and authenticity cannot be verified"
-		echo "Booting unsigned ISOs is potentially unsafe"
-		read -n1 -p "Do you want to proceed anyway? (y/N): " response
-		echo
+		warn "The selected ISO file does not have a detached signature"
+		warn "Integrity and authenticity of the ISO cannot be verified"
+		warn "Booting unsigned ISOs is potentially unsafe"
+		INPUT "Do you want to proceed anyway? (y/N):" -n 1 response
 		if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
 			die "Unsigned ISO boot cancelled by user"
 		fi

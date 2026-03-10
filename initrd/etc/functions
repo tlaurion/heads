@@ -18,18 +18,27 @@ esac
 
 # ------- Start of functions coming from /etc/ash_functions
 
+# die - fatal error: print bold red message, wait for Enter, then exit 1.
+#
+# Console color: bold red (\033[1;31m).
+# Red is the universal "error/danger" signal; the "!!! ERROR:" text prefix
+# carries the same meaning for users who cannot distinguish red from other
+# colors, so color is an enhancement rather than the sole signal.
+# debug.log and /dev/kmsg receive plain text (no ANSI).
+# Always visible in all output modes.
 die() {
 	TRACE_FUNC
 	DEBUG "!!! ERROR: $* !!!"
-	#TODO: add colors to output, here red for ERROR?
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
-		echo -e " !!! ERROR: $* !!!" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
+		# debug mode: plain to debug.log and kmsg - no ANSI, kmsg does not render colors
+		echo "!!! ERROR: $* !!!" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
 	else
-		echo -e "!!! ERROR: $* !!!" >&2
+		# bold red to stderr so fatal errors are unmistakable on console
+		echo -e "\033[1;31m!!! ERROR: $* !!!\033[0m" >&2
 	fi
 
 	# ask user to press Enter prior to exit
-	read -r -p $'Press Enter to continue...\n\n'
+	INPUT "Press Enter to continue..."
 
 	exit 1
 }
@@ -46,6 +55,13 @@ die() {
 #   - Rare or unlikely edge cases that are not actionable (use DEBUG)
 #   - Fatal errors where we cannot continue (use die)
 #
+# Console color: bold yellow (\033[1;33m).
+# Yellow is the most universally perceptible alert color across all common
+# color-deficiency types: it is bright and distinct for deuteranopes,
+# protanopes, and tritanopes alike.  The "*** WARNING:" text prefix carries
+# the meaning independently of color.
+# debug.log and /dev/kmsg receive plain text (no ANSI).
+#
 # Output modes (always visible in all modes):
 #   Quiet (CONFIG_QUIET_MODE=y):          console (stderr) + debug.log
 #   Info  (CONFIG_QUIET_MODE=n):          console (stderr) + debug.log
@@ -58,10 +74,14 @@ warn() {
 	DEBUG " *** WARNING: $* ***"
 	if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
 		# debug mode: plain to debug.log and kmsg - no ANSI, kmsg does not render colors
+		echo
 		echo " *** WARNING: $* ***" | tee -a /tmp/debug.log /dev/kmsg >/dev/null
+		echo
 	else
-		# non-debug: bold yellow to stderr so it stands out on console
+		# non-debug: bold yellow to stderr with blank lines so it stands out on console
+		echo >&2
 		echo -e "\033[1;33m *** WARNING: $* ***\033[0m" >&2
+		echo >&2
 	fi
 	sleep 1
 }
@@ -78,6 +98,9 @@ warn() {
 # Do NOT use DEBUG for:
 #   - Command output or dumps of uncontrolled length (use LOG or DO_WITH_DEBUG)
 #   - Actions a non-developer user would understand (use INFO)
+#
+# Console color: none (plain text only; targets developers reading raw output).
+# debug.log and /dev/kmsg receive plain text (no ANSI).
 #
 # Output modes (only visible in Debug mode):
 #   Quiet (CONFIG_QUIET_MODE=y):          silent
@@ -105,6 +128,9 @@ DEBUG() {
 # Do NOT use TRACE for logic or decisions inside the function - use DEBUG.
 # Do NOT use TRACE to show processed/interpreted values - use DEBUG.
 #
+# Console color: none (plain text only; targets developers reading raw output).
+# debug.log and /dev/kmsg receive plain text (no ANSI).
+#
 # Output modes (only visible in Debug mode, requires function tracing config):
 #   Quiet (CONFIG_QUIET_MODE=y):                    silent
 #   Info  (CONFIG_QUIET_MODE=n):                    silent
@@ -131,6 +157,12 @@ TRACE() {
 # Do NOT overuse: prefer INFO if the behavior is only sometimes unexpected.
 # Too many NOTE messages train users to ignore them, defeating their purpose.
 #
+# Console color: bold magenta NOTE: prefix (\033[1;35m).
+# Magenta is chosen over blue for accessibility: blue is low-contrast on dark
+# terminals and confusable with cyan; magenta is universally distinct across
+# all common color-deficiency types (deuteranopia, protanopia, tritanopia).
+# debug.log receives plain text (no ANSI).
+#
 # Output modes (always visible in all modes):
 #   Quiet (CONFIG_QUIET_MODE=y):          console + debug.log
 #   Info  (CONFIG_QUIET_MODE=n):          console + debug.log
@@ -139,8 +171,8 @@ TRACE() {
 # See doc/logging.md.
 NOTE() {
 	echo
-	# Console: bold blue NOTE: prefix so it stands out from STATUS and INFO output
-	echo -e "\033[1;34mNOTE:\033[0m $*"
+	# Console: bold magenta NOTE: prefix - universally distinct, accessible
+	echo -e "\033[1;35mNOTE:\033[0m $*"
 	# Log file: plain text - no ANSI codes in debug.log
 	echo "NOTE: $*" >> /tmp/debug.log
 	echo
@@ -165,10 +197,16 @@ NOTE() {
 # Unlike NOTE, STATUS does not sleep - it is for routine progress and action
 # confirmation, not unexpected behavior requiring deliberate user attention.
 #
-# Console color: cyan >> prefix (see STATUS() implementation).
+# Console color: bold only, no hue (\033[1m).
+# No color is used for STATUS by design: STATUS is the most frequent visible
+# output level and must be readable in every terminal theme (dark, light,
+# high-contrast, monochrome) without relying on color perception.  The >> prefix
+# and blank lines above/below provide semantic differentiation instead.
+# Bold ensures STATUS stands out over plain INFO/LOG text without any color.
 # TODO: extend to carry a state parameter (in-progress/success/failure) for
 #       yellow/green/red differentiation once callers are updated
 # TODO: evaluate whiptail transformation for actionable STATUS items
+# debug.log receives plain text (no ANSI).
 #
 # Output modes (always visible in all modes):
 #   Quiet (CONFIG_QUIET_MODE=y):          console + debug.log
@@ -177,10 +215,13 @@ NOTE() {
 #
 # See doc/logging.md.
 STATUS() {
-	# Console: cyan >> prefix distinguishes active progress from NOTE/warn/INFO
-	# TODO: extend to carry a state parameter (in-progress/success/failure)
-	# for yellow/green/red differentiation when callers are updated
-	echo -e "\033[0;36m >>\033[0m $*"
+	# Console: blank line + bold >> prefix + blank line.
+	# Bold (no color) is used so STATUS is readable in any terminal color theme
+	# including high-contrast and monochrome modes.  The >> prefix + spacing
+	# provide visual differentiation without relying on color perception.
+	echo
+	echo -e "\033[1m >>\033[0m $*"
+	echo
 	# Log file: plain text - no ANSI codes in debug.log
 	echo " >> $*" >> /tmp/debug.log
 }
@@ -201,6 +242,10 @@ STATUS() {
 #     code-flow steps with no user-visible effect (use DEBUG instead)
 #   - Messages that require Heads developer knowledge to interpret (use DEBUG)
 #   - Behaviors so unexpected users need to be warned (use NOTE instead)
+#
+# Console color: green (\033[0;32m) in Info mode.
+# In Debug mode: plain text to debug.log and /dev/kmsg (no ANSI; maintains
+# ordering with DEBUG messages which also route through kmsg).
 #
 # Output modes:
 #   Quiet (CONFIG_QUIET_MODE=y):          silent
@@ -242,6 +287,50 @@ INFO() {
 # See doc/logging.md.
 LOG() {
 	echo "LOG: $*" >>/tmp/debug.log
+}
+
+# INPUT - colored prompt for interactive user input.
+#
+# Direct replacement for the common pattern:
+#   echo "prompt"
+#   read [flags] VARNAME
+# The prompt is displayed bold white (\033[1;37m) to draw the user's attention.
+# Bold white is chosen for maximum contrast on VGA/dark consoles (21:1 ratio)
+# without relying on color perception - it is readable under all color
+# deficiency types and in monochrome/high-contrast terminal modes.
+# Use INPUT for all prompts that require the user to type a response.
+# Do NOT use INPUT for yes/no confirmation dialogs (use whiptail instead).
+#
+# Usage: INPUT "prompt text" [read-flags] [VARNAME]
+# Examples:
+#   INPUT "Enter LUKS passphrase:" -r -s luks_passphrase
+#   INPUT "Press any key to continue:" -n 1 -s dummy
+#   INPUT "Enter filename:" -r filename
+#
+# The read flags and VARNAME are passed through to read after the prompt
+# is displayed - any read option (e.g. -r, -s, -n N) is supported.
+#
+# Output modes (always visible in all modes):
+#   All modes: console prompt in bold white to stderr, plain text in debug.log
+#
+# See doc/logging.md.
+INPUT() {
+	TRACE_FUNC
+	local prompt="$1"
+	shift
+	# Console: blank line + bold white prompt to stderr - visible even when stdout
+	# is redirected; bold white gives maximum contrast (21:1) on VGA/dark consoles
+	# without relying on any specific color, so it is readable under all color
+	# deficiency types and monochrome modes.
+	echo >&2
+	echo -e "\033[1;37m$prompt\033[0m" >&2
+	# Log file: plain text - no ANSI codes in debug.log
+	echo "INPUT: $prompt" >>/tmp/debug.log
+	# Forward remaining args (read flags + variable name) directly to read.
+	# Note: static analyzers may report the caller's variable as "unassigned"
+	# because assignment through read "$@" indirection is not visible to them.
+	# This is a false positive - the variable is assigned correctly at runtime.
+	read "$@"
 }
 
 # Filter known harmless LVM warning noise while preserving all other stderr.
@@ -327,16 +416,14 @@ confirm_gpg_card() {
 		message="Please confirm that your GPG card is inserted [Y/n]: "
 	fi
 
-	read -r -n 1 -p $'\n'"$message" card_confirm
-	echo
+	INPUT "$message" -r -n 1 card_confirm
 
 	while [ "$card_confirm" != "y" \
 		-a "$card_confirm" != "Y" \
 		-a "$card_confirm" != "b" \
 		-a -n "$card_confirm" ] \
 		; do
-		read -r -n 1 -p $'\nGPG card not confirmed. Insert card and press Enter to retry, or "x" to abort: ' card_confirm
-		echo
+		INPUT 'GPG card not confirmed. Insert card and press Enter to retry, or "x" to abort:' -r -n 1 card_confirm
 		if [ "$card_confirm" = "x" ]; then
 			die "gpg card not confirmed"
 		fi
@@ -355,8 +442,7 @@ confirm_gpg_card() {
 			#Prompt user for configured GPG Admin PIN that will be passed along to mount-usb and to import gpg subkeys
 			gpg_admin_pin=""
 			while [ -z "$gpg_admin_pin" ]; do
-				read -r -s -p $'\nPlease enter GPG Admin PIN needed to use the GPG backup thumb drive: ' gpg_admin_pin
-				echo
+				INPUT "Please enter GPG Admin PIN needed to use the GPG backup thumb drive:" -r -s gpg_admin_pin
 			done
 			#prompt user to select the proper encrypted partition, which should the first one on next prompt
 			warn "Please select encrypted LUKS on GPG key material backup thumb drive (not public labeled one)"
@@ -387,7 +473,7 @@ confirm_gpg_card() {
 	# Wait for USB enumeration before accessing GPG card to avoid race condition
 	wait_for_usb_devices
 
-	echo -e "\nVerifying presence of GPG card...\n"
+	STATUS "Verifying presence of GPG card"
 	# ensure we don't exit without retrying
 	errexit=$(set -o | grep errexit | awk '{print $2}')
 	set +e
@@ -395,9 +481,7 @@ confirm_gpg_card() {
 	if ! wait_for_gpg_card; then
 		DEBUG "GPG card access failed with output: $gpg_output"
 		# prompt for reinsertion and try a second time
-		read -n1 -r -p \
-			"Can't access GPG key; remove and reinsert, then press Enter to retry. " \
-			ignored
+		INPUT "Can't access GPG key; remove and reinsert, then press Enter to retry." ignored
 		# restore prev errexit state
 		if [ "$errexit" = "on" ]; then
 			set -e
@@ -433,7 +517,7 @@ gpg_auth() {
 	if [[ "$CONFIG_HAVE_GPG_KEY_BACKUP" == "y" ]]; then
 		TRACE_FUNC
 		# If we have a GPG key backup, we can use it to authenticate even if the card is lost
-		echo >&2 "!!!!! Please authenticate with OpenPGP smartcard/backup media to prove you are the owner of this machine !!!!!"
+		NOTE "Please authenticate with OpenPGP smartcard/backup media to prove you are the owner of this machine"
 
 		# Wipe any existing nonce and signature
 		shred -n 10 -z -u "$CR_NONCE" "$CR_SIG" 2>/dev/null || true
@@ -475,7 +559,7 @@ gpg_auth() {
 			else
 				shred -n 10 -z -u "$CR_SIG" 2>/dev/null || true
 				if [ "$tries" -lt 3 ]; then
-					echo >&2 "!!!!! GPG authentication failed, please try again !!!!!"
+					warn "GPG authentication failed, please try again"
 					continue
 				else
 					die "GPG authentication failed, please reboot and try again"
@@ -510,7 +594,7 @@ recovery() {
 	fi
 
 	if [ "$CONFIG_RESTRICTED_BOOT" = y ]; then
-		echo >&2 "Restricted Boot enabled, recovery console disabled, rebooting in 5 seconds"
+		NOTE "Restricted Boot enabled, recovery console disabled, rebooting in 5 seconds"
 		sleep 5
 		/bin/reboot
 	fi
@@ -531,9 +615,9 @@ recovery() {
 		fi
 		# display any custom recovery message just before the banner
 		if [ -n "$*" ]; then
-			printf '\n!!!!! %s\n\n' "$*" >&2
+			warn "$*"
 		fi
-		echo >&2 "!!!!! Starting recovery shell"
+		STATUS "Starting recovery shell"
 
 		if [ -x /bin/setsid ]; then
 			/bin/setsid -c /bin/bash
@@ -545,7 +629,7 @@ recovery() {
 
 pause_recovery() {
 	TRACE_FUNC
-	read -p $'!!! Hit enter to proceed to recovery shell !!!\n'
+	INPUT "Press Enter to proceed to recovery shell"
 	recovery $*
 }
 
@@ -1202,8 +1286,7 @@ prompt_tpm_owner_password() {
 		return 0
 	fi
 
-	read -r -s -p $'\nTPM Owner Password: ' tpm_owner_password
-	echo
+	INPUT "TPM Owner Password:" -r -s tpm_owner_password
 
 	# Cache the password externally to be reused by who needs it
 	DEBUG "Caching TPM Owner Password to /tmp/secret/tpm_owner_password"
@@ -1221,14 +1304,11 @@ prompt_new_owner_password() {
 	tpm_owner_password=1
 	tpm_owner_password2=2
 	while [ "$tpm_owner_password" != "$tpm_owner_password2" ] || [ "${#tpm_owner_password}" -gt 32 ] || [ -z "$tpm_owner_password" ]; do
-		read -r -s -p $'\nNew TPM Owner Password (2 words suggested, 1-32 characters max): ' tpm_owner_password
-		read -r -s -p $'\nRepeat chosen TPM Owner Password: ' tpm_owner_password2
-
+		INPUT "New TPM Owner Password (2 words suggested, 1-32 characters max):" -r -s tpm_owner_password
+		INPUT "Repeat chosen TPM Owner Password:" -r -s tpm_owner_password2
 		if [ "$tpm_owner_password" != "$tpm_owner_password2" ]; then
-			echo
-			echo "Passphrases entered do not match. Try again!"
+			warn "Passphrases entered do not match. Try again!"
 		fi
-		echo
 	done
 
 	# Cache the password externally to be reused by who needs it

@@ -93,9 +93,7 @@ prompt_for_existing_encrypted_lvms_or_disks() {
 		while [ $selected_lvms_not_existing -ne 0 ]; do
 			{
 				# Read the user input and store it in a variable
-				read \
-					-p "Encrypted LVMs? (choose between/all: $lvm_suggest): " \
-					key_lvms
+				INPUT "Encrypted LVMs? (choose between/all: $lvm_suggest):" -r key_lvms
 
 				# Split the user input by spaces and add each element to the array
 				IFS=' ' read -r -a key_lvms_array <<<"$key_lvms"
@@ -142,9 +140,7 @@ prompt_for_existing_encrypted_lvms_or_disks() {
 		while [ $selected_luksdevs_not_existing -ne 0 ]; do
 			{
 				# Read the user input and store it in a variable
-				read \
-					-p "Encrypted devices? (choose between/all: $devices_suggest): " \
-					key_devices
+				INPUT "Encrypted devices? (choose between/all: $devices_suggest):" -r key_devices
 
 				# Split the user input by spaces and add each element to the array
 				IFS=' ' read -r -a key_devices_array <<<"$key_devices"
@@ -193,11 +189,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_TPM_NO_LUKS_DISK_UNLOCK" != "y" ] && [ 
 	#check if $KEY_DEVICES file exists and is not empty
 	if [ -r "$KEY_DEVICES" ] && [ -s "$KEY_DEVICES" ]; then
 		DEBUG "LUKS TPM Disk Unlock Key was previously set up from $KEY_DEVICES"
-		read \
-			-n 1 \
-			-p "Do you want to reseal a Disk Unlock Key in the TPM [y/N]: " \
-			change_key_confirm
-		echo
+		INPUT "Do you want to reseal a Disk Unlock Key in the TPM [y/N]:" -n 1 change_key_confirm
 
 		if [ "$change_key_confirm" = "y" \
 			-o "$change_key_confirm" = "Y" ]; then
@@ -219,12 +211,8 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_TPM_NO_LUKS_DISK_UNLOCK" != "y" ] && [ 
 		fi
 	else
 		DEBUG "No previous LUKS TPM Disk Unlock Key was set up, confirming to add a Disk Unlock Key (DUK) to the TPM"
-		read \
-			-n 1 \
-			-p "Do you wish to add a disk encryption key to the TPM [y/N]: " \
-			add_key_confirm
+		INPUT "Do you wish to add a disk encryption key to the TPM [y/N]:" -n 1 add_key_confirm
 		#TODO: still not convinced: disk encryption key? decryption key? everywhere TPM Disk Unlock Key. Confusing even more?
-		echo
 
 		if [ "$add_key_confirm" = "y" \
 			-o "$add_key_confirm" = "Y" ]; then
@@ -236,11 +224,7 @@ if [ "$CONFIG_TPM" = "y" ] && [ "$CONFIG_TPM_NO_LUKS_DISK_UNLOCK" != "y" ] && [ 
 	if [ "$save_key" = "y" ]; then
 		if [ -n "$old_key_devices" ] || [ -n "$old_lvm_volume_group" ]; then
 			DEBUG "Previous LUKS TPM Disk Unlock Key was set up for $old_key_devices $old_lvm_volume_group"
-			read \
-				-n 1 \
-				-p "Do you want to reuse configured Encrypted LVM groups/Block devices? (Y/n):" \
-				reuse_past_devices
-			echo
+			INPUT "Do you want to reuse configured Encrypted LVM groups/Block devices? (Y/n):" -n 1 reuse_past_devices
 			if [ "$reuse_past_devices" = "y" ] || [ "$reuse_past_devices" = "Y" ] || [ -z "$reuse_past_devices" ]; then
 				if [ -z "$key_devices" ] && [ -n "$old_key_devices" ]; then
 					key_devices="$old_key_devices"

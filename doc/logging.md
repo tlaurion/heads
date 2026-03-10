@@ -179,6 +179,28 @@ For example:
 * Warning when using default passphrases that are completely insecure is reasonable - the user has no security, and if they want that, they should use Basic mode.
 * Warning when an unknown variable appears in config.user is not reasonable - there's no reasonable way for the user to address this.
 
+## INPUT
+
+INPUT is a direct replacement for the `echo "prompt"; read [flags] VAR` pattern.
+It displays the prompt in **bold cyan** to visually distinguish interactive input requests from progress/info messages.
+
+Usage: `INPUT "prompt text" [read-flags] [VARNAME]`
+
+```bash
+# Instead of:
+echo "Enter passphrase:"
+read -r -s passphrase
+
+# Use:
+INPUT "Enter passphrase:" -r -s passphrase
+```
+
+INPUT always prints a blank line before the prompt so the user can easily find it on the console.
+The prompt text and `INPUT:` label are recorded in debug.log for tracing.
+All read flags (`-r`, `-s`, `-n N`, etc.) and the variable name are passed through unchanged to `read`.
+
+Do NOT use INPUT for yes/no confirmation dialogs - use whiptail for those.
+
 # Output Levels
 
 Users can choose one of three output levels for extra console information.
@@ -187,8 +209,21 @@ Users can choose one of three output levels for extra console information.
 * Info - Show information about operations in Heads.  (INFO and above.)
 * Debug - Show detailed information suitable for debugging Heads.  (TRACE and above.)  Log file captures all levels.
 
-Console output is colored: STATUS=cyan, INFO=green, NOTE=bold blue, warn=bold yellow.
+Console output styling — chosen for accessibility across color-deficiency types (WCAG 1.4.1: color is never the sole signal; text prefixes carry meaning independently):
+
+| Level  | Style          | ANSI code    | Rationale |
+|--------|----------------|--------------|-----------|
+| die    | bold red       | `\033[1;31m` | Red = universal danger signal; `!!! ERROR:` prefix is the semantic carrier |
+| warn   | bold yellow    | `\033[1;33m` | Most universally perceptible alert color across deuteranopia, protanopia, tritanopia |
+| NOTE   | bold magenta   | `\033[1;35m` | Magenta is distinct under all common color-deficiency types; blue was avoided (low contrast on dark terminals, confusable with cyan) |
+| STATUS | bold only      | `\033[1m`    | Most frequent output level — bold without hue ensures readability in every terminal theme (dark, light, high-contrast, monochrome); `>>` prefix differentiates semantically |
+| INFO   | green          | `\033[0;32m` | Standard informational color; INFO is optional context, its absence is harmless |
+| INPUT  | bold white     | `\033[1;37m` | Maximum contrast (21:1) on VGA/dark consoles; no color dependency, readable under all deficiency types and monochrome modes |
+
 debug.log and /dev/kmsg always receive plain text without ANSI codes.
+
+STATUS, NOTE and warn print a blank line before and after the message so they stand out visually from surrounding output.
+INPUT prints a blank line before the prompt so it is clearly visible on the console.
 
 ## None - no extra output
 

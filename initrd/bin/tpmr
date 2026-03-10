@@ -196,11 +196,11 @@ $0 ~ pcr {
 replay_pcr() {
 	TRACE_FUNC
 	if [ -z "$2" ]; then
-		echo >&2 "No PCR number passed"
+		warn "No PCR number passed"
 		return
 	fi
 	if [ "$2" -ge 8 ]; then
-		echo >&2 "Illegal PCR number ($2)"
+		warn "Illegal PCR number ($2)"
 		return
 	fi
 	local log=$(cbmem -L)
@@ -917,7 +917,7 @@ tpm2_kexec_finalize() {
 	# Add a random passphrase to platform hierarchy to prevent TPM2 from
 	# being cleared in the OS.
 	# This passphrase is only effective before the next boot.
-	echo "Locking TPM2 platform hierarchy..."
+	STATUS "Locking TPM2 platform hierarchy"
 	randpass=$(dd if=/dev/urandom bs=4 count=1 status=none 2>/dev/null | xxd -p)
 	tpm2 changeauth -c platform "$randpass" ||
 		warn "Failed to lock platform hierarchy of TPM2"
@@ -933,8 +933,7 @@ tpm2_shutdown() {
 }
 
 if [ "$CONFIG_TPM" != "y" ]; then
-	echo >&2 "No TPM!"
-	exit 1
+	die "No TPM!"
 fi
 
 # TPM1 - most commands forward directly to tpm, but some are still wrapped for
@@ -1056,7 +1055,6 @@ shutdown)
 	tpm2_shutdown "$@"
 	;;
 *)
-	echo "Command $subcmd not wrapped!"
-	exit 1
+	die "Command $subcmd not wrapped!"
 	;;
 esac

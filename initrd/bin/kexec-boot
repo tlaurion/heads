@@ -92,7 +92,7 @@ do
 			kexeccmd="$kexeccmd -l $filepath"
 			DEBUG "kexeccmd= $kexeccmd"
 		else
-			DEBUG "unknown kexectype!!!!"
+			DEBUG "unknown kexectype"
 			kexeccmd="$kexeccmd -l $filepath"
 		fi
 	fi
@@ -149,8 +149,8 @@ fi
 
 if [ "$dryrun" = "y" ]; then exit 0; fi
 
-echo "Loading the new kernel:"
-echo "$kexeccmd"
+STATUS "Loading the new kernel"
+DEBUG "kexec command: $kexeccmd"
 # DO_WITH_DEBUG captures the debug output from stderr to the log, we don't need
 # it on the console as well
 DO_WITH_DEBUG eval "$kexeccmd" 2>/dev/null \
@@ -158,8 +158,7 @@ DO_WITH_DEBUG eval "$kexeccmd" 2>/dev/null \
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 	#Ask user if they want to continue booting without echoing back the input (-s)
-	read -s -n 1 -p "[DEBUG] Continue booting? [Y/n]: " debug_boot_confirm
-	echo
+	INPUT "[DEBUG] Continue booting? [Y/n]:" -s -n 1 debug_boot_confirm
 	if [ "${debug_boot_confirm^^}" = N ]; then
 		# abort
 		die "Boot aborted"
@@ -174,5 +173,5 @@ if [ -x /bin/io386 -a "$CONFIG_FINALIZE_PLATFORM_LOCKING" = "y" ]; then
 	lock_chip
 fi
 
-echo "Starting the new kernel"
+STATUS "Starting the new kernel"
 exec kexec -e

@@ -24,7 +24,7 @@ case "$1" in
 		/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
 
 		if [ -n "$router" ] ; then
-			echo "deleting routers"
+			DEBUG "deleting routers"
 			while route del default gw 0.0.0.0 dev $interface ; do
 				:
 			done
@@ -37,7 +37,7 @@ case "$1" in
 		echo -n > $RESOLV_CONF
 		[ -n "$domain" ] && echo search $domain >> $RESOLV_CONF
 		for i in $dns ; do
-			echo adding dns $i
+			DEBUG "adding dns $i"
 			echo nameserver $i >> $RESOLV_CONF
 		done
 		;;

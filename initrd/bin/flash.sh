@@ -16,7 +16,7 @@ case "$CONFIG_FLASH_OPTIONS" in
   ;;
   * )
     DEBUG "Flash options detected: $CONFIG_FLASH_OPTIONS"
-    echo "Board $CONFIG_BOARD detected with flash options configured. Continuing..."
+    STATUS "Board $CONFIG_BOARD detected with flash options configured"
   ;;
 esac
 
@@ -34,13 +34,13 @@ flash_rom() {
     fi
     # persist serial number from CBFS
     if cbfs.sh -r serial_number > /tmp/serial 2>/dev/null; then
-      echo "Persisting system serial"
+      STATUS "Persisting system serial"
       cbfs.sh -o /tmp/${CONFIG_BOARD}.rom -d serial_number 2>/dev/null || true
       cbfs.sh -o /tmp/${CONFIG_BOARD}.rom -a serial_number -f /tmp/serial
     fi
     # persist PCHSTRP9 from flash descriptor
     if [ "$CONFIG_BOARD" = "librem_l1um" ]; then
-      echo "Persisting PCHSTRP9"
+      STATUS "Persisting PCHSTRP9"
       $CONFIG_FLASH_OPTIONS -r /tmp/ifd.bin --ifd -i fd >/dev/null 2>&1 \
       || die "Failed to read flash descriptor"
       dd if=/tmp/ifd.bin bs=1 count=4 skip=292 of=/tmp/pchstrp9.bin >/dev/null 2>&1
@@ -82,7 +82,7 @@ if [ "$READ" -eq 0 ] && [ "${ROM##*.}" = tgz ]; then
             die "Provided tgz image did not pass hash verification"
         fi
 
-        echo "Reading current flash and building an update image"
+        STATUS "Reading current flash and building update image"
         $CONFIG_FLASH_OPTIONS -r /tmp/flash.sh.bak \
             || recovery "Read of flash has failed"
 

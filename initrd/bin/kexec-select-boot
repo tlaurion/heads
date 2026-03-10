@@ -64,7 +64,7 @@ if [ "$CONFIG_TPM2_TOOLS" = "y" ]; then
 		#PRIMHASH_FILE (normally /boot/kexec_primhdl_hash.txt) exists and is not empty
 		sha256sum -c "$PRIMHASH_FILE" >/dev/null 2>&1 ||
 			{
-				echo "FATAL: Hash of TPM2 primary key handle mismatch!"
+				warn "FATAL: Hash of TPM2 primary key handle mismatch"
 				warn "If you have not intentionally regenerated TPM2 primary key,"
 				warn "your system may have been compromised"
 				DEBUG "Hash of TPM2 primary key handle mismatched for $PRIMHASH_FILE"
@@ -159,7 +159,7 @@ get_menu_option() {
 
 		option_index=$(cat /tmp/whiptail)
 	else
-		echo "Select your boot option:"
+		STATUS "Select your boot option:"
 		n=0
 		while read option; do
 			parse_option
@@ -167,9 +167,7 @@ get_menu_option() {
 			echo "$n. $name [$kernel]"
 		done <$TMP_MENU_FILE
 
-		read \
-			-p "Choose the boot option [1-$n, a to abort]: " \
-			option_index
+		INPUT "Choose the boot option [1-$n, a to abort]:" -r option_index
 
 		if [ "$option_index" = "a" ]; then
 			die "Aborting boot attempt"
@@ -192,14 +190,10 @@ confirm_menu_option() {
 
 		option_confirm=$(cat /tmp/whiptail)
 	else
-		echo "Please confirm the boot details for $name:"
+		STATUS "Confirm boot details for $name:"
 		echo $option
 
-		read \
-			-n 1 \
-			-p "Confirm selection by pressing 'y', make default with 'd': " \
-			option_confirm
-		echo
+		INPUT "Confirm selection by pressing 'y', make default with 'd':" -n 1 option_confirm
 	fi
 }
 
@@ -224,11 +218,7 @@ scan_options() {
 
 save_default_option() {
 	if [ "$gui_menu" != "y" ]; then
-		read \
-			-n 1 \
-			-p "Saving a default will modify the disk. Proceed? (Y/n): " \
-			default_confirm
-		echo
+		INPUT "Saving a default will modify the disk. Proceed? (Y/n):" -n 1 default_confirm
 	fi
 
 	[ "$default_confirm" = "" ] && default_confirm="y"
@@ -245,7 +235,7 @@ save_default_option() {
 			force_menu="n"
 			return
 		else
-			echo "Failed to save defaults"
+			warn "Failed to save defaults"
 		fi
 	fi
 
@@ -325,29 +315,29 @@ user_select() {
 
 do_boot() {
 	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_BOOT_REQ_ROLLBACK" = "y" ] && [ "$valid_rollback" = "n" ]; then
-		die "!!! Missing required rollback counter state"
+		die "Missing required rollback counter state"
 	fi
 
 	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_BOOT_REQ_HASH" = "y" ] && [ "$valid_hash" = "n" ]; then
-		die "!!! Missing required boot hashes"
+		die "Missing required boot hashes"
 	fi
 
 	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_TPM" = "y" ] && [ -r "$TMP_KEY_DEVICES" ]; then
 		INITRD=$(kexec-boot -b "$bootdir" -e "$option" -i) ||
-			die "!!! Failed to extract the initrd from boot option"
+			die "Failed to extract the initrd from boot option"
 		if [ -z "$INITRD" ]; then
-			die "!!! No initrd file found in boot option"
+			die "No initrd file found in boot option"
 		fi
 
 		kexec-insert-key $INITRD ||
-			die "!!! Failed to prepare TPM Disk Unlock Key for boot"
+			die "Failed to prepare TPM Disk Unlock Key for boot"
 
 		kexec-boot -b "$bootdir" -e "$option" \
 			-a "$add" -r "$remove" -o "/tmp/secret/initrd.cpio" ||
-			die "!!! Failed to boot w/ options: $option"
+			die "Failed to boot w/ options: $option"
 	else
 		kexec-boot -b "$bootdir" -e "$option" -a "$add" -r "$remove" ||
-			die "!!! Failed to boot w/ options: $option"
+			die "Failed to boot w/ options: $option"
 	fi
 }
 
@@ -425,4 +415,4 @@ while true; do
 	fi
 done
 
-die "!!! Shouldn't get here"
+die "Shouldn't get here"

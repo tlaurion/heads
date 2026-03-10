@@ -31,8 +31,7 @@ for tries in 1 2 3; do
 	# type the LUKS passphrase.
 	show_totp_until_esc
 
-	read -r -s -p $'\nEnter LUKS TPM Disk Unlock Key passphrase (blank to abort): ' tpm_password
-	echo
+	INPUT "Enter LUKS TPM Disk Unlock Key passphrase (blank to abort):" -r -s tpm_password
 	if [ -z "$tpm_password" ]; then
 		die "Aborting unseal disk encryption key"
 	fi

@@ -251,7 +251,7 @@ generate_totp_hotp() {
 	if [ "$CONFIG_TPM" != "y" ] && [ -x /bin/hotp_verification ]; then
 		# If we don't have a TPM, but we have a HOTP USB Security dongle
 		TRACE_FUNC
-		echo "Generating new HOTP secret"
+		STATUS "Generating new HOTP secret"
 		/bin/seal-hotpkey ||
 			die "Failed to generate HOTP secret"
 	elif echo -e "Generating new TOTP secret...\n\n" && /bin/seal-totp "$BOARD_NAME" "$tpm_owner_password"; then
@@ -259,15 +259,13 @@ generate_totp_hotp() {
 		if [ -x /bin/hotp_verification ]; then
 			# If we have a TPM and a HOTP USB Security dongle
 			if [ "$CONFIG_TOTP_SKIP_QRCODE" != y ]; then
-				echo "Once you have scanned the QR code, hit Enter to configure your HOTP USB Security dongle (e.g. Librem Key or Nitrokey)"
-				read
+				INPUT "Once you have scanned the QR code, press Enter to configure your HOTP USB Security dongle (e.g. Librem Key or Nitrokey)"
 			fi
 			TRACE_FUNC
 			/bin/seal-hotpkey || die "Failed to generate HOTP secret"
 		else
 			if [ "$CONFIG_TOTP_SKIP_QRCODE" != y ]; then
-				echo "Once you have scanned the QR code, hit Enter to continue"
-				read
+				INPUT "Once you have scanned the QR code, press Enter to continue"
 			fi
 		fi
 		# clear screen
@@ -527,9 +525,9 @@ check_gpg_key() {
 
 prompt_auto_default_boot() {
 	TRACE_FUNC
-	echo -e "\nHOTP verification success\n\n"
+	STATUS "HOTP verification success"
 	if pause_automatic_boot; then
-		echo -e "\n\nAttempting default boot...\n\n"
+		STATUS "Attempting default boot"
 		attempt_default_boot
 	fi
 }
@@ -703,9 +701,7 @@ reset_tpm() {
 			--yesno "This will clear the TPM and replace its Owner password with a new one!\n\nDo you want to proceed?" 0 80); then
 
 			if ! prompt_new_owner_password; then
-				echo "Press Enter to return to the menu..."
-				read
-				echo
+				INPUT "Press Enter to return to the menu..."
 				return 1
 			fi
 
@@ -766,7 +762,7 @@ reset_tpm() {
 				reseal_tpm_disk_decryption_key || prompt_missing_gpg_key_action
 			fi
 		else
-			echo "Returning to the main menu"
+			STATUS "Returning to the main menu"
 		fi
 	else
 		whiptail_error --title 'ERROR: No TPM Detected' --msgbox "This device does not have a TPM.\n\nPress OK to return to the Main Menu" 0 80

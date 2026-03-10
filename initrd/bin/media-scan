@@ -62,9 +62,7 @@ get_menu_option() {
 			echo "$n. $option"
 		done < /tmp/iso_menu.txt
 
-		read \
-			-p "Choose the ISO boot option [1-$n, a to abort]: " \
-			option_index
+		INPUT "Choose the ISO boot option [1-$n, a to abort]:" -r option_index
 	fi
 
 	# Empty occurs when aborting fbwhiptail with esc-esc
@@ -101,7 +99,7 @@ if [ "$CONFIG_RESTRICTED_BOOT" = y ]; then
 	die "No ISO files found, bootable USB not allowed with Restricted Boot."
 fi
 
-echo "!!! Could not find any ISO, trying bootable USB"
+warn "Could not find any ISO, trying bootable USB"
 # Attempt to pull verified config from device
 if [ -x /bin/whiptail ]; then
 	DO_WITH_DEBUG kexec-select-boot -b /media -c "*.cfg" -u -g -s

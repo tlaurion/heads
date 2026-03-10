@@ -64,9 +64,8 @@ mount_boot()
 prompt_auto_default_boot()
 {
   TRACE_FUNC
-  echo -e "\n\n"
   if pause_automatic_boot; then
-    echo -e "\n\nAttempting default boot...\n\n"
+    STATUS "Attempting default boot"
     attempt_default_boot
   fi
 }

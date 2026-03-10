@@ -130,14 +130,14 @@ TRACE_FUNC
 
 # make sure we have sysctl requirements
 if [ ! -d /proc/sys ]; then
-	warn "BUG!!! The following requirements to apply runtime kernel tweaks are missing:"
+	warn "BUG: The following requirements to apply runtime kernel tweaks are missing:"
 	warn "CONFIG_SYSCTL=y"
 	warn "CONFIG_PROC_SYSCTL=y"
 	warn "Please open an issue"
 fi
 
 if [ ! -e /proc/sys/vm/panic_on_oom ]; then
-	warn "BUG!!! Requirements to setup Panic when under Out Of Memory situation through PROC_SYSCTL are missing (panic_on_oom was not enabled)"
+	warn "BUG: Requirements to setup Panic when under Out Of Memory situation through PROC_SYSCTL are missing (panic_on_oom was not enabled)"
 	warn "Please open an issue"
 else
 	DEBUG "Applying panic_on_oom setting to sysctl"
@@ -210,14 +210,14 @@ if [ "$boot_option" = "r" ]; then
 	exit
 elif [ "$boot_option" = "o" ]; then
 	# Launch OEM Factory Reset mode
-	echo -e "***** Entering OEM Factory Reset mode\n" >/dev/tty0
+	STATUS "Entering OEM Factory Reset mode"
 	oem-factory-reset --mode oem
 	# just in case...
 	exit
 fi
 
 if [ "$CONFIG_BASIC" = "y" ]; then
-	echo -e "***** BASIC mode: tamper detection disabled\n" >/dev/tty0
+	STATUS "BASIC mode: tamper detection disabled"
 fi
 
 # export firmware version
@@ -249,14 +249,14 @@ if [ ! -x "$CONFIG_BOOTSCRIPT" -a ! -x "$CONFIG_BOOTSCRIPT_NETWORK" ]; then
 	recovery 'Boot script missing?  Entering recovery shell'
 else
 	if [ -x "$CONFIG_BOOTSCRIPT_NETWORK" ]; then
-		echo '***** Network Boot:' $CONFIG_BOOTSCRIPT_NETWORK
+		STATUS "Network Boot: $CONFIG_BOOTSCRIPT_NETWORK"
 		$CONFIG_BOOTSCRIPT_NETWORK
-		echo '***** Network Boot Completed:' $CONFIG_BOOTSCRIPT_NETWORK
+		STATUS "Network Boot completed: $CONFIG_BOOTSCRIPT_NETWORK"
 		# not blocking
 	fi
 
 	if [ -x "$CONFIG_BOOTSCRIPT" ]; then
-		echo '***** Normal boot:' $CONFIG_BOOTSCRIPT
+		STATUS "Normal boot: $CONFIG_BOOTSCRIPT"
 
 		if [ -x /bin/setsid ] && [ -x /bin/agetty ]; then
 			for console in $CONFIG_BOOT_EXTRA_TTYS; do
