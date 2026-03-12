@@ -1,0 +1,59 @@
+ifeq "$(CONFIG_DASHARO_EC)" "y"
+
+modules-y += dasharo-ec
+
+dasharo-ec_repo        := https://github.com/Dasharo/ec
+dasharo-ec_commit_hash := d198b641195e60e13afc17be9464e4f402d1c2fa
+
+# dasharo/ec system76/ec uses slash-separated BOARD paths (src/board/novacustom/v540tu/)
+ifeq "$(BOARD)" "novacustom-v540tu"
+DASHARO_EC_BOARD_MODEL := novacustom/v540tu
+else ifeq "$(BOARD)" "novacustom-v560tu"
+DASHARO_EC_BOARD_MODEL := novacustom/v560tu
+else
+$(error "$(BOARD): no Dasharo EC board model mapping defined")
+endif
+
+dasharo-ec_version  := $(dasharo-ec_commit_hash)
+dasharo-ec_base_dir := dasharo-ec-$(dasharo-ec_version)
+dasharo-ec_dir      := dasharo-ec-$(dasharo-ec_version)
+
+# define_module uses dasharo-ec_target to build the module and expects
+# dasharo-ec_output to exist afterwards.  On a clean build (or when .build
+# doesn't exist yet) this compiles the EC for the current board AND touches
+# the per-board stamp so the ec.rom copy rule has a consistent dependency.
+# When a second board is built later, .build already exists so define_module
+# skips this entirely; the explicit per-board stamp rule below handles that.
+dasharo-ec_output := .built
+
+# $(subst /,-,...) converts novacustom/v560tu → novacustom-v560tu (filename safe).
+DASHARO_EC_BOARD_STAMP := $(build)/$(dasharo-ec_dir)/.built-$(subst /,-,$(DASHARO_EC_BOARD_MODEL))
+
+dasharo-ec_target := \
+	BOARD=$(DASHARO_EC_BOARD_MODEL) \
+	&& touch "$(DASHARO_EC_BOARD_STAMP)" \
+	&& touch "$(build)/$(dasharo-ec_dir)/.built"
+
+# Per-board EC build stamp.  Fires when a second board needs its EC compiled
+# but define_module has already marked the shared .build as done.
+# Depends on .build (source checked out and first board's EC compiled).
+$(DASHARO_EC_BOARD_STAMP): $(build)/$(dasharo-ec_dir)/.build
+	$(call do,EC-BUILD,$(DASHARO_EC_BOARD_MODEL), \
+		$(MAKE) -C "$(build)/$(dasharo-ec_dir)" BOARD=$(DASHARO_EC_BOARD_MODEL) \
+	)
+	touch $@
+
+# Copy the board-specific ec.rom into the per-board coreboot build dir.
+# The datestamped subdir (e.g. 2026-03-12_d198b64) is matched with a glob.
+# $(coreboot_dir) = coreboot-dasharo/$(BOARD), defined in modules/coreboot.
+$(build)/$(coreboot_dir)/ec.rom: $(DASHARO_EC_BOARD_STAMP)
+	$(call do,EC-ROM,$(DASHARO_EC_BOARD_MODEL) -> $(coreboot_dir)/ec.rom, \
+		mkdir -p "$(build)/$(coreboot_dir)" \
+		&& sh -c 'cp "$(build)/$(dasharo-ec_dir)/build/$(DASHARO_EC_BOARD_MODEL)"/*/ec.rom \
+		          "$(build)/$(coreboot_dir)/ec.rom"' \
+	)
+
+# Guarantee coreboot configure runs only after ec.rom is in place.
+$(build)/$(coreboot_dir)/.configured: $(build)/$(coreboot_dir)/ec.rom
+
+endif
