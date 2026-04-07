@@ -2859,3 +2859,240 @@ show_totp_until_esc() {
 		fi
 	done
 }
+
+update_plain_ext() {
+	TRACE_FUNC
+	if [ "${CONFIG_BOARD%_*}" = "talos-2" ]; then
+		echo "tgz"
+	else
+		echo "rom"
+	fi
+}
+
+single_glob() {
+	TRACE_FUNC
+	if [ "$#" -eq 1 ] && [ -f "$1" ]; then
+		echo "$1"
+	else
+		return 1
+	fi
+}
+
+prepare_flash_image() {
+	TRACE_FUNC
+	local input_file="$1"
+	local extract_dir="${2:-/tmp/flash_prepare}"
+	local plain_ext
+	plain_ext="$(update_plain_ext)"
+
+	PREPARED_ROM=""
+	PREPARED_ROM_HASH=""
+	PREPARED_ROM_ERROR=""
+
+	rm -rf "$extract_dir"
+	mkdir -p "$extract_dir"
+
+	case "${input_file##*.}" in
+	zip)
+		DEBUG "zip package detected: extracting and verifying sha256sum.txt"
+		if ! unzip "$input_file" -d "$extract_dir"; then
+			rm -rf "$extract_dir"
+			PREPARED_ROM_ERROR="Failed to extract $input_file"
+			return 1
+		fi
+		sed -i -e 's| /tmp/verified_rom/\+| |g' "$extract_dir/sha256sum.txt" 2>/dev/null || true
+		if ! (cd "$extract_dir" && sha256sum -cs sha256sum.txt); then
+			PREPARED_ROM_ERROR="Integrity check failed for $input_file"
+			return 1
+		fi
+		if ! PREPARED_ROM="$(single_glob "$extract_dir/"*."$plain_ext")"; then
+			PREPARED_ROM_ERROR="ROM image not found in $input_file"
+			return 1
+		fi
+		;;
+	tgz)
+		DEBUG "tgz archive detected: extracting and verifying sha256sum.txt (talos-2 only)"
+		if [ "${CONFIG_BOARD%_*}" != "talos-2" ]; then
+			PREPARED_ROM_ERROR="$CONFIG_BOARD does not support tgz image format"
+			return 1
+		fi
+		rm -rf /tmp/verified_rom
+		mkdir /tmp/verified_rom
+		if ! tar -C /tmp/verified_rom -xf "$input_file"; then
+			PREPARED_ROM_ERROR="Failed to extract archive $input_file"
+			return 1
+		fi
+		if ! (cd /tmp/verified_rom && sha256sum -cs sha256sum.txt); then
+			PREPARED_ROM_ERROR="Integrity check failed for $input_file"
+			return 1
+		fi
+		STATUS "Reading current flash and building an update image"
+		$CONFIG_FLASH_OPTIONS -r /tmp/flash.sh.bak ||
+			recovery "Read of flash has failed"
+		local _bootblock _rom _kernel
+		_bootblock=$(echo /tmp/verified_rom/*.bootblock)
+		_rom=$(echo /tmp/verified_rom/*.rom)
+		_kernel=$(echo /tmp/verified_rom/*-zImage.bundled)
+		pnor /tmp/flash.sh.bak -aw HBB <"$_bootblock"
+		pnor /tmp/flash.sh.bak -aw HBI <"$_rom"
+		pnor /tmp/flash.sh.bak -aw BOOTKERNEL <"$_kernel"
+		rm -rf /tmp/verified_rom
+		PREPARED_ROM=/tmp/flash.sh.bak
+		;;
+	rom)
+		DEBUG "plain ROM image detected: copying and computing SHA256"
+		if ! cp "$input_file" "$extract_dir/"; then
+			PREPARED_ROM_ERROR="Failed to read $input_file"
+			return 1
+		fi
+		PREPARED_ROM="$extract_dir/$(basename "$input_file")"
+		PREPARED_ROM_HASH="$(sha256sum "$PREPARED_ROM" | awk '{print $1}')"
+		;;
+	*)
+		DEBUG "unsupported file type: .${input_file##*.}"
+		PREPARED_ROM_ERROR="Unsupported file type: .${input_file##*.} (expected .zip, .tgz, or .rom)"
+		return 1
+		;;
+	esac
+}
+
+check_pending_rollback() {
+	TRACE_FUNC
+	local brand_lower backup_dir f best_mtime mtime backup_file backup_rel
+	local current_time backup_age rollback_window confirmed i
+
+	grep -q " /boot " /proc/mounts 2>/dev/null || return 0
+
+	if [ "$CONFIG_FLASH_AUTO_ROLLBACK" = "n" ]; then
+		DEBUG "CONFIG_FLASH_AUTO_ROLLBACK=n: skipping rollback check"
+		return 0
+	fi
+
+	brand_lower="$(echo "$CONFIG_BRAND_NAME" | tr '[:upper:]' '[:lower:]')"
+	backup_dir="/boot/${brand_lower}"
+
+	# Find the most recent backup ROM by modification time
+	backup_file=""
+	best_mtime=0
+	for f in "${backup_dir}"/backup_*.rom; do
+		[ -f "$f" ] || continue
+		mtime="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
+		if [ "$mtime" -gt "$best_mtime" ]; then
+			best_mtime="$mtime"
+			backup_file="$f"
+		fi
+	done
+
+	[ -n "$backup_file" ] || return 0
+
+	# If the backup is older than the rollback window the system has been running
+	# long enough without issue; skip silently.
+	# Default window: 3600 s (1 hour).  Override with CONFIG_FLASH_ROLLBACK_WINDOW.
+	current_time="$(date +%s 2>/dev/null || echo 0)"
+	backup_age=0
+	if [ "$best_mtime" -gt 0 ] && [ "$current_time" -gt "$best_mtime" ]; then
+		backup_age=$((current_time - best_mtime))
+	fi
+	rollback_window="${CONFIG_FLASH_ROLLBACK_WINDOW:-3600}"
+	if [ "$backup_age" -gt "$rollback_window" ]; then
+		DEBUG "Rollback backup is ${backup_age}s old (window=${rollback_window}s) - rollback window expired"
+		return 0
+	fi
+
+	# Security: if /boot has a signed kexec state, the backup must be listed in the
+	# signed kexec_hashes.txt.  Verify the GPG signature first so a tampered hash
+	# file cannot be used to trigger a rollback to a rogue ROM.
+	# Security: rollback only when a valid signed /boot state explicitly includes
+	# the backup.  No signature = no rollback, no exceptions.
+	if [ ! -f "/boot/kexec_hashes.txt" ] || [ ! -f "/boot/kexec.sig" ]; then
+		DEBUG "No signed /boot state - skipping auto-rollback"
+		return 0
+	fi
+	if ! (cd /boot && sha256sum kexec*.txt 2>/dev/null) | gpgv.sh /boot/kexec.sig - 2>/dev/null; then
+		DEBUG "/boot/kexec.sig verification failed - skipping auto-rollback"
+		return 0
+	fi
+	backup_rel="./${backup_file#/boot/}"
+	if ! grep -qF "$backup_rel" /boot/kexec_hashes.txt; then
+		DEBUG "Rollback backup not in signed /boot hashes - skipping auto-rollback"
+		return 0
+	fi
+	DEBUG "Backup $backup_rel verified in signed /boot hashes"
+
+	DEBUG "Recent backup $backup_file (${backup_age}s old) - 30s cancel window"
+
+	printf '\a'
+	echo ""
+	echo "======================================================"
+	echo "  FIRMWARE UPDATE DETECTED"
+	echo "======================================================"
+	echo ""
+	echo "  New firmware was flashed on the previous boot."
+	echo "  Rollback backup: $backup_file"
+	echo ""
+	echo "  Press any key within 30 seconds to KEEP the new firmware."
+	echo "  If no input is received, the previous firmware will be"
+	echo "  restored automatically."
+	echo ""
+
+	confirmed="false"
+	i=30
+	while [ "$i" -gt 0 ]; do
+		printf "\r  Restoring in %2d seconds... (any key to keep new firmware)  " "$i"
+		if IFS= read -r -t 1 -n 1 _confirm; then
+			confirmed="true"
+			break
+		fi
+		i=$((i - 1))
+	done
+	echo ""
+
+	if [ "$confirmed" = "true" ]; then
+		STATUS_OK "New firmware confirmed - rollback cancelled"
+		return 0
+	fi
+
+	echo ""
+	echo "  No input received."
+	echo "  Reflashing previous firmware - DO NOT POWER OFF..."
+	echo ""
+	if /bin/flash.sh -c --no-backup --bypass-verify "$backup_file"; then
+		echo ""
+		echo "  Rollback complete - rebooting."
+		mount -o remount,rw /boot 2>/dev/null || true
+		rm -f "$backup_file" 2>/dev/null || true
+		mount -o remount,ro /boot 2>/dev/null || true
+		sleep 2
+		/bin/reboot.sh
+	else
+		echo ""
+		echo "  ERROR: Automatic rollback failed."
+		echo "  Backup file: $backup_file"
+		recovery "Automatic firmware rollback failed"
+	fi
+}
+
+list_old_flash_backups() {
+	TRACE_FUNC
+	local brand_lower backup_dir f mtime cutoff retention
+	brand_lower="$(echo "$CONFIG_BRAND_NAME" | tr '[:upper:]' '[:lower:]')"
+	backup_dir="/boot/${brand_lower}"
+	retention="${CONFIG_FLASH_BACKUP_RETENTION:-30}"
+	cutoff=$(( $(date +%s 2>/dev/null || echo 0) - retention * 86400 ))
+
+	OLD_FLASH_BACKUPS=""
+
+	[ -d "$backup_dir" ] || return 1
+	[ "$cutoff" -gt 0 ] || return 1
+
+	for f in "${backup_dir}"/backup_*.rom; do
+		[ -f "$f" ] || continue
+		mtime="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
+		[ "$mtime" -gt 0 ] || continue
+		if [ "$mtime" -lt "$cutoff" ]; then
+			OLD_FLASH_BACKUPS="${OLD_FLASH_BACKUPS}${OLD_FLASH_BACKUPS:+ }${f}"
+		fi
+	done
+
+	[ -n "$OLD_FLASH_BACKUPS" ]
+}

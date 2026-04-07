@@ -1055,6 +1055,8 @@ EOF
 	done
 fi
 
+check_pending_rollback
+
 # detect whether any GPG keys exist in the keyring, if not, initialize that first
 if [ "$rollback_preflight_failed" != "y" ]; then
 	check_gpg_key

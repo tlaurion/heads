@@ -13,32 +13,7 @@ if [ "$CONFIG_RESTRICTED_BOOT" = y ]; then
 	exit 1
 fi
 
-# Most boards use a .rom file as a "plain" update, contents of the BIOS flash
-UPDATE_PLAIN_EXT=rom
-# talos-2 uses a .tgz file for its "plain" update, contains other parts as well
-# as its own integrity check.  This isn't integrated with the "update package"
-# workflow (as-is, a .tgz could be inside that package in theory) but more work
-# would be needed to properly integrate it.
-if [ "${CONFIG_BOARD%_*}" = talos-2 ]; then
-	UPDATE_PLAIN_EXT=tgz
-fi
-
-# Check that a glob matches exactly one thing.  If so, echoes the single value.
-# Otherwise, fails.  As always, do not quote the glob.
-#
-# E.g, locate a ROM with unknown version when only one should be present:
-# if ROM_FILE="$(single_glob /media/heads-*.rom)"; then
-#     echo "ROM is $ROM_FILE"
-# else
-#     echo "Failed to find a ROM" >&2
-# fi
-single_glob() {
-	if [ "$#" -eq 1 ] && [ -f "$1" ]; then
-		echo "$1"
-	else
-		return 1
-	fi
-}
+UPDATE_PLAIN_EXT="$(update_plain_ext)"
 
 while true; do
 	unset menu_choice
@@ -46,6 +21,7 @@ while true; do
 		--menu "Select the firmware function to perform\n\nRetaining settings copies existing settings to the new firmware:\n* Keeps your GPG keyring\n* Keeps changes to the default /boot device\n\nErasing settings uses the new firmware as-is:\n* Erases any existing GPG keyring\n* Restores firmware to default factory settings\n* Clears out /boot signatures\n\nIf you are just updating your firmware, you probably want to retain\nyour settings." 0 80 10 \
 		'f' ' Flash the firmware with a new ROM, retain settings' \
 		'c' ' Flash the firmware with a new ROM, erase settings' \
+		'r' ' Rollback to previous firmware backup' \
 		'x' ' Exit' \
 		2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -54,6 +30,39 @@ while true; do
 	case "$menu_choice" in
 	"x")
 		exit 0
+		;;
+	"r")
+		rollback_brand_lower="$(echo "$CONFIG_BRAND_NAME" | tr '[:upper:]' '[:lower:]')"
+		rollback_dir="/boot/${rollback_brand_lower}"
+
+		# Find the most recent backup ROM by mtime (no marker needed)
+		rollback_file=""
+		_rb_best=0
+		for _rb_f in "${rollback_dir}"/backup_*.rom; do
+			[ -f "$_rb_f" ] || continue
+			_rb_mtime="$(stat -c %Y "$_rb_f" 2>/dev/null || echo 0)"
+			if [ "$_rb_mtime" -gt "$_rb_best" ]; then
+				_rb_best="$_rb_mtime"
+				rollback_file="$_rb_f"
+			fi
+		done
+
+		if [ -z "$rollback_file" ] || [ ! -f "$rollback_file" ]; then
+			whiptail_error --title 'No Rollback Available' \
+				--msgbox "No firmware rollback backup found.\n\nA backup is created automatically before each flash operation." 0 80
+		else
+			rollback_display="${rollback_file#/boot/}"
+			if (whiptail_warning --title 'Rollback Firmware?' \
+				--yesno "This will rollback to:\n\n$rollback_display\n\nWARNING: Current firmware will be replaced.\nDo you want to proceed?" 0 80); then
+				/bin/flash.sh -c --no-backup --bypass-verify "$rollback_file"
+				mount -o remount,rw /boot 2>/dev/null || true
+				rm -f "$rollback_file" 2>/dev/null || true
+				mount -o remount,ro /boot 2>/dev/null || true
+				whiptail_type $BG_COLOR_MAIN_MENU --title 'Rollback Complete' \
+					--msgbox "Rollback complete.\n\nPress Enter to reboot\n" 0 0
+				/bin/reboot.sh
+			fi
+		fi
 		;;
 	f | c)
 		if (whiptail_warning --title 'Flash the BIOS with a new ROM' \
@@ -91,37 +100,13 @@ while true; do
 
 				# is an update package provided?
 				if [ -z "${PKG_FILE##*.zip}" ]; then
-					# If extraction fails, delete everything and fall through to the
-					# integrity failure prompt.  This is the most likely path if the ROM
-					# was actually corrupted in transit.  Corrupting the ZIP in a way that
-					# still extracts is possible (the sha256sum detects this) but less
-					# likely.
-					unzip "$PKG_FILE" -d "$PKG_EXTRACT" || rm -rf "$PKG_EXTRACT"
-					# Older packages had /tmp/verified_rom hard-coded in the sha256sum.txt
-					# Remove that so it's a relative path to the ROM in the package.
-					# Ignore failure, if there is no sha256sum.txt the sha256sum will fail
-					sed -i -e 's| /tmp/verified_rom/\+| |g' "$PKG_EXTRACT/sha256sum.txt" || true
-					# check file integrity
-					if ! (cd "$PKG_EXTRACT" && sha256sum -cs sha256sum.txt); then
-						whiptail_error --title 'ROM Integrity Check Failed! ' \
-							--msgbox "Integrity check failed in\n$PKG_FILE_DISPLAY.\nDid not flash.\n\nPlease check your file (e.g. re-download).\n" 0 0
+					if ! prepare_flash_image "$PKG_FILE" "$PKG_EXTRACT"; then
+						whiptail_error --title 'ROM Integrity Check Failed!' \
+							--msgbox "Integrity check failed in\n$PKG_FILE_DISPLAY.\n\n$PREPARED_ROM_ERROR\n\nDid not flash.\n\nPlease check your file (e.g. re-download).\n" 0 80
 						exit 1
 					fi
-
-					# The package must contain exactly one *.rom file, flash that.
-					if ! PACKAGE_ROM="$(single_glob "$PKG_EXTRACT/"*."$UPDATE_PLAIN_EXT")"; then
-						whiptail_error --title 'BIOS Image Not Found! ' \
-							--msgbox "A BIOS image was not found in\n$PKG_FILE_DISPLAY.\n\nPlease check your file (e.g. re-download).\n" 0 0
-						exit 1
-					fi
-
-					if ! whiptail_warning --title 'Flash ROM?' \
-						--yesno "This will replace your current ROM with:\n\n$PKG_FILE_DISPLAY\n\nDo you want to proceed?" 0 0; then
-						exit 1
-					fi
-
 					# Continue on using the verified ROM
-					ROM="$PACKAGE_ROM"
+					ROM="$PREPARED_ROM"
 				else
 					# talos-2 uses a .tgz file for its "plain" update, contains other parts as well, validated against hashes under flash.sh
 					# Skip prompt for hash validation for talos-2. Only method is through tgz or through bmc with individual parts
@@ -143,6 +128,23 @@ while true; do
 					else
 						#We are on talos-2, so we have a tgz file. We will pass it directly to flash.sh which will take care of it
 						ROM="$PKG_FILE"
+					fi
+				fi
+
+				# Offer to remove old backups before flashing so they are excluded
+				# from the next /boot signing and do not exhaust /boot space.
+				if list_old_flash_backups; then
+					_cleanup_msg=""
+					for _old in $OLD_FLASH_BACKUPS; do
+						_cleanup_msg="${_cleanup_msg}  ${_old#/boot/}\n"
+					done
+					if (whiptail_warning --title 'Old Firmware Backups Found' \
+						--yesno "Backups older than ${CONFIG_FLASH_BACKUP_RETENTION:-30} days:\n\n${_cleanup_msg}\nDelete to free /boot space before flashing?" 0 80); then
+						mount -o remount,rw /boot 2>/dev/null || true
+						for _old in $OLD_FLASH_BACKUPS; do
+							rm -f "$_old" 2>/dev/null || true
+						done
+						mount -o remount,ro /boot 2>/dev/null || true
 					fi
 				fi
 

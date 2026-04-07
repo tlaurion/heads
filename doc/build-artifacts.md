@@ -10,6 +10,7 @@ A Heads build produces the following artifacts per board:
 | `<basename>-gpg-injected.rom` | ROM with a GPG public key injected (post key-generation step) |
 | `<basename>.bootblock` | coreboot bootblock only (board-specific use) |
 | `<basename>.zip` | Update package: ROM + `sha256sum.txt`, used by `flash-gui.sh` for verified internal upgrades |
+| `<basename>.tgz` | Multi-component archive (talos-2 only): bootblock + rom + kernel bundled with `sha256sum.txt` |
 | `linuxboot-<board>-<suffix>.rom` | LinuxBoot variant (where applicable) |
 
 ## Filename Format

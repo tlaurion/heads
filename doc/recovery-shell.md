@@ -66,8 +66,16 @@ mount-usb --device /dev/sdb1 --mode rw
 ### Flash firmware manually
 
 ```bash
-mount-usb
+mount-usb.sh
+
+# Plain ROM:
 flashprog -p internal -w /media/heads-board-version.rom
+
+# Update package (.zip with sha256sum.txt):
+flash.sh /media/heads-board-version.zip
+
+# Talos-2 multi-component archive (.tgz):
+flash.sh /media/heads-board-version.tgz
 ```
 
 Verify internal flash is unlocked first:
@@ -75,6 +83,25 @@ Verify internal flash is unlocked first:
 ```bash
 flashprog -p internal
 ```
+
+#### flash.sh Options
+
+| Flag | Description |
+|------|-------------|
+| (none) | Flash firmware, retaining GPG keyring and /boot settings |
+| `-c` | Flash firmware, erasing all settings (factory reset) |
+| `-r` | Read/backup current firmware to specified path |
+| `--bypass-verify` | Skip post-write verification (faster, use with care) |
+| `--save-backup` | Force pre-write backup even if `CONFIG_FLASH_SAVE_BACKUP=n` |
+| `--no-backup` | Suppress pre-write backup (used during rollback to avoid saving the firmware being reverted) |
+
+#### Supported Image Formats
+
+| Format | Description |
+|--------|-------------|
+| `.rom` | Plain ROM image - flashed directly |
+| `.zip` | Update package - extracted and sha256sum.txt verified before flash |
+| `.tgz` | Talos-2 multi-component archive (talos-2 board only) |
 
 ### Sign a detached ISO (for verified OS install from Recovery Shell)
 

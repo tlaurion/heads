@@ -18,6 +18,10 @@ Setting any of these at build time sets the default setting.
 | CONFIG_BASIC | 'Basic' mode - no tamper evident boot. |
 | CONFIG_BASIC_NO_AUTOMATIC_DEFAULT | In Basic mode: By default, Basic mode detects the default boot option during boot, so it does not need to be updated when the OS boot options change.  Enabling this setting uses a manually-specified boot option instead. |
 | CONFIG_BASIC_USB_AUTOBOOT | In Basic mode: Causes Heads to boot to a bootable USB flash drive by default if inserted.  Allows headless systems to perform OS recovery using appropriate bootable images designed for network recovery. |
+| CONFIG_FLASH_AUTO_ROLLBACK | Enable automatic rollback prompt on boot after a firmware update.  When `y` (default), Heads checks on each boot whether a recent firmware backup exists and has been included in the signed `/boot` state; if so, a 30-second countdown offers to restore the previous firmware.  Set to `n` to disable. |
+| CONFIG_FLASH_BACKUP_RETENTION | Number of days after which old firmware backups in `/boot` are offered for cleanup before a new flash.  Default: 30. |
+| CONFIG_FLASH_ROLLBACK_WINDOW | Seconds after a firmware backup was written during which the automatic rollback prompt is active.  Once this window expires the backup is kept (as part of signed `/boot`) but the rollback prompt no longer fires.  Default: 3600 (1 hour). |
+| CONFIG_FLASH_SAVE_BACKUP | Whether to save a rollback backup of the current firmware to `/boot` before flashing.  Default: `y`.  Set to `n` to disable.  Can be overridden per-invocation with `--save-backup` / `--no-backup`. |
 
 :point_right: TODO: document these:
 
@@ -45,6 +49,7 @@ These are not intended to be changed in user config.
 | CONFIG_BOARD | Internal name of the board being built.  Avoid testing this for specific boards in initrd/, instead add a customization point and override it with boards/<name>/initrd/bin/<file>.  (For example, boards/librem_mini_v2/initrd/bin/board-init.sh.) |
 | CONFIG_BOARD_NAME | Display name of the board being built.  Use this to show the board name to the user. |
 | CONFIG_BRAND_NAME | Brand name to use to refer to the firmware itself.  Upstream, this is "Heads".  For example, "Heads main menu", "Enable Heads debug tracing", etc.  Distributions can override this to their specific brand name (usually in site-local/config). |
+| CONFIG_FLASH_NO_VERIFY | Disable post-write flash verification.  Equivalent to always passing `--bypass-verify` to `flash.sh`.  Speeds up flashing at the cost of not confirming the write succeeded.  Default: unset (verification enabled). |
 
 ## Feature support
 
