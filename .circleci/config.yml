@@ -42,8 +42,28 @@ commands:
             else
               echo "Step hasn't failed. Continuing with next step..."
             fi
+      - run:
+          name: Generate PR artifact summary
+          command: |
+            BUILD_DIR="build/<< parameters.arch >>/<< parameters.target >>"
+            ARCHIVE=$(find "${BUILD_DIR}" -maxdepth 1 \( -name "*.zip" -o -name "*.tgz" \) 2>/dev/null | head -1)
+            ROM=$(find "${BUILD_DIR}" -maxdepth 1 -name "*.rom" ! -name "*gpg-injected*" ! -name "*.signed.*" 2>/dev/null | head -1)
+            ROM_SHA=$(grep -E "\.rom$" "${BUILD_DIR}/hashes.txt" 2>/dev/null | tail -1 | awk '{print $1}')
+            ARCHIVE_SHA=$(grep -E "\.(zip|tgz)$" "${BUILD_DIR}/hashes.txt" 2>/dev/null | tail -1 | awk '{print $1}')
+            printf '{"target":"%s","arch":"%s","rom":"%s","rom_sha256":"%s","archive":"%s","archive_sha256":"%s"}\n' \
+              "<< parameters.target >>" \
+              "<< parameters.arch >>" \
+              "$(basename "${ROM:-}")" \
+              "${ROM_SHA:-}" \
+              "$(basename "${ARCHIVE:-}")" \
+              "${ARCHIVE_SHA:-}" \
+              > "${BUILD_DIR}/pr_artifacts.json" || true
+          when: always
       - store_artifacts:
           path: build/<< parameters.arch >>/<< parameters.target >>
+      - run:
+          name: Append build row to PR comment
+          command: bash .circleci/post_pr_comment.sh << parameters.arch >> << parameters.target >>
 
 jobs:
   prep_env:
@@ -606,3 +626,4 @@ workflows:
           subcommand: ""
           requires:
             - UNTESTED_msi_z690a_ddr4
+
