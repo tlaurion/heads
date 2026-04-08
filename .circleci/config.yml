@@ -626,4 +626,3 @@ workflows:
           subcommand: ""
           requires:
             - UNTESTED_msi_z690a_ddr4
-
