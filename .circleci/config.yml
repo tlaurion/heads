@@ -1,5 +1,13 @@
 version: 2.1
 
+executors:
+  heads-docker:
+    docker:
+      # Docker image: tlaurion/heads-dev-env:v0.2.9
+      - image: tlaurion/heads-dev-env@sha256:96f8f91c6464305c4a990d59f9ef93910c16c7fd0501a46b43b34a4600a368de
+    resource_class: large
+    working_directory: ~/heads
+
 commands:
   build_board:
     parameters:
@@ -15,7 +23,12 @@ commands:
           command: |
             echo "Sourcing /devenv.sh since docker entrypoint doesn't do it as expected"
             source /devenv.sh
-            rm -rf build/<< parameters.arch >>/<< parameters.target >>/* build/<< parameters.arch >>/log/*
+            rm -rf build/<< parameters.arch >>/log/*
+            # Fresh checkout timestamps can make restored module stamp files look stale.
+            # Refresh them first so restored musl-cross-make and dependency trees are reused.
+            if [ -d "build/<< parameters.arch >>" ]; then
+              find "build/<< parameters.arch >>" -type f \( -name ".configured" -o -name ".build" \) -exec touch {} +
+            fi
             #Pass AVAILABLE_MEM_GB=8 to respect CircleCI free tier RAM assignation, which otherwise randomly fails. See Makefile calculations.
             # Without AVAILABLE_MEM_GB=8: CircleCI passes '-j36 --load-average=54'
             # With AVAILABLE_MEM_GB=8: CircleCI passes '-j8 --load-average=12'
@@ -46,12 +59,45 @@ commands:
           path: build/<< parameters.arch >>/<< parameters.target >>
 
 jobs:
-  prep_env:
-    docker:
-      # Docker image: tlaurion/heads-dev-env:v0.2.9
-      - image: tlaurion/heads-dev-env@sha256:96f8f91c6464305c4a990d59f9ef93910c16c7fd0501a46b43b34a4600a368de
-    resource_class: large
-    working_directory: ~/heads
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Glossary
+  # ═══════════════════════════════════════════════════════════════════════════
+  # fan-in: When multiple upstream jobs try to persist the same paths to the
+  #         same workspace. CircleCI throws an error if this happens.
+  #         Solution: Each job saves its own cache immediately, before persisting.
+  #
+  # workspace chain: Linear dependency chain where only one job persists at a time.
+  #                  No fan-in possible since each job in the chain is unique.
+  #
+  # cache layer: CircleCI caches are hierarchical for each architecture:
+  #              Cache key naming: {arch}-{layer}-nix-docker-heads-{hash}[-{fork}]
+  #              - {arch}-blobs-nix-docker-heads-{hash}                 (x86 only, ppc64 has no blobs)
+  #              - {arch}-musl-cross-make-nix-docker-heads-{hash}
+  #                └── Base toolchain (GCC + musl = musl-cross-make)
+  #              - {arch}-coreboot-musl-cross-make-nix-docker-heads-{hash}-{coreboot_dir}
+  #                └── Includes musl + coreboot toolstack
+  #              - {arch}-modules-coreboot-musl-cross-make-nix-docker-heads-{hash}-{coreboot_dir}
+  #                └── Includes coreboot + musl + all modules
+  #              Caches are reused across pipelines for the same repository.
+  #              They do NOT speed up sibling jobs in the same workflow run.
+  #              Each x86_coreboot job saves both coreboot and modules caches.
+  #
+  # CACHE_VERSION: Environment variable used to invalidate all caches at once.
+  #                Set as CircleCI project variable in project settings.
+  #                Suggested format: YYYYMMDD (e.g., 20260420) for easy manual invalidation.
+  #                To force fresh builds: update CACHE_VERSION value in CircleCI project settings.
+  #                See: https://circleci.com/docs/env-vars/#project-level-and-organization-level-environment-variables
+  #              Blobs are checked and restored first for x86, then musl -> coreboot -> modules.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # create_hashes: creates all cache hash files for the pipeline
+  # - Checks out code, resets to CIRCLE_SHA1
+  # - Creates hashes for: modules, coreboot, musl-cross-make, blobs listing
+  # - Persists tmpDir to workspace for downstream jobs
+  # This job is fast and shared by all architectures.
+  create_hashes:
+    executor: heads-docker
     steps:
       - checkout
       - run:
@@ -74,19 +120,27 @@ jobs:
           name: Creating musl-cross-make and musl-cross-make patches digest (musl-cross-make cache digest)
           command: |
             find ./flake.lock modules/musl-cross-make* -type f | sort -h | xargs sha256sum > ./tmpDir/musl-cross-make.sha256sums
+      - run:
+          name: Creating blobs listing digest (for x86_blobs cache key)
+          command: |
+            find ./blobs -type f -name "*.sh" | sort -h | xargs sha256sum > ./tmpDir/blobs_listing.sha256sums
+
+  # x86_blobs: downloads x86-specific blobs (ME, GBE, etc.)
+  # - Checks out code to get blob download scripts
+  # - Restores blob cache (keyed on blob listing hash)
+  # - Downloads blobs if cache missed
+  # - Saves blob cache for future runs
+  # - Blobs from: blobs/xx20/ (x220, x230, z220), blobs/xx30/ (Optiplex, T530, W530), blobs/xx80/ (T480, T480s)
+  # - Forks (dasharo, purism, dasharo_msi) use their own blobs from 3rdparty/ in coreboot trees
+  # No workspace persistence - cache used instead
+  # Only needed for x86 boards (ppc64 UNTESTED_talos-2 has no blobs)
+  x86_blobs:
+    executor: heads-docker
+    steps:
+      - checkout
       - restore_cache:
-          # First matched/found key wins and following keys are not tried
           keys:
-            # Cache for matching modules digest, validated to be exactly the same as in GitHub current commit.
-            # This cache was made on top of below caches, if previously existing.
-            # If no module definition changed, we reuse this one
-            - nix-docker-heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
-
-            # Cache for coreboot module (and patches) and musl-cross-make digests (coreboot: triannual release)
-            - nix-docker-heads-coreboot-musl-cross-make-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
-
-            # Cache for musl-cross-make module digest (rarely modified).
-            - nix-docker-heads-musl-cross-make-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+            - x86-blobs-nix-docker-heads-{{ checksum "./tmpDir/blobs_listing.sha256sums" }}{{ .Environment.CACHE_VERSION }}
       - run:
           name: Download and neuter xx20 ME (keep generated GBE and extracted IFD in tree)
           command: |
@@ -117,47 +171,16 @@ jobs:
             echo skipping for now
             exit 0
             ./blobs/xx30/vbios_w530.sh
-      - persist_to_workspace:
-          root: ~/heads
+      - save_cache:
+          key: x86-blobs-nix-docker-heads-{{ checksum "./tmpDir/blobs_listing.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
-            - .
-
-  build_and_persist:
-    docker:
-      # Docker image: tlaurion/heads-dev-env:v0.2.9
-      - image: tlaurion/heads-dev-env@sha256:96f8f91c6464305c4a990d59f9ef93910c16c7fd0501a46b43b34a4600a368de
-    resource_class: large
-    working_directory: ~/heads
-    parameters:
-      arch:
-        type: string
-        default: x86
-      target:
-        type: string
-      subcommand:
-        type: string
-    steps:
-      - attach_workspace:
-          at: ~/heads
-      - build_board:
-          arch: << parameters.arch >>
-          target: << parameters.target >>
-          subcommand: << parameters.subcommand >>
-      - persist_to_workspace:
-          root: ~/heads
-          paths:
-            - packages/<< parameters.arch >>
-            - build/<< parameters.arch >>
-            - crossgcc/<< parameters.arch >>
-            - install/<< parameters.arch >>
+            - blobs
 
   build:
-    docker:
-      # Docker image: tlaurion/heads-dev-env:v0.2.9
-      - image: tlaurion/heads-dev-env@sha256:96f8f91c6464305c4a990d59f9ef93910c16c7fd0501a46b43b34a4600a368de
-    resource_class: large
-    working_directory: ~/heads
+    executor: heads-docker
     parameters:
+      coreboot_dir:
+        type: string
       arch:
         type: string
         default: x86
@@ -166,140 +189,253 @@ jobs:
       subcommand:
         type: string
     steps:
-      - attach_workspace:
-          at: ~/heads
+      - checkout
+      - restore_cache:
+          keys:
+            - <<parameters.arch>>-modules-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-<<parameters.coreboot_dir >>
+            - <<parameters.arch>>-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}-<<parameters.coreboot_dir >>
+            - <<parameters.arch>>-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
       - build_board:
           arch: <<parameters.arch>>
           target: <<parameters.target>>
           subcommand: <<parameters.subcommand>>
 
-  save_cache:
-    docker:
-      # Docker image: tlaurion/heads-dev-env:v0.2.9
-      - image: tlaurion/heads-dev-env@sha256:96f8f91c6464305c4a990d59f9ef93910c16c7fd0501a46b43b34a4600a368de
-    resource_class: large
-    working_directory: ~/heads
+  # x86_musl_cross_make: builds musl-cross-make for x86 architecture.
+  # - Checks out code for build scripts
+  # - Restores the fullest matching toolchain cache from previous builds
+  #   (prefer full modules cache, then fall back to musl-only cache)
+  #   Note: the first run after a cache-key change can miss modules if that
+  #   broad cache has not been published by an earlier pipeline yet.
+  # - Refreshed .configured/.build stamps prevent checkout mtimes from
+  #   needlessly rebuilding restored musl-cross-make trees.
+  # - Builds musl-cross-make toolchain
+  # - Saves musl-cross-make cache for future runs, including install/x86 so
+  #   the restored toolchain still has its sysroot headers and libraries
+  # No workspace - cache used instead
+  x86_musl_cross_make:
+    executor: heads-docker
+    parameters:
+      target:
+        type: string
+      subcommand:
+        type: string
     steps:
-      - attach_workspace:
-          at: ~/heads
+      - checkout
+      - restore_cache:
+          keys:
+            - x86-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+      - build_board:
+          arch: x86
+          target: << parameters.target >>
+          subcommand: << parameters.subcommand >>
       - save_cache:
-          # Generate cache for the same musl-cross-make module definition if hash is not previously existing
-          # CircleCI removed their wildcard support, so we have to list precise versions to cache in directory names
-          key: nix-docker-heads-musl-cross-make-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: x86-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          paths:
+            - build/x86/musl-cross-make-fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
+            - crossgcc/x86
+            - install/x86
+            - packages/x86
+
+  # x86_coreboot: builds a coreboot fork for x86 architecture.
+  # - Checks out code for build scripts
+  # - Restores cache with fallbacks:
+  #   (modules+coreboot+musl -> coreboot+musl -> musl)
+  #   Largest valid cache is first to maximize reuse when multiple keys exist.
+  #   Restored build stamps are refreshed before make so source checkout mtimes
+  #   do not force a redundant musl-cross-make rebuild.
+  #   Do not restore a generic coreboot cache across forks: that can inject
+  #   another fork's coreboot build tree (for example z790 into z690).
+  # - Builds coreboot firmware for this fork
+  # - Saves fork-specific coreboot+toolchain cache AND modules cache
+  #   This enables downstream boards to restore full state from cache
+  # Each distinct coreboot fork uses this: dasharo_nv4x, dasharo_v56, purism, 25.09, 4.11, dasharo_msi_*, etc.
+  # No workspace - cache used instead
+  x86_coreboot:
+    executor: heads-docker
+    parameters:
+      target:
+        type: string
+      subcommand:
+        type: string
+      coreboot_dir:
+        type: string
+        description: "The build/x86/coreboot-* directory built by this fork (e.g. coreboot-24.02.01)"
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - x86-modules-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-<< parameters.coreboot_dir >>
+            - x86-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}-<< parameters.coreboot_dir >>
+            - x86-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+      - build_board:
+          arch: x86
+          target: << parameters.target >>
+          subcommand: << parameters.subcommand >>
+      - save_cache:
+          key: x86-modules-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-<< parameters.coreboot_dir >>
+          paths:
+            - build/x86
+            - install/x86
+            - crossgcc/x86
+            - packages/x86
+      - save_cache:
+          key: x86-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}-<< parameters.coreboot_dir >>
+          paths:
+            - build/x86/<< parameters.coreboot_dir >>
+            - build/x86/musl-cross-make-fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
+            - crossgcc/x86
+            - install/x86
+            - packages/x86
+
+  # ppc64_talos_2: builds UNTESTED_talos-2 board for ppc64 architecture (coreboot version: talos_2).
+  # - Checks out code for build scripts
+  # - Restores cache with fallbacks:
+  #   (modules+coreboot+musl -> coreboot+musl -> musl)
+  # - Largest valid cache is first to avoid restoring a narrower key when a
+  #   fuller cache for the same checksums already exists.
+  # - Restored build stamps are refreshed before make for the same reason as x86.
+  # - Builds musl-cross-make + coreboot + firmware together (ppc64 has only one board)
+  # - Saves all 3 cache layers: musl, coreboot, modules
+  # No workspace - cache used instead
+  ppc64_talos_2:
+    executor: heads-docker
+    parameters:
+      target:
+        type: string
+      subcommand:
+        type: string
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - ppc64-modules-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-coreboot-talos_2
+            - ppc64-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}-coreboot-talos_2
+            - ppc64-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+      - build_board:
+          arch: ppc64
+          target: << parameters.target >>
+          subcommand: << parameters.subcommand >>
+      - save_cache:
+          key: ppc64-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - build/ppc64/musl-cross-make-fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
-            - build/x86/musl-cross-make-fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
-            - crossgcc
-            - packages
+            - crossgcc/ppc64
+            - install/ppc64
+            - packages/ppc64
       - save_cache:
-          # Generate cache for the same coreboot and musl-cross-make modules definition if hash is not previously existing
-          # CircleCI removed their wildcard support, so we have to list precise versions to cache in directory names
-          key: nix-docker-heads-coreboot-musl-cross-make-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}
+          key: ppc64-modules-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}-coreboot-talos_2
+          paths:
+            - build/ppc64
+            - install/ppc64
+            - crossgcc/ppc64
+            - packages/ppc64
+      - save_cache:
+          key: ppc64-coreboot-musl-cross-make-nix-docker-heads-{{ checksum "./tmpDir/coreboot_musl-cross-make.sha256sums" }}{{ .Environment.CACHE_VERSION }}-coreboot-talos_2
           paths:
             - build/ppc64/coreboot-talos_2
             - build/ppc64/musl-cross-make-fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
-            - build/x86/coreboot-4.11
-            - build/x86/coreboot-24.02.01
-            - build/x86/coreboot-25.09
-            - build/x86/coreboot-dasharo_v56
-            - build/x86/coreboot-dasharo_nv4x
-            - build/x86/coreboot-dasharo_msi_z790
-            - build/x86/coreboot-dasharo_msi_z690
-            - build/x86/coreboot-purism
-            - build/x86/musl-cross-make-fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
-            - crossgcc
-            - packages
-      - save_cache:
-          # Generate cache for the exact same modules definitions if hash is not previously existing
-          key: nix-docker-heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
-          paths:
-            - build
-            - crossgcc
-            - install
-            - packages
+            - crossgcc/ppc64
+            - install/ppc64
+            - packages/ppc64
 
 workflows:
-  version: 2
   build_and_test:
     max_auto_reruns: 3
     jobs:
-      - prep_env
+      - create_hashes
 
-      # This step builds musl-cross-make for x86 architecture, which will be used by subsequent x86 board builds
-      - build_and_persist:
+      # ── x86 blobs ───────────────────────────────────────────────────────
+      # Can run in parallel with x86_musl_cross_make (cache-based, no deps)
+      - x86_blobs:
+          requires:
+            - create_hashes
+
+      # ── ppc64 talos-2 ──────────────────────────────────────────────────
+      # Single board, no fan-in needed
+      - ppc64_talos_2:
+          target: UNTESTED_talos-2
+          subcommand: ""
+          requires:
+            - create_hashes
+
+      # ── x86 musl-cross-make seed ──────────────────────────────────────────
+      # Can run in parallel with x86_blobs (cache-based, no workspace fan-in)
+      - x86_musl_cross_make:
           name: x86-musl-cross-make
           target: EOL_t480-hotp-maximized
           subcommand: "musl-cross-make"
           requires:
-            - prep_env
+            - create_hashes
 
-      # This step builds musl-cross-make for ppc64 architecture, which will be used by subsequent ppc64 board builds
-      - build_and_persist:
-          name: ppc64-musl-cross-make
-          arch: ppc64
-          target: UNTESTED_talos-2
-          subcommand: "musl-cross-make"
-          requires:
-            - prep_env
+      # ── x86 coreboot fork seeds ───────────────────────────────────────────
+      # Each seed builds its coreboot fork and saves fork-specific cache.
+      # Most forks use their own fork-specific blobs (dasharo, purism, etc.)
+      # Only 25.09 fork needs x86_blobs for xx80 ME firmware
 
-      # Below, sequentially build one board for each coreboot version.
-      # The last board in the sequence is the dependency for the parallel boards built at the end, and also save_cache.
-
-      # coreboot 24.02.01
-      - build_and_persist:
+      # dasharo_nv4x fork (uses dasharo_blobs)
+      - x86_coreboot:
           name: novacustom-nv4x_adl
           target: novacustom-nv4x_adl
           subcommand: ""
+          coreboot_dir: coreboot-dasharo_nv4x
           requires:
             - x86-musl-cross-make
 
-      # coreboot purism: based on coreboot 24.02.01, reuse dasharo 24.02.01 crossgcc
-      - build_and_persist:
+      # dasharo_v56 fork (uses dasharo_blobs)
+      - x86_coreboot:
+          name: novacustom-v560tu
+          target: novacustom-v560tu
+          subcommand: ""
+          coreboot_dir: coreboot-dasharo_v56
+          requires:
+            - x86-musl-cross-make
+
+      # purism fork (uses purism_blobs)
+      - x86_coreboot:
           name: librem_14
           target: librem_14
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
-            - novacustom-nv4x_adl
+            - x86-musl-cross-make
 
-      # t480 is based on 25.09 coreboot release, not sharing any buildstack from now, depend on muscl-cross cache
-      - build_and_persist:
+      # 25.09 fork (needs x86_blobs for xx80 ME firmware from Heads blobs/)
+      - x86_coreboot:
           name: EOL_t480-hotp-maximized
           target: EOL_t480-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
+            - x86_blobs
             - x86-musl-cross-make
 
-      # coreboot talos_2
-      - build_and_persist:
-          name: UNTESTED_talos-2
-          arch: ppc64
-          target: UNTESTED_talos-2
-          subcommand: ""
-          requires:
-            - ppc64-musl-cross-make
-
-      # coreboot 4.11
-      - build_and_persist:
+      # 4.11 fork (uses purism blobs)
+      - x86_coreboot:
+      - x86_coreboot:
           name: EOL_librem_l1um
           target: EOL_librem_l1um
           subcommand: ""
+          coreboot_dir: coreboot-4.11
           requires:
             - x86-musl-cross-make
 
-      # dasharo_msi
-      - build_and_persist:
+      # dasharo_msi_z690 fork (uses dasharo-specific blobs)
+      - x86_coreboot:
           name: UNTESTED_msi_z690a_ddr4
           target: UNTESTED_msi_z690a_ddr4
           subcommand: ""
+          coreboot_dir: coreboot-dasharo_msi_z690
           requires:
             - x86-musl-cross-make
 
-      # Cache one workspace per architecture
-      # Make sure workspace caches are chainloaded and the last in chain for an arch is saved
-      - save_cache:
+      # dasharo_msi_z790 fork (uses dasharo-specific blobs)
+      - x86_coreboot:
+          name: UNTESTED_msi_z790p_ddr4
+          target: UNTESTED_msi_z790p_ddr4
+          subcommand: ""
+          coreboot_dir: coreboot-dasharo_msi_z790
           requires:
-            - UNTESTED_talos-2
-            - EOL_t480-hotp-maximized
+            - x86-musl-cross-make
 
       # Those onboarding new boards should add their entries below.
       # coreboot 25.09 boards
@@ -307,6 +443,7 @@ workflows:
           name: EOL_x220-hotp-maximized
           target: EOL_x220-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -314,6 +451,7 @@ workflows:
           name: EOL_x220-maximized
           target: EOL_x220-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -321,6 +459,7 @@ workflows:
           name: EOL_t420-hotp-maximized
           target: EOL_t420-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -328,6 +467,7 @@ workflows:
           name: EOL_t420-maximized
           target: EOL_t420-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -335,6 +475,7 @@ workflows:
           name: EOL_t430-hotp-maximized
           target: EOL_t430-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -342,6 +483,7 @@ workflows:
           name: EOL_x230-maximized
           target: EOL_x230-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -349,6 +491,7 @@ workflows:
           name: EOL_optiplex-7010_9010-maximized
           target: EOL_optiplex-7010_9010-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -356,6 +499,7 @@ workflows:
           name: EOL_optiplex-7010_9010-hotp-maximized
           target: EOL_optiplex-7010_9010-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -363,6 +507,7 @@ workflows:
           name: EOL_optiplex-7010_9010_TXT-maximized
           target: EOL_optiplex-7010_9010_TXT-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -370,20 +515,17 @@ workflows:
           name: EOL_optiplex-7010_9010_TXT-hotp-maximized
           target: EOL_optiplex-7010_9010_TXT-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
-      - build:
-          name: EOL_x230-hotp-maximized
-          target: EOL_x230-hotp-maximized
-          subcommand: ""
-          requires:
-            - EOL_t480-hotp-maximized
+      # Runs in parallel with other 25.09 board builds.
 
       - build:
           name: EOL_x230-hotp-maximized_usb-kb
           target: EOL_x230-hotp-maximized_usb-kb
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -391,6 +533,7 @@ workflows:
           name: EOL_x230-maximized-fhd_edp
           target: EOL_x230-maximized-fhd_edp
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -398,6 +541,7 @@ workflows:
           name: EOL_x230-hotp-maximized-fhd_edp
           target: EOL_x230-hotp-maximized-fhd_edp
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -405,6 +549,7 @@ workflows:
           name: EOL_w530-hotp-maximized
           target: EOL_w530-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -412,6 +557,7 @@ workflows:
           name: EOL_t430-maximized
           target: EOL_t430-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -419,6 +565,7 @@ workflows:
           name: EOL_w530-maximized
           target: EOL_w530-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -426,6 +573,7 @@ workflows:
           name: EOL_UNTESTED_t530-maximized
           target: EOL_UNTESTED_t530-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -433,6 +581,7 @@ workflows:
           name: EOL_UNTESTED_t530-hotp-maximized
           target: EOL_UNTESTED_t530-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -440,6 +589,7 @@ workflows:
           name: EOL_t440p-maximized
           target: EOL_t440p-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -447,6 +597,7 @@ workflows:
           name: EOL_t440p-hotp-maximized
           target: EOL_t440p-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -454,6 +605,7 @@ workflows:
           name: EOL_w541-maximized
           target: EOL_w541-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -461,6 +613,7 @@ workflows:
           name: EOL_w541-hotp-maximized
           target: EOL_w541-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -468,6 +621,7 @@ workflows:
           name: qemu-coreboot-fbwhiptail-tpm2-hotp
           target: qemu-coreboot-fbwhiptail-tpm2-hotp
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -475,6 +629,7 @@ workflows:
           name: EOL_z220-cmt-maximized
           target: EOL_z220-cmt-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -482,15 +637,16 @@ workflows:
           name: EOL_z220-cmt-hotp-maximized
           target: EOL_z220-cmt-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
-      # coreboot purism
-      # librem boards
+      # librem boards: use coreboot-purism fork (librem_14 builds the fork's toolchain)
       - build:
           name: EOL_librem_13v2
           target: EOL_librem_13v2
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -498,6 +654,7 @@ workflows:
           name: EOL_librem_15v3
           target: EOL_librem_15v3
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -505,6 +662,7 @@ workflows:
           name: EOL_librem_13v4
           target: EOL_librem_13v4
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -512,6 +670,7 @@ workflows:
           name: EOL_librem_15v4
           target: EOL_librem_15v4
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -519,6 +678,7 @@ workflows:
           name: librem_mini
           target: librem_mini
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -526,6 +686,7 @@ workflows:
           name: librem_mini_v2
           target: librem_mini_v2
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -533,6 +694,7 @@ workflows:
           name: librem_11
           target: librem_11
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -540,6 +702,7 @@ workflows:
           name: librem_l1um_v2
           target: librem_l1um_v2
           subcommand: ""
+          coreboot_dir: coreboot-purism
           requires:
             - librem_14
 
@@ -548,6 +711,7 @@ workflows:
           name: EOL_t480-maximized
           target: EOL_t480-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -555,6 +719,7 @@ workflows:
           name: EOL_t480s-hotp-maximized
           target: EOL_t480s-hotp-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
@@ -562,50 +727,42 @@ workflows:
           name: EOL_t480s-maximized
           target: EOL_t480s-maximized
           subcommand: ""
+          coreboot_dir: coreboot-25.09
           requires:
             - EOL_t480-hotp-maximized
 
-      # dasharo release, share 24.02.01 utils/crossgcc
+      # Dasharo nv4x: shares dasharo_nv4x toolchain with novacustom-nv4x_adl
       - build:
           name: UNTESTED_nitropad-ns50
           target: UNTESTED_nitropad-ns50
           subcommand: ""
+          coreboot_dir: coreboot-dasharo_nv4x
           requires:
             - novacustom-nv4x_adl
 
-      #NovaCustom v56 boards are based on coreboot 24.02.01 fork, so depend on nv4x_adl
-      - build:
-          name: novacustom-v560tu
-          target: novacustom-v560tu
-          subcommand: ""
-          requires:
-            - novacustom-nv4x_adl
-
+      # NovaCustom v56: shares dasharo_v56 toolchain with novacustom-v560tu
       - build:
           name: novacustom-v540tu
           target: novacustom-v540tu
           subcommand: ""
+          coreboot_dir: coreboot-dasharo_v56
           requires:
-            - novacustom-nv4x_adl
+            - novacustom-v560tu
 
-      # dasharo_msi
+      # Dasharo msi_z690: shares dasharo_msi_z690 toolchain with UNTESTED_msi_z690a_ddr4
       - build:
           name: UNTESTED_msi_z690a_ddr5
           target: UNTESTED_msi_z690a_ddr5
           subcommand: ""
+          coreboot_dir: coreboot-dasharo_msi_z690
           requires:
             - UNTESTED_msi_z690a_ddr4
 
-      - build:
-          name: UNTESTED_msi_z790p_ddr4
-          target: UNTESTED_msi_z790p_ddr4
-          subcommand: ""
-          requires:
-            - UNTESTED_msi_z690a_ddr4
-
+      # Dasharo msi_z790: shares dasharo_msi_z790 toolchain with UNTESTED_msi_z790p_ddr4
       - build:
           name: msi_z790p_ddr5
           target: msi_z790p_ddr5
           subcommand: ""
+          coreboot_dir: coreboot-dasharo_msi_z790
           requires:
-            - UNTESTED_msi_z690a_ddr4
+            - UNTESTED_msi_z790p_ddr4
