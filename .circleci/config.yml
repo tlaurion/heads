@@ -409,8 +409,7 @@ workflows:
             - x86_blobs
             - x86-musl-cross-make
 
-      # 4.11 fork (uses purism blobs)
-      - x86_coreboot:
+# 4.11 fork (uses purism blobs)
       - x86_coreboot:
           name: EOL_librem_l1um
           target: EOL_librem_l1um
