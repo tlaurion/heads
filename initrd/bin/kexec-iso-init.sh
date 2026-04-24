@@ -1,23 +1,55 @@
 #!/bin/bash
 # Boot from signed ISO file on USB media
 #
-# Supported boot methods (researched from initramfs code references):
-# - iso-scan/filename + findiso: Dracut (Ubuntu/Debian Live/Tails/PureOS/Kicksecure)
-# - live-media + live-media-path: Dracut live media (Fedora/Tails)
-# - boot=live: Debian Live / Fedora Live
-# - boot=casper: Ubuntu Casper
-# - img_dev + img_loop: Redhat/"device" (Fedora/RHEL)
-# - nixos: NixOS
-# - inst.stage2: Anaconda (Fedora/RHEL installer - block device required)
-# - overlay/overlayfs: OverlayFS support
-# - toram: Load-to-RAM support
+# ============================================================================
+# Supported boot parameters by distribution (researched from initramfs code)
+# ============================================================================
+# All params passed unconditionally - ISO initrd uses what it needs, ignores rest.
 #
+# DEBIAN LIVE-BOOT (Debian/Ubuntu/Kali/MX/PureOS/Kicksecure):
+#   findiso=/path/to.iso      - Scan all disks for ISO path
+#   fromiso=/dev/sdXN/path   - Mount from specific block device
+#   iso-scan/filename=/path  - Search for ISO by filename
+#   live-media=removable     - Restrict to removable USB
+#   live-media-path=/live  - Override default /live path
+#   boot=live              - Activate Debian live-boot
+#   boot=casper           - Activate Ubuntu casper (alias for boot=live)
+#   persistence           - Enable persistence (labeled partition)
+#   nopersistence         - Disable persistence
+#   overlay-size=2G       - Set tmpfs overlay size
+#   toram                 - Copy entire media to RAM before boot
+#
+# ARCH LINUX (archiso):
+#   img_dev=/dev/disk/by-uuid/UUID - Block device containing ISO
+#   img_loop=/path/to.iso    - Path to ISO on that device
+#   archisobasedir=arch     - Base directory on ISO (default: arch)
+#   archisolabel=LABEL      - ISO volume label to search for
+#
+# RED HAT / FEDORA (Anaconda):
+#   inst.stage2=hd:LABEL  - Installer stage2 location (DVD/ISO)
+#   inst.repo=             - Installer repository
+#   live-media=removable  - Live media detection
+#   boot=live             - Fedora Live media
+#
+# NIXOS:
+#   iso-scan/filename=/path - Loopback ISO path
+#   nixos=               - Path to NixOS configuration
+#   copytoram            - Copy SquashFS to RAM
+#   root=live:LABEL     - Live root by label
+#
+# DRACUT (Fedora/RHEL/CentOS):
+#   live-media=removable  - Live media detection
+#   rd.live.image        - Live image boot
+#   rd.live.squashimg=  - SquashFS location
+#
+# ============================================================================
 # Flow:
 # 1. Mount ISO as loopback
-# 2. Check *.cfg for boot methods (simple)
-# 3. If not found, unpack initramfs and check init scripts (complex)
-# 4. Warn if unsupported, but don't block
+# 2. Check *.cfg for boot methods (simple detection)
+# 3. If not found, unpack initramfs (complex detection)
+# 4. Warn if unsupported, but don't block (let user try)
 # 5. Check FS support from initramfs
+# ============================================================================
 #
 # USB filesystems supported by Heads: ext4, vfat, exfat, xfs
 #

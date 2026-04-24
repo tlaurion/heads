@@ -134,9 +134,63 @@ When booting from an ISO file on USB media, `kexec-iso-init.sh` handles:
 6. **Warning dialog**: If no supported boot method is detected, warn the user
    and suggest alternative USB creation methods
 
-### Boot methods
+### Boot methods and parameters
 
-ISOs use different initramfs boot systems. Detection checks for known patterns:
+ISOs use different initramfs boot systems. Detection checks for known patterns,
+but ALL parameters are always passed unconditionally - the ISO initrd uses
+what it understands and ignores the rest.
+
+#### Debian Live-Boot (Debian/Ubuntu/Kali/MX/PureOS/Kicksecure)
+
+| Parameter | Description |
+|-----------|-------------|
+| `findiso=/path/to.iso` | Scan all disks for ISO by path |
+| `fromiso=/dev/sdXN/path` | Mount from specific block device |
+| `iso-scan/filename=/path` | Search for ISO by filename |
+| `live-media=removable` | Restrict search to removable USB |
+| `live-media-path=/live` | Override default /live path |
+| `boot=live` | Activate Debian live-boot |
+| `boot=casper` | Ubuntu casper (alias for boot=live) |
+| `persistence` | Enable persistence (labeled partition) |
+| `nopersistence` | Disable persistence |
+| `toram` | Copy entire media to RAM before boot |
+
+#### Arch Linux (archiso)
+
+| Parameter | Description |
+|-----------|-------------|
+| `img_dev=/dev/disk/by-uuid/UUID` | Block device containing ISO |
+| `img_loop=/path/to.iso` | Path to ISO on that device |
+| `archisobasedir=arch` | Base directory (default: arch) |
+| `archisolabel=LABEL` | ISO volume label to search |
+
+#### Red Hat / Fedora (Anaconda)
+
+| Parameter | Description |
+|-----------|-------------|
+| `inst.stage2=hd:LABEL` | Installer stage2 location |
+| `inst.repo=` | Installer repository |
+| `live-media=removable` | Live media detection |
+| `boot=live` | Fedora Live media |
+
+#### NixOS
+
+| Parameter | Description |
+|-----------|-------------|
+| `iso-scan/filename=/path` | Loopback ISO path |
+| `nixos=` | Path to NixOS configuration |
+| `copytoram` | Copy SquashFS to RAM |
+| `root=live:LABEL` | Live root by label |
+
+#### Dracut (Fedora/RHEL/CentOS)
+
+| Parameter | Description |
+|-----------|-------------|
+| `live-media=removable` | Live media detection |
+| `rd.live.image` | Live image boot |
+| `rd.live.squashimg=` | SquashFS location |
+
+---
 
 | Boot system | Detection patterns | Notes |
 |------------|---------------------|-------|
@@ -144,8 +198,9 @@ ISOs use different initramfs boot systems. Detection checks for known patterns:
 | Dracut (live-media) | `live-media=` | Tails |
 | Dracut (boot=live) | `boot=live`, `rd.live.image`, `rd.live.squashimg=` | Debian Live, Fedora Workstation, Kicksecure |
 | Dracut (casper) | `boot=casper` | Ubuntu, PureOS |
+| Arch (img_loop) | `img_dev=`, `img_loop=` | Arch Linux |
 | NixOS | `nixos` | NixOS |
-| Anaconda | `inst.stage2=`, `inst.repo=` | Fedora, Qubes OS — requires block device (CD-ROM or dd'd USB) |
+| Anaconda | `inst.stage2=`, `inst.repo=` | Fedora, Qubes OS — requires block device |
 | Unknown | (no pattern matched) | May still work — try anyway |
 
 ### ISO filesystem support
