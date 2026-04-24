@@ -43,10 +43,11 @@ elif [ -n "$1" ]; then
 fi
 
 : "${ISO_DIR:=/home/user/Downloads/ISOs}"
-: "${ISO_INIT:=$(dirname "$0")/../../initrd/bin/kexec-iso-init.sh}"
-: "${PARSER:=$(dirname "$0")/../../initrd/bin/kexec-parse-boot.sh}"
-: "${FUNCTIONS:=$(dirname "$0")/../../initrd/etc/functions.sh}"
-: "${UNPACK:=$(dirname "$0")/../../initrd/bin/unpack_initramfs.sh}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+: "${ISO_INIT:=$SCRIPT_DIR/../../initrd/bin/kexec-iso-init.sh}"
+: "${PARSER:=$SCRIPT_DIR/../../initrd/bin/kexec-parse-boot.sh}"
+: "${FUNCTIONS:=$SCRIPT_DIR/../../initrd/etc/functions.sh}"
+: "${UNPACK:=$SCRIPT_DIR/../../initrd/bin/unpack_initramfs.sh}"
 
 for cmd in fuseiso fusermount; do
 	if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -109,15 +110,18 @@ DIE() { echo "DIE: $*" >&2; exit 1; }
 WARN() { echo "WARN: $*" >&2; }
 check_config() { :; }
 zstd-decompress() { zstd -d "$@"; }
+
+FUNC_STUB=$(mktemp)
+cat >"$FUNC_STUB" <<'STUB'
+TRACE_FUNC() { :; }
+TRACE() { :; }
+DEBUG() { :; }
+ERROR() { echo "ERROR: $*" >&2; }
+DIE() { echo "DIE: $*" >&2; exit 1; }
+WARN() { echo "WARN: $*" >&2; }
+check_config() { :; }
+zstd-decompress() { zstd -d "$@"; }
 STUB
-
-UNPACK_TEMP=$(mktemp)
-sed "s|^\\. /etc/functions\\.sh|. $FUNC_STUB|" "$UNPACK" >"$UNPACK_TEMP"
-chmod +x "$UNPACK_TEMP"
-
-ISO_INIT_TEMP=$(mktemp)
-sed "s|^\\. /etc/functions\\.sh|. $STUB|" "$ISO_INIT" >"$ISO_INIT_TEMP"
-chmod +x "$ISO_INIT_TEMP"
 
 STUB=$(mktemp)
 cat >"$STUB" <<'STUB'
@@ -129,8 +133,16 @@ WARN() { echo "WARN: $*" >&2; }
 check_config() { :; }
 STUB
 
+# Create stubs BEFORE using them in sed
+UNPACK_TEMP=$(mktemp)
+sed "s|^\\. /etc/functions\\.sh|. $FUNC_STUB|" "$UNPACK" >"$UNPACK_TEMP"
+chmod +x "$UNPACK_TEMP"
+
+ISO_INIT_TEMP=$(mktemp)
+sed "s|^\\. /etc/functions\\.sh|. $STUB|" "$ISO_INIT" >"$ISO_INIT_TEMP"
+chmod +x "$ISO_INIT_TEMP"
+
 TEMP_PARSER=$(mktemp)
-# Stub out TRACE/DEBUG/WARN before sourcing real functions.sh
 sed "s|^\. /etc/functions\.sh|. $STUB|" "$PARSER" >"$TEMP_PARSER"
 chmod +x "$TEMP_PARSER"
 
