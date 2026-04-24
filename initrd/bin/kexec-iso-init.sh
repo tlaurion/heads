@@ -1,32 +1,25 @@
 #!/bin/bash
 # Boot from signed ISO file on USB media
 #
-# This script handles booting from ISO files stored on USB storage.
-# It works by mounting the ISO, detecting boot mechanisms supported by
-# the ISO's initrd, injecting appropriate kernel parameters, and
-# executing kexec to boot the OS.
-#
-# Detection approach:
-# 1. Mount the ISO as a loopback device
-# 2. Extract and scan the initrd for supported boot mechanisms
-# 3. Fall back to scanning *.cfg files if initrd detection yields nothing
-# 4. If no known boot-from-ISO mechanism is found, warn and guide user
-#
-# Supported boot mechanisms (detected in initrd or config):
-# - iso-scan/findiso: Dracut-based (Ubuntu, Debian Live, Tails, etc.)
-# - live-media: Dracut live-media parameter
+# Supported boot methods (researched from initramfs code references):
+# - iso-scan/filename + findiso: Dracut (Ubuntu/Debian Live/Tails/PureOS/Kicksecure)
+# - live-media + live-media-path: Dracut live media (Fedora/Tails)
 # - boot=live: Debian Live / Fedora Live
 # - boot=casper: Ubuntu Casper
+# - img_dev + img_loop: Redhat/"device" (Fedora/RHEL)
 # - nixos: NixOS
-# - anaconda: Fedora/RHEL Anaconda (block device required)
-# - overlay: OverlayFS support
+# - inst.stage2: Anaconda (Fedora/RHEL installer - block device required)
+# - overlay/overlayfs: OverlayFS support
 # - toram: Load-to-RAM support
 #
-# If no mechanism is detected, the user is warned that the ISO may not
-# support booting from ISO file on USB, and is given alternative options:
-# - Write ISO directly to USB with dd
-# - Write ISO directly to USB with dd
-# - Boot from real DVD drive
+# Flow:
+# 1. Mount ISO as loopback
+# 2. Check *.cfg for boot methods (simple)
+# 3. If not found, unpack initramfs and check init scripts (complex)
+# 4. Warn if unsupported, but don't block
+# 5. Check FS support from initramfs
+#
+# USB filesystems supported by Heads: ext4, vfat, exfat, xfs
 #
 set -e -o pipefail
 . /etc/functions.sh
@@ -80,6 +73,13 @@ mount -t iso9660 -o loop $MOUNTED_ISO_PATH /boot ||
 
 DEV_UUID=$(blkid $DEV | tail -1 | tr " " "\n" | grep UUID | cut -d\" -f2)
 
+if [ -d "/boot/install.amd" ] || [ -d "/boot/install" ]; then
+	if [ -f "/boot/install.amd/vmlinuz" ] || [ -f "/boot/install/vmlinuz" ]; then
+		WARN "Installer ISO detected - may not boot from USB file"
+		NOTE "Write to USB with dd if issues: sudo cp image.iso /dev/sdX"
+	fi
+fi
+
 # Scan an initrd for supported filesystems and boot mechanisms.
 # This function unpacks the initrd and searches for:
 # - Kernel modules (*.ko/*.ko.xz) -> supported filesystems
@@ -109,8 +109,6 @@ scan_initramfs() {
 			ext4*) supported_fses="${supported_fses}ext4 " ;;
 			vfat* | msdos*) supported_fses="${supported_fses}vfat " ;;
 			exfat*) supported_fses="${supported_fses}exfat " ;;
-			ntfs*) supported_fses="${supported_fses}ntfs " ;;
-			btrfs*) supported_fses="${supported_fses}btrfs " ;;
 			xfs*) supported_fses="${supported_fses}xfs " ;;
 			esac
 		done < <(find "$tmpdir" -type f \( -name "*.ko" -o -name "*.ko.xz" \) 2>/dev/null)
@@ -260,86 +258,58 @@ extract_boot_params_from_cfg() {
 }
 
 # ============================================================================
-# Main detection flow
+# Boot detection flow
+# Step 1: Check *.cfg for boot methods (simple)
+# Step 2: If not found, unpack initramfs and check init scripts (complex)
+# Step 3: Warn if unsupported
+# Step 4: Check FS support from initramfs
 # ============================================================================
-# Step 1: Check if ISO is an installer (not bootable from USB file)
-# Step 2: Scan initrd for USB filesystem support and boot mechanisms
-# Step 3: Check USB filesystem compatibility
-# Step 4: If no known mechanism found, warn user with guidance
-# ============================================================================
 
-STATUS "Detecting ISO type..."
-if [ -d "/boot/install.amd" ] || [ -d "/boot/install" ]; then
-	if [ -f "/boot/install.amd/vmlinuz" ] || [ -f "/boot/install/vmlinuz" ]; then
-		WARN "This appears to be an installer ISO"
-		WARN "Installer ISOs do not support booting from ISO file on USB"
-		if [ -x /bin/whiptail ]; then
-			if ! whiptail_warning --title 'INSTALLER ISO NOT SUPPORTED' --yesno \
-				"This ISO is an installer and does not support booting from ISO file on USB.\n\nInstaller ISOs only work when written directly to USB with dd or when used as a DVD.\n\nTo use this ISO:\n- Linux: sudo cp image.iso /dev/sdX\n- Windows/Mac: Use Rufus in DD mode\n\nDo you want to try anyway?" \
-				0 80; then
-				DIE "Installer ISO - write to USB with dd"
-			fi
-		else
-			INPUT "Installer ISO - may not work from USB file. Try anyway? [y/N]:" -n 1 response
-			[ "$response" != "y" ] && [ "$response" != "Y" ] && DIE "Installer ISO - write to USB with dd"
-		fi
-	fi
-fi
+STATUS "Detecting boot method from *.cfg..."
+SETE="set +e"
+$SETE
 
-STATUS "Detecting USB filesystem and boot method support..."
-SUPPORTED_FSES=""
-SUPPORTED_BOOT=""
-CFG_BOOT=""
-DETECTED_METHODS=""
-
-tmp_support=$(detect_initrd_boot_support 2>/dev/null) || tmp_support=""
-SUPPORTED_FSES=$(echo "$tmp_support" | grep "^fs:" | sed 's/^fs://') || SUPPORTED_FSES=""
-SUPPORTED_BOOT=$(echo "$tmp_support" | grep "^boot:" | sed 's/^boot://') || SUPPORTED_BOOT=""
-DEBUG "SUPPORTED_FSES='$SUPPORTED_FSES'"
-DEBUG "SUPPORTED_BOOT from initrd='$SUPPORTED_BOOT'"
-
-DEBUG "Scanning *.cfg files to augment initrd results..."
 CFG_BOOT=$(extract_boot_params_from_cfg 2>/dev/null | grep "^cfg:" | sed 's/^cfg://') || CFG_BOOT=""
-DEBUG "CFG_BOOT='$CFG_BOOT'"
+DEBUG "CFG_BOOT from *.cfg: '$CFG_BOOT'"
 
-if [ -n "$SUPPORTED_BOOT" ] && [ -n "$CFG_BOOT" ]; then
-	SUPPORTED_BOOT="$SUPPORTED_BOOT $CFG_BOOT"
-	DEBUG "Combined boot methods: $SUPPORTED_BOOT"
-elif [ -z "$SUPPORTED_BOOT" ] && [ -n "$CFG_BOOT" ]; then
-	SUPPORTED_BOOT="$CFG_BOOT"
-	DEBUG "Using cfg boot methods: $SUPPORTED_BOOT"
+if [ -z "$CFG_BOOT" ]; then
+	STATUS "Checking initramfs for boot methods..."
+	tmp_support=$(detect_initrd_boot_support 2>/dev/null) || tmp_support=""
+	INITRD_BOOT=$(echo "$tmp_support" | grep "^boot:" | sed 's/^boot://') || INITRD_BOOT=""
+	SUPPORTED_FSES=$(echo "$tmp_support" | grep "^fs:" | sed 's/^fs://') || SUPPORTED_FSES=""
+	DEBUG "INITRD_BOOT: '$INITRD_BOOT'"
+	DEBUG "SUPPORTED_FSES: '$SUPPORTED_FSES'"
+	DETECTED_METHODS="$INITRD_BOOT"
+else
+	DETECTED_METHODS="$CFG_BOOT"
 fi
 
-if [ -n "$SUPPORTED_FSES" ]; then
-	DEBUG "Initrd supports USB filesystems: $SUPPORTED_FSES"
-	DEV_FSTYPE=$(blkid "$DEV" 2>/dev/null | tail -1 | grep -oE 'TYPE="[^"]+"' | sed 's/TYPE="//;s/"$//') || DEV_FSTYPE=""
-	DEBUG "USB device filesystem type: '$DEV_FSTYPE'"
-	if [ -n "$DEV_FSTYPE" ] && ! echo "$SUPPORTED_FSES" | grep -q "$DEV_FSTYPE" 2>/dev/null; then
-		WARN "USB filesystem ($DEV_FSTYPE) may not be supported by this ISO's initrd"
-		DEBUG "Supported filesystems: $SUPPORTED_FSES"
-	fi || true
-fi
-
-if [ -n "$SUPPORTED_BOOT" ]; then
-	DETECTED_METHODS="$SUPPORTED_BOOT"
-	DEBUG "Detected boot methods: $DETECTED_METHODS"
-fi
+set -e
 
 DEBUG "DETECTED_METHODS='$DETECTED_METHODS'"
+
 if [ -z "$DETECTED_METHODS" ]; then
-	WARN "ISO may not boot from USB file: no supported boot method detected"
+	WARN "No supported boot method detected from *.cfg or initramfs"
 	if [ -x /bin/whiptail ]; then
 		if ! whiptail_warning --title 'ISO BOOT NOT SUPPORTED' --yesno \
-			"This ISO does not support booting from ISO file on USB.\n\nThe initrd does not include boot-from-ISO mechanisms (no live-boot, casper, fromiso, iso-scan, anaconda, or nixos support detected).\n\nTo use this ISO, write the hybrid image directly to a USB flash drive:\n\nLinux: sudo cp image.iso /dev/sdX (Be cautious!)\nWindows/Mac: Use Rufus, select DD mode (NOT ISO mode)\n\nWrite to whole-disk device (NOT a partition, e.g. /dev/sdX not /dev/sdX1),\nthen boot from USB device directly (not as ISO file)." \
+			"This ISO does not support booting from ISO file on USB.\n\nNo supported boot method detected in *.cfg or initramfs.\n\nTo use this ISO:\n- Linux: sudo cp image.iso /dev/sdX\n- Windows/Mac: Use Rufus DD mode\n\nDo you want to try anyway?" \
 			0 80; then
-			DIE "ISO boot cancelled - initrd does not support USB file boot"
+			DIE "ISO boot cancelled - no supported boot method"
 		fi
 	else
-		ERROR "ISO initrd has no boot-from-ISO support (no live-boot/casper/iso-scan)"
-		ERROR "Write hybrid image to USB: Linux: cp iso /dev/sdX | Win/Mac: Rufus DD mode"
-		INPUT "Try anyway? [y/N]:" -n 1 response
+		INPUT "No boot method detected. Try anyway? [y/N]:" -n 1 response
 		[ "$response" != "y" ] && [ "$response" != "Y" ] && DIE "ISO boot cancelled"
 	fi
+fi
+
+DEV_FSTYPE=$(blkid "$DEV" 2>/dev/null | tail -1 | grep -oE 'TYPE="[^"]+"' | sed 's/TYPE="//;s/"$//') || DEV_FSTYPE=""
+DEBUG "USB device filesystem: '$DEV_FSTYPE'"
+
+if [ -n "$SUPPORTED_FSES" ] && [ -n "$DEV_FSTYPE" ]; then
+	if ! echo "$SUPPORTED_FSES" | grep -qw "$DEV_FSTYPE" 2>/dev/null; then
+		WARN "USB filesystem ($DEV_FSTYPE) may not be supported by ISO initrd"
+		DEBUG "Supported filesystems: $SUPPORTED_FSES"
+	fi || true
 fi
 
 # ============================================================================
