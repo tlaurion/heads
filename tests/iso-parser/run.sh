@@ -173,8 +173,8 @@ echo "Detecting supported boot mechanisms and quirks"
 echo ""
 
 if [ -n "$SINGLE_ISO" ]; then
-	printf "\n%-60s %-40s  %s\n" "ISO" "DETECTED MECHANISM" "SUPPORTED"
-	printf "\n%-60s %-40s  %s\n" "---" "--------------------" "---------"
+printf "\n%-60s %-40s %-20s  %s\n" "ISO" "BOOT QUIRKS" "FILESYSTEMS" "STATUS"
+printf "\n%-60s %-40s %-20s  %s\n" "---" "----------" "------------" "------"
 fi
 
 check_compatibility() {
@@ -241,6 +241,17 @@ for iso in "$ISO_DIR"/*.iso; do
 			bash "$UNPACK_TEMP" "$path" "$tmpdir" 2>/dev/null || true
 
 			if [ -d "$tmpdir" ] && [ "$(ls -A "$tmpdir" 2>/dev/null)" ]; then
+				# Detect filesystem support from kernel modules
+				while read ko; do
+					name=$(basename "$ko")
+					case "$name" in
+					ext4*) supported_fses="${supported_fses}ext4 " ;;
+					vfat* | msdos*) supported_fses="${supported_fses}vfat " ;;
+					exfat*) supported_fses="${supported_fses}exfat " ;;
+					xfs*) supported_fses="${supported_fses}xfs " ;;
+					esac
+				done < <(find "$tmpdir" -type f \( -name "*.ko" -o -name "*.ko.xz" \) 2>/dev/null)
+
 				boot_content=$(find "$tmpdir" -type f \( -name "*.sh" -o -name "*.conf" -o -name "*.cfg" -o -name "init" -o -name "*.txt" -o -path "*/scripts/*" -o -path "*/conf/*" -o -path "*/lib/live/boot/*" -o -path "*/usr/lib/live/boot/*" \) -print 2>/dev/null | xargs cat 2>/dev/null | tr -d '\0' || true) || boot_content=""
 				rm -rf "$tmpdir"
 			else
@@ -280,6 +291,27 @@ for iso in "$ISO_DIR"/*.iso; do
 		supported_fses=""
 		supported_boot=""
 		initrd=""
+
+		if [ -r "$path" ]; then
+			tmpdir=$(mktemp -d)
+			bash "$UNPACK_TEMP" "$path" "$tmpdir" 2>/dev/null || true
+
+			if [ -d "$tmpdir" ] && [ "$(ls -A "$tmpdir" 2>/dev/null)" ]; then
+				while read ko; do
+					name=$(basename "$ko")
+					case "$name" in
+					ext4*) supported_fses="${supported_fses}ext4 " ;;
+					vfat* | msdos*) supported_fses="${supported_fses}vfat " ;;
+					exfat*) supported_fses="${supported_fses}exfat " ;;
+					xfs*) supported_fses="${supported_fses}xfs " ;;
+					esac
+				done < <(find "$tmpdir" -type f \( -name "*.ko" -o -name "*.ko.xz" \) 2>/dev/null)
+				supported_fses=$(echo "$supported_fses" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | sed 's/ $//')
+				rm -rf "$tmpdir"
+			else
+				rm -rf "$tmpdir"
+			fi
+		fi
 
 		initrds=$(find "$mnt" -name "initrd*" -type f 2>/dev/null)
 		for p in live/initrd.img live/initrd boot/initrd* casper/initrd* install/initrd.gz install.amd/initrd.gz; do
@@ -325,12 +357,24 @@ for iso in "$ISO_DIR"/*.iso; do
 		rm -rf "$tmp_boot"
 
 		mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
-	fi
+		fses=$(echo "${supported_fses:-ext4 vfat xfs}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
 
-	compatibility=$(check_compatibility "$mechanism")
-	mechanism_short=$(echo "$mechanism" | cut -c1-38)
+		# Report which filesystems are NOT supported
+		not_supported=""
+		for fs in exfat ntfs btrfs f2fs; do
+			case "$fses" in
+				*" $fs "*) ;;  # supported, skip
+				*) [ -n "$fses" ] && not_supported="${not_supported}${fs} " ;;
+			esac
+		done
+		not_supported=$(echo "$not_supported" | sed 's/ $//')
 
-	printf "%-60s %-40s  %s\n" "$basenameiso" "$mechanism_short" "$compatibility"
+		compatibility=$(check_compatibility "$mechanism")
+		mechanism_short=$(echo "$mechanism" | cut -c1-38)
+		fses_short=$(echo "$fses" | cut -c1-18)
+
+		printf "%-60s %-40s %-20s  %s\n" "$basenameiso" "$mechanism_short" "$fses_short" "$compatibility"
+		[ -n "$not_supported" ] && printf "  %-60s %-s\n" "" "Missing FS: $not_supported"
 
 	simulate_param_injection() {
 		local detected="$1"
