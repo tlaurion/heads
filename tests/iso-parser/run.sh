@@ -179,10 +179,8 @@ echo "=== Initramfs ISO Boot Support ==="
 echo "Detecting supported boot mechanisms and quirks"
 echo ""
 
-if [ -n "$SINGLE_ISO" ]; then
 printf "\n%-35s %-18s %-35s %s\n" "ISO" "FILESYSTEMS" "BOOT QUIRKS" "STATUS"
 printf "\n%-35s %-18s %-35s %s\n" "---" "------------" "-----------" "------"
-fi
 
 check_compatibility() {
 	local supported="$1"
@@ -361,21 +359,11 @@ for iso in "$ISO_DIR"/*.iso; do
 			fi
 		done
 
-		rm -rf "$tmp_boot"
+rm -rf "$tmp_boot"
 
-		mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
-		fses=$(echo "${supported_fses:-ext4 vfat}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
+	fi  # closes if [ -z "$mechanism" ]
 
-		# Report which filesystems are NOT supported by kernel
-		not_supported=""
-		for fs in $NOT_SUPPORTED_BY_KERNEL; do
-			case "$fses" in
-				*" $fs "*) not_supported="${not_supported}${fs} " ;;
-			esac
-		done
-		not_supported=$(echo "$not_supported" | sed 's/ $//')
-
-		compatibility=$(check_compatibility "$mechanism")
+	compatibility=$(check_compatibility "$mechanism")
 		mechanism_short=$(echo "$mechanism" | cut -c1-33)
 		fses_short=$(echo "$fses" | cut -c1-16)
 
@@ -413,65 +401,6 @@ for iso in "$ISO_DIR"/*.iso; do
 	fusermount -uz "$mnt" 2>/dev/null || umount "$mnt" 2>/dev/null || true
 	rmdir "$mnt" 2>/dev/null
 	rm -rf "$sim"
-done
-
-echo ""
-echo "=== Parameter Injection Validation ==="
-echo ""
-
-for iso in "$ISO_DIR"/*.iso; do
-	[ -f "$iso" ] || continue
-	basenameiso=$(basename "$iso")
-
-	mnt=$(mktemp -d)
-	if ! fuseiso "$iso" "$mnt" 2>/dev/null; then
-		rmdir "$mnt" 2>/dev/null
-		continue
-	fi
-
-	supported_boot=""
-	for cfg in $(find "$mnt" -name "*.cfg" -type f 2>/dev/null | grep -v -i -E "efi|x86_64-efi"); do
-		cfg_content=$(cat "$cfg" 2>/dev/null | tr -d '\0') || true
-		if echo "$cfg_content" | grep -qEi "boot=live|rd.live.image|rd.live.squash"; then
-			supported_boot="${supported_boot}boot-live "
-		fi
-		if echo "$cfg_content" | grep -qiE "boot=casper"; then
-			supported_boot="${supported_boot}casper "
-		fi
-		if echo "$cfg_content" | grep -qiE "live.media"; then
-			supported_boot="${supported_boot}live-media "
-		fi
-	done
-
-	mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
-
-	injected=""
-	if echo "$mechanism" | grep -q "casper"; then
-		injected="$injected boot=casper"
-	fi
-	if echo "$mechanism" | grep -q "boot-live"; then
-		injected="$injected boot=live"
-	fi
-	if echo "$mechanism" | grep -q "live-media"; then
-		injected="$injected live-media"
-	fi
-
-	conflicts=""
-	has_casper=$(echo "$injected" | grep -qo "boot=casper" && echo "y" || echo "n")
-	has_live=$(echo "$injected" | grep -qo "boot=live" && echo "y" || echo "n")
-
-	if [ "$has_casper" = "y" ] && [ "$has_live" = "y" ]; then
-		conflicts="CONFLICT"
-	elif [ -z "$injected" ]; then
-		conflicts="NO_PARAMS"
-	else
-		conflicts="OK"
-	fi
-
-	printf "%-60s %-20s  %s\n" "$basenameiso" "$injected" "$conflicts"
-
-	fusermount -uz "$mnt" 2>/dev/null || umount "$mnt" 2>/dev/null || true
-	rmdir "$mnt" 2>/dev/null
 done
 
 rm -f "$STUB" "$TEMP_PARSER" "$FUNC_STUB" "$UNPACK_TEMP" "$ISO_INIT_TEMP"
