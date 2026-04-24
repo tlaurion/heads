@@ -112,6 +112,9 @@ scan_initramfs() {
 			xfs*) supported_fses="${supported_fses}xfs " ;;
 			esac
 		done < <(find "$tmpdir" -type f \( -name "*.ko" -o -name "*.ko.xz" \) 2>/dev/null)
+		# Remove duplicates while preserving order
+		supported_fses=$(echo "$supported_fses" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+		supported_fses="${supported_fses% }"
 
 		boot_content=$(find "$tmpdir" -type f \( -name "*.sh" -o -name "*.conf" -o -name "*.cfg" -o -name "init" -o -name "*.txt" -o -path "*/scripts/*" -o -path "*/conf/*" \) -print 2>/dev/null | xargs cat 2>/dev/null) || boot_content=""
 		rm -rf "$tmpdir"
@@ -292,6 +295,18 @@ set -e
 DEBUG "DETECTED_METHODS='$DETECTED_METHODS'"
 
 DEV_FSTYPE=$(blkid "$DEV" 2>/dev/null | tail -1 | grep -oE 'TYPE="[^"]+"' | sed 's/TYPE="//;s/"$//') || DEV_FSTYPE=""
+if [ -z "$DEV_FSTYPE" ]; then
+	DEV_PART=""
+	for p in 1 2 3 4 5 6; do
+		if [ -b "${DEV}${p}" ]; then
+			DEV_PART="${DEV}${p}"
+			break
+		fi
+	done
+	if [ -n "$DEV_PART" ]; then
+		DEV_FSTYPE=$(blkid "$DEV_PART" 2>/dev/null | grep -oE 'TYPE="[^"]+"' | sed 's/TYPE="//;s/"$//') || DEV_FSTYPE=""
+	fi
+fi
 DEBUG "USB device filesystem: '$DEV_FSTYPE'"
 
 ISO_SIZE=$(stat -c%s "$MOUNTED_ISO_PATH" 2>/dev/null || echo 0)
