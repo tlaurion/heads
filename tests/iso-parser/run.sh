@@ -152,7 +152,8 @@ printf "%-60s %8s %10s  %s\n" "---" "-------" "------" "------------------"
 for iso in "$ISO_DIR"/*.iso; do
 	[ -f "$iso" ] || continue
 	[ -n "$SINGLE_ISO" ] && [ "$(realpath "$iso")" != "$(realpath "$SINGLE_ISO")" ] && continue
-	mnt=$(mktemp -d)
+	mnt=$(mktemp -d -p /tmp)
+	chmod 755 "$mnt"
 	if ! fuseiso "$iso" "$mnt" 2>/dev/null; then
 		rmdir "$mnt" 2>/dev/null
 		printf "%-60s %8s %10s  %s\n" "$(basename "$iso")" "SKIP" "?" "fuseiso failed"
@@ -212,7 +213,8 @@ for iso in "$ISO_DIR"/*.iso; do
 	[ -f "$iso" ] || continue
 	[ -n "$SINGLE_ISO" ] && [ "$(realpath "$iso")" != "$(realpath "$SINGLE_ISO")" ] && continue
 	basenameiso=$(basename "$iso")
-	mnt=$(mktemp -d)
+	mnt=$(mktemp -d -p /tmp)
+	chmod 755 "$mnt"
 	if ! fuseiso "$iso" "$mnt" 2>/dev/null; then
 		rmdir "$mnt" 2>/dev/null
 		continue
@@ -242,11 +244,6 @@ for iso in "$ISO_DIR"/*.iso; do
 	fi
 
 	if [ -z "$mechanism" ]; then
-		tmp_boot=$(mktemp -d)
-		ln -sf "$mnt/boot" "$tmp_boot/boot" 2>/dev/null || ln -sf "$mnt" "$tmp_boot/boot"
-		ln -sf "$mnt/isolinux" "$tmp_boot/isolinux" 2>/dev/null || true
-		ln -sf "$mnt/install.amd" "$tmp_boot/install.amd" 2>/dev/null || true
-
 		scan_initramfs_test() {
 			local path="$1"
 			local tmpdir=""
@@ -254,7 +251,8 @@ for iso in "$ISO_DIR"/*.iso; do
 
 			[ -r "$path" ] || return 1
 
-			tmpdir=$(mktemp -d)
+			tmpdir=$(mktemp -d -p /tmp)
+			chmod 755 "$tmpdir"
 			bash "$UNPACK_TEMP" "$path" "$tmpdir" 2>/dev/null || true
 
 			if [ -d "$tmpdir" ] && [ "$(ls -A "$tmpdir" 2>/dev/null)" ]; then
@@ -310,7 +308,8 @@ for iso in "$ISO_DIR"/*.iso; do
 		initrd=""
 
 		if [ -r "$path" ]; then
-			tmpdir=$(mktemp -d)
+			tmpdir=$(mktemp -d -p /tmp)
+			chmod 755 "$tmpdir"
 			bash "$UNPACK_TEMP" "$path" "$tmpdir" 2>/dev/null || true
 
 			if [ -d "$tmpdir" ] && [ "$(ls -A "$tmpdir" 2>/dev/null)" ]; then
