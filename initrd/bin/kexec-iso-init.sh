@@ -10,6 +10,12 @@
 # 5. Inject boot params unconditionally - ISO uses what it understands
 # ============================================================================
 #
+# Filesystems supported by Heads kernel (from config/linux-*.config)
+# This is what the USB device filesystem can be:
+# - ext4, vfat, exfat (always enabled)
+# - xfs, btrfs, f2fs, ntfs (usually disabled, not guaranteed)
+KERNEL_SUPPORTED_FS="ext4 vfat exfat"
+
 # Detection extracts from ISO initramfs:
 # - Boot quirks: iso-scan, findiso, fromiso, img_dev, img_loop, boot=live, etc.
 # - Filesystem support: ext4, vfat, exfat modules in initramfs
@@ -330,7 +336,8 @@ if echo "$SUPPORTED_FSES" | grep -qw "$DEV_FSTYPE" 2>/dev/null; then
 	DEBUG "Filesystem $DEV_FSTYPE supported by initramfs"
 else
 	WARN "Filesystem $DEV_FSTYPE not supported by ISO initramfs"
-	DEBUG "Supported: $SUPPORTED_FSES"
+	DEBUG "ISO supports: $SUPPORTED_FSES"
+	INFO "Kernel supports: $KERNEL_SUPPORTED_FS"
 fi
 
 if [ -z "$DETECTED_METHODS" ]; then

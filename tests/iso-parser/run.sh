@@ -354,17 +354,16 @@ for iso in "$ISO_DIR"/*.iso; do
 			fi
 		done
 
-		rm -rf "$tmp_boot"
+rm -rf "$tmp_boot"
 
 		mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
 		fses=$(echo "${supported_fses:-ext4 vfat xfs}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
 
-		# Report which filesystems are NOT supported
+		# Report which filesystems are NOT supported by the Heads kernel
 		not_supported=""
-		for fs in exfat ntfs btrfs f2fs; do
+		for fs in $NOT_SUPPORTED_BY_KERNEL; do
 			case "$fses" in
-				*" $fs "*) ;;  # supported, skip
-				*) [ -n "$fses" ] && not_supported="${not_supported}${fs} " ;;
+				*" $fs "*) not_supported="${not_supported}${fs} " ;;
 			esac
 		done
 		not_supported=$(echo "$not_supported" | sed 's/ $//')
@@ -374,7 +373,7 @@ for iso in "$ISO_DIR"/*.iso; do
 		fses_short=$(echo "$fses" | cut -c1-18)
 
 		printf "%-60s %-40s %-20s  %s\n" "$basenameiso" "$mechanism_short" "$fses_short" "$compatibility"
-		[ -n "$not_supported" ] && printf "  %-60s %-s\n" "" "Missing FS: $not_supported"
+		[ -n "$not_supported" ] && printf "  %-60s %-s\n" "" "Not supported by USB: $not_supported"
 
 	simulate_param_injection() {
 		local detected="$1"
