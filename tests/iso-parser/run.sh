@@ -168,27 +168,22 @@ for iso in "$ISO_DIR"/*.iso; do
 done
 
 echo ""
-echo "=== Initramfs ISO Boot Support ==="
-echo "Detecting supported boot mechanisms and quirks"
+echo "=== ISO Boot Support Report ==="
 echo ""
-
-if [ -n "$SINGLE_ISO" ]; then
-printf "\n%-60s %-40s %-20s  %s\n" "ISO" "BOOT QUIRKS" "FILESYSTEMS" "STATUS"
-printf "\n%-60s %-40s %-20s  %s\n" "---" "----------" "------------" "------"
-fi
+echo "ISOs supported for USB file boot:"
+printf "  %-35s %s\n" "ISO" "STATUS"
+printf "  %-35s %s\n" "---" "------"
 
 check_compatibility() {
 	local supported="$1"
 	local status=""
-	local note=""
 	case "$supported" in
-	installer*) status="SKIP" ; note=" (use dd)" ;;
-	anaconda*) status="WARN" ; note=" (block device req)" ;;
-	std) status="WARN" ;;
-	"") status="WARN" ;;
+	installer*) status="dd only" ;;
+	anaconda*) status="WARN (needs block device)" ;;
+	std|"") status="WARN (unverified)" ;;
 	*) status="OK" ;;
 	esac
-	echo "${status}${note}"
+	echo "$status"
 }
 
 for iso in "$ISO_DIR"/*.iso; do
@@ -357,9 +352,9 @@ for iso in "$ISO_DIR"/*.iso; do
 rm -rf "$tmp_boot"
 
 		mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
-		fses=$(echo "${supported_fses:-ext4 vfat xfs}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
+		fses=$(echo "${supported_fses:-ext4 vfat}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
 
-		# Report which filesystems are NOT supported by the Heads kernel
+		# Report which filesystems are NOT supported by kernel
 		not_supported=""
 		for fs in $NOT_SUPPORTED_BY_KERNEL; do
 			case "$fses" in
@@ -369,11 +364,11 @@ rm -rf "$tmp_boot"
 		not_supported=$(echo "$not_supported" | sed 's/ $//')
 
 		compatibility=$(check_compatibility "$mechanism")
-		mechanism_short=$(echo "$mechanism" | cut -c1-38)
-		fses_short=$(echo "$fses" | cut -c1-18)
+		iso_short=$(echo "$basenameiso" | cut -c1-35)
 
-		printf "%-60s %-40s %-20s  %s\n" "$basenameiso" "$mechanism_short" "$fses_short" "$compatibility"
-		[ -n "$not_supported" ] && printf "  %-60s %-s\n" "" "Not supported by USB: $not_supported"
+		printf "  %-35s %s\n" "$iso_short" "$compatibility"
+		[ -n "$not_supported" ] && printf "    %s\n" "USB FS issue: $not_supported"
+		[ -n "$fses" ] && printf "    %s\n" "FS: $fses"
 
 	simulate_param_injection() {
 		local detected="$1"
@@ -406,65 +401,6 @@ rm -rf "$tmp_boot"
 	fusermount -uz "$mnt" 2>/dev/null || umount "$mnt" 2>/dev/null || true
 	rmdir "$mnt" 2>/dev/null
 	rm -rf "$sim"
-done
-
-echo ""
-echo "=== Parameter Injection Validation ==="
-echo ""
-
-for iso in "$ISO_DIR"/*.iso; do
-	[ -f "$iso" ] || continue
-	basenameiso=$(basename "$iso")
-
-	mnt=$(mktemp -d)
-	if ! fuseiso "$iso" "$mnt" 2>/dev/null; then
-		rmdir "$mnt" 2>/dev/null
-		continue
-	fi
-
-	supported_boot=""
-	for cfg in $(find "$mnt" -name "*.cfg" -type f 2>/dev/null | grep -v -i -E "efi|x86_64-efi"); do
-		cfg_content=$(cat "$cfg" 2>/dev/null | tr -d '\0') || true
-		if echo "$cfg_content" | grep -qEi "boot=live|rd.live.image|rd.live.squash"; then
-			supported_boot="${supported_boot}boot-live "
-		fi
-		if echo "$cfg_content" | grep -qiE "boot=casper"; then
-			supported_boot="${supported_boot}casper "
-		fi
-		if echo "$cfg_content" | grep -qiE "live.media"; then
-			supported_boot="${supported_boot}live-media "
-		fi
-	done
-
-	mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
-
-	injected=""
-	if echo "$mechanism" | grep -q "casper"; then
-		injected="$injected boot=casper"
-	fi
-	if echo "$mechanism" | grep -q "boot-live"; then
-		injected="$injected boot=live"
-	fi
-	if echo "$mechanism" | grep -q "live-media"; then
-		injected="$injected live-media"
-	fi
-
-	conflicts=""
-	has_casper=$(echo "$injected" | grep -qo "boot=casper" && echo "y" || echo "n")
-	has_live=$(echo "$injected" | grep -qo "boot=live" && echo "y" || echo "n")
-
-	if [ "$has_casper" = "y" ] && [ "$has_live" = "y" ]; then
-		conflicts="CONFLICT"
-	elif [ -z "$injected" ]; then
-		conflicts="NO_PARAMS"
-	else
-		conflicts="OK"
-	fi
-
-	printf "%-60s %-20s  %s\n" "$basenameiso" "$injected" "$conflicts"
-
-	fusermount -uz "$mnt" 2>/dev/null || umount "$mnt" 2>/dev/null || true
-	rmdir "$mnt" 2>/dev/null
 done
 
 rm -f "$STUB" "$TEMP_PARSER" "$FUNC_STUB" "$UNPACK_TEMP" "$ISO_INIT_TEMP"
