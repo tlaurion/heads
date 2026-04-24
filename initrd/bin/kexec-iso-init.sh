@@ -2,56 +2,24 @@
 # Boot from signed ISO file on USB media
 #
 # ============================================================================
-# Supported boot parameters by distribution (researched from initramfs code)
-# ============================================================================
-# All params passed unconditionally - ISO initrd uses what it needs, ignores rest.
-#
-# DEBIAN LIVE-BOOT (Debian/Ubuntu/Kali/MX/PureOS/Kicksecure):
-#   findiso=/path/to.iso      - Scan all disks for ISO path
-#   fromiso=/dev/sdXN/path   - Mount from specific block device
-#   iso-scan/filename=/path  - Search for ISO by filename
-#   live-media=removable     - Restrict to removable USB
-#   live-media-path=/live  - Override default /live path
-#   boot=live              - Activate Debian live-boot
-#   boot=casper           - Activate Ubuntu casper (alias for boot=live)
-#   persistence           - Enable persistence (labeled partition)
-#   nopersistence         - Disable persistence
-#   overlay-size=2G       - Set tmpfs overlay size
-#   toram                 - Copy entire media to RAM before boot
-#
-# ARCH LINUX (archiso):
-#   img_dev=/dev/disk/by-uuid/UUID - Block device containing ISO
-#   img_loop=/path/to.iso    - Path to ISO on that device
-#   archisobasedir=arch     - Base directory on ISO (default: arch)
-#   archisolabel=LABEL      - ISO volume label to search for
-#
-# RED HAT / FEDORA (Anaconda):
-#   inst.stage2=hd:LABEL  - Installer stage2 location (DVD/ISO)
-#   inst.repo=             - Installer repository
-#   live-media=removable  - Live media detection
-#   boot=live             - Fedora Live media
-#
-# NIXOS:
-#   iso-scan/filename=/path - Loopback ISO path
-#   nixos=               - Path to NixOS configuration
-#   copytoram            - Copy SquashFS to RAM
-#   root=live:LABEL     - Live root by label
-#
-# DRACUT (Fedora/RHEL/CentOS):
-#   live-media=removable  - Live media detection
-#   rd.live.image        - Live image boot
-#   rd.live.squashimg=  - SquashFS location
-#
-# ============================================================================
 # Flow:
 # 1. Mount ISO as loopback
-# 2. Check *.cfg for boot methods (simple detection)
-# 3. If not found, unpack initramfs (complex detection)
-# 4. Warn if unsupported, but don't block (let user try)
-# 5. Check FS support from initramfs
+# 2. Detect boot method from *.cfg (simple) or initramfs (detailed)
+# 3. Detect filesystem support from initramfs
+# 4. Warn if method/fs not supported, suggest dd or report upstream
+# 5. Inject boot params unconditionally - ISO uses what it understands
 # ============================================================================
 #
-# USB filesystems supported by Heads: ext4, vfat, exfat, xfs
+# Detection extracts from ISO initramfs:
+# - Boot quirks: iso-scan, findiso, fromiso, img_dev, img_loop, boot=live, etc.
+# - Filesystem support: ext4, vfat, exfat modules in initramfs
+#
+# Warning output uses proper logging levels per doc/logging.md:
+# - WARN: likely problem, able to continue, actionable
+# - INFO: contextual info for users (troubleshooting, next steps)
+# ============================================================================
+#
+# USB filesystems: ext4, vfat, exfat, xfs
 #
 set -e -o pipefail
 . /etc/functions.sh
@@ -304,29 +272,57 @@ $SETE
 CFG_BOOT=$(extract_boot_params_from_cfg 2>/dev/null | grep "^cfg:" | sed 's/^cfg://') || CFG_BOOT=""
 DEBUG "CFG_BOOT from *.cfg: '$CFG_BOOT'"
 
-if [ -z "$CFG_BOOT" ]; then
-	STATUS "Checking initramfs for boot methods..."
-	tmp_support=$(detect_initrd_boot_support 2>/dev/null) || tmp_support=""
-	INITRD_BOOT=$(echo "$tmp_support" | grep "^boot:" | sed 's/^boot://') || INITRD_BOOT=""
-	SUPPORTED_FSES=$(echo "$tmp_support" | grep "^fs:" | sed 's/^fs://') || SUPPORTED_FSES=""
-	DEBUG "INITRD_BOOT: '$INITRD_BOOT'"
-	DEBUG "SUPPORTED_FSES: '$SUPPORTED_FSES'"
+STATUS "Checking initramfs for boot methods and FS support..."
+tmp_support=$(detect_initrd_boot_support 2>/dev/null) || tmp_support=""
+INITRD_BOOT=$(echo "$tmp_support" | grep "^boot:" | sed 's/^boot://') || INITRD_BOOT=""
+SUPPORTED_FSES=$(echo "$tmp_support" | grep "^fs:" | sed 's/^fs://') || SUPPORTED_FSES=""
+DEBUG "INITRD_BOOT (quirks): '$INITRD_BOOT'"
+DEBUG "SUPPORTED_FSES: '$SUPPORTED_FSES'"
+
+if [ -n "$CFG_BOOT" ]; then
+	DETECTED_METHODS="$CFG_BOOT"
+elif [ -n "$INITRD_BOOT" ]; then
 	DETECTED_METHODS="$INITRD_BOOT"
 else
-	DETECTED_METHODS="$CFG_BOOT"
+	DETECTED_METHODS=""
 fi
 
 set -e
 
 DEBUG "DETECTED_METHODS='$DETECTED_METHODS'"
 
+DEV_FSTYPE=$(blkid "$DEV" 2>/dev/null | tail -1 | grep -oE 'TYPE="[^"]+"' | sed 's/TYPE="//;s/"$//') || DEV_FSTYPE=""
+DEBUG "USB device filesystem: '$DEV_FSTYPE'"
+
+ISO_SIZE=$(stat -c%s "$MOUNTED_ISO_PATH" 2>/dev/null || echo 0)
+DEBUG "ISO file size: $ISO_SIZE bytes"
+
+if [ "$DEV_FSTYPE" = "vfat" ] && [ "$ISO_SIZE" -gt 4294967296 ]; then
+	NOTE "FAT32 filesystem has 4GB file limit"
+	NOTE "ISO file is $((ISO_SIZE / 1024 / 1024))MB - larger than 4GB limit"
+	DIE "ISO too large for FAT32. Write ISO directly to USB with:\n\n  sudo dd if=image.iso of=/dev/sdX bs=1M status=progress\n\nOr reformat USB as ext4 and retry."
+fi
+
+FS_SUPPORTED=0
+if [ -n "$SUPPORTED_FSES" ] && [ -n "$DEV_FSTYPE" ]; then
+if echo "$SUPPORTED_FSES" | grep -qw "$DEV_FSTYPE" 2>/dev/null; then
+	FS_SUPPORTED=1
+	DEBUG "Filesystem $DEV_FSTYPE supported by initrd"
+else
+	WARN "Filesystem $DEV_FSTYPE not supported by ISO initrd"
+	DEBUG "Supported: $SUPPORTED_FSES"
+fi
+
 if [ -z "$DETECTED_METHODS" ]; then
-	WARN "No supported boot method detected from *.cfg or initramfs"
+	WARN "No boot method found in initramfs"
+	INFO "This ISO may not boot from USB file. Try: sudo dd if=image.iso of=/dev/sdX"
+	INFO "Consider reporting to ISO maintainers to add USB file boot support."
+
 	if [ -x /bin/whiptail ]; then
 		if ! whiptail_warning --title 'ISO BOOT NOT SUPPORTED' --yesno \
-			"This ISO does not support booting from ISO file on USB.\n\nNo supported boot method detected in *.cfg or initramfs.\n\nTo use this ISO:\n- Linux: sudo cp image.iso /dev/sdX\n- Windows/Mac: Use Rufus DD mode\n\nDo you want to try anyway?" \
+			"No boot method found in initramfs.\nThis ISO may not boot from USB file.\n\nTo use this ISO:\n- sudo dd if=image.iso of=/dev/sdX\n\nConsider reporting to ISO maintainers.\n\nTry anyway?" \
 			0 80; then
-			DIE "ISO boot cancelled - no supported boot method"
+			DIE "ISO boot cancelled"
 		fi
 	else
 		INPUT "No boot method detected. Try anyway? [y/N]:" -n 1 response
@@ -334,15 +330,25 @@ if [ -z "$DETECTED_METHODS" ]; then
 	fi
 fi
 
-DEV_FSTYPE=$(blkid "$DEV" 2>/dev/null | tail -1 | grep -oE 'TYPE="[^"]+"' | sed 's/TYPE="//;s/"$//') || DEV_FSTYPE=""
-DEBUG "USB device filesystem: '$DEV_FSTYPE'"
+elif [ "$FS_SUPPORTED" -eq 0 ] && [ -n "$SUPPORTED_FSES" ]; then
+	WARN "Filesystem $DEV_FSTYPE not supported by ISO"
+	INFO "ISO supports: $SUPPORTED_FSES"
+	INFO "Recommended: sudo mkfs.ext4 -L HEADS /dev/sdX1"
+	INFO "Consider reporting to ISO maintainers to add $DEV_FSTYPE support."
 
-if [ -n "$SUPPORTED_FSES" ] && [ -n "$DEV_FSTYPE" ]; then
-	if ! echo "$SUPPORTED_FSES" | grep -qw "$DEV_FSTYPE" 2>/dev/null; then
-		WARN "USB filesystem ($DEV_FSTYPE) may not be supported by ISO initrd"
-		DEBUG "Supported filesystems: $SUPPORTED_FSES"
-	fi || true
+	if [ -x /bin/whiptail ]; then
+		if ! whiptail_warning --title 'FILESYSTEM NOT SUPPORTED' --yesno \
+			"Filesystem $DEV_FSTYPE not supported by ISO.\nISO supports: $SUPPORTED_FSES\n\nTry anyway?" \
+			0 80; then
+			DIE "ISO boot cancelled"
+		fi
+	else
+		INPUT "Filesystem may not work. Try anyway? [y/N]:" -n 1 response
+		[ "$response" != "y" ] && [ "$response" != "Y" ] && DIE "ISO boot cancelled"
+	fi
 fi
+
+INFO "Boot verification passed: ${DETECTED_METHODS:-standard} on $DEV_FSTYPE"
 
 # ============================================================================
 # Boot parameter injection

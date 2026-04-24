@@ -244,19 +244,17 @@ Known supported filesystems: **ext4**, **vfat**, **exfat** (detected in kernel m
 | Debian DVD | none (installer) | No live boot params — installer ISO only. Use netinst or dd. |
 | TinyCore/CorePlus | unknown (cde, iso=) | Boot method not detected. May work but unverified. |
 
-### On unknown boot methods
+### On unsupported ISOs
 
-If no known boot method is detected, the boot still proceeds with a warning.
-Some ISOs use custom boot mechanisms not covered by detection patterns. Examples:
+If no boot method or filesystem support is detected, the user is warned and can:
+1. Try anyway (ISO may still work)
+2. Use `dd` to write ISO directly to USB
+3. Reformat USB as ext4 if filesystem unsupported
+4. Report to ISO maintainers to add support
 
-- **TinyCore/CorePlus**: Uses `cde` (from CD) and `iso=` kernel parameter.
-  The `fromISOfile` script mounts ISO as `/mnt/cdrom`. May work despite
-  no detection pattern match.
-
-The detection approach is best-effort. Users with unsupported ISOs should:
-- Try Ventoy, Rufus, or distribution USB creation tools
-- Report to upstream that the ISO should support USB file boot
-- Use `dd` to write ISO directly to USB if all else fails
+Using proper logging levels (doc/logging.md):
+- **WARN**: Likely problem, able to continue, actionable
+- **INFO**: Contextual information for users (next steps, troubleshooting)
 
 ### References
 
