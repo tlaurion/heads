@@ -80,8 +80,8 @@ if [ -d "/boot/install.amd" ] || [ -d "/boot/install" ]; then
 	fi
 fi
 
-# Scan an initrd for supported filesystems and boot mechanisms.
-# This function unpacks the initrd and searches for:
+# Scan an initramfs for supported filesystems and boot mechanisms.
+# This function unpacks the initramfs and searches for:
 # - Kernel modules (*.ko/*.ko.xz) -> supported filesystems
 # - Scripts and configs (*.sh, *.conf, init, scripts/*) -> boot mechanisms
 #
@@ -147,42 +147,42 @@ scan_initramfs() {
 # Detection checks for:
 # - /boot/install* directory (installer content)
 # - /boot/isolinux or /boot/grub (boot configs, but no live boot)
-# - /boot/install.amd/vmlinuz and initrd.gz (installer kernel/initrd)
+# - /boot/install.amd/vmlinuz and initramfs.gz (installer kernel/initramfs)
 #
-# Detect boot mechanisms supported by the ISO's initrd.
+# Detect boot mechanisms supported by the ISO's initramfs.
 # This function:
-# 1. Parses all *.cfg files to find initrd paths
-# 2. For each initrd, calls scan_initramfs() to extract supported features
+# 1. Parses all *.cfg files to find initramfs paths
+# 2. For each initramfs, calls scan_initramfs() to extract supported features
 # 3. Outputs two lines: "fs:..." and "boot:..." with detected support
 #
-# This is the primary detection method - scanning initrd content directly
+# This is the primary detection method - scanning initramfs content directly
 # provides the most accurate picture of what the ISO can do.
-detect_initrd_boot_support() {
+detect_initramfs_boot_support() {
 	local supported_fses=""
 	local supported_boot=""
-	local initrd_paths=""
+	local initramfs_paths=""
 
 	for cfg in $(find /boot -name '*.cfg' -type f 2>/dev/null); do
 		[ -r "$cfg" ] || continue
 		while IFS= read -r entry; do
 			[ -z "$entry" ] && continue
-			initrd_field=$(echo "$entry" | tr '|' '\n' | grep '^initrd' | tail -1) || continue
-			[ -z "$initrd_field" ] && continue
-			initrd_val=$(echo "$initrd_field" | sed 's/^initrd //') || continue
-			[ -z "$initrd_val" ] && continue
-			for init in $(echo "$initrd_val" | tr ',' ' '); do
+			initramfs_field=$(echo "$entry" | tr '|' '\n' | grep '^initramfs' | tail -1) || continue
+			[ -z "$initramfs_field" ] && continue
+			initramfs_val=$(echo "$initramfs_field" | sed 's/^initramfs //') || continue
+			[ -z "$initramfs_val" ] && continue
+			for init in $(echo "$initramfs_val" | tr ',' ' '); do
 				[ -z "$init" ] && continue
-				case " $initrd_paths " in
+				case " $initramfs_paths " in
 				*" $init "*) continue ;;
 				esac
-				initrd_paths="${initrd_paths}${init} "
+				initramfs_paths="${initramfs_paths}${init} "
 			done
 		done < <(/bin/bash /bin/kexec-parse-boot.sh /boot "$cfg" 2>/dev/null || true)
 	done
 
-	[ -z "$initrd_paths" ] && return 0
+	[ -z "$initramfs_paths" ] && return 0
 
-	for ipath in $initrd_paths; do
+	for ipath in $initramfs_paths; do
 		full_path="/boot/${ipath#/}"
 		[ -r "$full_path" ] && scan_initramfs "$full_path"
 	done
@@ -193,12 +193,12 @@ detect_initrd_boot_support() {
 }
 
 # Fallback detection: scan *.cfg files for boot parameters.
-# This is used when initrd detection fails or yields no results.
+# This is used when initramfs detection fails or yields no results.
 # It greps through boot config files (GRUB, syslinux, ISOLINUX) for
 # known boot parameters that indicate ISO-on-USB support.
 #
-# This method is less accurate than initrd scanning but can provide
-# hints when initrd extraction fails.
+# This method is less accurate than initramfs scanning but can provide
+# hints when initramfs extraction fails.
 extract_boot_params_from_cfg() {
 	for cfg in $(find /boot -name '*.cfg' -type f 2>/dev/null); do
 		[ -r "$cfg" ] || continue
@@ -276,16 +276,19 @@ CFG_BOOT=$(extract_boot_params_from_cfg 2>/dev/null | grep "^cfg:" | sed 's/^cfg
 DEBUG "CFG_BOOT from *.cfg: '$CFG_BOOT'"
 
 STATUS "Checking initramfs for boot methods and FS support..."
-tmp_support=$(detect_initrd_boot_support 2>/dev/null) || tmp_support=""
-INITRD_BOOT=$(echo "$tmp_support" | grep "^boot:" | sed 's/^boot://') || INITRD_BOOT=""
+tmp_support=$(detect_initramfs_boot_support 2>/dev/null) || tmp_support=""
+INITRAMFS_BOOT=$(echo "$tmp_support" | grep "^boot:" | sed 's/^boot://') || INITRAMFS_BOOT=""
 SUPPORTED_FSES=$(echo "$tmp_support" | grep "^fs:" | sed 's/^fs://') || SUPPORTED_FSES=""
-DEBUG "INITRD_BOOT (quirks): '$INITRD_BOOT'"
-DEBUG "SUPPORTED_FSES: '$SUPPORTED_FSES'"
+
+# Deduplicate FS list and remove trailing spaces
+SUPPORTED_FSES=$(echo "$SUPPORTED_FSES" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | sed 's/ $//')
+DEBUG "Boot methods: '$INITRAMFS_BOOT'"
+DEBUG "Supported filesystems: '$SUPPORTED_FSES'"
 
 if [ -n "$CFG_BOOT" ]; then
 	DETECTED_METHODS="$CFG_BOOT"
-elif [ -n "$INITRD_BOOT" ]; then
-	DETECTED_METHODS="$INITRD_BOOT"
+elif [ -n "$INITRAMFS_BOOT" ]; then
+	DETECTED_METHODS="$INITRAMFS_BOOT"
 else
 	DETECTED_METHODS=""
 fi
@@ -309,6 +312,7 @@ if [ -z "$DEV_FSTYPE" ]; then
 	DEV_FSTYPE=$(df -T /media 2>/dev/null | tail -1 | awk '{print $2}') || DEV_FSTYPE=""
 fi
 DEBUG "USB device filesystem: '$DEV_FSTYPE'"
+DEBUG "Detected USB filesystem: $DEV_FSTYPE"
 
 ISO_SIZE=$(stat -c%s "$MOUNTED_ISO_PATH" 2>/dev/null || echo 0)
 DEBUG "ISO file size: $ISO_SIZE bytes"
@@ -323,9 +327,9 @@ FS_SUPPORTED=0
 if [ -n "$SUPPORTED_FSES" ] && [ -n "$DEV_FSTYPE" ]; then
 if echo "$SUPPORTED_FSES" | grep -qw "$DEV_FSTYPE" 2>/dev/null; then
 	FS_SUPPORTED=1
-	DEBUG "Filesystem $DEV_FSTYPE supported by initrd"
+	DEBUG "Filesystem $DEV_FSTYPE supported by initramfs"
 else
-	WARN "Filesystem $DEV_FSTYPE not supported by ISO initrd"
+	WARN "Filesystem $DEV_FSTYPE not supported by ISO initramfs"
 	DEBUG "Supported: $SUPPORTED_FSES"
 fi
 
@@ -364,12 +368,12 @@ elif [ "$FS_SUPPORTED" -eq 0 ] && [ -n "$SUPPORTED_FSES" ]; then
 	fi
 fi
 
-INFO "Boot verification passed: ${DETECTED_METHODS:-standard} on $DEV_FSTYPE"
+STATUS_OK "Boot verified: ${DETECTED_METHODS:-standard} on $DEV_FSTYPE (mounted as $ISO_PATH on USB device)"
 
 # ============================================================================
 # Boot parameter injection
 # ============================================================================
-# Inject minimal boot-from-ISO parameters. The ISO's initrd will use
+# Inject minimal boot-from-ISO parameters. The ISO's initramfs will use
 # whichever parameters it understands and ignore the rest.
 #
 # We inject iso-scan/filename as the primary parameter - this is
