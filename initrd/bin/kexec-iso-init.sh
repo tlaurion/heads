@@ -327,8 +327,7 @@ fi
 ISO_DEV="/dev/disk/by-uuid/$DEV_UUID"
 ISO_PATH_ABS="/$ISO_PATH"
 
-ADD="iso-scan/filename=$ISO_PATH_ABS findiso=$ISO_DEV/$ISO_PATH fromiso=$ISO_DEV/$ISO_PATH img_dev=$ISO_DEV img_loop=$ISO_PATH iso=$DEV_UUID/$ISO_PATH"
-DEBUG "Injecting boot params: $ADD"
+ADD="iso-scan/filename=$ISO_PATH_ABS"
 REMOVE=""
 
 paramsdir="/media/kexec_iso/$ISO_PATH"
