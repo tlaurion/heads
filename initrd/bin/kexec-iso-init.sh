@@ -327,7 +327,7 @@ fi
 ISO_DEV="/dev/disk/by-uuid/$DEV_UUID"
 ISO_PATH_ABS="/$ISO_PATH"
 
-ADD="iso-scan/filename=$ISO_PATH_ABS"
+ADD="fromiso=/dev/disk/by-uuid/$DEV_UUID/$ISO_PATH img_dev=/dev/disk/by-uuid/$DEV_UUID iso-scan/filename=/${ISO_PATH} img_loop=$ISO_PATH iso=$DEV_UUID/$ISO_PATH"
 REMOVE=""
 
 paramsdir="/media/kexec_iso/$ISO_PATH"
