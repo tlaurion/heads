@@ -3,10 +3,17 @@
 #
 # This script tests ISO boot compatibility by:
 # 1. Mounting each ISO
-# 2. Extracting and scanning initrd for boot mechanism support
+# 2. Extracting and scanning initramfs for boot mechanism support
 # 3. Checking for installer ISOs (which don't support USB file boot)
-# 4. Reporting supported boot methods and overall compatibility
+# 4. Reporting supported boot methods and filesystem support
 #
+# Filesystems supported by kernel (from config/linux-*.config)
+# This determines what can be used on the USB device:
+# - ext4, vfat, exfat (always enabled in Heads)
+# - xfs, btrfs, f2fs, ntfs (usually disabled)
+KERNEL_SUPPORTED_FS="ext4 vfat exfat"
+NOT_SUPPORTED_BY_KERNEL="xfs btrfs f2fs ntfs"
+
 # Usage:
 #   ./run.sh                    # test all ISOs in default dir
 #   ./run.sh /path/to/iso.iso  # test single ISO
@@ -168,22 +175,27 @@ for iso in "$ISO_DIR"/*.iso; do
 done
 
 echo ""
-echo "=== ISO Boot Support Report ==="
+echo "=== Initramfs ISO Boot Support ==="
+echo "Detecting supported boot mechanisms and quirks"
 echo ""
-echo "ISOs supported for USB file boot:"
-printf "  %-35s %s\n" "ISO" "STATUS"
-printf "  %-35s %s\n" "---" "------"
+
+if [ -n "$SINGLE_ISO" ]; then
+printf "\n%-35s %-18s %-35s %s\n" "ISO" "FILESYSTEMS" "BOOT QUIRKS" "STATUS"
+printf "\n%-35s %-18s %-35s %s\n" "---" "------------" "-----------" "------"
+fi
 
 check_compatibility() {
 	local supported="$1"
 	local status=""
+	local note=""
 	case "$supported" in
-	installer*) status="dd only" ;;
-	anaconda*) status="WARN (needs block device)" ;;
-	std|"") status="WARN (unverified)" ;;
+	installer*) status="SKIP" ; note=" (use dd)" ;;
+	anaconda*) status="WARN" ; note=" (block device req)" ;;
+	std) status="WARN" ;;
+	"") status="WARN" ;;
 	*) status="OK" ;;
 	esac
-	echo "$status"
+	echo "${status}${note}"
 }
 
 for iso in "$ISO_DIR"/*.iso; do
@@ -349,7 +361,7 @@ for iso in "$ISO_DIR"/*.iso; do
 			fi
 		done
 
-rm -rf "$tmp_boot"
+		rm -rf "$tmp_boot"
 
 		mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
 		fses=$(echo "${supported_fses:-ext4 vfat}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
@@ -364,11 +376,11 @@ rm -rf "$tmp_boot"
 		not_supported=$(echo "$not_supported" | sed 's/ $//')
 
 		compatibility=$(check_compatibility "$mechanism")
-		iso_short=$(echo "$basenameiso" | cut -c1-35)
+		mechanism_short=$(echo "$mechanism" | cut -c1-33)
+		fses_short=$(echo "$fses" | cut -c1-16)
 
-		printf "  %-35s %s\n" "$iso_short" "$compatibility"
-		[ -n "$not_supported" ] && printf "    %s\n" "USB FS issue: $not_supported"
-		[ -n "$fses" ] && printf "    %s\n" "FS: $fses"
+		printf "%-35s %-18s %-35s %s\n" "$basenameiso" "$fses_short" "$mechanism_short" "$compatibility"
+		[ -n "$not_supported" ] && printf "  %s\n" "USB FS: $not_supported"
 
 	simulate_param_injection() {
 		local detected="$1"
@@ -401,6 +413,65 @@ rm -rf "$tmp_boot"
 	fusermount -uz "$mnt" 2>/dev/null || umount "$mnt" 2>/dev/null || true
 	rmdir "$mnt" 2>/dev/null
 	rm -rf "$sim"
+done
+
+echo ""
+echo "=== Parameter Injection Validation ==="
+echo ""
+
+for iso in "$ISO_DIR"/*.iso; do
+	[ -f "$iso" ] || continue
+	basenameiso=$(basename "$iso")
+
+	mnt=$(mktemp -d)
+	if ! fuseiso "$iso" "$mnt" 2>/dev/null; then
+		rmdir "$mnt" 2>/dev/null
+		continue
+	fi
+
+	supported_boot=""
+	for cfg in $(find "$mnt" -name "*.cfg" -type f 2>/dev/null | grep -v -i -E "efi|x86_64-efi"); do
+		cfg_content=$(cat "$cfg" 2>/dev/null | tr -d '\0') || true
+		if echo "$cfg_content" | grep -qEi "boot=live|rd.live.image|rd.live.squash"; then
+			supported_boot="${supported_boot}boot-live "
+		fi
+		if echo "$cfg_content" | grep -qiE "boot=casper"; then
+			supported_boot="${supported_boot}casper "
+		fi
+		if echo "$cfg_content" | grep -qiE "live.media"; then
+			supported_boot="${supported_boot}live-media "
+		fi
+	done
+
+	mechanism=$(echo "${supported_boot:-std}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ $//')
+
+	injected=""
+	if echo "$mechanism" | grep -q "casper"; then
+		injected="$injected boot=casper"
+	fi
+	if echo "$mechanism" | grep -q "boot-live"; then
+		injected="$injected boot=live"
+	fi
+	if echo "$mechanism" | grep -q "live-media"; then
+		injected="$injected live-media"
+	fi
+
+	conflicts=""
+	has_casper=$(echo "$injected" | grep -qo "boot=casper" && echo "y" || echo "n")
+	has_live=$(echo "$injected" | grep -qo "boot=live" && echo "y" || echo "n")
+
+	if [ "$has_casper" = "y" ] && [ "$has_live" = "y" ]; then
+		conflicts="CONFLICT"
+	elif [ -z "$injected" ]; then
+		conflicts="NO_PARAMS"
+	else
+		conflicts="OK"
+	fi
+
+	printf "%-60s %-20s  %s\n" "$basenameiso" "$injected" "$conflicts"
+
+	fusermount -uz "$mnt" 2>/dev/null || umount "$mnt" 2>/dev/null || true
+	rmdir "$mnt" 2>/dev/null
 done
 
 rm -f "$STUB" "$TEMP_PARSER" "$FUNC_STUB" "$UNPACK_TEMP" "$ISO_INIT_TEMP"
