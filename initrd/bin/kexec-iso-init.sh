@@ -314,7 +314,7 @@ else
 fi
 
 if [ -z "$DETECTED_METHODS" ]; then
-	WARN "No boot method found in initramfs"
+	INFO "No boot method found in initramfs"
 	INFO "This ISO may not boot from USB file. Try: sudo dd if=image.iso of=/dev/sdX"
 	INFO "Consider reporting to ISO maintainers to add USB file boot support."
 
@@ -331,7 +331,7 @@ if [ -z "$DETECTED_METHODS" ]; then
 fi
 
 elif [ "$FS_SUPPORTED" -eq 0 ] && [ -n "$SUPPORTED_FSES" ]; then
-	WARN "Filesystem $DEV_FSTYPE not supported by ISO"
+	INFO "Filesystem $DEV_FSTYPE not supported by ISO"
 	INFO "ISO supports: $SUPPORTED_FSES"
 	INFO "Recommended: sudo mkfs.ext4 -L HEADS /dev/sdX1"
 	INFO "Consider reporting to ISO maintainers to add $DEV_FSTYPE support."
