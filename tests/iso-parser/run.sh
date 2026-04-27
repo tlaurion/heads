@@ -133,15 +133,6 @@ WARN() { echo "WARN: $*" >&2; }
 check_config() { :; }
 STUB
 
-# Create stubs BEFORE using them in sed
-UNPACK_TEMP=$(mktemp)
-sed "s|^\\. /etc/functions\\.sh|. $FUNC_STUB|" "$UNPACK" >"$UNPACK_TEMP"
-chmod +x "$UNPACK_TEMP"
-
-ISO_INIT_TEMP=$(mktemp)
-sed "s|^\\. /etc/functions\\.sh|. $STUB|" "$ISO_INIT" >"$ISO_INIT_TEMP"
-chmod +x "$ISO_INIT_TEMP"
-
 TEMP_PARSER=$(mktemp)
 sed "s|^\. /etc/functions\.sh|. $STUB|" "$PARSER" >"$TEMP_PARSER"
 chmod +x "$TEMP_PARSER"
@@ -336,7 +327,42 @@ for iso in "$ISO_DIR"/*.iso; do
 		[ -z "$initrd" ] && initrd=$(echo "$initrds" | head -1)
 
 		if [ -n "$initrd" ]; then
-			timeout 30 scan_initramfs_test "$initrd" 2>/dev/null || true
+			# Unpack initramfs directly with cpio (no stub needed)
+			tmp_unpack=$(mktemp -d -p /tmp)
+			chmod 755 "$tmp_unpack"
+			(
+				cd "$tmp_unpack"
+				cpio -idmu 2>/dev/null || zstd -d -c "$initrd" | cpio -idmu 2>/dev/null || xz -d -c "$initrd" | cpio -idmu 2>/dev/null || gzip -d -c "$initrd" | cpio -idmu 2>/dev/null
+			) 2>/dev/null || true
+
+			# Detect filesystem support from kernel modules
+			while read ko; do
+				name=$(basename "$ko")
+				case "$name" in
+				ext4* | ext4) supported_fses="${supported_fses}ext4 " ;;
+				vfat* | msdos*) supported_fses="${supported_fses}vfat " ;;
+				exfat*) supported_fses="${supported_fses}exfat " ;;
+				xfs*) supported_fses="${supported_fses}xfs " ;;
+				esac
+			done < <(find "$tmp_unpack" -type f \( -name "*.ko" -o -name "*.ko.xz" \) 2>/dev/null)
+
+			# Detect boot methods from scripts/configs
+			boot_content=$(find "$tmp_unpack" -type f \( -name "*.sh" -o -name "*.conf" -o -name "init" -o -name "*.txt" \) -print 2>/dev/null | xargs cat 2>/dev/null | tr -d '\0' || true) || true
+			for pattern in "iso.scan|findiso" "live.media|live-media" "boot=live|rd.live.image" "boot.casper|casper" "nixos" "inst.stage2|inst.repo" "overlay"; do
+				case "$pattern" in
+				iso.scan|findiso) label="iso-scan" ;;
+				live.media|live-media) label="live-media" ;;
+				boot=live|rd.live.image) label="boot-live" ;;
+				boot.casper|casper) label="casper" ;;
+				nixos) label="nixos" ;;
+				inst.stage2|inst.repo) label="anaconda" ;;
+				overlay) label="overlay" ;;
+				esac
+				echo "$boot_content" | grep -qE "$pattern" && supported_boot="${supported_boot}${label} " || true
+			done
+
+			supported_fses=$(echo "$supported_fses" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | sed 's/ $//')
+			rm -rf "$tmp_unpack"
 		fi
 
 		for cfg in $(find "$mnt" -name "*.cfg" -type f 2>/dev/null | grep -v -i -E "efi|x86_64-efi"); do
