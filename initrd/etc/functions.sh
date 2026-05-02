@@ -961,9 +961,11 @@ recovery() {
 		sleep 5
 		/bin/reboot.sh
 	fi
-	while [ true ]; do
+		while [ true ]; do
+		DEBUG "recovery: entering loop iteration"
 		# Re-detect TTY on each iteration so INPUT uses the correct device
 		detect_heads_tty
+		RECOVERY_TTY="$HEADS_TTY"
 
 		# Wipe secrets at start of each iteration to ensure fresh state
 		#safe to always be true. Otherwise "set -e" would make it exit here
@@ -1009,12 +1011,11 @@ recovery() {
 		STATUS "Starting recovery shell"
 
 		if [ -n "$RECOVERY_TTY" ]; then
-			# Reopen the serial TTY on each iteration so the new session
-			# leader acquires it as its controlling terminal automatically
-			# (POSIX: opening a TTY as session leader without O_NOCTTY sets
-			# it as the controlling terminal).  setsid -c with an inherited
-			# fd fails to respawn correctly after the first bash exits.
-			setsid /bin/bash <>"$RECOVERY_TTY" >&0 2>&0
+			# Start shell in background with TTY redirect, wait for exit.
+			/bin/bash <>"$RECOVERY_TTY" >&0 2>&0 &
+			local shell_pid=$!
+			wait $shell_pid 2>/dev/null || true
+			sleep 0.1
 		elif [ -x /bin/setsid ]; then
 			/bin/setsid -c /bin/bash
 		else
