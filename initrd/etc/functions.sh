@@ -963,9 +963,21 @@ recovery() {
 	fi
 		while [ true ]; do
 		DEBUG "recovery: entering loop iteration"
-		# Re-detect TTY on each iteration so INPUT uses the correct device
-		detect_heads_tty
-		RECOVERY_TTY="$HEADS_TTY"
+
+		# For serial recovery (called from /init with RECOVERY_TTY set),
+		# use the explicit TTY directly.  This avoids detect_heads_tty()
+		# failure in backgrounded processes (where tty(1) fails and
+		# sysfs falls back to tty0 instead of the actual serial device).
+		#
+		# For main console / gui-init, detect_heads_tty() works because
+		# cttyhack already set up the controlling terminal.
+		if [ -n "$RECOVERY_TTY" ]; then
+			export HEADS_TTY="$RECOVERY_TTY"
+			export GPG_TTY="$RECOVERY_TTY"
+		else
+			# Re-detect TTY on each iteration so INPUT uses the correct device
+			detect_heads_tty
+		fi
 
 		# Wipe secrets at start of each iteration to ensure fresh state
 		#safe to always be true. Otherwise "set -e" would make it exit here
@@ -1011,11 +1023,16 @@ recovery() {
 		STATUS "Starting recovery shell"
 
 		if [ -n "$RECOVERY_TTY" ]; then
-			# Start shell in background with TTY redirect, wait for exit.
-			/bin/bash <>"$RECOVERY_TTY" >&0 2>&0 &
-			local shell_pid=$!
-			wait $shell_pid 2>/dev/null || true
-			sleep 0.1
+			# Serial recovery TTY: use setsid + cttyhack (the
+			# documented BusyBox approach for boot scripts).
+			# setsid creates a new session; cttyhack then sets
+			# the TTY as controlling terminal and exec's into bash.
+			# Neither setsid nor cttyhack fork, so this blocks
+			# until bash exits (proper loop respawn behavior).
+			# We re-run stty before each shell to reset TTY state
+			# (bash may leave it in a bad state on exit).
+			stty -F "$RECOVERY_TTY" 115200 sane
+			setsid cttyhack /bin/bash <>"$RECOVERY_TTY" >"$RECOVERY_TTY" 2>"$RECOVERY_TTY"
 		elif [ -x /bin/setsid ]; then
 			/bin/setsid -c /bin/bash
 		else

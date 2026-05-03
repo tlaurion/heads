@@ -184,7 +184,10 @@ export GPG_TTY=/dev/console
 if [ ! -z "$CONFIG_BOOT_RECOVERY_SERIAL" ]; then
 	DEBUG "Recovery serial console enabled on $CONFIG_BOOT_RECOVERY_SERIAL"
 	stty -F "$CONFIG_BOOT_RECOVERY_SERIAL" 115200
-	pause_recovery 'Serial console recovery shell' \
+	# Pass the serial TTY via env var so recovery() can use it directly
+	# without relying on detect_heads_tty() (which fails in backgrounded
+	# processes that have no controlling terminal).
+	RECOVERY_TTY="$CONFIG_BOOT_RECOVERY_SERIAL" pause_recovery 'Serial console recovery shell' \
 		<"$CONFIG_BOOT_RECOVERY_SERIAL" \
 		>"$CONFIG_BOOT_RECOVERY_SERIAL" 2>&1 &
 fi
