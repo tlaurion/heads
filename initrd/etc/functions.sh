@@ -514,25 +514,20 @@ usb_security_dongle_vid_present() {
 }
 
 # Wait up to 15 seconds for a known USB security dongle VID to appear in sysfs.
-# Displays a countdown line updated in place (mirrors show_totp_until_esc pattern).
 # Framebuffer: any key cancels. Serial (ttyS*, ttyUSB*, ttyAMA*, ttyO*): Enter cancels.
 # Returns 0 if a dongle VID is detected, 1 if timed out or cancelled.
 wait_for_usb_security_dongle_vid() {
 	TRACE_FUNC
 	local interactive_tty="${HEADS_TTY}"
 	local is_serial=0
-	local deadline remaining ch status_line last_remaining=""
+	local deadline remaining ch
 
 	if heads_tty_is_serial "$interactive_tty"; then
 		is_serial=1
 	fi
 
-	# Reserve a countdown line; drain stray input on framebuffer.
-	if [ -n "$interactive_tty" ]; then
-		printf "\n" >"$interactive_tty" 2>/dev/null
-	else
-		printf "\n"
-	fi
+	# Drain stray buffered input on framebuffer so stale keystrokes do not
+	# immediately cancel this wait.
 	if [ "$is_serial" = "0" ]; then
 		if [ -n "$interactive_tty" ]; then
 			while IFS= read -r -t 0 -n 1 junk <"$interactive_tty" 2>/dev/null; do :; done
@@ -541,58 +536,35 @@ wait_for_usb_security_dongle_vid() {
 		fi
 	fi
 
+	if [ "$is_serial" = "1" ]; then
+		STATUS "Waiting up to 15s for USB security dongle detection (press Enter to skip)"
+	else
+		STATUS "Waiting up to 15s for USB security dongle detection (press Esc to skip)"
+	fi
+
 	deadline=$(( $(date +%s) + 15 ))
 
 	while :; do
 		# Exit immediately when a known VID appears.
 		if usb_security_dongle_vid_present; then
-			if [ -n "$interactive_tty" ]; then
-				printf "\n\n" >"$interactive_tty" 2>/dev/null
-			else
-				printf "\n\n"
-			fi
-			DEBUG "USB security dongle VID detected in sysfs (countdown wait)"
+			DEBUG "USB security dongle VID detected in sysfs"
 			return 0
 		fi
 
 		remaining=$(( deadline - $(date +%s) ))
 		if [ "$remaining" -le 0 ]; then
-			if [ -n "$interactive_tty" ]; then
-				printf "\n\n" >"$interactive_tty" 2>/dev/null
-			else
-				printf "\n\n"
-			fi
 			DEBUG "Timeout waiting for USB security dongle VID after 15s"
 			return 1
-		fi
-
-		# Rewrite countdown only when the value changes to avoid flicker.
-		if [ "$remaining" != "$last_remaining" ]; then
-			last_remaining="$remaining"
-			local sec_display
-			sec_display=$(printf "%02d" "$remaining")
-			if [ "$is_serial" = "1" ]; then
-				status_line="\033[1mWaiting for USB security dongle... ${sec_display}s | Press Enter to skip\033[0m"
-			else
-				status_line="\033[1mWaiting for USB security dongle... ${sec_display}s | Press Esc to skip\033[0m"
-			fi
-			if [ -n "$interactive_tty" ]; then
-				printf "\r%b\033[K" "$status_line" >"$interactive_tty" 2>/dev/null
-			else
-				printf "\r%b\033[K" "$status_line"
-			fi
 		fi
 
 		if [ "$is_serial" = "1" ]; then
 			if [ -n "$interactive_tty" ]; then
 				if IFS= read -r -t 1 ch <"$interactive_tty" 2>/dev/null; then
-					printf "\n\n" >"$interactive_tty" 2>/dev/null
 					DEBUG "User cancelled USB dongle wait (Enter on serial)"
 					return 1
 				fi
 			else
 				if IFS= read -r -t 1 ch; then
-					printf "\n\n"
 					DEBUG "User cancelled USB dongle wait (Enter on serial)"
 					return 1
 				fi
@@ -600,13 +572,11 @@ wait_for_usb_security_dongle_vid() {
 		else
 			if [ -n "$interactive_tty" ]; then
 				if IFS= read -r -t 0.2 -n 1 ch <"$interactive_tty" 2>/dev/null; then
-					printf "\n\n" >"$interactive_tty" 2>/dev/null
 					DEBUG "User cancelled USB dongle wait (key on framebuffer)"
 					return 1
 				fi
 			else
 				if IFS= read -r -t 0.2 -n 1 ch; then
-					printf "\n\n"
 					DEBUG "User cancelled USB dongle wait (key on framebuffer)"
 					return 1
 				fi
@@ -1089,11 +1059,13 @@ recovery() {
 			WARN "$*"
 		fi
 
-		# Show PCR state when entering recovery shell
-		INFO "TPM: PCR state on entering recovery shell:"
-		pcrs | while IFS= read -r line; do
-			INFO "$line"
-		done
+		# Show PCR state when entering recovery shell only when TPM is enabled.
+		if [ "$CONFIG_TPM" = "y" ]; then
+			INFO "TPM: PCR state on entering recovery shell:"
+			pcrs | while IFS= read -r line; do
+				INFO "$line"
+			done
+		fi
 
 		# Drain any queued serial input before starting the interactive shell.
 		# This avoids stale bytes being interpreted as bash commands on entry.
@@ -1138,10 +1110,12 @@ pause_recovery() {
 		WARN "$*"
 	fi
 
-	INFO "TPM: PCR state on entering recovery shell:"
-	pcrs | while IFS= read -r line; do
-		INFO "$line"
-	done
+	if [ "$CONFIG_TPM" = "y" ]; then
+		INFO "TPM: PCR state on entering recovery shell:"
+		pcrs | while IFS= read -r line; do
+			INFO "$line"
+		done
+	fi
 
 	# Drain any queued serial input before starting the interactive shell.
 	# This avoids stale bytes being interpreted as bash commands on entry.

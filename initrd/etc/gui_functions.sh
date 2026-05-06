@@ -253,8 +253,8 @@ report_integrity_measurements() {
 	DEBUG "integrity report generated at $date_now"
 	STATUS "Preparing Measured Integrity Report - hashing and verifying /boot"
 
-	# Enable USB first for proper branding detection (user-initiated, won't break DUK unseal)
-	enable_usb
+	# Do not auto-enable USB here: loading USB modules extends PCR5 and can
+	# invalidate DUK unseal policy on systems sealed with PCR5=0.
 	detect_usb_security_dongle_branding
 
 	if [ "$CONFIG_TPM" = "y" ]; then
