@@ -48,7 +48,9 @@ mount_boot || exit 1
 
 counter_value=1
 
-# Detect branding (enable_usb is called internally)
+# HOTP configuration requires USB token access.
+enable_usb
+# Detect branding from current USB state
 detect_usb_security_dongle_branding
 DEBUG "$DONGLE_BRAND detected via USB VID:PID"
 

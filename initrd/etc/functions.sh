@@ -370,13 +370,39 @@ LOG() {
 # Sets and exports HEADS_TTY and GPG_TTY.
 # Must be called at script top-level (not inside a subshell) to take effect.
 detect_heads_tty() {
+	local _active _dev _candidate
 	if ! HEADS_TTY=$(tty 2>/dev/null); then
-		local _active _dev
+		HEADS_TTY=""
+		DEBUG "detect_heads_tty: tty(1) unavailable, will resolve from active consoles"
+	else
+		DEBUG "detect_heads_tty: tty(1) resolved HEADS_TTY=$HEADS_TTY"
+	fi
+
+	# On dual-console boards (notably qemu with CONFIG_BOOT_RECOVERY_SERIAL),
+	# gui-init may inherit the recovery serial tty even though its real UI lives
+	# on the main console. Prefer a non-recovery active console when available.
+	if [ -n "$RECOVERY_TTY" ] && [ "$HEADS_TTY" = "$RECOVERY_TTY" ]; then
+		_active=$(cat /sys/class/tty/console/active 2>/dev/null)
+		DEBUG "detect_heads_tty: HEADS_TTY matches RECOVERY_TTY ($RECOVERY_TTY), active consoles='${_active:-<none>}'"
+		for _dev in $_active; do
+			_candidate="/dev/$_dev"
+			if [ "$_candidate" != "$RECOVERY_TTY" ]; then
+				[ "$_dev" = "tty0" ] && _candidate="/dev/$(cat /sys/class/tty/tty0/active 2>/dev/null || echo tty0)"
+				HEADS_TTY="$_candidate"
+				DEBUG "detect_heads_tty: switched interactive tty away from recovery console to $HEADS_TTY"
+				break
+			fi
+		done
+	fi
+
+	if [ -z "$HEADS_TTY" ]; then
 		_active=$(cat /sys/class/tty/console/active 2>/dev/null)
 		_dev="${_active##* }"
 		[ "$_dev" = "tty0" ] && _dev=$(cat /sys/class/tty/tty0/active 2>/dev/null || echo tty0)
 		HEADS_TTY="/dev/${_dev:-console}"
+		DEBUG "detect_heads_tty: falling back to HEADS_TTY=$HEADS_TTY from active consoles='${_active:-<none>}'"
 	fi
+	DEBUG "detect_heads_tty: exporting HEADS_TTY=$HEADS_TTY GPG_TTY=$HEADS_TTY"
 	export HEADS_TTY
 	export GPG_TTY="$HEADS_TTY"
 }
@@ -486,18 +512,16 @@ pin_color() {
 }
 
 # Detect USB security dongle branding from USB VID:PID via lsusb.
+# Runtime dongle IDs are sourced from /etc/dongle-versions.
 # Sources: hotp-verification/src/device.c and targets/qemu.mk
-# USB Security dongle (OpenPGP smart card) VID:PID table:
-#   20a0:42b2  Nitrokey 3 (3A Mini / 3A NFC / 3C NFC - all share this PID)
-#   20a0:42d4  Canokey QEMU
-#   20a0:4108  Nitrokey Pro / Pro 2  (Pro and Pro 2 share the same PID)
-#   20a0:4109  Nitrokey Storage / Storage 2
-#   316d:4c4b  Librem Key
-#    16d0:21dc  Canokey
-#   1050:0113  Yubikey 4/5 (OTP+U2F+CCID) - legacy
-#   1050:0114  Yubikey 4/5 (OTP+U2F+CCID) - OTP+CCID only
-#   1050:0115  Yubikey 4/5 (OTP+U2F+CCID) - FIDO+CCID
-#   1050:0404  Yubikey 5 (FIDO+CCID)
+
+load_usb_security_dongle_ids() {
+	# /etc/dongle-versions is the single source of truth for runtime IDs.
+	[ -r /etc/dongle-versions ] || return 1
+	. /etc/dongle-versions || return 1
+	[ -n "$USB_SECURITY_DONGLE_VIDS" ] || return 1
+	return 0
+}
 
 # Returns 0 if the given tty path is a serial console.
 heads_tty_is_serial() {
@@ -510,7 +534,14 @@ heads_tty_is_serial() {
 # Returns 0 if a known USB security dongle VID is present in sysfs.
 # Known VIDs: 20a0 (Nitrokey/Canokey QEMU), 316d (Librem Key), 16d0 (Canokey), 1050 (Yubikey)
 usb_security_dongle_vid_present() {
-	grep -l -E "20a0|316d|16d0|1050" /sys/bus/usb/devices/*/idVendor 2>/dev/null | grep -q .
+	load_usb_security_dongle_ids || return 1
+	local vid
+	for vid in $USB_SECURITY_DONGLE_VIDS; do
+		if grep -l -E "^${vid}$" /sys/bus/usb/devices/*/idVendor 2>/dev/null | grep -q .; then
+			return 0
+		fi
+	done
+	return 1
 }
 
 # Wait up to 15 seconds for a known USB security dongle VID to appear in sysfs.
@@ -520,15 +551,30 @@ wait_for_usb_security_dongle_vid() {
 	TRACE_FUNC
 	local interactive_tty="${HEADS_TTY}"
 	local is_serial=0
+	local allow_user_cancel="y"
 	local deadline remaining ch
 
 	if heads_tty_is_serial "$interactive_tty"; then
 		is_serial=1
 	fi
+	DEBUG "wait_for_usb_security_dongle_vid: interactive_tty='${interactive_tty:-<none>}' is_serial=$is_serial RECOVERY_TTY='${RECOVERY_TTY:-<none>}'"
+
+	# Never consume keystrokes from the active recovery shell tty.
+	if [ -n "$RECOVERY_TTY" ] && [ "$interactive_tty" = "$RECOVERY_TTY" ]; then
+		allow_user_cancel="n"
+		DEBUG "Disabling USB dongle wait key-cancel on recovery tty ($RECOVERY_TTY)"
+	fi
+
+	# In non-interactive/background contexts, poll only and avoid read() input capture.
+	if [ -z "$interactive_tty" ] && [ ! -t 0 ]; then
+		allow_user_cancel="n"
+		DEBUG "wait_for_usb_security_dongle_vid: no interactive tty and stdin is not a tty, disabling user-cancel reads"
+	fi
+	DEBUG "wait_for_usb_security_dongle_vid: allow_user_cancel=$allow_user_cancel"
 
 	# Drain stray buffered input on framebuffer so stale keystrokes do not
 	# immediately cancel this wait.
-	if [ "$is_serial" = "0" ]; then
+	if [ "$allow_user_cancel" = "y" ] && [ "$is_serial" = "0" ]; then
 		if [ -n "$interactive_tty" ]; then
 			while IFS= read -r -t 0 -n 1 junk <"$interactive_tty" 2>/dev/null; do :; done
 		else
@@ -536,10 +582,12 @@ wait_for_usb_security_dongle_vid() {
 		fi
 	fi
 
-	if [ "$is_serial" = "1" ]; then
+	if [ "$allow_user_cancel" != "y" ]; then
+		STATUS "Waiting up to 15s for USB security dongle detection"
+	elif [ "$is_serial" = "1" ]; then
 		STATUS "Waiting up to 15s for USB security dongle detection (press Enter to skip)"
 	else
-		STATUS "Waiting up to 15s for USB security dongle detection (press Esc to skip)"
+		STATUS "Waiting up to 15s for USB security dongle detection (press any key to skip)"
 	fi
 
 	deadline=$(( $(date +%s) + 15 ))
@@ -557,7 +605,9 @@ wait_for_usb_security_dongle_vid() {
 			return 1
 		fi
 
-		if [ "$is_serial" = "1" ]; then
+		if [ "$allow_user_cancel" != "y" ]; then
+			sleep 1
+		elif [ "$is_serial" = "1" ]; then
 			if [ -n "$interactive_tty" ]; then
 				if IFS= read -r -t 1 ch <"$interactive_tty" 2>/dev/null; then
 					DEBUG "User cancelled USB dongle wait (Enter on serial)"
@@ -586,15 +636,8 @@ wait_for_usb_security_dongle_vid() {
 }
 
 # Detect USB security dongle branding (Nitrokey, Yubikey, Canokey, etc.) from VID:PID.
-# This function intentionally does NOT load USB modules automatically - it only scans for
-# known dongles when USB is already enabled. Callers that need USB (HOTP/GPG/LUKS operations)
-# must call enable_usb() first.
-#
-# REGRESSION FIX: Previously, this function always called enable_usb() which loaded USB
-# kernel modules (ehci-hcd, xhci-hcd, etc.). These modules extend PCR5 in the TPM.
-# The Disk Unlock Key (DUK) for LUKS is sealed to PCR5=0 (no modules loaded). If USB
-# modules load at boot before DUK unseal, PCR5 mismatch occurs and unseal fails.
-# On boards without HOTP support, USB should NOT load at boot - only when needed.
+# This helper enables USB and waits for enumeration before scanning with lsusb.
+# Branding detection requires USB modules/device nodes to be available.
 detect_usb_security_dongle_branding() {
 	TRACE_FUNC
 	local usb_was_enabled="${_USB_ENABLED:-n}"
@@ -607,45 +650,45 @@ detect_usb_security_dongle_branding() {
 		return
 	fi
 
-	# If USB is not enabled, do NOT auto-load modules here (PCR5 extension).
-	# Callers that need the dongle (HOTP/GPG/LUKS) must call enable_usb first.
-	# This prevents unnecessary PCR5 extensions at boot that break DUK unseal.
-	if [ "$usb_was_enabled" != "y" ]; then
-		DEBUG "detect_usb_security_dongle_branding: USB not enabled, setting default branding"
-		export DONGLE_BRAND="USB Security dongle"
-		return
-	fi
-	wait_for_usb_devices
+	# Child scripts can inherit DONGLE_BRAND while _USB_ENABLED resets, so always
+	# initialize USB unless the fast path above was taken.
+	enable_usb
+	[ "$usb_was_enabled" != "y" ] && wait_for_usb_devices
 
-	# Wait up to 15s for a known dongle VID to appear; user can press Esc (fb) or Enter (serial) to skip.
+	# Wait up to 15s for a known dongle VID to appear; user can press any key (fb) or Enter (serial) to skip.
 	# Best-effort wait only — branding detection continues via lsusb regardless.
 	wait_for_usb_security_dongle_vid || true
 	# If branding is already specific, USB is now ready and no re-scan is needed.
 	[ "$DONGLE_BRAND" != "USB Security dongle" ] && [ -n "$DONGLE_BRAND" ] && return
+	if ! load_usb_security_dongle_ids; then
+		DEBUG "Failed to load USB security dongle IDs from /etc/dongle-versions"
+		export DONGLE_BRAND="USB Security dongle"
+		return
+	fi
 	local lsusb_out
 	lsusb_out="$(lsusb)"
 	DEBUG "lsusb output: $lsusb_out"
 	# Check NK3 (42b2) before the broader 20a0 vendor match
-	if echo "$lsusb_out" | grep -q "20a0:42b2"; then
-		DEBUG "Detected Nitrokey 3 (20a0:42b2)"
+	if echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_NK3_VIDPID"; then
+		DEBUG "Detected Nitrokey 3 ($USB_SECURITY_DONGLE_NK3_VIDPID)"
 		export DONGLE_BRAND="Nitrokey 3"
-	elif echo "$lsusb_out" | grep -q "20a0:42d4"; then
-		DEBUG "Detected Canokey QEMU (20a0:42d4)"
+	elif echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_CANOKEY_QEMU_VIDPID"; then
+		DEBUG "Detected Canokey QEMU ($USB_SECURITY_DONGLE_CANOKEY_QEMU_VIDPID)"
 		export DONGLE_BRAND="Canokey"
-	elif echo "$lsusb_out" | grep -q "20a0:4108"; then
-		DEBUG "Detected Nitrokey Pro (20a0:4108)"
+	elif echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_NITROKEY_PRO_VIDPID"; then
+		DEBUG "Detected Nitrokey Pro ($USB_SECURITY_DONGLE_NITROKEY_PRO_VIDPID)"
 		export DONGLE_BRAND="Nitrokey Pro"
-	elif echo "$lsusb_out" | grep -q "20a0:4109"; then
-		DEBUG "Detected Nitrokey Storage (20a0:4109)"
+	elif echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_NITROKEY_STORAGE_VIDPID"; then
+		DEBUG "Detected Nitrokey Storage ($USB_SECURITY_DONGLE_NITROKEY_STORAGE_VIDPID)"
 		export DONGLE_BRAND="Nitrokey Storage"
-	elif echo "$lsusb_out" | grep -q "316d:4c4b"; then
-		DEBUG "Detected Librem Key (316d:4c4b)"
+	elif echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_LIBREM_KEY_VIDPID"; then
+		DEBUG "Detected Librem Key ($USB_SECURITY_DONGLE_LIBREM_KEY_VIDPID)"
 		export DONGLE_BRAND="Librem Key"
-	elif echo "$lsusb_out" | grep -q "16d0:21dc"; then
-		DEBUG "Detected Canokey (16d0:21dc)"
+	elif echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_CANOKEY_VIDPID"; then
+		DEBUG "Detected Canokey ($USB_SECURITY_DONGLE_CANOKEY_VIDPID)"
 		export DONGLE_BRAND="Canokey"
-	elif echo "$lsusb_out" | grep -q "1050:"; then
-		DEBUG "Detected Yubikey (1050:*)"
+	elif echo "$lsusb_out" | grep -q "$USB_SECURITY_DONGLE_YUBIKEY_VID_PREFIX"; then
+		DEBUG "Detected Yubikey (${USB_SECURITY_DONGLE_YUBIKEY_VID_PREFIX}*)"
 		export DONGLE_BRAND="Yubikey"
 	else
 		DEBUG "No known USB Security dongle detected"
@@ -863,7 +906,7 @@ cache_gpg_signing_pin() {
 		-name '*.key' -delete >/dev/null 2>&1 || true
 	DEBUG "Cleared private-keys-v1.d; agent will re-discover keys via scdaemon"
 
-	# USB will be enabled by wait_for_gpg_card() and detect_usb_security_dongle_branding()
+	# USB will be enabled by wait_for_gpg_card() and detect_usb_security_dongle_branding().
 	# Wait for USB enumeration before accessing GPG card to avoid race condition
 	wait_for_usb_devices
 
@@ -1045,15 +1088,8 @@ recovery() {
 		#Going to recovery shell should be authenticated if supported
 		gpg_auth
 
-		#if we have DEBUG_OUTPUT=y, we instruct users to use the debug log
-		if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
-			cat /etc/DEBUG_LOG_COPY_INSTRUCTIONS
-		fi
-
-		#Guide user into enabling debug output in case of a discovered bug
-		if [ "$CONFIG_DEBUG_OUTPUT" != "y" ]; then
-			NOTE "To file a bug report with debug logs:\n  1. Options --> Change configuration settings --> Configure $CONFIG_BRAND_NAME informational / debug output --> select Debug, save and flash firmware changes\n  2. After reboot: Options --> TPM/TOTP/HOTP Options --> Generate new TOTP/HOTP secret to reseal secrets"
-		fi
+		# Debug and measurement logs are always captured; show copy guidance directly.
+		cat /etc/DEBUG_LOG_COPY_INSTRUCTIONS
 		# display any custom recovery message just before the banner
 		if [ -n "$*" ]; then
 			WARN "$*"
@@ -1095,45 +1131,7 @@ recovery() {
 pause_recovery() {
 	TRACE_FUNC
 	INPUT "Press Enter to proceed to recovery shell"
-
-	# Re-detect TTY so INPUT uses the correct device
-	detect_heads_tty
-
-	if [ "$CONFIG_TPM" = "y" ]; then
-		INFO "TPM: Extending PCR[4] with content of string 'recovery' to prevent further secret unsealing"
-		tpmr.sh extend -ix 4 -ic recovery
-	fi
-
-	gpg_auth
-
-	if [ -n "$*" ]; then
-		WARN "$*"
-	fi
-
-	if [ "$CONFIG_TPM" = "y" ]; then
-		INFO "TPM: PCR state on entering recovery shell:"
-		pcrs | while IFS= read -r line; do
-			INFO "$line"
-		done
-	fi
-
-	# Drain any queued serial input before starting the interactive shell.
-	# This avoids stale bytes being interpreted as bash commands on entry.
-	if [ -n "$RECOVERY_TTY" ]; then
-		while IFS= read -r -t 0 -n 1 _junk <"$RECOVERY_TTY" 2>/dev/null; do :; done
-	else
-		while IFS= read -r -t 0 -n 1 _junk 2>/dev/null; do :; done
-	fi
-
-	STATUS "Starting recovery shell"
-
-	if [ -n "$RECOVERY_TTY" ]; then
-		setsid /bin/bash <>"$RECOVERY_TTY" >&0 2>&0
-	elif [ -x /bin/setsid ]; then
-		/bin/setsid -c /bin/bash
-	else
-		/bin/bash
-	fi
+	recovery "$@"
 }
 
 combine_configs() {

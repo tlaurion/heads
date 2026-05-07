@@ -24,7 +24,7 @@ rm -f /tmp/hotpkey_fw_shown
 TRACE_FUNC
 
 # Detect branding early — $DONGLE_BRAND is used throughout this script.
-# enable_usb is called internally by detect_usb_security_dongle_branding.
+enable_usb
 detect_usb_security_dongle_branding
 
 # use TERM to exit on error
@@ -1014,7 +1014,7 @@ usb_security_token_capabilities_check() {
 	TRACE_FUNC
 
 	# Always detect dongle branding from USB VID:PID — never read a stored file.
-	# enable_usb is called internally by detect_usb_security_dongle_branding.
+	enable_usb
 	detect_usb_security_dongle_branding
 	DEBUG "USB Security dongle detected: $DONGLE_BRAND"
 	# Only show generic "Detected" if no specific brand was identified
