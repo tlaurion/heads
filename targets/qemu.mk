@@ -44,13 +44,29 @@ MEMORY_SIZE_FILE=$(build)/$(BOARD)/memory
 $(MEMORY_SIZE_FILE):
 	@echo "$(QEMU_MEMORY_SIZE)" >"$(MEMORY_SIZE_FILE)"
 USB_FD_IMG=$(build)/$(BOARD)/usb_fd.raw
+# Default USB flash drive size (accepts K/M/G suffixes)
+QEMU_USB_SIZE?=256M
 $(USB_FD_IMG):
-	dd if=/dev/zero bs=1M of="$(USB_FD_IMG)" bs=1M count=256 >/dev/null 2>&1
-	# Debian obnoxiously does not include /usr/sbin in PATH for non-root, even
-	# though it is meaningful to use mkfs.vfat (etc.) as non-root
-	MKFS_VFAT=mkfs.vfat; \
-	[ -x /usr/sbin/mkfs.vfat ] && MKFS_VFAT=/usr/sbin/mkfs.vfat; \
-	"$$MKFS_VFAT" "$(USB_FD_IMG)"
+	# -f raw: sparse file, same behavior as qcow2 root disk.
+	# QEMU handles raw sparse files without issue.
+	qemu-img create -f raw "$(USB_FD_IMG)" $(QEMU_USB_SIZE) >/dev/null 2>&1
+	# Create MBR partition table + single partition (casper needs partitions).
+	# parted on some systems wants mkfs before partprobe; use sgdisk/sfdisk.
+	printf 'label: dos\n,;' | /sbin/sfdisk "$(USB_FD_IMG)" >/dev/null 2>&1 || \
+	  printf 'label: dos\n,;' | sfdisk "$(USB_FD_IMG)" >/dev/null 2>&1
+	# Set up loop device for the partition.  --partscan creates /dev/loopXp1.
+	$(eval USB_FD_LOOP := $(shell (losetup -f --show --partscan "$(USB_FD_IMG)" 2>/dev/null) || echo ""))
+	@if [ -z "$(USB_FD_LOOP)" ]; then \
+		echo "ERROR: losetup --partscan failed, cannot format USB partition"; \
+		exit 1; \
+	fi
+	# Format first partition (p1) as ext4 (not exFAT — many initramfs lack exFAT drivers).
+	MKFS_EXT4=mkfs.ext4; \
+	[ -x /sbin/mkfs.ext4 ] && MKFS_EXT4=/sbin/mkfs.ext4; \
+	[ -x /usr/sbin/mkfs.ext4 ] && MKFS_EXT4=/usr/sbin/mkfs.ext4; \
+	"$$MKFS_EXT4" -F "$(USB_FD_LOOP)p1"
+	# Detach loop device
+	-losetup -d "$(USB_FD_LOOP)" 2>/dev/null || true >/dev/null 2>&1
 # Pass INSTALL_IMG=<path_to_img.iso> to attach an installer as a USB flash drive instead
 # of the temporary flash drive for exporting GPG keys.
 ifneq "$(INSTALL_IMG)" ""
