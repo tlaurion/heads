@@ -122,7 +122,7 @@ menu, system info, power off.
 
 ---
 
-## Stage 2b: USB ISO Boot (`kexec-iso-init.sh`)
+## Stage 2b: USB boot (`kexec-iso-init.sh`)
 
 When booting from an ISO file on USB media, `kexec-iso-init.sh` handles the ISO
 boot flow. Invoked from Options → Boot Options → "USB boot".
@@ -238,7 +238,7 @@ returns to the ISO browser and selects a different ISO.
 ### Initramfs compatibility markers in the boot menu
 
 During step 5 (initramfs compat), `check_initramfs_compat` writes per-initramfs
-results to `/tmp/kexec_initramfs_compat.txt` (filesystem module check) and
+results to `/tmp/kexec_initrd_compat.txt` (filesystem module check) and
 `/tmp/kexec_display_driver.txt` (kernel display driver check via symbol
 detection — the kernel's built-in driver binds before initramfs runs).
 `kexec-select-boot` combines these two signals into three-state menu
@@ -248,13 +248,14 @@ markers shown before each entry name:
 |--------|---------|-----------------|
 | `[OK]` | USB filesystem module found and kernel display driver confirmed | Boots with continuous or quickly-restored display |
 | `[~]` | Display driver not found in kernel (`[~]:drm`), or USB fs missing | Boots with caveat — brief blank or degraded |
+| `[X]` | No display driver, initramfs module missing, or unknown marker | Screen stays blank until native driver loads |
 | (blank) | Initramfs has no .ko files: can't verify | Assume OK (minimal initramfs) |
 
 When the user chose "Boot ISO now" at either gate (fast-path or probing),
 step 5 was bypassed and no compat files exist: all entries appear without
 a marker prefix.  A STATUS line explains why.
 
-A `NOTE` (3-second sleep) is displayed before the menu.
+A `STATUS` line is displayed before the menu.
 When step 5 ran, it shows the `[OK]/[~]` legend describing the markers.
 When step 5 was skipped, it shows
 "Compatibility not checked -- entries may still work" instead.

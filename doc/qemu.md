@@ -91,6 +91,37 @@ Also note that hardlinks share the same underlying data; modifications to one li
 
 `cp -alf` is basically creating a hardlink to destination overwriting it, and doesn't cost additional disk space.
 
+Same for the USB flash drive: create one with your ISOs at a convenient size,
+then hardlink into each board variant's build directory:
+
+```bash
+# Step 1: Create the image at desired size via the Makefile.
+# The Makefile uses exFAT (not vfat) because many ISOs exceed
+# vfat's 4GB per-file limit.  Heads supports exFAT natively.
+./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2 \
+  QEMU_USB_SIZE=64G run
+# → Heads boots in QEMU.  Quit QEMU (Ctrl-A X or close window).
+# → build/x86/qemu-coreboot-fbwhiptail-tpm2/usb_fd.raw now exists at 64G.
+
+# Step 2: Populate with ISOs.
+sudo losetup --find --show --partscan \
+  build/x86/qemu-coreboot-fbwhiptail-tpm2/usb_fd.raw
+sudo mount /dev/loop0p1 /mnt
+cp ~/Downloads/ISOs/*.iso /mnt/
+sudo umount /mnt && sudo losetup -d /dev/loop0
+
+# Step 3: Save as master copy, hardlink into other boards.
+cp build/x86/qemu-coreboot-fbwhiptail-tpm2/usb_fd.raw ~/qemu_img/usb_fd.img
+rm build/x86/qemu-coreboot-fbwhiptail-tpm2/usb_fd.raw
+cp -alf ~/qemu_img/usb_fd.img \
+  build/x86/qemu-coreboot-fbwhiptail-tpm2/usb_fd.raw
+cp -alf ~/qemu_img/usb_fd.img \
+  build/x86/qemu-coreboot-fbwhiptail-tpm1-hotp/usb_fd.raw
+
+# Next run uses the hardlink — Makefile skips creation since
+# usb_fd.raw already exists.
+```
+
 On a daily development cycle, usage looks like:
 1. `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1 PUBKEY_ASC=~/pub_key_counterpart_of_usb_dongle.asc USB_TOKEN=NitrokeyStorage ROOT_DISK_IMG=~/heads/build/x86/qemu-coreboot-fbwhiptail-tpm1-hotp/root.qcow2 inject_gpg`
 2. `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1 PUBKEY_ASC=~/pub_key_counterpart_of_usb_dongle.asc USB_TOKEN=NitrokeyStorage ROOT_DISK_IMG=~/heads/build/x86/qemu-coreboot-fbwhiptail-tpm1-hotp/root.qcow2 run`
@@ -124,10 +155,29 @@ environment reference. Important ones are `HEADS_DISABLE_USB`
 `HEADS_X11_XAUTH` (force mounting your `$HOME/.Xauthority`).
 
 Make variables such as `USB_TOKEN`, `PUBKEY_ASC`, `INSTALL_IMG`,
-`QEMU_MEMORY_SIZE`, `QEMU_DISK_SIZE`, `ROOT_DISK_IMG`, `CPUS` and `V`
+`QEMU_MEMORY_SIZE`, `QEMU_DISK_SIZE`, `QEMU_USB_SIZE`,
+`ROOT_DISK_IMG`, `CPUS` and `V`
 are forwarded to the `make` invocation and affect how
 `targets/qemu.mk` runs QEMU. See `targets/qemu.mk` for token formats
 and examples.
+
+The virtual USB flash drive (`usb_fd.raw`) is created at build time
+under `build/x86/<BOARD>/`.  Default size is 256 MB — enough for
+a single installer ISO via `INSTALL_IMG=</path/to/installer.iso>`.
+To hold multiple ISOs, override `QEMU_USB_SIZE`:
+
+```bash
+# Create a 64 GB USB flash drive for ISO testing
+./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2 \
+  QEMU_USB_SIZE=64G \
+  run
+
+# After first boot, copy ISOs into it:
+sudo losetup --find --show --partscan \
+  build/x86/qemu-coreboot-fbwhiptail-tpm2/usb_fd.raw
+sudo mount /dev/loop0p1 /mnt
+cp ~/Downloads/ISOs/*.iso /mnt/
+sudo umount /mnt
 
 Note: when USB passthrough is active the wrapper will warn and, on
 interactive shells, give a 3s abort window before attempting to kill
