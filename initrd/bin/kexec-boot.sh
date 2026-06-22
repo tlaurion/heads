@@ -1,16 +1,31 @@
 #!/bin/bash
-# Launches kexec from saved configuration entries
+# Execute kexec to boot an OS kernel from parsed boot configuration
+#
+# This script takes a boot entry (from kexec-parse-boot.sh) and executes
+# kexec to load and boot the OS kernel. It handles:
+# - ELF kernels (standard Linux)
+# - Multiboot kernels (Xen)
+# - Initial ramdisks (initrd)
+# - Kernel command line modification (add/remove parameters)
+#
+# Options:
+#   -b  Boot directory (e.g., /boot)
+#   -e  Entry string (name|kexectype|kernel path[|initrd][|append])
+#   -r  Parameters to remove from cmdline
+#   -a  Parameters to add to cmdline
+#   -o  Override initrd path
+#   -f  Dry run: print files only
+#   -i  Dry run: print initrd only
+#
 set -e -o pipefail
 . /tmp/config
 . /etc/functions.sh
 
-TRACE_FUNC
-
 dryrun="n"
 printfiles="n"
 printinitrd="n"
-while getopts "b:e:r:a:o:fi" arg; do
-	case $arg in
+	while getopts "b:e:r:a:o:fi" arg; do
+		case $arg in
 		b) bootdir="$OPTARG" ;;
 		e) entry="$OPTARG" ;;
 		r) cmdremove="$OPTARG" ;;
@@ -18,24 +33,37 @@ while getopts "b:e:r:a:o:fi" arg; do
 		o) override_initrd="$OPTARG" ;;
 		f) dryrun="y"; printfiles="y" ;;
 		i) dryrun="y"; printinitrd="y" ;;
-	esac
-done
+		esac
+	done
 
-if [ -z "$bootdir" -o -z "$entry" ]; then
-	DIE "Usage: $0 -b /boot -e 'kexec params|...|...'"
-fi
+	if [ -z "$bootdir" -o -z "$entry" ]; then
+		DIE "Usage: $0 -b /boot -e 'kexec params|...|...'"
+	fi
 
-bootdir="${bootdir%%/}"
+	bootdir="${bootdir%%/}"
 
-kexectype=`echo $entry | cut -d\| -f2`
-kexecparams=`echo $entry | cut -d\| -f3- | tr '|' '\n'`
-kexeccmd="kexec"
+	kexectype=$(echo $entry | cut -d\| -f2)
+	kexecparams=$(echo $entry | cut -d\| -f3- | tr '|' '\n')
+	kexeccmd="kexec"
 
-cmdadd="$CONFIG_BOOT_KERNEL_ADD $cmdadd"
+	DEBUG "kexec-boot: entry='$entry'"
+	DEBUG "kexec-boot: kexectype='$kexectype'"
+	DEBUG "kexec-boot: kexecparams='$kexecparams'"
+	DEBUG "kexec-boot: cmdadd='$cmdadd'"
+
 cmdremove="$CONFIG_BOOT_KERNEL_REMOVE $cmdremove"
 
 if [ "$(load_config_value CONFIG_USE_BLOB_JAIL)" = "y" ]; then
 	cmdadd="$cmdadd firmware_class.path=/firmware/"
+fi
+
+# Strip ISO-originated 'quiet splash' so sysfb/DRM messages are visible.
+# drm.debug=0x06 was removed: floods logs since vesadrm is stable.
+# To re-enable: add drm.debug=0x06 via CONFIG_BOOT_KERNEL_ADD.
+if [ "$CONFIG_DEBUG_OUTPUT" = "y" ]; then
+	cmdremove="$cmdremove quiet splash"
+	# loglevel=7 is already added at kexec-select-boot.sh stage
+	# (visible in the boot menu NOTE).  Do not add it here again.
 fi
 
 fix_file_path() {
@@ -53,16 +81,30 @@ fix_file_path() {
 
 adjusted_cmd_line="n"
 adjust_cmd_line() {
-	if [ -n "$cmdremove" ]; then
+	DEBUG "adjust_cmd_line: original cmdline='$cmdline'"
+	# Strip the GRUB '---' separator (not a kernel param) but keep
+	# everything after it  --  those are initramfs params for the target OS.
+	cmdline=$(echo "$cmdline" | sed 's/ --- / /g;s/^--- //g;s/ ---$//g' | xargs)
+	DEBUG "adjust_cmd_line: after removing --- separator='$cmdline'"
+	if [ -n "$cmdadd" ]; then
+		DEBUG "adjust_cmd_line: cmdadd='$cmdadd'"
+		# _build_final_cmdline handles both ADD and REMOVE (including
+		# CONFIG_BOOT_KERNEL_REMOVE).  Board ADD is processed at the end
+		# of the shared function.  Avoid inline removal here  --  it would
+		# be applied twice (once below, once inside the shared function).
+		cmdline=$(_build_final_cmdline "$cmdline" "$cmdadd" "${cmdremove:-}" "$CONFIG_BOOT_KERNEL_ADD")
+		adjusted_cmd_line="y"
+	elif [ -n "$cmdremove" ]; then
+		# ADD is empty, so _build_final_cmdline is NOT called.
+		# Apply REMOVE directly.  BusyBox sed lacks \b word boundaries;
+		# use bash space-wrapped substitution to remove whole-word params.
 		for i in $cmdremove; do
-			cmdline=$(echo $cmdline | sed "s/\b$i\b//g")
+			cmdline=" $cmdline "
+			cmdline="${cmdline// $i / }"
+			cmdline="${cmdline# }"
+			cmdline="${cmdline% }"
 		done
 	fi
-
-	if [ -n "$cmdadd" ]; then
-		cmdline="$cmdline $cmdadd"
-	fi
-	adjusted_cmd_line="y"
 }
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
@@ -71,11 +113,10 @@ if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 fi
 
 module_number="1"
-while read line
-do
-	key=`echo $line | cut -d\  -f1`
-	firstval=`echo $line | cut -d\  -f2`
-	restval=`echo $line | cut -d\  -f3-`
+while read line; do
+	key=$(echo $line | cut -d\  -f1)
+	firstval=$(echo $line | cut -d\  -f2)
+	restval=$(echo $line | cut -d\  -f3-)
 	if [ "$key" = "kernel" ]; then
 		fix_file_path
 		if [ "$kexectype" = "xen" ]; then
@@ -112,7 +153,7 @@ do
 				fi
 			fi
 		fi
-		module_number=`expr $module_number + 1`
+		module_number=$((module_number + 1))
 		kexeccmd="$kexeccmd --module \"$filepath $cmdline\""
 	fi
 	if [ "$key" = "initrd" ]; then
@@ -149,12 +190,23 @@ fi
 
 if [ "$dryrun" = "y" ]; then exit 0; fi
 
+DEBUG "kexec-boot: cmdadd='$cmdadd'"
+DEBUG "kexec-boot: cmdremove='$cmdremove'"
+DEBUG "kexec-boot: final cmdline='$cmdline'"
+
+# Kernel command line length limit is typically 2047 bytes (CONFIG_COMMAND_LINE_SIZE).
+# If the final cmdline exceeds this, warn before attempting kexec.
+cmdline_len=${#cmdline}
+if [ "$cmdline_len" -gt 2047 ]; then
+	WARN "Kernel command line is $cmdline_len bytes, kernel limit is 2047. USB boot may fail."
+	WARN "Check for duplicate kernel options in the ISO's boot configuration."
+	WARN "Report to ISO distributor: duplicate options waste command line space."
+fi
+
 STATUS "Loading the new kernel"
 DEBUG "kexec command: $kexeccmd"
-# DO_WITH_DEBUG captures the debug output from stderr to the log, we don't need
-# it on the console as well
-DO_WITH_DEBUG eval "$kexeccmd" 2>/dev/null \
-|| DIE "Failed to load the new kernel"
+DO_WITH_DEBUG eval "$kexeccmd" \
+|| DIE "Failed to load the new kernel${cmdline_len:+ (cmdline length: $cmdline_len bytes, kernel limit typically 2047)}"
 
 if [ "$CONFIG_DEBUG_OUTPUT" = "y" ];then
 	#Ask user if they want to continue booting without echoing back the input (-s)
