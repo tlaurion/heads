@@ -1,0 +1,90 @@
+diff --git a/kexec/arch/i386/x86-linux-setup.c b/kexec/arch/i386/x86-linux-setup.c
+--- a/kexec/arch/i386/x86-linux-setup.c
++++ b/kexec/arch/i386/x86-linux-setup.c
+@@ -138,16 +138,30 @@
+ 	if (-1 == fd)
+ 		return -1;
+ 
+-	if (-1 == ioctl(fd, FBIOGET_FSCREENINFO, &fix))
++	if (-1 == ioctl(fd, FBIOGET_FSCREENINFO, &fix)) {
++		dbgprintf("%s: FBIOGET_FSCREENINFO failed, can't provide framebuffer\n",
++		    __func__);
+ 		goto out;
+-	if (-1 == ioctl(fd, FBIOGET_VSCREENINFO, &var))
++	}
++	if (-1 == ioctl(fd, FBIOGET_VSCREENINFO, &var)) {
++		dbgprintf("%s: FBIOGET_VSCREENINFO failed, can't provide framebuffer\n",
++		    __func__);
+ 		goto out;
++	}
+ 	if (0 == strcmp(fix.id, "VESA VGA")) {
+ 		/* VIDEO_TYPE_VLFB */
+ 		real_mode->orig_video_isVGA = 0x23;
+ 	} else if (0 == strcmp(fix.id, "EFI VGA")) {
+-		/* VIDEO_TYPE_EFI */
+-		real_mode->orig_video_isVGA = 0x70;
++		/* VIDEO_TYPE_VLFB: kernel __screen_info_lfb_size() only shifts
++		 * by 16 for VIDEO_TYPE_VLFB, not for VIDEO_TYPE_EFI.  Without
++		 * the shift, lfb_size=127 (64K pages, ~8MB) is returned as 127
++		 * bytes, making drm_sysfb_get_stride_si() compute max_stride=0
++		 * (127/1080).  Result: "stride of 7680 exceeds maximum of 0".
++		 * Setting VLFB makes the kernel shift <<= 16, giving 8MB resource
++		 * and max_stride=7706 ≥ 7680.  Stride validation passes. */
++		real_mode->orig_video_isVGA = 0x23;
++		dbgprintf("%s: Found driver %s, Heads normalizing screen_info for sysfb\n",
++		    __func__, fix.id);
+ 	} else if (arch_options.reuse_video_type) {
+ 		int err;
+ 		off_t offset = offsetof(typeof(*real_mode), orig_video_isVGA);
+@@ -189,6 +203,51 @@
+ 		real_mode->rsvd_pos   = var.transp.offset;
+ 		real_mode->rsvd_size  = var.transp.length;
+ 	}
++	if (real_mode->orig_video_isVGA == 0x23) {
++		/*
++		 * Normalize screen_info for the target kernel's sysfb dispatch.
++		 *
++		 * VLFB (0x23) is required for kernel __screen_info_lfb_size()
++		 * stride validation (shifts lfb_size <<= 16).  With EFI (0x70),
++		 * no shift occurs and max_stride = lfb_size / height = 0.
++		 *
++		 * Measure, don't assume: preserve actual stride from /dev/fb0
++		 * (fix.line_length).  Works for ALL pixel formats and alignment
++		 * padding — 32bpp XRGB8888 (stride=width*4), 16bpp RGB565
++		 * (stride=width*2), etc.  Compute lfb_size from measured stride.
++		 * linux_trampoline.S does NOT corrupt lfb_linelength/width/height
++		 * — only byte-swaps color mask fields (intentional).
++		 *
++		 * Color format masks are left as /dev/fb0 reports them.
++		 * sysfb_parse_mode() matches SIMPLEFB_FORMATS by comparing
++		 * red/green/blue masks; transp is checked on the FORMAT side
++		 * only, not on screen_info.  For 32-bit, /dev/fb0 masks already
++		 * match "x8r8g8b8"; for 16-bit they match "r5g6b5".  If no
++		 * format matches, vesafb/vesadrm handle via VLFB fallback.
++		 */
++		dbgprintf("%s: /dev/fb0 raw: driver=%s %ux%u %ubpp stride=%u "
++		    "base=0x%x r{%u,%u} g{%u,%u} b{%u,%u} rsvd{%u,%u}\n",
++		    __func__,
++		    fix.id, real_mode->lfb_width, real_mode->lfb_height,
++		    var.bits_per_pixel, fix.line_length, real_mode->lfb_base,
++		    var.red.offset, var.red.length,
++		    var.green.offset, var.green.length,
++		    var.blue.offset, var.blue.length,
++		    var.transp.offset, var.transp.length);
++		real_mode->lfb_linelength = fix.line_length;
++		real_mode->lfb_size = (real_mode->lfb_height *
++		    (unsigned int)fix.line_length + 65535) / 65536;
++		dbgprintf("%s: screen_info for target: %ux%ux%u stride=%u "
++		    "base=0x%x size=%u r{%u,%u} g{%u,%u} b{%u,%u} rsvd{%u,%u}\n",
++		    __func__,
++		    real_mode->lfb_width, real_mode->lfb_height,
++		    real_mode->lfb_depth, real_mode->lfb_linelength,
++		    real_mode->lfb_base, real_mode->lfb_size,
++		    real_mode->red_pos, real_mode->red_size,
++		    real_mode->green_pos, real_mode->green_size,
++		    real_mode->blue_pos, real_mode->blue_size,
++		    real_mode->rsvd_pos, real_mode->rsvd_size);
++	}
+ 	return 0;
+ 
+  out:
