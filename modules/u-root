@@ -7,11 +7,14 @@
 u-root_url := github.com/u-root/u-root
 u-root_output := $(build)/$(BOARD)/u-root.cpio
 UROOT_CMDS ?=
+UROOT_COMPILER ?=
+UROOT_PATCHED_GOROOT ?=
 
 export GOPATH=$(build)/go
 u-root_src_cmds := $(foreach cmd,$(UROOT_CMDS),github.com/u-root/u-root/cmds/$(cmd))
 
 u-root_build := $(GOPATH)/bin/u-root
+UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
 
 $(GOPATH)/bin/u-root:
 	go get github.com/u-root/u-root/...
@@ -27,14 +30,29 @@ $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
 	$(call install,boards/$(BOARD)/uinit.go,$@)
 endif
 
-$(u-root_output): $(u-root_build) $(u-root_uinit)
+$(u-root_output): $(u-root_build) $(u-root_uinit) $(if $(UROOT_PATCHED_GOROOT),patch-goroot)
 	$(call do,U-ROOT,$@,\
+		TINYGOROOT=$(UROOT_PATCHED_GOROOT) \
 		$(GOPATH)/bin/u-root \
 			-build=bb \
 			-format=cpio \
 			-o $@  \
+			$(UROOT_COMPILER_FLAG) \
 			$(u-root_src_cmds)\
 	)
+
+# Target to create the patched TinyGo GOROOT for u-root builds
+.PHONY: patch-goroot
+patch-goroot:
+	@if [ -n "$(UROOT_PATCHED_GOROOT)" ] && [ ! -d "$(UROOT_PATCHED_GOROOT)" ]; then \
+		echo "Creating patched TinyGo GOROOT at $(UROOT_PATCHED_GOROOT)..."; \
+		rsync -a `tinygo env TINYGOROOT`/ $(UROOT_PATCHED_GOROOT); \
+		find $(UROOT_PATCHED_GOROOT) -type f -exec chmod u+w {} \;; \
+		cd $(UROOT_PATCHED_GOROOT); \
+		for p in $(UROOT_PATCHES_DIR)/*.patch; do \
+			patch -p1 -i "$$p" || true; \
+		done; \
+	fi
 
 # Override the initrd inputs and add in the kernel modules
 initrd-$(CONFIG_UROOT) += $(u-root_output)
