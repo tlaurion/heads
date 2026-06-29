@@ -9,12 +9,14 @@ u-root_output := $(build)/$(BOARD)/u-root.cpio
 UROOT_CMDS ?=
 UROOT_COMPILER ?=
 UROOT_PATCHED_GOROOT ?=
+UROOT_UINIT ?=
 
 export GOPATH=$(build)/go
 u-root_src_cmds := $(foreach cmd,$(UROOT_CMDS),github.com/u-root/u-root/cmds/$(cmd))
 
 u-root_build := $(GOPATH)/bin/u-root
 UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
+UROOT_UINIT_FLAG := $(if $(UROOT_UINIT),-uinitcmd $(UROOT_UINIT),)
 
 UROOT_REPO ?= https://github.com/tlaurion/u-root
 UROOT_COMMIT ?= main
@@ -44,6 +46,7 @@ $(u-root_output): $(u-root_build) $(u-root_uinit) $(if $(UROOT_PATCHED_GOROOT),p
 			-format=cpio \
 			-o $@  \
 			$(UROOT_COMPILER_FLAG) \
+			$(UROOT_UINIT_FLAG) \
 			$(u-root_src_cmds)\
 	)
 
@@ -65,9 +68,10 @@ initrd-$(CONFIG_UROOT) += $(u-root_output)
 
 
 ifeq "$(CONFIG_UROOT)" "y"
-# If we are building for u-root, disable the default CONFIG_HEADS
-# so that the heads/initrd/etc directories will not be included
-CONFIG_HEADS=n
+# If we are building for u-root, CONFIG_HEADS can be overridden:
+# - n (default): heads initrd excluded, u-root init runs directly
+# - y: heads initrd included, u-root init runs heads scripts via uinitcmd
+CONFIG_HEADS ?= n
 
 # Since we do not include u-root in modules-y, we have to define our
 # own intermediate and clean targets here
