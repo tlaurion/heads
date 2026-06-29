@@ -9,6 +9,12 @@
     # sdcc 4.5.0 has optimizer bug: https://github.com/Dasharo/dasharo-issues/issues/1785
     nixpkgs-sdcc.url = "github:nixos/nixpkgs/7a339d87931bba829f68e94621536cad9132971a";
     flake-utils.url = "github:numtide/flake-utils"; # Utilities for flake functionality.
+    # Patched TinyGo fork with net/os/sync/crypto/tls methods for u-root
+    tlaurion-tinygo.url = "github:tlaurion/tinygo/main";
+    tlaurion-tinygo.flake = false;
+    # Patched net submodule for TinyGo with missing net package methods
+    tlaurion-net.url = "github:tlaurion/net/main";
+    tlaurion-net.flake = false;
   };
   # Outputs are the result of the flake, including the development environment and Docker image.
   outputs = {
@@ -16,12 +22,49 @@
     flake-utils,
     nixpkgs,
     nixpkgs-sdcc,
+    tlaurion-tinygo,
+    tlaurion-net,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system}; # Accessing the legacy package set.
       pkgs-sdcc = nixpkgs-sdcc.legacyPackages.${system}; # Pinned for sdcc 4.2.0
       lib = pkgs.lib; # The standard Nix packages library.
+
+      # Patched TinyGo with u-root net/os/sync/crypto-tls/net-http fixes
+      tinygo-patched = pkgs.tinygo.overrideAttrs (old: {
+        # Apply u-root patches from tlaurion forks
+        postPatch = (old.postPatch or "") + ''
+          echo "Applying u-root TinyGo patches from tlaurion forks..."
+
+          # Overlay patched files from tlaurion-tinygo main repo:
+          #   os/file_unix_chown.go, sync/waitgroup.go, crypto/tls/tls.go
+          for f in os/file_unix_chown.go sync/waitgroup.go crypto/tls/tls.go; do
+            src="${tlaurion-tinygo}/$f"
+            if [ -f "$src" ]; then
+              cp "$src" "$f"
+              chmod u+w "$f"
+              echo "  patched: $f"
+            fi
+          done
+
+          # Overlay patched net/http/transport.go
+          src="${tlaurion-tinygo}/src/net/http/transport.go"
+          if [ -f "$src" ]; then
+            cp "$src" "src/net/http/transport.go"
+            chmod u+w "src/net/http/transport.go"
+            echo "  patched: src/net/http/transport.go"
+          fi
+
+          # Overlay entire net submodule from tlaurion-net
+          if [ -d "${tlaurion-net}" ]; then
+            rm -rf src/net
+            cp -r "${tlaurion-net}" src/net
+            chmod -R u+w src/net
+            echo "  replaced: src/net/ (from tlaurion-net)"
+          fi
+        '';
+      });
 
       # Dependencies are the packages required for the Heads project.
       # Organized into subsets for clarity and maintainability.
@@ -100,7 +143,7 @@
         upx
         binwalk # Extract all components of a binary
         uefi-firmware-parser #Parse and extract further hidden UEFI blobs from binaries
-        tinygo # Go compiler for small places, needed for u-root initramfs builds
+        tinygo-patched # Patched TinyGo for u-root initramfs builds
       ];
     in {
       # The development shell includes all the dependencies.
