@@ -17,12 +17,11 @@ u-root_build := $(GOPATH)/bin/u-root
 UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
 UROOT_UINIT_FLAG := $(if $(UROOT_UINIT),-uinitcmd $(UROOT_UINIT),)
 UROOT_TAGS_FLAG := $(if $(UROOT_TAGS),-tags $(UROOT_TAGS),)
-# TinyGo interp timeout: the interp pass evaluates ALL package init code
-# (globals, init(), bbmain.Register calls) at compile time by running LLVM IR.
-# With 188 commands in bb mode this ~62k calls exceeds the default 3m budget.
-# 10m is the upper limit when building ALL commands on a 22-core system.
-# Fewer commands or more cores need less time. Adjust if using fewer cores.
-# The timeout triggers at whatever command registers last — not a specific bug.
+# TinyGo interp timeout: the default 3m is NOT enough to build all 188 u-root
+# commands in bb mode on a 22-core system. The interp pass evaluates ALL init
+# code (globals, init(), bbmain.Register calls) at compile time via LLVM IR,
+# which is single-threaded — more cores don't help. 10m is plenty for 22 cores;
+# adjust up for fewer cores or more commands, down for fewer commands.
 UROOT_GO_EXTRA_ARGS_FLAG := $(if $(UROOT_COMPILER),-go-extra-args="-interp-timeout=10m",)
 
 # Source: https://github.com/tlaurion/u-root (all patches committed in-tree)
