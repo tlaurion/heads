@@ -34,21 +34,20 @@
       lib = pkgs.lib; # The standard Nix packages library.
 
       # Patched tinygo: build from tlaurion fork directly.
-      # tlaurion-tinygo has os/sync/crypto/tls patches committed in-tree.
-      # tlaurion-net replaces src/net with net/tcp/udp/tls/http patches.
-      # lib/ submodules (device defs, C runtimes) come from the nixpkgs source
-      # which has fetchSubmodules=true.
+      # Code patches (os/sync/crypto/tls/src/net) committed in tlaurion/tinygo
+      # and tlaurion/net forks. lib/ submodules are standard upstream data
+      # files (device defs, C runtimes) — identical in both forks; nix flake
+      # inputs don't include submodules, so they come from the nixpkgs source.
       tinygo-patched = pkgs-tinygo.tinygo.overrideAttrs (old: {
         src = tlaurion-tinygo;
-        version = old.version; # keep 0.41.1 for naming consistency
-        # nixpkgs makefile patch doesn't apply cleanly to fork (uses ${LLVM_PROJECTDIR}).
-        # We handle the needed GNUmakefile changes in postPatch instead.
-        patches = [];
+        version = "0.42.0-dev"; # fork (tlaurion/tinygo) reports this version
+        patches = []; # nixpkgs makefile patch doesn't apply to fork
         vendorHash = "sha256-Hcn0FwclRpFfZ/KAfXUodZu1QyBsGyczZ3zbnJdCHV8=";
         postPatch = (old.postPatch or "") + ''
           echo "tinygo-patched: restoring lib/ submodules from nixpkgs source"
           # tlaurion-tinygo (flake input) doesn't include submodules.
           # Copy them from the nixpkgs source which has fetchSubmodules=true.
+          # These are standard upstream data files, not patches.
           for libdir in CMSIS avr bdwgc binaryen cmsis-svd macos-minimal-sdk mingw-w64 musl nrfx picolibc stm32-svd wasi-cli wasi-libc; do
             src="${old.src}/lib/$libdir"
             dst="lib/$libdir"
@@ -63,18 +62,26 @@
           rm -rf src/net
           cp -r "${tlaurion-net}" src/net
           chmod -R u+w src/net
-
-          echo "tinygo-patched: fixing GNUmakefile for nix build"
-          # Remove Darwin Homebrew path search (not applicable in nix build)
-          sed -i '/BREW_PREFIX/d; /brew --prefix/d; /Also explicitly search Brew/d' GNUmakefile
-          # Simplify build/release target: nix provides LLVM/clang/binaryen
-          sed -i 's/build\/release: tinygo gen-device.*/build\/release:/' GNUmakefile
-          # Remove clang include headers copy (nix provides LLVM headers at runtime)
-          sed -i '/lib\/clang\/include/d' GNUmakefile
-          # Use nix-provided compiler-rt builtins (from nix postPatch)
-          sed -i 's|''${LLVM_PROJECTDIR}/compiler-rt/lib/builtins|lib/compiler-rt-builtins|g' GNUmakefile
-          # LICENSE.TXT is at compiler-rt root, not in lib/builtins/; skip that line
-          sed -i '/compiler-rt\/LICENSE.TXT/d' GNUmakefile
+        '';
+        # installPhase: manual cp instead of make build/release.
+        # This avoids all GNUmakefile sed (Darwin paths, LLVM deps, compiler-rt).
+        installPhase = ''
+          runHook preInstall
+          mkdir -p $out/bin $out/share/tinygo
+          cp build/tinygo $out/bin/
+          cp -r lib src targets $out/share/tinygo/
+          chmod -R u+w $out/share/tinygo
+          wrapProgram $out/bin/tinygo \
+            --prefix PATH : ${lib.makeBinPath [
+              pkgs-tinygo.go_1_25
+              pkgs-tinygo.clang_20.cc
+              pkgs-tinygo.lld_20
+              pkgs-tinygo.binaryen
+              pkgs-tinygo.avrdude
+              pkgs-tinygo.openocd
+              pkgs-tinygo.gdb
+            ]}
+          runHook postInstall
         '';
       });
 
