@@ -17,6 +17,8 @@ u-root_build := $(GOPATH)/bin/u-root
 UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
 UROOT_UINIT_FLAG := $(if $(UROOT_UINIT),-uinitcmd $(UROOT_UINIT),)
 UROOT_TAGS_FLAG := $(if $(UROOT_TAGS),-tags $(UROOT_TAGS),)
+# TinyGo LLVM interpreter timeout: some commands (tar) need more than 3m default
+UROOT_GO_EXTRA_ARGS_FLAG := $(if $(UROOT_COMPILER),-go-extra-args="-interp-timeout=10m",)
 
 # Source: https://github.com/tlaurion/u-root (all patches committed in-tree)
 UROOT_REPO ?= https://github.com/tlaurion/u-root
@@ -62,6 +64,7 @@ $(u-root_output): $(u-root_build) $(u-root_uinit)
 			-o $@  \
 			$(UROOT_COMPILER_FLAG) \
 			$(UROOT_TAGS_FLAG) \
+			$(UROOT_GO_EXTRA_ARGS_FLAG) \
 			$(UROOT_UINIT_FLAG) \
 			$(u-root_src_cmds)\
 	)
