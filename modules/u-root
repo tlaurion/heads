@@ -18,13 +18,12 @@ UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
 UROOT_UINIT_FLAG := $(if $(UROOT_UINIT),-uinitcmd $(UROOT_UINIT),)
 UROOT_TAGS_FLAG := $(if $(UROOT_TAGS),-tags $(UROOT_TAGS),)
 
-UROOT_REPO ?= https://github.com/tlaurion/u-root
-UROOT_COMMIT ?= main
+UROOT_SRC ?= /home/user/u-root
 
 $(GOPATH)/bin/u-root:
 	mkdir -p $(GOPATH)/src/github.com/u-root
-	git clone --depth=1 --branch $(UROOT_COMMIT) $(UROOT_REPO) $(GOPATH)/src/github.com/u-root/u-root
-	cd $(GOPATH)/src/github.com/u-root/u-root && go build -o $(GOPATH)/bin/u-root .
+	ln -sfn $(UROOT_SRC) $(GOPATH)/src/github.com/u-root/u-root
+	cd $(UROOT_SRC) && go build -o $(GOPATH)/bin/u-root .
 #
 # If the board directory has its own go commands, copy them
 # into the u-root tree so that they will be bundled into the go initrd
@@ -37,14 +36,13 @@ $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
 	$(call install,boards/$(BOARD)/uinit.go,$@)
 endif
 
-# Building with TinyGo: replace vendored golang.org/x/sys with
-# TinyGo's own implementation (no .s assembly files).
+# TinyGo: gobusybox sets GO111MODULE=auto for TinyGo builds,
+# which correctly resolves vendored packages including golang.org/x/sys.
+# No need to replace the vendored copy (the .s assembly linking is
+# handled by module-mode package resolution).
 $(u-root_output): $(u-root_build) $(u-root_uinit)
-	$(if $(UROOT_COMPILER),\
-		rm -rf $(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys && \
-		cp -r $$(tinygo env TINYGOROOT)/src/golang.org/x/sys \
-			$(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys)
 	$(call do,U-ROOT,$@,\
+		cd $(UROOT_SRC) && \
 		GO111MODULE=$(if $(UROOT_COMPILER),auto,off) \
 		$(GOPATH)/bin/u-root \
 			-build=bb \
