@@ -103,8 +103,13 @@
         tinygo # Go compiler for small places, needed for u-root initramfs builds
       ];
     in {
-      # The development shell includes all the dependencies.
+      # Development shell with all dependencies.
+      # devShell.<system> for: nix develop .#devShell.x86_64-linux
       devShell = pkgs.mkShellNoCC {
+        buildInputs = deps;
+      };
+      # devShells.default.<system> for: nix develop (auto-detect in Nix ≥ 2.17)
+      devShells.default = pkgs.mkShellNoCC {
         buildInputs = deps;
       };
 
