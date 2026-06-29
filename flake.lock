@@ -20,11 +20,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1716509168,
-        "narHash": "sha256-4zSIhSRRIoEBwjbPm3YiGtbd8HDWzFxJjw5DYSDy1n8=",
+        "lastModified": 1782467914,
+        "narHash": "sha256-pGvFkM8N0xEkIIXDe5YYfbEAvHrk4IxBrjB/x8OomhE=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "bfb7a882678e518398ce9a31a881538679f6f092",
+        "rev": "e73de5be04e0eff4190a1432b946d469c794e7b4",
         "type": "github"
       },
       "original": {
@@ -54,9 +54,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "nixpkgs-sdcc": "nixpkgs-sdcc",
-        "tlaurion-net": "tlaurion-net",
-        "tlaurion-tinygo": "tlaurion-tinygo"
+        "nixpkgs-sdcc": "nixpkgs-sdcc"
       }
     },
     "systems": {
@@ -71,40 +69,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "tlaurion-net": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1782696091,
-        "narHash": "sha256-NMe1F8W406jJVolMUZrtQ61hIgU9+e9ravIr2/lhoGY=",
-        "owner": "tlaurion",
-        "repo": "net",
-        "rev": "e7a1925c1d480dd44689e5037155d22256f50b88",
-        "type": "github"
-      },
-      "original": {
-        "owner": "tlaurion",
-        "ref": "main",
-        "repo": "net",
-        "type": "github"
-      }
-    },
-    "tlaurion-tinygo": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1782696097,
-        "narHash": "sha256-Na1VTQobgRreh3VDnTHYZtIIWJRmNV7JY9I0zUY1cpE=",
-        "owner": "tlaurion",
-        "repo": "tinygo",
-        "rev": "8b538537744ba50859d49d9c5375897f95d2ec01",
-        "type": "github"
-      },
-      "original": {
-        "owner": "tlaurion",
-        "ref": "main",
-        "repo": "tinygo",
         "type": "github"
       }
     }
