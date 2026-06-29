@@ -36,16 +36,16 @@
       # Patched tinygo with u-root fixes applied at build time
       tinygo-patched = pkgs-tinygo.tinygo.overrideAttrs (old: {
         postPatch = (old.postPatch or "") + ''
-          # Overlay patched files from tlaurion forks (os, sync, crypto/tls)
-          for f in os/file_unix_chown.go sync/waitgroup.go crypto/tls/tls.go; do
+          # Overlay patched files from tlaurion forks (os, sync, crypto/tls, net/http)
+          # Files are under src/ in the tlaurion fork (mirrors TinyGo GOROOT layout)
+          for f in src/os/file_unix_chown.go src/sync/waitgroup.go src/crypto/tls/tls.go src/net/http/transport.go; do
             src="${tlaurion-tinygo}/$f"
             if [ -f "$src" ]; then
               cp "$src" "$f"
               chmod u+w "$f"
+              echo "tinygo-patched: $f"
             fi
           done
-          # Overlay patched net/http/transport.go
-          src="${tlaurion-tinygo}/src/net/http/transport.go"
           if [ -f "$src" ]; then
             cp "$src" src/net/http/transport.go
             chmod u+w src/net/http/transport.go
