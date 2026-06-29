@@ -17,7 +17,11 @@ u-root_build := $(GOPATH)/bin/u-root
 UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
 UROOT_UINIT_FLAG := $(if $(UROOT_UINIT),-uinitcmd $(UROOT_UINIT),)
 UROOT_TAGS_FLAG := $(if $(UROOT_TAGS),-tags $(UROOT_TAGS),)
-# TinyGo LLVM interpreter timeout: some commands (tar) need more than 3m default
+# TinyGo interp timeout: the interp pass evaluates ALL package init code
+# (globals, init(), bbmain.Register calls) at compile time by running LLVM IR.
+# With 188 commands in bb mode this ~62k calls exceeds the default 3m budget.
+# 10m is plenty; the timeout triggers at whatever command registers last in
+# bb processing order — it's not a specific command bug, just volume.
 UROOT_GO_EXTRA_ARGS_FLAG := $(if $(UROOT_COMPILER),-go-extra-args="-interp-timeout=10m",)
 
 # Source: https://github.com/tlaurion/u-root (all patches committed in-tree)
