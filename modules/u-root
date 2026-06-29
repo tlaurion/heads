@@ -37,7 +37,11 @@ $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
 	$(call install,boards/$(BOARD)/uinit.go,$@)
 endif
 
+# Remove vendored golang.org/x/sys/unix when building with TinyGo,
+# so it uses its own syscall implementation instead of the vendored
+# copy (which has Go .s assembly that TinyGo's LLVM cannot link).
 $(u-root_output): $(u-root_build) $(u-root_uinit)
+	$(if $(UROOT_COMPILER),rm -rf $(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys/unix)
 	$(call do,U-ROOT,$@,\
 		GO111MODULE=$(if $(UROOT_COMPILER),auto,off) \
 		$(GOPATH)/bin/u-root \
