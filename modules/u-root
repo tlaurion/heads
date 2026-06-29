@@ -37,13 +37,13 @@ $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
 	$(call install,boards/$(BOARD)/uinit.go,$@)
 endif
 
-# When building with TinyGo, replace vendored golang.org/x/sys/unix
-# with a symlink to TinyGo's own implementation (no .s assembly files).
+# Building with TinyGo: replace vendored golang.org/x/sys with
+# TinyGo's own implementation (no .s assembly files).
 $(u-root_output): $(u-root_build) $(u-root_uinit)
 	$(if $(UROOT_COMPILER),\
-		rm -rf $(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys/unix && \
-		ln -sf $$(tinygo env TINYGOROOT)/src/golang.org/x/sys/unix \
-			$(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys/unix)
+		rm -rf $(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys && \
+		cp -r $$(tinygo env TINYGOROOT)/src/golang.org/x/sys \
+			$(GOPATH)/src/github.com/u-root/u-root/vendor/golang.org/x/sys)
 	$(call do,U-ROOT,$@,\
 		GO111MODULE=$(if $(UROOT_COMPILER),auto,off) \
 		$(GOPATH)/bin/u-root \
