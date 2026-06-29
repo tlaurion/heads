@@ -9,6 +9,8 @@
     # sdcc 4.5.0 has optimizer bug: https://github.com/Dasharo/dasharo-issues/issues/1785
     nixpkgs-sdcc.url = "github:nixos/nixpkgs/7a339d87931bba829f68e94621536cad9132971a";
     flake-utils.url = "github:numtide/flake-utils"; # Utilities for flake functionality.
+    nixpkgs-tinygo.url = "github:nixos/nixpkgs/e73de5be04e0eff4190a1432b946d469c794e7b4"; # Pinned for tinygo 0.41.1
+    nixpkgs-tinygo.flake = false;
   };
   # Outputs are the result of the flake, including the development environment and Docker image.
   outputs = {
@@ -16,11 +18,13 @@
     flake-utils,
     nixpkgs,
     nixpkgs-sdcc,
+    nixpkgs-tinygo,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system}; # Accessing the legacy package set.
       pkgs-sdcc = nixpkgs-sdcc.legacyPackages.${system}; # Pinned for sdcc 4.2.0
+      pkgs-tinygo = import nixpkgs-tinygo { inherit system; }; # Pinned for tinygo 0.41.1
       lib = pkgs.lib; # The standard Nix packages library.
 
       # Dependencies are the packages required for the Heads project.
@@ -100,7 +104,7 @@
         upx
         binwalk # Extract all components of a binary
         uefi-firmware-parser #Parse and extract further hidden UEFI blobs from binaries
-        tinygo # Go compiler for small places, needed for u-root initramfs builds
+        pkgs-tinygo.tinygo # Go compiler for small places, needed for u-root initramfs builds
       ];
     in {
       # Development shell with all dependencies.
