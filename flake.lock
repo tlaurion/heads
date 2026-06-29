@@ -95,11 +95,11 @@
     "tlaurion-net": {
       "flake": false,
       "locked": {
-        "lastModified": 1782696091,
-        "narHash": "sha256-NMe1F8W406jJVolMUZrtQ61hIgU9+e9ravIr2/lhoGY=",
+        "lastModified": 1782756480,
+        "narHash": "sha256-kf0Dd8YuUMMtLJ3WKukBF1BXs7q66bHRICC3nmazW8I=",
         "owner": "tlaurion",
         "repo": "net",
-        "rev": "e7a1925c1d480dd44689e5037155d22256f50b88",
+        "rev": "ecae9bcd132ebccd2481228f1a345a3783f8ca14",
         "type": "github"
       },
       "original": {

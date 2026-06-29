@@ -33,11 +33,10 @@
       pkgs-tinygo = import nixpkgs-tinygo { inherit system; }; # Pinned for tinygo 0.41.1
       lib = pkgs.lib; # The standard Nix packages library.
 
-      # Patched tinygo with u-root fixes applied at build time
+      # Patched tinygo: overlay u-root compatibility fixes from tlaurion forks
       tinygo-patched = pkgs-tinygo.tinygo.overrideAttrs (old: {
         postPatch = (old.postPatch or "") + ''
-          # Overlay patched files from tlaurion forks (os, sync, crypto/tls, net/http)
-          # Files are under src/ in the tlaurion fork (mirrors TinyGo GOROOT layout)
+          echo "tinygo-patched: applying u-root fixes from tlaurion forks"
           for f in src/os/file_unix_chown.go src/sync/waitgroup.go src/crypto/tls/tls.go src/net/http/transport.go; do
             src="${tlaurion-tinygo}/$f"
             if [ -f "$src" ]; then
@@ -46,15 +45,11 @@
               echo "tinygo-patched: $f"
             fi
           done
-          if [ -f "$src" ]; then
-            cp "$src" src/net/http/transport.go
-            chmod u+w src/net/http/transport.go
-          fi
-          # Overlay entire net submodule from tlaurion-net
           if [ -d "${tlaurion-net}" ]; then
             rm -rf src/net
             cp -r "${tlaurion-net}" src/net
             chmod -R u+w src/net
+            echo "tinygo-patched: replaced src/net from tlaurion-net"
           fi
         '';
       });
