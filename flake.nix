@@ -169,10 +169,14 @@
       # devShell.<system> for: nix develop .#devShell.x86_64-linux
       devShell = pkgs.mkShellNoCC {
         buildInputs = deps;
+        LANG = "C.UTF-8";
+        LANGUAGE = "C";
       };
       # devShells.default.<system> for: nix develop (auto-detect in Nix ≥ 2.17)
       devShells.default = pkgs.mkShellNoCC {
         buildInputs = deps;
+        LANG = "C.UTF-8";
+        LANGUAGE = "C";
       };
 
       # myDevShell outputs environment variables necessary for development.
