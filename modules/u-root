@@ -23,6 +23,8 @@ UROOT_TAGS_FLAG := $(if $(UROOT_TAGS),-tags $(UROOT_TAGS),)
 # which is single-threaded — more cores don't help. 10m is plenty for 22 cores;
 # adjust up for fewer cores or more commands, down for fewer commands.
 UROOT_GO_EXTRA_ARGS_FLAG := $(if $(UROOT_COMPILER),-go-extra-args="-interp-timeout=10m",)
+# Default shell for u-root's init. Set empty to skip (Heads provides its own).
+UROOT_DEFAULTSH_FLAG := $(if $(UROOT_DEFAULTSH),-defaultsh=$(UROOT_DEFAULTSH),)
 
 # Source: https://github.com/tlaurion/u-root (all patches committed in-tree)
 UROOT_REPO ?= https://github.com/tlaurion/u-root
@@ -69,6 +71,7 @@ $(u-root_output): $(u-root_build) $(u-root_uinit)
 			$(UROOT_COMPILER_FLAG) \
 			$(UROOT_TAGS_FLAG) \
 			$(UROOT_GO_EXTRA_ARGS_FLAG) \
+			$(UROOT_DEFAULTSH_FLAG) \
 			$(UROOT_UINIT_FLAG) \
 			$(u-root_src_cmds)\
 	)
