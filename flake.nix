@@ -11,6 +11,10 @@
     flake-utils.url = "github:numtide/flake-utils"; # Utilities for flake functionality.
     nixpkgs-tinygo.url = "github:nixos/nixpkgs/e73de5be04e0eff4190a1432b946d469c794e7b4"; # Pinned for tinygo 0.41.1
     nixpkgs-tinygo.flake = false;
+    tlaurion-tinygo.url = "github:tlaurion/tinygo/main";
+    tlaurion-tinygo.flake = false;
+    tlaurion-net.url = "github:tlaurion/net/main";
+    tlaurion-net.flake = false;
   };
   # Outputs are the result of the flake, including the development environment and Docker image.
   outputs = {
@@ -19,6 +23,8 @@
     nixpkgs,
     nixpkgs-sdcc,
     nixpkgs-tinygo,
+    tlaurion-tinygo,
+    tlaurion-net,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
@@ -26,6 +32,32 @@
       pkgs-sdcc = nixpkgs-sdcc.legacyPackages.${system}; # Pinned for sdcc 4.2.0
       pkgs-tinygo = import nixpkgs-tinygo { inherit system; }; # Pinned for tinygo 0.41.1
       lib = pkgs.lib; # The standard Nix packages library.
+
+      # Patched tinygo with u-root fixes applied at build time
+      tinygo-patched = pkgs-tinygo.tinygo.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          # Overlay patched files from tlaurion forks (os, sync, crypto/tls)
+          for f in os/file_unix_chown.go sync/waitgroup.go crypto/tls/tls.go; do
+            src="${tlaurion-tinygo}/$f"
+            if [ -f "$src" ]; then
+              cp "$src" "$f"
+              chmod u+w "$f"
+            fi
+          done
+          # Overlay patched net/http/transport.go
+          src="${tlaurion-tinygo}/src/net/http/transport.go"
+          if [ -f "$src" ]; then
+            cp "$src" src/net/http/transport.go
+            chmod u+w src/net/http/transport.go
+          fi
+          # Overlay entire net submodule from tlaurion-net
+          if [ -d "${tlaurion-net}" ]; then
+            rm -rf src/net
+            cp -r "${tlaurion-net}" src/net
+            chmod -R u+w src/net
+          fi
+        '';
+      });
 
       # Dependencies are the packages required for the Heads project.
       # Organized into subsets for clarity and maintainability.
@@ -104,7 +136,7 @@
         upx
         binwalk # Extract all components of a binary
         uefi-firmware-parser #Parse and extract further hidden UEFI blobs from binaries
-        pkgs-tinygo.tinygo # Go compiler for small places, needed for u-root initramfs builds
+        tinygo-patched # Patched TinyGo from tlaurion forks (u-root build fixes)
       ];
     in {
       # Development shell with all dependencies.
