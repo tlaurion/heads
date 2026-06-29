@@ -112,11 +112,11 @@
     "tlaurion-tinygo": {
       "flake": false,
       "locked": {
-        "lastModified": 1782752383,
+        "lastModified": 1782760252,
         "narHash": "sha256-Na1VTQobgRreh3VDnTHYZtIIWJRmNV7JY9I0zUY1cpE=",
         "owner": "tlaurion",
         "repo": "tinygo",
-        "rev": "2b8c395d67ffbf6feee3783392c7168c5f22a3fe",
+        "rev": "6242ed6cd765f4b67f9b0cf84c52a808419ea13c",
         "type": "github"
       },
       "original": {
