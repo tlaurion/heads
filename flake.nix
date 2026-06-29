@@ -100,6 +100,7 @@
         upx
         binwalk # Extract all components of a binary
         uefi-firmware-parser #Parse and extract further hidden UEFI blobs from binaries
+        tinygo # Go compiler for small places, needed for u-root initramfs builds
       ];
     in {
       # The development shell includes all the dependencies.
