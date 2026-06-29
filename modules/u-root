@@ -18,12 +18,24 @@ UROOT_COMPILER_FLAG := $(if $(UROOT_COMPILER),-compiler $(UROOT_COMPILER),)
 UROOT_UINIT_FLAG := $(if $(UROOT_UINIT),-uinitcmd $(UROOT_UINIT),)
 UROOT_TAGS_FLAG := $(if $(UROOT_TAGS),-tags $(UROOT_TAGS),)
 
-UROOT_SRC ?= /home/user/u-root
+# Source: https://github.com/tlaurion/u-root (all patches committed in-tree)
+UROOT_REPO ?= https://github.com/tlaurion/u-root
+UROOT_COMMIT ?= main
+# Dev override: set UROOT_LOCAL=/home/user/u-root to use a local checkout
+UROOT_LOCAL ?=
 
-$(GOPATH)/bin/u-root:
+UROOT_DIR := $(GOPATH)/src/github.com/u-root/u-root
+
+$(UROOT_DIR):
 	mkdir -p $(GOPATH)/src/github.com/u-root
-	ln -sfn $(UROOT_SRC) $(GOPATH)/src/github.com/u-root/u-root
-	cd $(UROOT_SRC) && go build -o $(GOPATH)/bin/u-root .
+	if [ -n "$(UROOT_LOCAL)" ]; then \
+		ln -sfn $(UROOT_LOCAL) $(UROOT_DIR); \
+	else \
+		git clone --depth=1 --branch $(UROOT_COMMIT) $(UROOT_REPO) $(UROOT_DIR); \
+	fi
+
+$(GOPATH)/bin/u-root: $(UROOT_DIR)
+	cd $(UROOT_DIR) && go build -o $@ .
 #
 # If the board directory has its own go commands, copy them
 # into the u-root tree so that they will be bundled into the go initrd
@@ -31,7 +43,7 @@ $(GOPATH)/bin/u-root:
 # TODO: fix this sort that it doesn't leave commands lying around
 #
 ifeq "y" "$(shell [ -r 'boards/$(BOARD)/uinit.go' ] && echo y)"
-u-root_uinit := $(GOPATH)/src/github.com/u-root/u-root/cmds/uinit/uinit.go
+u-root_uinit := $(UROOT_DIR)/cmds/uinit/uinit.go
 $(u-root_uinit): $(u-root_build) boards/$(BOARD)/uinit.go
 	$(call install,boards/$(BOARD)/uinit.go,$@)
 endif
@@ -42,7 +54,7 @@ endif
 # handled by module-mode package resolution).
 $(u-root_output): $(u-root_build) $(u-root_uinit)
 	$(call do,U-ROOT,$@,\
-		cd $(UROOT_SRC) && \
+		cd $(UROOT_DIR) && \
 		GO111MODULE=$(if $(UROOT_COMPILER),auto,off) \
 		$(GOPATH)/bin/u-root \
 			-build=bb \
