@@ -1652,7 +1652,7 @@ fi
 
 # Show configured secrets in whiptail and loop until user confirms qr code was scanned
 while true; do
-	whiptail_type $BG_COLOR_MAIN_MENU --msgbox "$(echo -e "$passphrases" | fold -w $((WIDTH - 5)))" \
+	whiptail_type $BG_COLOR_MAIN_MENU --msgbox "$passphrases" \
 		$HEIGHT $WIDTH --title "Configured secrets"
 	if [ "$MAKE_USER_RECORD_PASSPHRASES" != y ]; then
 		# Passphrases were user-supplied or not complex, we do not need to
