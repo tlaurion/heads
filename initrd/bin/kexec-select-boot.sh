@@ -525,6 +525,7 @@ save_default_option() {
 
 			default_failed="n"
 			force_menu="n"
+			valid_hash='y'
 			return
 		else
 			WARN "Failed to save defaults"
@@ -564,8 +565,9 @@ default_select() {
 			if [ "$gui_menu" = "y" ]; then
 				CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':')
 				whiptail_error --title 'ERROR: Default Boot Hash Mismatch' \
-					--msgbox "The following files failed the verification process:\n${CHANGED_FILES}\nExiting to a recovery shell" 0 80
+					--msgbox "Default boot entry files changed or missing:\n${CHANGED_FILES}\n\nPlease set a new default boot entry from the menu." 0 80
 			fi
+			return
 		fi
 	fi
 
