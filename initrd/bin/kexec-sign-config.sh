@@ -55,12 +55,13 @@ if [ "$update" = "y" ]; then
 		DEBUG "update=y: Updating kexec hashes in staging dir $stagedir"
 		cd /boot
 		find ./ -type f ! -path './kexec*' -print0 | xargs -0 sha256sum >"$stagedir/kexec_hashes.txt"
-		if [ -e /boot/kexec_default_hashes.txt ]; then
-			DEBUG "/boot/kexec_default_hashes.txt exists, updating in staging"
-			DEFAULT_FILES=$(cut -f3 -d ' ' </boot/kexec_default_hashes.txt)
-			echo "$DEFAULT_FILES" | xargs sha256sum >"$stagedir/kexec_default_hashes.txt"
-		fi
-
+		# kexec_default_hashes.txt is intentionally NOT updated here.
+		# Re-hashing stale filenames from the old hash file fails when
+		# package updates replace files that use versioned names in
+		# boot entries (the old path no longer exists).  The user can
+		# re-save the default boot entry from the boot menu to refresh
+		# it; distros that use unversioned symlinks in boot entries are
+		# unaffected.
 		#also save the file & directory structure to detect added files
 		print_tree >"$stagedir/kexec_tree.txt"
 	)
