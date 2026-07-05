@@ -278,14 +278,101 @@ For TPM2 systems, verifies the SHA-256 hash of the TPM2 primary key handle
 against `/boot/kexec_primhdl_hash.txt` (if the file exists). A mismatch means
 the TPM2 primary key was regenerated without updating the stored hash.
 
-### Boot hash verification (`verify_global_hashes`)
+### Three verification layers
 
-`verify_checksums` checks the SHA-256 of every `/boot` file against
-`kexec_hashes.txt`, then verifies `kexec.sig` with `gpgv`.  On mismatch,
-an interactive whiptail menu offers options: investigate discrepancies,
-update checksums, or return to the main menu.
+The three checks below run in sequence.  All must pass (or the user must
+interactively resolve the failure) before the boot proceeds.
 
-Optionally, root partition hashes are also checked if `CONFIG_ROOT_CHECK_AT_BOOT=y`.
+In the main loop, `verify_rollback_counter` validates the TPM rollback
+counter state, and `scan_options` rebuilds the boot menu from
+`grub.cfg`, before dispatching to `default_select` or `user_select`.
+
+#### GPG detached signature verification (`check_config`)
+
+`check_config` collects every `kexec*.txt` file in `/boot` (menu, hashes,
+tree, default config, rollback, etc.), runs `sha256sum` over all of them,
+and verifies the resulting digest against the GPG detached signature in
+`/boot/kexec.sig` using `gpgv`.  On failure, the boot aborts immediately
+with `DIE 'Invalid signature on boot hashes'`.  On success, the signed
+`kexec*.txt` files are copied to `/tmp/kexec/` for use by the subsequent
+verification layers.
+
+A marker file `/tmp/kexec/.gpg_verified` is created so that
+`verify_global_hashes` can report "against signed boot hashes" in its
+status message.  The marker is cleaned up by the next `check_config`
+invocation (which starts with `rm -rf /tmp/kexec/*`).
+
+When `CONFIG_BASIC=y` (unauthenticated mode), or when called with the
+`force` argument (e.g. from the GUI-init menu), signature verification is
+skipped and the `kexec*.txt` files are copied without GPG checking.
+
+#### Boot file checksum verification (`verify_global_hashes`)
+
+After `check_config` has populated `/tmp/kexec/`, this step verifies the
+integrity of all files under `/boot` against the signed checksum file:
+
+1. **File content check**: `sha256sum -c /tmp/kexec/kexec_hashes.txt` is
+   run from the `/boot` directory, comparing every file's current SHA-256
+   against the signed reference.
+2. **Directory structure check**: `print_tree >/tmp/tree_output` is
+   compared with `cmp -s /tmp/kexec/kexec_tree.txt` to detect added or
+   deleted files that `sha256sum` alone would miss.
+
+On mismatch, an interactive whiptail menu presents options:
+
+- Investigate the discrepancies (displays the changed file list via `less`)
+- Update the checksums (calls `update_checksums` to regenerate `kexec_hashes.txt`,
+  then `kexec-sign-config.sh` to re-sign everything)
+- Return to the main menu
+
+On success (`valid_global_hash=y`), a `STATUS_OK` line is displayed.
+
+Optionally, root partition hashes are also checked if
+`CONFIG_ROOT_CHECK_AT_BOOT=y`.
+
+#### Default boot entry verification (`default_select`)
+
+When a saved default boot entry exists (`/tmp/kexec/kexec_default.$N.txt`),
+`default_select` verifies that the files referenced by that entry still
+match their signed hashes:
+
+1. **Entry consistency**: The current boot menu entry at index `$N` is
+   compared against the saved `kexec_default.$N.txt` to detect reordered
+   or changed entries (e.g. after a GRUB update).  On mismatch, an error
+   dialog is shown and `default_select` returns immediately -- the hash
+   check below does not run.
+
+2. **File hash check**: If the entry is consistent, `sha256sum -c
+   /tmp/kexec/kexec_default_hashes.txt` is run from `/boot` against the
+   files that the default entry references (kernel, initrd,
+   command-line snippet, etc.).  On mismatch, an error dialog is shown
+   and the function returns without setting `valid_hash=y`.
+
+On success (`valid_hash=y`), the function calls `do_boot` directly to
+hand off to the OS without further prompting.  If either check failed,
+control falls back to the main boot loop, where the user can select a
+different entry from the menu and save a new default.
+
+### Saving a new default boot entry (`save_default_option`)
+
+When the user selects a boot entry from the menu and presses `d`
+(designate default), `save_default_option` is invoked:
+
+1. **Regenerate hashes**: `kexec-save-default.sh` is called with the
+   selected entry index.  It re-runs `kexec-boot.sh -f` against that
+   entry to determine the exact files the entry references, then computes
+   `sha256sum` of those files into `kexec_default_hashes.txt`.
+2. **Re-sign everything**: The script calls `kexec-sign-config.sh -p "$stagedir"`
+   which signs all `kexec*.txt` files (including the new default config
+   and hashes) with the GPG signing key.  When `CONFIG_TPM=y`,
+   `kexec-sign-config.sh` is also called with `-r` to increment the
+   TPM rollback counter.  On success, the staged files are moved to
+   `/boot`.
+3. **Mark as verified**: `valid_hash='y'` is set so that `do_boot` will
+   not block the automated boot on subsequent iterations of the main loop.
+
+The staged-writes pattern prevents a failed signing attempt from leaving
+`/boot` with updated config files but no matching GPG signature.
 
 ### Rollback counter verification (`verify_rollback_counter`)
 
