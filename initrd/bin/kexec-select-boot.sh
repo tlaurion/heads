@@ -251,13 +251,25 @@ confirm_menu_option() {
 		STATUS "    Kernel: $kernel"
 		STATUS "    Initramfs: ${initrd:--}"
 		STATUS "    Original kernel cmdline: ${params:--}"
-		[ -n "$CONFIG_BOOT_KERNEL_ADD" ] && STATUS "    Board adds: $CONFIG_BOOT_KERNEL_ADD"
+		# Only show Board ADD words not already in grub params, since
+		# _build_final_cmdline deduplicates them anyway.
+		if [ -n "$CONFIG_BOOT_KERNEL_ADD" ]; then
+			local _unique_add=""
+			for _w in $CONFIG_BOOT_KERNEL_ADD; do
+				case " $params " in
+					*" $_w "*) ;;
+					*) _unique_add="$_unique_add $_w" ;;
+				esac
+			done
+			_unique_add=$(echo "$_unique_add" | xargs)
+			[ -n "$_unique_add" ] && STATUS "    Board adds: $_unique_add"
+		fi
 		[ -n "$CONFIG_BOOT_KERNEL_REMOVE" ] && STATUS "    Board removes: $CONFIG_BOOT_KERNEL_REMOVE"
 		[ -n "$add" ] && STATUS "    ISO params: $add"
 		# Build final cmdline using shared function (matches kexec-boot.sh)
 		local _final_cmdline
 		_final_cmdline=$(_build_final_cmdline "$params" "$add" "$CONFIG_BOOT_KERNEL_REMOVE" "$CONFIG_BOOT_KERNEL_ADD")
-		STATUS "    Final kernel cmdline: $_final_cmdline"
+		STATUS "  Final kernel cmdline: $_final_cmdline"
 		INPUT "Boot (Y), make default (d), back to menu (b) [Y/d/b]:" -n 1 option_confirm
 		[ -z "$option_confirm" ] && option_confirm="y"
 		return 0
