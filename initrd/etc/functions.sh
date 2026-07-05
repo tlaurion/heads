@@ -3599,8 +3599,14 @@ _build_final_cmdline() {
 	DEBUG "_build_final_cmdline: after remove on ADD='$_clean_add'"
 	DEBUG "_build_final_cmdline: after remove on iso='$_iso_params'"
 
-	# Combine: Heads ADD (prepended) + ISO originals
-	_combined="$_clean_add $_iso_params"
+	# Combine: Heads ADD (prepended) + ISO originals, deduplicating
+	_combined=""
+	for _w in $_clean_add $_iso_params; do
+		case " $_combined " in
+			*" $_w "*) ;;
+			*) _combined="$_combined $_w" ;;
+		esac
+	done
 	_combined=$(echo "$_combined" | xargs)
 	DEBUG "_build_final_cmdline: combined='$_combined'"
 
