@@ -15,22 +15,12 @@ option to prevent issuing APM_CNT_FINALIZE SMI on normal boot path.
 As the locking on modern SOCs became more complicated, separate the SPI
 and LPC locking into new modules to make linking to SMM easier.
 
-The expected configuration to leverage the feautre is to unselect
+The expected configuration to leverage the feature is to unselect
 INTEL_CHIPSET_LOCKDOWN and select SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM.
 
 Also present as: patches/coreboot-25.09/0003-soc-intel-lockdown-Allow-locking-down-SPI-and-LPC-in.patch
 
 Adapted for MrChromebox fork (coreboot 26.03 based):
-- lockdown.c already had fast_spi_lockdown_cfg() and
-  lpc_lockdown_config() as separate functions (no refactoring needed)
-- SoCs not present in MrChromebox fork (meteorlake, pantherlake)
-  omitted — no directory or files exist for them in this fork
-- fast_spi_lockdown_bios() extracted to lockdown_spi.c
-- lpc_lockdown_config() extracted to lockdown_lpc.c
-- SMI handler calls both functions when
-  SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM is enabled
-- lpc_lib.c added to SMM build for lpc_set_* functions
-- cannonlake/tigerlake finalize.c adapted for mrchromebox context
 - lockdown.c already had fast_spi_lockdown_cfg() and
   lpc_lockdown_config() as separate functions (no refactoring needed)
 - SoCs not present in MrChromebox fork (meteorlake, pantherlake)
