@@ -1,0 +1,33 @@
+ifeq "$(CONFIG_STARLABS_AMD_BINARIES)" "y"
+
+# Current Cezanne release inputs are maintained outside coreboot. They are
+# mounted read-only at this path and verified before configure and build.
+override STARLABS_AMD_BINARIES_DIR := $(build)/amd_binaries
+override STARLABS_AMD_BINARIES_MANIFEST := $(pwd)/config/starlabs-amd-binaries.sha256
+STARLABS_AMD_BINARIES_STAMP := $(build)/$(coreboot_dir)/.starlabs-amd-binaries.sha256
+
+.PHONY: starlabs-amd-binaries.verify
+starlabs-amd-binaries.verify:
+	@test -d "$(STARLABS_AMD_BINARIES_DIR)" || { \
+		echo "Missing Star Labs AMD binaries: $(STARLABS_AMD_BINARIES_DIR)" >&2; \
+		echo "Mount the maintained tree read-only as documented in doc/starlabs.md" >&2; \
+		exit 1; \
+	}
+	@cd "$(STARLABS_AMD_BINARIES_DIR)" && \
+		sha256sum --check --strict "$(STARLABS_AMD_BINARIES_MANIFEST)"
+
+$(STARLABS_AMD_BINARIES_STAMP): starlabs-amd-binaries.verify $(STARLABS_AMD_BINARIES_MANIFEST)
+	@mkdir -p "$(dir $(STARLABS_AMD_BINARIES_STAMP))"
+	@new_digest=$$(sha256sum "$(STARLABS_AMD_BINARIES_MANIFEST)" | awk '{print $$1}'); \
+		old_digest=$$(cat "$@" 2>/dev/null || true); \
+		if [ "$$new_digest" != "$$old_digest" ]; then \
+			printf '%s\n' "$$new_digest" > "$@.tmp"; \
+			mv "$@.tmp" "$@"; \
+		fi
+
+# Verification always runs. The stamp changes only when the verified manifest
+# changes, which invalidates both cached coreboot configuration and output.
+$(build)/$(coreboot_dir)/.configured: $(STARLABS_AMD_BINARIES_STAMP)
+$(build)/$(coreboot_dir)/.build: $(STARLABS_AMD_BINARIES_STAMP)
+
+endif

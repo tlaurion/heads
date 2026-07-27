@@ -1,0 +1,45 @@
+From 4b9e744205e338b7078dcba1ed90c28f1a18c773 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20=C5=BBygowski?= <michal.zygowski@3mdeb.com>
+Date: Tue, 9 Sep 2025 10:19:17 +0200
+Subject: [PATCH] soc/amd/common/block/cpu/noncar: Add missing TPM_LOG region
+ in memlayout
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Using measured boot requires the TPM_LOG to be defined in the program's
+memory layout. Otherwise the coreboot will not compile when
+TPM_MEASURED_BOOT is enabled.
+
+TEST=Build coreboot for Gigabyte MZ33-AR1 with measured boot enabled.
+
+Change-Id: I1cdeaeae5c4331463122bf37fd72352c96edc447
+Signed-off-by: Michał Żygowski <michal.zygowski@3mdeb.com>
+Reviewed-on: https://review.coreboot.org/c/coreboot/+/89113
+Tested-by: build bot (Jenkins) <no-reply@coreboot.org>
+Reviewed-by: Felix Held <felix-coreboot@felixheld.de>
+---
+ src/soc/amd/common/block/cpu/noncar/memlayout_x86.ld | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/soc/amd/common/block/cpu/noncar/memlayout_x86.ld b/src/soc/amd/common/block/cpu/noncar/memlayout_x86.ld
+index 024afbe7e5f..1c5a4cba08b 100644
+--- a/src/soc/amd/common/block/cpu/noncar/memlayout_x86.ld
++++ b/src/soc/amd/common/block/cpu/noncar/memlayout_x86.ld
+@@ -113,6 +113,13 @@ SECTIONS
+         CBFS_CACHE(., CONFIG_CBFS_CACHE_SIZE)
+ #endif
+ 
++#if CONFIG(TPM_MEASURED_BOOT)
++	/* Vboot measured boot TPM log measurements.
++	 * Needs to be transferred until CBMEM is available */
++	ALIGN_COUNTER(64)
++	TPM_LOG(., 2K)
++#endif
++
+ 	EARLY_RESERVED_DRAM_END(.)
+ 
+ 	/* Relocated at runtime in cbmem so the address does not matter. */
+-- 
+2.43.0
+

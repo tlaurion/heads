@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sean Rhodes <sean@starlabs.systems>
+Date: Sat, 18 Jul 2026 00:58:00 +0100
+Subject: [PATCH] mainboard/starlabs/cezanne: enable fTPM
+
+Heads requires a TPM2 device for measured boot. Enable the Cezanne PSP
+fTPM and its SMI-backed flash service for both Star Labs variants. Add
+the preserved PSP NVRAM region used by the service for TPM NV storage;
+the Cezanne build emits its PSP firmware-directory entry from FMAP.
+
+Signed-off-by: Sean Rhodes <sean@starlabs.systems>
+---
+ src/mainboard/starlabs/cezanne/Kconfig   | 3 +++
+ src/mainboard/starlabs/cezanne/board.fmd | 3 ++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/mainboard/starlabs/cezanne/Kconfig b/src/mainboard/starlabs/cezanne/Kconfig
+index 84c1bfe329..be23fc91b8 100644
+--- a/src/mainboard/starlabs/cezanne/Kconfig
++++ b/src/mainboard/starlabs/cezanne/Kconfig
+@@ -2,6 +2,9 @@
+ 
+ config BOARD_STARLABS_CEZANNE_SERIES
+ 	def_bool n
++	select AMD_CRB_FTPM
++	select MAINBOARD_HAS_TPM2
++	select SOC_AMD_COMMON_BLOCK_PSP_SMI
+ 	select AMD_FWM_POSITION_820000_DEFAULT
+ 	select AMD_SOC_CONSOLE_UART
+ 	select AZALIA_HDA_CODEC_SUPPORT
+diff --git a/src/mainboard/starlabs/cezanne/board.fmd b/src/mainboard/starlabs/cezanne/board.fmd
+index 568c414814..4b79d32479 100644
+--- a/src/mainboard/starlabs/cezanne/board.fmd
++++ b/src/mainboard/starlabs/cezanne/board.fmd
+@@ -5,7 +5,8 @@ FLASH	0x1000000 {
+ 		RW_MRC_CACHE@0x20000	0x10000
+ 		SMMSTORE@0x30000	0x80000
+ 		CONSOLE@0xb0000		0x20000
+-		FMAP@0xd0000		0x1000
++		PSP_NVRAM(PRESERVE)@0xd0000	0x20000
++		FMAP@0xf0000		0x1000
+ 		COREBOOT(CBFS)
+ 	}
+ }
+-- 
+2.43.0
