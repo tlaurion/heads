@@ -14,6 +14,7 @@ busybox_output := busybox
 busybox_target := \
 	$(CROSS_TOOLS) \
 	$(MAKE_JOBS) \
+	SOURCE_DATE_EPOCH=0 \
 
 # Install symlinks when the busybox program is installed
 
@@ -22,15 +23,11 @@ initrd_bins += $(initrd_bin_dir)/busybox
 endif
 
 $(initrd_bin_dir)/busybox: $(build)/$(busybox_dir)/.build
-	$(call do,SYMLINK,bin/busybox,\
-		$(MAKE) \
-			-C $(build)/$(busybox_dir) \
-			CC="$(heads_cc)" \
-			CROSS_COMPILE="$(CROSS)" \
-			CONFIG_PREFIX="$(initrd_bin_dir)/.." \
-			install \
-		| tee -a $(build)/log/busybox.log \
-		$(VERBOSE_REDIRECT) \
+	$(call do,INSTALL,bin/busybox,\
+		cp $(build)/$(busybox_dir)/busybox \
+			$(initrd_bin_dir)/busybox && \
+		cd $(build)/$(busybox_dir) && \
+		$(SHELL) applets/install.sh $(initrd_bin_dir)/.. --symlinks \
 	)
 	# Remove busybox's reboot symlink that conflicts with our custom script
 	$(call do,RM-SYMLINKS,bin/busybox,\
