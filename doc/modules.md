@@ -189,6 +189,19 @@ These are used after manually editing `config/coreboot-BOARD.config` or
 `config/linux-BOARD.config` to normalize the file back to the convention
 expected by the build system.
 
+## Toolchain Modules
+
+### musl-cross-make
+
+The `MUSL_CROSS_ONCE` guard prevents `modules/musl-cross-make` from being
+included multiple times.
+
+The cross-compiler is included **early** in the Makefile so
+that `$(CROSS)` and `$(heads_cc)` are available before any userland module is
+included.
+
+See `doc/circleci.md` for how CI orchestrates toolchain caching across jobs.
+
 ## Build lifecycle
 
 Each module (whether tarball or git-sourced) goes through the same stages
