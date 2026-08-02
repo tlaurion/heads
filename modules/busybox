@@ -14,6 +14,7 @@ busybox_output := busybox
 busybox_target := \
 	$(CROSS_TOOLS) \
 	$(MAKE_JOBS) \
+	SOURCE_DATE_EPOCH=0 \
 
 # Install symlinks when the busybox program is installed
 
