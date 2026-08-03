@@ -8,6 +8,12 @@ which tries the primary source first, then falls back to the Purism package mirr
 `build/mirror_fallbacks.log` with timestamps — cached hits, primary successes,
 and mirror fallbacks are all recorded.
 
+musl-cross-make's component tarballs are pre-seeded before the cross-compiler
+build starts (`.sources` sentinel depends on `.canary`, `.configured` depends
+on `.sources`).  `SOURCES = $(packages)` in config.mak tells musl-cross-make
+to skip its own downloads and use the pre-seeded tarballs directly — zero
+network for subsequent builds.
+
 These practices follow the [reproducible-builds.org](https://reproducible-builds.org/)
 project's documentation.  In brief, a build is reproducible if the same source
 produces bit-for-bit identical output across independent environments.  This
@@ -83,6 +89,9 @@ date comes from `$ENV{'SOURCE_DATE_EPOCH'}` (defaulting to `'0'`) instead of
 ### Prerequisites
 - Same git commit on both CI and local
 - Build with `docker_repro.sh` locally (same Docker image as CI)
+- For a complete `hashes.txt`, use `real.gitclean_keep_packages` first.
+  Warm (cached) builds produce partial `hashes.txt` — only rebuilt targets
+  re-append their hashes.
 
 ### Understanding hashes.txt
 
@@ -119,9 +128,16 @@ reproducibility bug to investigate.
 
 ### Steps
 
-1. Build locally and download CI `hashes.txt` for the same commit.
+1. Build locally and download the CI `hashes.txt` for the same commit.
+   See [Downloading Heads ROMs](https://osresearch.net/Downloading) for how to
+   download `hashes.txt` from the CircleCI Artifacts tab.
 
 2. Compare ROM hashes — if they match, the build is reproducible. Done.
+```bash
+grep '\.rom' /tmp/ci-hashes.txt | awk '{print $1}' \
+  | diff - <(grep '\.rom' build/x86/EOL_t480-hotp-maximized/hashes.txt | awk '{print $1}')
+```
+No output = match.  Or visually:
 ```bash
 grep '\.rom' /tmp/ci-hashes.txt build/x86/EOL_t480-hotp-maximized/hashes.txt
 ```
