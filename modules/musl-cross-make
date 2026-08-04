@@ -1,3 +1,4 @@
+# Force clean CI build — cache invalidation
 CONFIG_MUSL ?= y
 
 ifeq "$(MUSL_CROSS_ONCE)" ""
