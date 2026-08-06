@@ -13,7 +13,7 @@ produce the same build triplet instead of probing the Docker host kernel.
 `-Wa,--no-pad-sections` prevents gas from padding section ends (non-deterministic
 alignment).  `--with-debug-prefix-map=$(pwd)=.` normalizes build paths in debug
 info.  `--enable-compressed-debug-sections=no` disables zlib debug-section
-compression.  `SOURCE_DATE_EPOCH` from the pinned musl-cross-make commit epoch
+compression.  `SOURCE_DATE_EPOCH=0` (extracted tarballs lack .git; git log always falls back to 0)
 prevents `__DATE__`/`__TIME__` embedding during the GCC build.
 
 ## Userland compiler flags
