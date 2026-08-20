@@ -19,6 +19,11 @@ new modules to make linking to SMM easier.
 The expected configuration to leverage the feautre is to unselect
 INTEL_CHIPSET_LOCKDOWN and select SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM.
 
+Payload flash tools can clear unlocked protected-range registers even
+when only reading the flash. Recreate whole-ROM controller write
+protection before DLOCK and FLOCKDN in the deferred path, and fail closed
+if the protection cannot be restored.
+
 Testing various microarchitectures happens on heads repository:
 https://github.com/linuxboot/heads/pull/1818
 
@@ -29,6 +34,7 @@ locked in the kexec'ed OS.
 
 Change-Id: Icbcc6fcde90e5b0a999aacb720e2e3dc2748c838
 Signed-off-by: Michał Żygowski <michal.zygowski@3mdeb.com>
+Signed-off-by: Sean Rhodes <sean@starlabs.systems>
 
 diff --git a/src/soc/intel/alderlake/finalize.c b/src/soc/intel/alderlake/finalize.c
 index 6eca7eb4ad..fa29439a9e 100644
@@ -60,6 +66,63 @@ index 19fcf1387f..e6f39189bd 100644
  	if (soc_disable_heci1_at_pre_boot() &&
  			CONFIG(SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_PMC_IPC))
  		heci1_disable();
+diff --git a/src/soc/intel/common/block/fast_spi/fast_spi_flash.c b/src/soc/intel/common/block/fast_spi/fast_spi_flash.c
+index 89ae6d2cd3..87f0d26bd5 100644
+--- a/src/soc/intel/common/block/fast_spi/fast_spi_flash.c
++++ b/src/soc/intel/common/block/fast_spi/fast_spi_flash.c
+@@ -404,9 +404,8 @@ static int fast_spi_flash_ctrlr_setup(const struct spi_slave *dev)
+  * Protect range of SPI flash defined by [start, start+size-1] using Flash
+  * Protected Range (FPR) register if available.
+  */
+-static int fast_spi_flash_protect(const struct spi_flash *flash,
+-				  const struct region *region,
+-				  const enum ctrlr_prot_type type)
++static int fast_spi_ctrlr_protect_region(const struct region *region,
++					 const enum ctrlr_prot_type type)
+ {
+ 	u32 start = region_offset(region);
+ 	u32 end = start + region_sz(region) - 1;
+@@ -462,6 +461,18 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
+ 	return 0;
+ }
+ 
++int fast_spi_flash_write_protect(const struct region *region)
++{
++	return fast_spi_ctrlr_protect_region(region, WRITE_PROTECT);
++}
++
++static int fast_spi_flash_protect(const struct spi_flash *flash,
++				  const struct region *region,
++				  const enum ctrlr_prot_type type)
++{
++	return fast_spi_ctrlr_protect_region(region, type);
++}
++
+ const struct spi_ctrlr fast_spi_flash_ctrlr = {
+ 	.setup = fast_spi_flash_ctrlr_setup,
+ 	.max_xfer_size = SPI_CTRLR_DEFAULT_MAX_XFER_SIZE,
+diff --git a/src/soc/intel/common/block/include/intelblocks/fast_spi.h b/src/soc/intel/common/block/include/intelblocks/fast_spi.h
+index 6c28f25430..8a53fa6f8c 100644
+--- a/src/soc/intel/common/block/include/intelblocks/fast_spi.h
++++ b/src/soc/intel/common/block/include/intelblocks/fast_spi.h
+@@ -5,6 +5,8 @@
+ 
+ #include <types.h>
+ 
++struct region;
++
+ /* Clear any SPI outstanding status bits, i.e., FCERR, FDONE etc. */
+ void fast_spi_clear_outstanding_status(void);
+ /* Check if SPI transaction is pending */
+@@ -72,6 +74,8 @@ void fast_spi_early_init(uintptr_t spi_base_address);
+  * mapping.
+  */
+ extern const struct spi_ctrlr fast_spi_flash_ctrlr;
++/* Program and verify controller write protection for a flash region. */
++int fast_spi_flash_write_protect(const struct region *region);
+ /*
+  * Clear SPI Synchronous SMI status bit and return its value.
+  */
 diff --git a/src/soc/intel/common/block/lpc/Makefile.mk b/src/soc/intel/common/block/lpc/Makefile.mk
 index b510cd0ec3..60792654b5 100644
 --- a/src/soc/intel/common/block/lpc/Makefile.mk
@@ -138,7 +201,7 @@ diff --git a/src/soc/intel/common/pch/lockdown/Kconfig b/src/soc/intel/common/pc
 index 38f60d2056..545185c52f 100644
 --- a/src/soc/intel/common/pch/lockdown/Kconfig
 +++ b/src/soc/intel/common/pch/lockdown/Kconfig
-@@ -3,7 +3,22 @@
+@@ -3,7 +3,21 @@
  config SOC_INTEL_COMMON_PCH_LOCKDOWN
  	bool
  	default n
@@ -152,14 +215,14 @@ index 38f60d2056..545185c52f 100644
 +	bool "Lock down SPI controller in SMM"
 +	default n
 +	depends on HAVE_SMI_HANDLER && !INTEL_CHIPSET_LOCKDOWN
++	depends on BOOTMEDIA_LOCK_CONTROLLER && BOOTMEDIA_LOCK_WHOLE_RO
 +	select SPI_FLASH_SMM
 +	help
-+	  This option allows to have chipset lockdown for FAST_SPI and LPC for
-+	  supported PCH. If selected, coreboot will skip locking down the SPI
-+	  and LPC controller. The payload or OS is responsible for locking it
-+	  using APM_CNT_FINALIZE SMI. Used by heads to set and lock PR0 flash
-+	  protection.
-+
++	  Defer FAST_SPI and LPC controller locking until the payload sends an
++	  APM_CNT_FINALIZE SMI. Recreate whole-ROM controller write protection
++	  before final locking because payload flash tools may clear unlocked
++	  protected-range registers. This lets Heads update firmware before
++	  protecting it from the operating system.
 +	  If unsure, say N.
 diff --git a/src/soc/intel/common/pch/lockdown/Makefile.mk b/src/soc/intel/common/pch/lockdown/Makefile.mk
 index 71466f8edd..64aad562ac 100644
@@ -283,9 +346,11 @@ new file mode 100644
 index 0000000000..c17a356e8d
 --- /dev/null
 +++ b/src/soc/intel/common/pch/lockdown/lockdown_spi.c
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,42 @@
 +/* SPDX-License-Identifier: GPL-2.0-only */
 +
++#include <commonlib/region.h>
++#include <console/console.h>
 +#include <intelblocks/cfg.h>
 +#include <intelblocks/fast_spi.h>
 +#include <intelpch/lockdown.h>
@@ -293,6 +358,13 @@ index 0000000000..c17a356e8d
 +
 +void fast_spi_lockdown_bios(int chipset_lockdown)
 +{
++	if (CONFIG(SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM)) {
++		const struct region bootmedia = region_create(0, CONFIG_ROM_SIZE);
++
++		if (fast_spi_flash_write_protect(&bootmedia) < 0)
++			die("Unable to restore SPI boot-media protection before lockdown\n");
++	}
++
 +	/* Discrete Lock Flash PR registers */
 +	fast_spi_pr_dlock();
 +
@@ -391,4 +463,3 @@ index 63a46ac02e..f66219f4c6 100644
  		heci1_disable();
 -- 
 2.53.0
-
