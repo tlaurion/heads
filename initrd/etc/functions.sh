@@ -2650,10 +2650,11 @@ mount_possible_boot_device() {
 	local BOOT_DEV="$1"
 	local PARTITION_TYPE
 
-	# Unmount anything on /boot.  Ignore failure since there might not be
-	# anything.  If there is something mounted and we cannot unmount it for
-	# some reason, mount will fail, which is handled.
-	umount /boot 2>/dev/null || true
+	# Unmount anything on /boot. A root filesystem with a nested /boot uses
+	# two mounts at this path, so continue until both have been removed.
+	while umount /boot 2>/dev/null; do
+		:
+	done
 
 	# Skip bios-grub partitions on GPT disks, LUKS partitions, and LVM PVs,
 	# we can't mount these as /boot.
@@ -2686,6 +2687,14 @@ mount_possible_boot_device() {
 				# This device is a reasonable boot device
 				return 0
 			fi
+			if ls -d /boot/boot/grub* >/dev/null 2>&1; then
+				# The root filesystem contains /boot rather than using a
+				# dedicated boot partition. Expose the nested directory at
+				# the path expected by the existing boot parsers.
+				if mount --bind /boot/boot /boot; then
+					return 0
+				fi
+			fi
 			umount /boot || true
 		fi
 	fi
@@ -2709,7 +2718,10 @@ detect_boot_device() {
 		return 0
 	fi
 	# unmount /boot to be safe
-	cd / && umount /boot 2>/dev/null
+	cd /
+	while umount /boot 2>/dev/null; do
+		:
+	done
 
 	# check $CONFIG_BOOT_DEV if set/valid
 	if [ -e "$CONFIG_BOOT_DEV" ] && mount_possible_boot_device "$CONFIG_BOOT_DEV"; then
