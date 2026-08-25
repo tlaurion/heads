@@ -415,6 +415,10 @@ INPUT() {
 		# Print prompt with a trailing space so the cursor lands immediately after
 		# the prompt text on the same line  --  no blank line between prompt and input.
 		printf '\033[1;37m%s\033[0m ' "$prompt" >"$HEADS_TTY" 2>/dev/null
+		# Echo prompt to stderr so it reaches /dev/console (and therefore serial
+		# when console=ttyS0).  Without this, INPUT prompt text is invisible on
+		# serial — the only log function that bypasses /dev/console per doc/logging.md.
+		printf '%s ' "$prompt" >&2 2>/dev/null
 		# Forward remaining args (read flags + variable name) directly to read.
 		# Note: static analyzers may report the caller's variable as "unassigned"
 		# because assignment through read "$@" indirection is not visible to them.
