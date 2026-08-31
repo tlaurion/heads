@@ -689,7 +689,8 @@ reprovision_smartcard_from_backup() {
 	# which hotp_verification rejects past that length.
 	local pin_max=25
 
-	if whiptail_warning --title "Set Custom PINs?" \
+	DEBUG "Default is No; press Enter or 'n' to decline custom PINs"
+	if whiptail_warning --defaultno --title "Set Custom PINs?" \
 		--yesno "The card is currently using factory-default PINs\n(Admin: 12345678, User: 123456).\n\nWould you like to set custom PINs?" 0 80; then
 		local new_admin_pin="" new_user_pin=""
 		NOTE "${pin_label_admin}: for GPG card admin operations, 8-${pin_max} chars."

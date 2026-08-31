@@ -81,29 +81,49 @@ _whiptail_preprocess_args() {
 	done
 }
 
+# Extract --defaultno from "$@" into _DEFAULTNO (empty or "--defaultno"),
+# leaving the remaining arguments in _ARGS.  --defaultno must not reach
+# _whiptail_preprocess_args: if it directly follows a dialog-type flag it
+# would be mistaken for the body text and folded.  It is instead passed
+# straight through to the underlying whiptail invocation.
+_whiptail_extract_defaultno() {
+	_DEFAULTNO=""
+	_ARGS=()
+	local _arg
+	for _arg in "$@"; do
+		if [ "$_arg" = "--defaultno" ]; then
+			_DEFAULTNO="--defaultno"
+		else
+			_ARGS+=("$_arg")
+		fi
+	done
+}
+
 # Produce a whiptail prompt with 'warning' background, works for fbwhiptail and newt
 whiptail_warning() {
 	TRACE_FUNC
-	_whiptail_preprocess_args "$@"
+	_whiptail_extract_defaultno "$@"
+	_whiptail_preprocess_args "${_ARGS[@]}"
 	if [ -x /bin/fbwhiptail ]; then
 		DEBUG "whiptail_warning: whiptail $BG_COLOR_WARNING $*"
-		whiptail $BG_COLOR_WARNING "${_WHIPTAIL_ARGS[@]}"
+		whiptail $BG_COLOR_WARNING $_DEFAULTNO "${_WHIPTAIL_ARGS[@]}"
 	else
 		DEBUG "whiptail_warning: NEWT_COLORS=root=,$TEXT_BG_COLOR_WARNING whiptail $*"
-		env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail "${_WHIPTAIL_ARGS[@]}"
+		env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail $_DEFAULTNO "${_WHIPTAIL_ARGS[@]}"
 	fi
 }
 
 # Produce a whiptail prompt with 'error' background, works for fbwhiptail and newt
 whiptail_error() {
 	TRACE_FUNC
-	_whiptail_preprocess_args "$@"
+	_whiptail_extract_defaultno "$@"
+	_whiptail_preprocess_args "${_ARGS[@]}"
 	if [ -x /bin/fbwhiptail ]; then
 		DEBUG "whiptail_error: whiptail $BG_COLOR_ERROR $*"
-		whiptail $BG_COLOR_ERROR "${_WHIPTAIL_ARGS[@]}"
+		whiptail $BG_COLOR_ERROR $_DEFAULTNO "${_WHIPTAIL_ARGS[@]}"
 	else
 		DEBUG "whiptail_error: NEWT_COLORS=root=,$TEXT_BG_COLOR_ERROR whiptail $*"
-		env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail "${_WHIPTAIL_ARGS[@]}"
+		env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail $_DEFAULTNO "${_WHIPTAIL_ARGS[@]}"
 	fi
 }
 
@@ -121,9 +141,10 @@ whiptail_type() {
 		whiptail_warning "$@"
 		;;
 	normal)
-		_whiptail_preprocess_args "$@"
+		_whiptail_extract_defaultno "$@"
+		_whiptail_preprocess_args "${_ARGS[@]}"
 		DEBUG "whiptail_type: whiptail $*"
-		whiptail "${_WHIPTAIL_ARGS[@]}"
+		whiptail $_DEFAULTNO "${_WHIPTAIL_ARGS[@]}"
 		;;
 	esac
 }
