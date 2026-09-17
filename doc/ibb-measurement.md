@@ -81,8 +81,23 @@ them is a Heads or coreboot build option.
 
 Things that do not enable a PCR 0 measurement:
 
-* An ACM alone is not sufficient. Without the measured policy bit the code
-  returns before doing anything (`measurement.c:646-647`).
+* An ACM alone is not sufficient. Legacy Intel TXT is the case where the ACM
+  does not help: on the client chipsets of that era the BIOS ACM is not a
+  Startup ACM, so the CPU does not run it from the FIT and no IBB measurement
+  results. That is why the remedy on those boards was Boot Guard provisioning
+  rather than Intel TXT. Under Boot Guard and CBnT, including Meteor Lake
+  client platforms such as the NovaCustom V540TU and V560TU, the ACM is a
+  Startup ACM (FIT type 0x02) and the CPU does run it at reset, so a
+  measurement then depends on the provisioned profile and on manifests whose
+  digest matches the flashed image and whose Key Manifest chains to the fused
+  key. A coreboot source build of these boards omits the ACM because the
+  Dasharo configs leave it to the provisioning step, as the provisioning
+  section below describes. This is the explanation in the
+  [linuxboot/heads#1172 review discussion](https://github.com/linuxboot/heads/pull/1172),
+  where `@miczyg1` distinguishes the client and server TXT variants and
+  `@ansiwen` reports the ACM status registers claiming the IBB was measured
+  while the measurement never reached PCR 0. Without the measured policy bit
+  the code returns before doing anything (see prerequisite 4 above).
 * A fused profile that only verifies runs the ACM but measures nothing. The
   Dasharo BGS test documentation reports measured and verified only for
   profiles 3 and 5.
