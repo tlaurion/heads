@@ -1,0 +1,6 @@
+#NovaCustom v5x0 MTL Startup ACM (both V540TU and V560TU images embed this):
+e9ddab7d96e5cbade4f79a5c5a4dfb5e2a6ebf819400d15398d949eb1ea569a6  MTL_BIOSAC_SIGNED.bin
+
+#Vendor images the ACM is extracted from:
+e915ed1eae8b7b91a7a94ad7a75d57a4a077c0e7c6379234755788ca72fb1cd9  novacustom_v54x_mtl_igpu_v1.0.1_btg_prod.rom
+0c66f864685e5216ff9219c9ff01adf54bb31022742ee19078aa083b065d52c6  novacustom_v56x_mtl_igpu_v1.0.1_btg_prod.rom
