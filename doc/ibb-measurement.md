@@ -92,8 +92,12 @@ them is a Heads or coreboot build option.
    types 0x0b and 0x0c (`src/arch/x86/include/arch/fit_table.h:27-28`), and the
    BPM digest matches the exact image being booted.
 3. A Startup ACM is present in the FIT at reset (type 0x02).
-4. The ACM extends PCR 0. Coreboot cannot do this part; it can only observe the
-   ACM status. `intel_cbnt_inject_ibg_measurements()` returns early unless
+4. The hardware Startup ACM measures the IBB into PCR 0 before any x86
+   instruction runs. Coreboot cannot perform that hardware measurement, but on
+   Meteor Lake and newer it is not only an observer: it reconstructs the
+   hardware extends in the event log and then performs one additional real
+   firmware extend of POLICY_DATA into PCR 0 (`measurement.c:831`, pristine
+   `:819`). `intel_cbnt_inject_ibg_measurements()` returns early unless
    `scrtm_status` is set and the applied policy carries the measured bit
    `CBNT_BP_TYPE_M` (`src/security/intel/cbnt/measurement.c:654,658`,
    `cbnt.h:15-16`). Both the file and that symbol are Dasharo-fork additions:
@@ -104,11 +108,16 @@ them is a Heads or coreboot build option.
    the same two gates sit at about `:894,898`.
 5. Coreboot reconstructs the event log on Meteor Lake and newer so that
    `cbmem -L` or `tpm2_eventlog` replay matches the PCR 0 value
-   (`measurement.c:748-823`; Dasharo fork commits a74cb058c3 and b577aaac21).
-   The CRTM version and IBB digest are log only (`measurement.c:777` and
-   `:786`); the one PCR 0 value coreboot itself extends is POLICY_DATA
-   (`measurement.c:819`). The log helper never extends
-   (`src/security/tpm/tspi.h:155-166`).
+   (`measurement.c:760-836`, pristine `:748-824`; Dasharo fork commits
+   a74cb058c3 and b577aaac21). In that branch the CRTM version and the
+   `"Boot Guard Measured IBB"` entry carrying the BPM IBB digest are log only
+   (`measurement.c:789,798`; pristine `:777,786`), while coreboot also performs
+   one real extend of POLICY_DATA into PCR 0 (`measurement.c:831`, pristine
+   `:819`). The log helper never extends
+   (`src/security/tpm/tspi.h:155-166`), and on replay the log-only
+   `CBNT_EVENT_LOG_MESSAGE` entries are skipped
+   (`src/security/tpm/tspi/crtm.c:191-193`) because they correspond to the
+   extends the hardware already performed.
 
 Things that do not enable a PCR 0 measurement:
 
@@ -134,8 +143,10 @@ Things that do not enable a PCR 0 measurement:
   * Soft disable is sent over HECI later in boot and cannot affect a
     measurement that already happened (`cse.c:1167-1223`).
 
-Who does what: the hardware ACM performs the PCR 0 extends, and coreboot only
-reconstructs the event log on Meteor Lake and newer. Coreboot's own SRTM
+Who does what: the hardware Startup ACM performs the IBB measurement before any
+x86 instruction runs, and coreboot reconstructs that event log on Meteor Lake
+and newer. On MTL coreboot also performs one real firmware extend of POLICY_DATA
+into PCR 0 (`measurement.c:831`, pristine `:819`). Coreboot's own SRTM
 measurements are unchanged and land in PCR 2
 (`src/security/tpm/Kconfig:153-155`; see [tpm.md](tpm.md)).
 
