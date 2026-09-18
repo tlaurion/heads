@@ -35,12 +35,38 @@ addition at `src/security/intel/txt/Makefile.mk:46` and the ifittool call at
 `:49`; type 7 is `FIT_TYPE_BIOS_STARTUP` in cbfstool
 (`util/cbfstool/fit.h:19`). Coreboot's own description states that each IBB is
 measured into PCR 0 before the reset vector executes
-(`Documentation/security/intel/txt_ibb.md`).
+(`Documentation/security/intel/txt_ibb.md`). That describes the architecture,
+not a guarantee: the legacy client TXT implementation on that era's chipsets
+did not measure the IBB, because its BIOS ACM is not a Startup ACM and the CPU
+never runs it. See "Legacy client TXT did not measure the IBB" below.
 
 The Dasharo fork used by the NovaCustom boards moved this block to
 `src/security/intel/acm/Makefile.mk:30-43`, guarded by
 `ifneq ($(CONFIG_INTEL_CBNT_SUPPORT),y)`: on a CBnT board the type 7 IBB
 records are deliberately not emitted.
+
+### Legacy client TXT did not measure the IBB
+
+The OptiPlex TXT boards are the client implementation of Path 1. On that era's
+client silicon the BIOS ACM is not a Startup ACM, so the CPU never runs it even
+though it sits in the FIT, and no IBB measurement reaches PCR 0.
+
+The evidence is in
+[linuxboot/heads#1172](https://github.com/linuxboot/heads/pull/1172). There
+`@miczyg1` distinguishes client from server TXT and concludes that without a
+real server board one has to provision Boot Guard instead. Commit `df4bcbc3180`
+records the ACM loading and initialising yet reporting the IBB not
+measured, and `@ansiwen` reports that the ACM status registers claimed the IBB
+was measured while PCR 0 stayed unchanged. The limitation belonged to the legacy
+TXT architecture's client implementation, not to client platforms in general,
+so it must not be cited as "servers only" against a modern laptop.
+
+CBnT converges Boot Guard and TXT and delivers the client ACM as FIT type 2
+(see Path 2); 9elements, who wrote the coreboot support, describes it as merging
+the two ACMs into a Startup ACM and a SINIT ACM. This execution-side limitation
+therefore does not carry over to recent client platforms such as Meteor Lake.
+What still gates a measurement there is platform provisioning, not whether the
+CPU can run the ACM.
 
 ## Path 2: Intel CBnT
 
@@ -69,8 +95,13 @@ them is a Heads or coreboot build option.
 4. The ACM extends PCR 0. Coreboot cannot do this part; it can only observe the
    ACM status. `intel_cbnt_inject_ibg_measurements()` returns early unless
    `scrtm_status` is set and the applied policy carries the measured bit
-   `CBNT_BP_TYPE_M` (`src/security/intel/cbnt/measurement.c:641-647`,
-   `cbnt.h:15-16`).
+   `CBNT_BP_TYPE_M` (`src/security/intel/cbnt/measurement.c:654,658`,
+   `cbnt.h:15-16`). Both the file and that symbol are Dasharo-fork additions:
+   upstream `coreboot/coreboot` `src/security/intel/cbnt/` contains only
+   `Kconfig`, `Makefile.mk`, `cbnt.h`, `cmos.c` and `logging.c`, with no
+   `measurement.c` and no `CBNT_BP_TYPE_M`. The line numbers are those of the
+   `dasharo_v56` tree at commit `6de027d1f0`; on the Dasharo `dasharo` branch
+   the same two gates sit at about `:894,898`.
 5. Coreboot reconstructs the event log on Meteor Lake and newer so that
    `cbmem -L` or `tpm2_eventlog` replay matches the PCR 0 value
    (`measurement.c:748-823`; Dasharo fork commits a74cb058c3 and b577aaac21).
@@ -82,14 +113,14 @@ them is a Heads or coreboot build option.
 Things that do not enable a PCR 0 measurement:
 
 * An ACM alone is not sufficient. Without the measured policy bit the code
-  returns before doing anything (`measurement.c:646-647`).
+  returns before doing anything (`measurement.c:654,658`).
 * A fused profile that only verifies runs the ACM but measures nothing. The
   Dasharo BGS test documentation reports measured and verified only for
   profiles 3 and 5.
 * No Kconfig enables it. `INTEL_CBNT_IBB_FLAGS` only feeds BPM generation
   (`src/security/intel/cbnt/Makefile.mk:63`), and its bit 2 maps to the
   optional PCR 7 auth measurement (`BPM_IBBS_FLAG_AUTH_MEASURE`,
-  `measurement.c:24` and `:204`). The PCR 0 gate is the ACM policy word, not a
+  `measurement.c:24` and `:216`). The PCR 0 gate is the ACM policy word, not a
   build option.
 * Intel TXT is not required. CBnT builds select ACM support without TXT
   (`src/security/intel/cbnt/Kconfig:8`; Dasharo fork commit a57a691f20).
@@ -147,6 +178,17 @@ NovaCustom TrustRoot units the production key is NovaCustom's own. The
 provisioning tool used by 3mdeb prints "Key matches NovaCustom Meteor Lake
 signing key", and the 3mdeb advisory post of 2025-12-18 describes the
 `eom-key-issue`.
+
+Our reading — not a quoted Intel statement — is that the fused anchor gates the
+OEM Key Manifest → Boot Policy Manifest chain only. Intel documents the FPF
+register `BP.KEY` as holding the digest of the Key Manifest signing key, used by
+the S-ACM and the SINIT ACM, and states that Intel-provided components are
+authenticated against a key stored in hardware "regardless if the OEM KM is
+present or not"
+(<https://www.intel.com/content/www/us/en/developer/articles/technical/software-security-guidance/resources/key-usage-in-integrated-firmware-images.html>).
+Whether a fused key is required for, or authoritative on, an unfused platform
+is not documented; no public report of an unfused unit running a Startup ACM
+with self-signed manifests and measuring PCR 0 was found.
 
 The rule that you must be the OEM to sign manifests is not universal, and the
 Clevo leak shows why. Clevo firmware packages shipped the private RSA keys that
@@ -222,8 +264,9 @@ those dependencies.
 * CBnT path: `src/arch/x86/include/arch/fit_table.h`,
   `src/security/intel/cbnt/Makefile.mk`,
   `src/security/intel/cbnt/Kconfig`,
-  `src/security/intel/cbnt/measurement.c`,
-  `src/security/intel/acm/Makefile.mk`, `src/security/tpm/tspi.h`,
+  `src/security/intel/cbnt/measurement.c` (Dasharo fork only),
+  `src/security/intel/acm/Makefile.mk` (Dasharo fork only),
+  `src/security/tpm/tspi.h`,
   `src/soc/intel/common/block/cse/cse.c`
 * Dasharo coreboot fork commits: 231257b2c7, a74cb058c3, b577aaac21, a57a691f20
 * Intel documents: CBnT BWG 575623, FIT specification 599500, CSME Security
