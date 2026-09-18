@@ -161,6 +161,43 @@ The variant also needed EC model mappings in `modules/dasharo-ec`. The base
 `V540TU` and `V560TU` boards and their coreboot configs are untouched by
 design.
 
+## Test setup
+
+The unit is unfused, and that is representative. NovaCustom and Nitrokey units
+sold without TrustRoot are not fused, so a result from this unit applies to that
+fleet rather than to one machine.
+
+Everything except the key fusing is provisioned. The image carries the Intel
+Startup ACM, extracted from the vendor image, in the FIT as type `0x02`, plus a
+Key Manifest and a Boot Policy Manifest generated and signed for this exact
+image with keys we control, with the BPM digest list covering `bootblock`,
+`fallback/verstage` and `fspt.bin`. These are real manifests, not placeholders.
+
+The one step not performed is burning the fuses, the FPF fields a production
+unit carries: the digest of the Key Manifest signing key the Startup ACM uses,
+and the measured boot enable field. Not burning them is the only difference from
+a provisioned unit, which is what makes the experiment an isolation of one
+variable.
+
+What the design isolates, and what each outcome means: the ACM's execution is
+documented as unconditional on provisioning, as the Boot Guard chain records
+above, so the outcomes separate execution from measurement.
+
+* No S-CRTM status and no Boot Guard capability means the ACM did not run. That
+  contradicts the FIT specification and is a defect to investigate.
+* S-CRTM present with the measured bit clear means the ACM ran but the missing
+  fuse field gated the measurement, which is the documented expectation.
+* The measured bit set with PCR 0 non zero, an IBB entry in the event log and a
+  matching replay means the ACM measured the IBB without the fused key, and the
+  hardware root of trust is the bootblock.
+
+The result is citable only if one journal captures the fuse state as observed,
+the flashed image hash, the ACM policy and status registers including the KM ID
+and the measured bit, PCR 0 before and after, the event log, and the replay
+comparison. Coreboot's own log reconstruction depends on the measured bit, so an
+empty event log must not be read as no measurement without the register and
+PCR 0 readings.
+
 ## How to run the test
 
 1. Flash the image above.
