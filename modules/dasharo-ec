@@ -11,7 +11,11 @@ _DASHARO_EC_BOARD := $(patsubst EOL_%,%,$(patsubst UNTESTED_%,%,$(BOARD)))
 # Map BOARD to the EC board model
 ifeq "$(_DASHARO_EC_BOARD)" "novacustom-v540tu"
 	DASHARO_EC_BOARD_MODEL := v540tu
+else ifeq "$(_DASHARO_EC_BOARD)" "novacustom-v540tu-acm"
+	DASHARO_EC_BOARD_MODEL := v540tu
 else ifeq "$(_DASHARO_EC_BOARD)" "novacustom-v560tu"
+	DASHARO_EC_BOARD_MODEL := v560tu
+else ifeq "$(_DASHARO_EC_BOARD)" "novacustom-v560tu-acm"
 	DASHARO_EC_BOARD_MODEL := v560tu
 else ifeq "$(_DASHARO_EC_BOARD)" "novacustom-nv4x_adl"
 	DASHARO_EC_BOARD_MODEL := nv4x_adl
