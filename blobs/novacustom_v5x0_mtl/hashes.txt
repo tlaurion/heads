@@ -1,6 +1,13 @@
 #NovaCustom v5x0 MTL Startup ACM (both V540TU and V560TU images embed this):
 e9ddab7d96e5cbade4f79a5c5a4dfb5e2a6ebf819400d15398d949eb1ea569a6  MTL_BIOSAC_SIGNED.bin
 
+#cbnt-prov, built from the coreboot-pinned 3rdparty/intel-sec-tools submodule
+#(0031ac73447baeb197fb2d80e5fba2470716e76d) PLUS heads patch
+#patches/coreboot-dasharo_v56-unreleased/0004-security-intel-cbnt-preserve-km-pubkey-hash-alg.patch,
+#which stops km-sign from clobbering KmPubKeyHashAlg back to SHA-256.
+#CGO_ENABLED=0, go1.25.7:
+b808741effbefd850d22f4ac3cd39c7117f176bc4c5093eaf44f9180d8763d71  cbnt-prov
+
 #Vendor images the ACM is extracted from:
 e915ed1eae8b7b91a7a94ad7a75d57a4a077c0e7c6379234755788ca72fb1cd9  novacustom_v54x_mtl_igpu_v1.0.1_btg_prod.rom
 0c66f864685e5216ff9219c9ff01adf54bb31022742ee19078aa083b065d52c6  novacustom_v56x_mtl_igpu_v1.0.1_btg_prod.rom

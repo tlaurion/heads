@@ -1,0 +1,68 @@
+{
+  "BootPolicyManifest": {
+    "bpmHeader": {
+      "StructInfoID": [95,95,65,67,66,80,95,95],
+      "StructInfoVersion": 35,
+      "StructInfoVariable0": 32,
+      "StructInfoElementSize": 20,
+      "bpmhKeySignatureOffset": 32,
+      "bpmhRevision": 1,
+      "bpmhSNV": 0,
+      "bpmhACMSVN": 2,
+      "bpmhReserved0": [0],
+      "bpmhNEMStackSize": 32
+    },
+    "bpmSE": [
+      {
+        "StructInfoID": [95,95,73,66,66,83,95,95],
+        "StructInfoVersion": 32,
+        "StructInfoVariable0": 0,
+        "StructInfoElementSize": 80,
+        "seReserved0": [0],
+        "seReserved1": [0],
+        "sePBETValue": 15,
+        "seFlags": 7,
+        "seIBBMCHBAR": 0,
+        "seVTdBAR": 0,
+        "seDMAProtBase0": 0,
+        "seDMAProtLimit0": 0,
+        "seDMAProtBase1": 0,
+        "seDMAProtLimit1": 0,
+        "sePostIBBHash": { "hsAlg": 16, "hsBuffer": null },
+        "seIBBEntry": 4294967280,
+        "seDigestList": {
+          "hlSize": 3,
+          "hlList": [
+            { "hsAlg": 11, "hsBuffer": null },
+            { "hsAlg": 4,  "hsBuffer": null },
+            { "hsAlg": 12, "hsBuffer": null }
+          ]
+        },
+        "seOBBHash": { "hsAlg": 16, "hsBuffer": null },
+        "seReserved2": [0,0,0],
+        "seIBBSegments": [
+          { "ibbSegReserved": [0,0], "ibbSegFlags": 0,
+            "ibbSegBase": 4294918144, "ibbSegSize": 49152 }
+        ]
+      }
+    ],
+    "bpmTXTE": {
+      "StructInfoID": [95,95,84,88,84,83,95,95],
+      "StructInfoVersion": 33,
+      "StructInfoVariable0": 0,
+      "StructInfoElementSize": 40,
+      "txtReserved0": [0],
+      "txtSetNumer": [0],
+      "txtSVN": 0,
+      "txtReserved1": [0],
+      "txtFlags": 0,
+      "txtPwrDownInterval": 60,
+      "txtPTTCMOSOffset0": 126,
+      "txtPTTCMOSOffset1": 127,
+      "txtReserved2": [0,0],
+      "txtDigestList": { "hlSize": 4, "hlList": null },
+      "txtReserved3": [0,0,0]
+    }
+  },
+  "KeyManifest": null
+}
