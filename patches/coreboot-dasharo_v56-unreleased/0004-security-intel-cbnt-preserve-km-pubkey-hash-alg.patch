@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thierry Laurion <insurgo@riseup.net>
+Date: Fri, 18 Sep 2026 00:00:00 -0400
+Subject: [PATCH] intel-sec-tools: preserve declared KM PubKeyHashAlg when
+ signing
+
+When signing a Key Manifest, cbnt-prov's `km-sign` parses the unsigned
+KM, computes a signature and then unconditionally overwrites
+`KmPubKeyHashAlg`:
+
+  pkg/intel/metadata/manifest/key/manifest.go:
+    m.PubKeyHashAlg = m.KeyAndSignature.Signature.HashAlg
+
+The RSA signing path (`Signature.SetSignature` ->
+`SetSignatureByData(..., AlgNull)`) defaults the signature hash algorithm
+to SHA-256, so the signed KM always ends up declaring
+`PubKeyHashAlg = SHA256` (0x0b) even when `km-gen --pkhashalg=SHA384`
+wrote 0x0c into the unsigned KM.
+
+Intel requires SHA-384 for the Boot Guard OEM key digest (BP.KEY) on
+11th-generation and later platforms (Meteor Lake included).  coreboot's
+CBnT integration already declares SHA-384 for the KM public key hash
+(see the companion coreboot patch 0003), only to have it clobbered here.
+
+The OEM public key digest algorithm (`KmPubKeyHashAlg`) is independent of
+the KM signature scheme's own hash algorithm, so the correct minimal fix
+is to preserve the algorithm declared by the unsigned KM and only fall
+back to the signature hash when the manifest did not declare one.
+
+This patch targets the `3rdparty/intel-sec-tools` SUBMODULE source tree
+(not the coreboot tree).  Paths are prefixed so it can be applied from
+the heads tree with:
+
+  git apply --directory build/x86/coreboot-dasharo_v56 <this patch>
+
+Note: heads' `git apply --directory` does reach into an already-populated
+submodule working tree, but on a *fresh* coreboot fetch heads does not
+check out coreboot's submodules before applying patches, so this file
+must be applied manually (or the submodule initialized first) in that
+case.  See the accompanying report for details.
+
+Upstream-Status: Pending
+Signed-off-by: Thierry Laurion <insurgo@riseup.net>
+---
+ 3rdparty/intel-sec-tools/pkg/intel/metadata/manifest/key/manifest.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/3rdparty/intel-sec-tools/pkg/intel/metadata/manifest/key/manifest.go b/3rdparty/intel-sec-tools/pkg/intel/metadata/manifest/key/manifest.go
+index 594394d..cb9601c 100644
+--- a/3rdparty/intel-sec-tools/pkg/intel/metadata/manifest/key/manifest.go
++++ b/3rdparty/intel-sec-tools/pkg/intel/metadata/manifest/key/manifest.go
+@@ -53,7 +53,15 @@ func (m *Manifest) SetSignature(
+ 	if err != nil {
+ 		return fmt.Errorf("unable to set the signature: %w", err)
+ 	}
+-	m.PubKeyHashAlg = m.KeyAndSignature.Signature.HashAlg
++	// Do not clobber the public key hash algorithm that was declared when
++	// the unsigned KM was generated (e.g. SHA-384 required by 11th-gen and
++	// later platforms).  The KM signature scheme and its hash algorithm are
++	// independent of the OEM public key digest algorithm stored in
++	// KmPubKeyHashAlg.  Only fall back to the signature hash when the
++	// manifest did not declare one.
++	if m.PubKeyHashAlg.IsNull() {
++		m.PubKeyHashAlg = m.KeyAndSignature.Signature.HashAlg
++	}
+ 
+ 	return nil
+ }
+-- 
+2.39.5
+

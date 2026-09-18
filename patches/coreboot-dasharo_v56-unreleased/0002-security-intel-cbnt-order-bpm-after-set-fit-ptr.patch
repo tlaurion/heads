@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thierry Laurion <insurgo@riseup.net>
+Date: Thu, 17 Sep 2026 00:00:00 -0400
+Subject: [PATCH] security/intel/cbnt: Order BPM generation after set_fit_ptr
+
+The CBnT BPM rule that uses the config-file path is missing the
+set_fit_ptr prerequisite that the non-config-file (Kconfig) path already
+has:
+
+  ifeq ($(CONFIG_INTEL_CBNT_CBNT_PROV_BPM_USE_CFG_FILE),y)
+  $(obj)/bpm_unsigned.bin: $(obj)/coreboot.pre $(CBNT_PROV) $(CBNT_CFG)
+  ...
+  $(obj)/bpm_unsigned.bin: $(obj)/coreboot.pre $(CBNT_PROV) set_fit_ptr
+
+set_fit_ptr (src/cpu/intel/fit/Makefile.mk) runs `ifittool -F` to write
+the FIT pointer into the bootblock's .fit_pointer section
+(src/cpu/intel/fit/fit.c).  The IBB segment declared for this board
+(0xFFFF4000 + 0xC000 = 0x100000000) covers that location, so it is part
+of what bpm-gen hashes.
+
+Without the dependency, `bpm-gen` can run before `ifittool -F` has
+patched the bootblock and therefore hashes a pre-set_fit_ptr image.  The
+resulting BPM digests then do not match the shipped bootblock and CBnT
+verification fails.
+
+Add set_fit_ptr to the config-file BPM rule's prerequisite list so the
+two paths are ordered identically.  This affects all trees built from
+this Dasharo v5x0 fork; the preferred long-term home is the Dasharo fork
+itself, or upstream coreboot.
+
+Upstream-Status: Pending
+Signed-off-by: Thierry Laurion <insurgo@riseup.net>
+---
+ src/security/intel/cbnt/Makefile.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/security/intel/cbnt/Makefile.mk b/src/security/intel/cbnt/Makefile.mk
+index 19f75fdeaf..dbaa90cbb5 100644
+--- a/src/security/intel/cbnt/Makefile.mk
++++ b/src/security/intel/cbnt/Makefile.mk
+@@ -49,7 +49,7 @@ $(CBNT_CFG): $(call strip_quotes, $(CONFIG_INTEL_CBNT_CBNT_PROV_CFG_FILE))
+ 
+ ifeq ($(CONFIG_INTEL_CBNT_GENERATE_BPM),y)
+ ifeq ($(CONFIG_INTEL_CBNT_CBNT_PROV_BPM_USE_CFG_FILE),y)
+-$(obj)/bpm_unsigned.bin: $(obj)/coreboot.pre $(CBNT_PROV) $(CBNT_CFG)
++$(obj)/bpm_unsigned.bin: $(obj)/coreboot.pre $(CBNT_PROV) $(CBNT_CFG) set_fit_ptr
+ 	printf "    CBNT_PROV    creating unsigned BPM using config file\n"
+ 	$(CBNT_PROV) bpm-gen $@ $< --config=$(CBNT_CFG) --cut
+ else
+-- 
+2.39.5
