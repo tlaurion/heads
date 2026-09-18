@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thierry Laurion <insurgo@riseup.net>
+Date: Thu, 17 Sep 2026 00:00:00 -0400
+Subject: [PATCH] security/intel/cbnt: Fix flexible array member nesting in
+ measurement.c
+
+The Dasharo v56 fork does not build with the GCC in the heads
+reproducible image: the coreboot bootblock stage fails with
+
+  src/security/intel/cbnt/measurement.c:100:28: error: structure containing
+  a flexible array member is not at the end of another structure
+  [-Werror=flex-array-member-not-at-end]
+  src/security/intel/cbnt/measurement.c:108:28: error: structure containing
+  a flexible array member is not at the end of another structure
+  [-Werror=flex-array-member-not-at-end]
+
+struct hash_struct ends in a flexible array member (`uint8_t data[]`), so
+GCC 14+ refuses to nest it by value where other members follow.  The two
+offending members, `bpm_ibbs.post_ibb_hash` and `bpm_ibbs_bottom.obb_hash`,
+are deprecated since v1.2.0 of the Intel CBnT BWG and are never read by
+this file.  They carry only the fixed alg/size header and no digest.
+
+Introduce struct hash_struct_hdr holding exactly that fixed header and use
+it for the two embedded fields.  This keeps the on-media layout unchanged
+(same size and offsets: alg, size) and is the structural fix the compiler
+asks for, rather than silencing -Werror or disabling the warning.
+
+The preferred long-term home for this is the Dasharo fork itself, or
+upstream coreboot; it is applied here as a heads patch so the build works
+with the pinned fork revision.
+
+Upstream-Status: Pending
+Signed-off-by: Thierry Laurion <insurgo@riseup.net>
+---
+ src/security/intel/cbnt/measurement.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/security/intel/cbnt/measurement.c b/src/security/intel/cbnt/measurement.c
+index 2e9aa956dc..900342b143 100644
+--- a/src/security/intel/cbnt/measurement.c
++++ b/src/security/intel/cbnt/measurement.c
+@@ -67,6 +67,18 @@ struct bpm_header {
+ 	uint8_t se_element[];
+ } __packed;
+ 
++/*
++ * Fixed-size hash header.  Structures that embed a hash by value must use this
++ * type instead of struct hash_struct: a structure containing a flexible array
++ * member may not be followed by other members in its enclosing structure
++ * (-Wflex-array-member-not-at-end).  The deprecated post_ibb_hash and obb_hash
++ * fields carry no digest, so only the header is present.
++ */
++struct hash_struct_hdr {
++	uint16_t alg;
++	uint16_t size;
++} __packed;
++
+ /* Deprecated uses must be initialized as { .alg = TPM_ALG_NULL (0x10), .size = 0 } */
+ struct hash_struct {
+ 	uint16_t alg;
+@@ -97,7 +109,7 @@ struct bpm_ibbs {
+ 	uint32_t dma_prot_limit0;
+ 	uint64_t dma_prot_base1;
+ 	uint64_t dma_prot_limit1;
+-	struct hash_struct post_ibb_hash; /* deprecated since v1.2.0 of CBnT BWG */
++	struct hash_struct_hdr post_ibb_hash; /* deprecated since v1.2.0 of CBnT BWG */
+ 	uint32_t ibb_entry_point;
+ 	struct bpm_hash_list digest_list; /* each entry is of variable size */
+ 	/* struct bpm_ibbs_bottom bottom; */
+@@ -105,7 +117,7 @@ struct bpm_ibbs {
+ 
+ /* IBB Segment Element (lower part) */
+ struct bpm_ibbs_bottom {
+-	struct hash_struct obb_hash; /* deprecated since v1.2.0 of CBnT BWG */
++	struct hash_struct_hdr obb_hash; /* deprecated since v1.2.0 of CBnT BWG */
+ 	uint8_t reserved4[3];
+ 	uint8_t segment_count;
+ 	/* ibb_segments[segment_count]; */
+-- 
+2.39.5
+
