@@ -8,37 +8,40 @@ Not all tools are BusyBox applets — many are standalone binaries compiled as s
 
 ## Module list (from the `bin_modules-$(CONFIG_* )` block in the Makefile)
 
-| Makefile line | Config flag | Package | Type |
-|---|---|---|---|
-| 718 | `CONFIG_KEXEC` | kexec | Standalone |
-| 719 | `CONFIG_TPMTOTP` | tpmtotp | Standalone |
-| 720 | `CONFIG_PCIUTILS` | pciutils | Standalone |
-| 721 | `CONFIG_FLASHROM` | flashrom | Standalone |
-| 722 | `CONFIG_FLASHPROG` | flashprog | Standalone |
-| 723 | `CONFIG_CRYPTSETUP` | cryptsetup | Standalone |
-| 724 | `CONFIG_CRYPTSETUP2` | cryptsetup2 | Standalone |
-| 725 | `CONFIG_GPG` | gpg | Standalone |
-| 726 | `CONFIG_GPG2` | gpg2 | Standalone |
-| 727 | `CONFIG_PINENTRY` | pinentry | Standalone |
-| 728 | `CONFIG_LVM2` | lvm2 | Standalone |
-| 729 | `CONFIG_DROPBEAR` | dropbear | Standalone |
-| 730 | `CONFIG_FLASHTOOLS` | flashtools | Standalone |
-| 731 | `CONFIG_NEWT` | newt | Standalone |
-| 732 | `CONFIG_CAIRO` | cairo | Standalone |
-| 733 | `CONFIG_FBWHIPTAIL` | fbwhiptail | Standalone |
-| 734 | `CONFIG_HOTPKEY` | hotp-verification | Standalone |
-| 735 | `CONFIG_MSRTOOLS` | msrtools | Standalone |
-| 736 | `CONFIG_NKSTORECLI` | nkstorecli | Standalone |
-| 737 | `CONFIG_UTIL_LINUX` | util-linux | Standalone |
-| 738 | `CONFIG_OPENSSL` | openssl | Standalone |
-| 739 | `CONFIG_TPM2_TOOLS` | tpm2-tools | Standalone |
-| 740 | `CONFIG_BASH` | bash | Standalone |
-| 741 | `CONFIG_POWERPC_UTILS` | powerpc-utils | Standalone |
-| 742 | `CONFIG_IO386` | io386 | Standalone |
-| 743 | `CONFIG_IOPORT` | ioport | Standalone |
-| 744 | `CONFIG_KBD` | kbd | Standalone |
-| 745 | **`CONFIG_ZSTD`** | **zstd** | **Standalone** |
-| 746 | `CONFIG_E2FSPROGS` | e2fsprogs | Standalone |
+| Config flag | Package | Type |
+|---|---|---|
+| `CONFIG_KEXEC` | kexec | Standalone |
+| `CONFIG_TPMTOTP` | tpmtotp | Standalone |
+| `CONFIG_PCIUTILS` | pciutils | Standalone |
+| `CONFIG_FLASHROM` | flashrom | Standalone |
+| `CONFIG_FLASHPROG` | flashprog | Standalone |
+| `CONFIG_CRYPTSETUP` | cryptsetup | Standalone |
+| `CONFIG_CRYPTSETUP2` | cryptsetup2 | Standalone |
+| `CONFIG_GPG` | gpg | Standalone |
+| `CONFIG_GPG2` | gpg2 | Standalone |
+| `CONFIG_PINENTRY` | pinentry | Standalone |
+| `CONFIG_LVM2` | lvm2 | Standalone |
+| `CONFIG_DROPBEAR` | dropbear | Standalone |
+| `CONFIG_FLASHTOOLS` | flashtools | Standalone |
+| `CONFIG_NEWT` | newt | Standalone |
+| `CONFIG_CAIRO` | cairo | Standalone |
+| `CONFIG_FBWHIPTAIL` | fbwhiptail | Standalone |
+| `CONFIG_HOTPKEY` | hotp-verification | Standalone |
+| `CONFIG_MSRTOOLS` | msrtools | Standalone |
+| `CONFIG_NKSTORECLI` | nkstorecli | Standalone |
+| `CONFIG_UTIL_LINUX` | util-linux | Standalone |
+| `CONFIG_OPENSSL` | openssl | Standalone |
+| `CONFIG_TPM2_TOOLS` | tpm2-tools | Standalone |
+| `CONFIG_TPM2_TOOLS` | tpm-gpio-reset | Standalone |
+| `CONFIG_BASH` | bash | Standalone |
+| `CONFIG_POWERPC_UTILS` | powerpc-utils | Standalone |
+| `CONFIG_IO386` | io386 | Standalone |
+| `CONFIG_IOPORT` | ioport | Standalone |
+| `CONFIG_KBD` | kbd | Standalone |
+| **`CONFIG_ZSTD`** | **zstd** | **Standalone** |
+| `CONFIG_E2FSPROGS` | e2fsprogs | Standalone |
+| `CONFIG_EXFATPROGS` | exfatprogs | Standalone |
+| `CONFIG_NVMUTIL` | nvmutil | Standalone |
 
 ## BusyBox applets (always available)
 
@@ -109,6 +112,18 @@ are included in every build unless a board explicitly sets `CONFIG_FOO=n`:
 Some auto-included defaults are set in the Makefile itself (before `include modules/*`),
 others in the module `.mk` files.  The effect is the same: `?=` only sets the variable
 if the board config did not already override it.
+
+### Keymaps
+
+`modules/kbd` stages the keymap tree into `usr/lib/kbd/keymaps`.  The console layout is user-selectable at runtime: `config-gui.sh` browses the shipped keymaps and lets the user pick the layout used at the LUKS passphrase prompt, so the full keymap set is kept.  `loadkeys --default` needs `defkeymap.map`, and the layout `.map` files pull shared fragments from the keymap `include` directories, so those must ship alongside.  A board can set `CONFIG_KBD=n` to omit the keymap tree entirely (the x220 boards do).
+
+### TPM1 vs TPM2 tools
+
+The TPM1 `tpm` mega-binary and its library (`util/tpm` → `bin/tpm`,
+`libtpm/libtpm.so`) are built by `modules/tpmtotp`.  They are used only when
+`CONFIG_TPM2_TOOLS` is not `y` (TPM1.2 boards); TPM2 boards enable
+`CONFIG_TPM2_TOOLS`, which pulls in the `tpm2-tools` module instead, and
+`tpmr.sh` dispatches TPM1 vs TPM2 subcommands on that flag.
 
 ### Board-enabled modules
 

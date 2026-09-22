@@ -236,10 +236,33 @@ USB token (for example `scdaemon` or `pcscd`). The wrapper will warn and, on int
 shells, give a **3-second abort window** before attempting to kill those processes to free
 the token. Set `HEADS_DISABLE_USB=1` to opt out of this automatic cleanup.
 
-For fully unattended builds (script/non-interactive shell), combine with
-`script` to provide the pseudo-TTY that docker_repro.sh's `-ti` requires:
+For fully unattended builds (script/non-interactive shell), wrap the command in
+`script` to provide the pseudo-TTY that `docker_repro.sh`'s `-ti` requires. Pass
+`-f` (flush) as well: without it, `script` buffers its output and a non-tty/agent
+context that reads the stream incrementally can see the build stall or lose
+output. `HEADS_DISABLE_USB=1` skips the USB token passthrough (and its 3-second
+abort window) so nothing prompts:
 
-    HEADS_DISABLE_USB=1 script -qec './docker_repro.sh make BOARD=...' /dev/null
+```bash
+script -qefc "HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=EOL_t480-hotp-maximized"
+script -qefc "HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=EOL_x220-hotp-maximized"
+```
+
+`script` (util-linux) allocates a pseudo-terminal (PTY) so `docker run -ti` has
+a TTY in a non-interactive/agent context; the command's output is still shown on
+screen (stdout). The options used above:
+
+- `-c "<cmd>"` runs that command.
+- `-q` suppresses `script`'s own start/done banners.
+- `-e` propagates the command's exit status, so a failed build is detectable.
+- `-f` flushes output as it is written (no buffering), so incremental readers
+  don't see it stall.
+
+`script` also records the session to a file — by default `./typescript`, which
+this repo gitignores (`.gitignore:34` `typescript*`). Leave it default to keep
+the transcript; pass `/dev/null` as the trailing argument to skip recording.
+
+`HEADS_DISABLE_USB=1` skips USB-token passthrough and its 3-second abort window.
 
 Both `HEADS_DISABLE_USB=1` and `script` are unnecessary when running from
 an interactive terminal.
