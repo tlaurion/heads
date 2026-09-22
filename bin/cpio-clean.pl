@@ -3,12 +3,11 @@
 #
 # Items fixed:
 # Entries are sorted directories-first (by path), then the remaining
-#   entries by (extension, class, name), where class is one of dir, ELF,
-#   text or other.  Directories must come first: the kernel skips a file
-#   whose parent directory has not been unpacked yet
-#   (init/initramfs.c:do_name() returns without opening it).  Grouping
-#   like payloads together then gives the downstream xz filter a better
-#   context model and shrinks the archive.
+#   entries by (extension, size descending, name).  Directories must come
+#   first: the kernel skips a file whose parent directory has not been
+#   unpacked yet (init/initramfs.c:do_name() returns without opening it).
+#   Grouping like payloads together then gives the downstream xz filter a
+#   better context model and shrinks the archive.
 # Inode numbers are set to zero
 # File timestamp is set to 1970-01-01T00:00:00
 # uid/gid are set to root
@@ -104,26 +103,13 @@ while(<>)
 	die "$ARGV: No trailer!\n" unless $trailer;
 }
 
-# Classify an entry so that similar payloads sort together.
-# Order is dir(0) < ELF(1) < text(2) < other(3).
-sub entry_class
+# True for directory members.
+sub is_dir
 {
-	my ($name, $entry) = @_;
+	my ($entry) = @_;
 
 	my $mode = hex substr($entry, 6 + 8, 8);
-	return 0 if (($mode & 0170000) == 0040000);	# directory
-
-	my $namesize = hex substr($entry, 6 + 88, 8);
-	my $filesize = hex substr($entry, 6 + 48, 8);
-	my $data_off = (6 + 104 + $namesize + 3) & ~3;
-	my $data = substr($entry, $data_off, $filesize);
-
-	return 1 if substr($data, 0, 4) eq "\x7fELF";	# ELF magic
-
-	# text: no NUL byte in the first 4 KiB (empty counts as text)
-	return 2 if index(substr($data, 0, 4096), "\0") < 0;
-
-	return 3;
+	return (($mode & 0170000) == 0040000);
 }
 
 # Extension of the basename, or '' when there is none.
@@ -138,20 +124,29 @@ sub entry_ext
 	return $base;
 }
 
-# Precompute the output sort key.  Directories get an empty "extension"
-# so they all land in the leading group (class 0), ordered by full path;
-# path order is prefix-respecting, so every parent directory precedes
-# both its child directories and its files.  Without this a dot-directory
-# such as .gnupg (whose basename looks like it has an "extension") could
-# sort after files it contains, and the kernel would skip those files.
+# Precompute the output sort key.  Directories get an empty leading field
+# so they all sort ahead of every file (the 'F' marker below), ordered by
+# full path; path order is prefix-respecting, so every parent directory
+# precedes both its child directories and its files.  Without this a
+# dot-directory such as .gnupg (whose basename looks like it has an
+# "extension") could sort after files it contains, and the kernel would
+# skip those files.  The remaining entries are ordered by extension, then
+# by descending size (a zero-padded complement of the size, so the largest
+# payloads come first), then by name.
 my %sort_key;
 for my $filename (keys %entries)
 {
-	my $class = entry_class($filename, $entries{$filename});
-	my $ext = ($class == 0) ? '' : entry_ext($filename);
+	if (is_dir($entries{$filename}))
+	{
+		$sort_key{$filename} = join "\0", '', $filename;
+		next;
+	}
+
+	my $filesize = hex substr($entries{$filename}, 6 + 48, 8);
 	$sort_key{$filename} = join "\0",
-		$ext,
-		$class,
+		'F',
+		entry_ext($filename),
+		sprintf("%08x", 0xFFFFFFFF - $filesize),
 		$filename;
 }
 my @order = sort { $sort_key{$a} cmp $sort_key{$b} } keys %entries;
@@ -193,7 +188,7 @@ for my $filename (@order)
 }
 
 
-# Output them in the precomputed (extension, class, name) order
+# Output them in the precomputed (extension, size, name) order
 my $out = join '', map { $entries{$_} } @order;
 
 # Output the trailer to mark the end of the archive
