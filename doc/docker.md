@@ -458,6 +458,33 @@ fast.  No sudo, no Docker.
 See [modules.md](modules.md#build-lifecycle) for the sentinel chain and
 how to force a rebuild after changing patches.
 
+### Stale host-built kernel tooling breaks the in-container build
+
+The host and the container share the same `build/` tree, so a kernel build
+started on the host (for example via `nix develop`) can leave host-built
+tooling behind.  In particular the host-built helpers
+`scripts/basic/fixdep`, `scripts/mod/modpost`, `tools/objtool/fixdep`, and
+`tools/objtool/objtool` under `build/x86/linux-<ver>/<kconfig-name>/` are
+compiled by the host compiler and linked against the Nix-store glibc loader
+(`/nix/store/<...>-glibc-2.39-52/lib/ld-linux-x86-64.so.2`), which does not
+exist inside the container.  The next in-container kernel build then fails
+early with `fixdep: cannot execute: required file not found` (Error 127):
+the stale `scripts/basic/fixdep` (the early copy) cannot be executed by the
+container's loader.
+
+Remove the whole kernel build directory — named after the kernel config
+(`linux-t480`, `linux-x230-maximized`, …), not the board — so the container
+rebuilds it from source:
+
+```bash
+rm -rf build/x86/linux-<ver>/<kconfig-name>
+```
+
+At minimum remove `scripts/basic/fixdep` alongside `tools/objtool`.  Then
+rerun the build inside the container.  The same applies to any other binary
+under `scripts/` or `tools/` that was built outside the container, so prefer
+to keep host and container builds in separate trees.
+
 ### Verify reproducibility before committing
 
 ```bash

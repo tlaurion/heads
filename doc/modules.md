@@ -254,6 +254,35 @@ nix develop --command make BOARD=$BOARD \
 nix develop --command make BOARD=$BOARD
 ```
 
+#### Canary purge deterministically empties the initrd of kernel modules on TPM2 boards
+
+`real.remove_canary_files-extract_patch_rebuild_what_changed` deletes every
+`build/**/.canary`.  The standalone-clone recipes (`coreboot`, `tpm-gpio-reset`,
+`tpm-gpio-fail`) treat a missing `.canary` as a stale source tree: they take
+their `git clean` path and `rm -rf build/$ARCH/$BOARD`.  This is not a race.
+On TPM2 boards the `tpm-gpio-reset`/`tpm-gpio-fail` clones are (re)built as part
+of the initrd, so their wipe **will** land after `modules.cpio` has been
+produced but before the initrd is packaged, and the initrd is assembled
+**without the kernel modules**.
+
+After using the helper, always run one extra incremental pass so the deleted
+`modules.cpio` is rebuilt and re-packaged:
+
+```bash
+nix develop --command make BOARD=$BOARD \
+  real.remove_canary_files-extract_patch_rebuild_what_changed
+nix develop --command make BOARD=$BOARD     # extra pass
+```
+
+Then verify the initrd actually contains `lib/modules` before trusting it (run
+this under `nix develop` so `cpio` is available):
+
+```bash
+xz -dc build/x86/$BOARD/initrd.cpio.xz | cpio -it 2>/dev/null \
+  | grep -m1 '^lib/modules' && echo "kernel modules present" \
+  || echo "MISSING kernel modules"
+```
+
 ## Module file format
 
 Defined in `modules/<name>`.  See `modules/kexec` for a complete example.
