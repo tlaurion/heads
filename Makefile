@@ -977,6 +977,8 @@ $(build)/$(initrd_dir)/heads.cpio: $(HEADS_INITRD_FILES) FORCE
 #                    the declared dictionary (~64MiB) until unpack finishes.
 #   lc=4/lp=0/pb=1   LZMA2 context bits: literal-context 4, literal-position 0,
 #                    position 1 (defaults 3/0/2).
+#   mf=bt3,nice=128  match finder and nice length; encoder-only knobs, so the
+#                    stream stays a plain LZMA2 stream.
 #
 # The chain must be BCJ then LZMA2; a bare -9/-9e cannot be combined with
 # --x86 (it replaces the chain) and a trailing preset silently drops earlier
@@ -987,7 +989,7 @@ $(build)/$(initrd_dir)/heads.cpio: $(HEADS_INITRD_FILES) FORCE
 # The filter string must live in a variable: make splits $(call) arguments on
 # commas before expansion, so a literal comma in the recipe would be taken as
 # an argument separator and truncate the filter list.
-INITRD_XZ_FILTER := --lzma2=preset=9e,lc=4,lp=0,pb=1
+INITRD_XZ_FILTER := --lzma2=preset=9e,lc=4,lp=0,pb=1,mf=bt3,nice=128
 
 $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y) FORCE
 	$(call do,CPIO-XZ  ,$@,\

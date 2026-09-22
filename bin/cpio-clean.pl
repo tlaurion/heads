@@ -2,9 +2,13 @@
 # Clean all non-deterministric fields in a newc cpio file
 #
 # Items fixed:
-# Entries are sorted by (extension, class, name), where class is one of
-#   dir, ELF, text or other.  Grouping like payloads together gives the
-#   downstream xz filter a better context model and shrinks the archive.
+# Entries are sorted directories-first (by path), then the remaining
+#   entries by (extension, class, name), where class is one of dir, ELF,
+#   text or other.  Directories must come first: the kernel skips a file
+#   whose parent directory has not been unpacked yet
+#   (init/initramfs.c:do_name() returns without opening it).  Grouping
+#   like payloads together then gives the downstream xz filter a better
+#   context model and shrinks the archive.
 # Inode numbers are set to zero
 # File timestamp is set to 1970-01-01T00:00:00
 # uid/gid are set to root
@@ -134,13 +138,20 @@ sub entry_ext
 	return $base;
 }
 
-# Precompute the output sort key (extension, class, name).
+# Precompute the output sort key.  Directories get an empty "extension"
+# so they all land in the leading group (class 0), ordered by full path;
+# path order is prefix-respecting, so every parent directory precedes
+# both its child directories and its files.  Without this a dot-directory
+# such as .gnupg (whose basename looks like it has an "extension") could
+# sort after files it contains, and the kernel would skip those files.
 my %sort_key;
 for my $filename (keys %entries)
 {
+	my $class = entry_class($filename, $entries{$filename});
+	my $ext = ($class == 0) ? '' : entry_ext($filename);
 	$sort_key{$filename} = join "\0",
-		entry_ext($filename),
-		entry_class($filename, $entries{$filename}),
+		$ext,
+		$class,
 		$filename;
 }
 my @order = sort { $sort_key{$a} cmp $sort_key{$b} } keys %entries;
