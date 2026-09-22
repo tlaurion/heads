@@ -8,7 +8,7 @@ Changes to source files in `initrd/` or other build dependencies were not being 
 
 ## initrd.cpio.xz Composition
 
-The final initrd.cpio.xz is built from **6 separate cpio archives** (Makefile line 794-798):
+The final initrd.cpio.xz is built from **6 separate cpio archives**:
 
 | CPIO | Source | Built by |
 |------|--------|----------|
@@ -23,6 +23,30 @@ The final packaging rule:
 ```makefile
 $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 ```
+
+### xz recipe
+
+The final `initrd.cpio.xz` is compressed with:
+
+```makefile
+xz --check=crc32 $(INITRD_XZ_ARCH_FILTER) $(INITRD_XZ_FILTER)
+```
+
+| Variable | Value | Applies to |
+|----------|-------|------------|
+| `INITRD_XZ_ARCH_FILTER` | `--x86` | x86 targets only; empty otherwise |
+| `INITRD_XZ_FILTER` | `--lzma2=preset=9e,lc=4,lp=0,pb=1,mf=bt3,nice=128` | all targets |
+
+- The x86 BCJ filter only helps x86 code, and the kernel needs
+  `CONFIG_XZ_DEC_X86` to decompress it, so it is gated to x86 targets.
+- The chain must be BCJ then LZMA2; a bare `-9`/`-9e` cannot be combined
+  with `--x86` because it replaces the chain, so the level rides on the
+  LZMA2 filter as `preset=9e`.
+- The comma must live in a variable: make splits `$(call)` arguments on
+  commas before expansion.
+- `--check=crc32` because the kernel's XZ decoder rejects CRC64.
+- Measured combined gain is 12,136 B compressed on t480
+  (`mf=bt3,nice=128` alone is 8,920 B raw / 8,704 B padded).
 
 ## Build Flow
 
@@ -134,21 +158,22 @@ If source is newer but initrd.cpio.xz is older, it wasn't rebuilt.
 
 ## Building Fresh
 
-### Using Docker (Required)
-
-The build must run inside Docker to ensure proper permissions and dependencies:
+The Docker wrapper is the default for reproducible and CI builds; `nix develop`
+is the local equivalent.  See `doc/docker.md` for the wrapper.
 
 ```bash
-# Full rebuild
+# Full rebuild (Docker)
 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-hotp
 
-# Force rebuild of initrd (touch source)
-touch initrd/bin/oem-factory-reset.sh
-./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-hotp
-
-# Force complete rebuild of board artifacts
-rm -rf build/x86/BOARD
-./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-hotp
+# Full rebuild (local)
+nix develop --command make BOARD=qemu-coreboot-fbwhiptail-tpm2-hotp
 ```
 
-**Never run `make` directly** - it will fail due to permission issues on the build directory (owned by root from docker container).
+Rebuild guidance lives in the `Rebuild helpers` section of `doc/modules.md`.
+Escalation order, least to most destructive:
+
+1. plain `make BOARD=<board>`
+2. targeted `<module>.clean`, `touch <source>`, or `rm -rf build/x86/<board>`
+3. `modules.clean`
+4. canary purge (`real.remove_canary_files-extract_patch_rebuild_what_changed`)
+5. `real.clean` (last resort)

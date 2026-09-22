@@ -92,9 +92,18 @@ with a fixed `"(heads)"` string.  The install rule copies the binary and runs
 
 ## Archive determinism
 
-`bin/cpio-clean.pl` rewrites every newc cpio entry for determinism: files
-sorted by name, inodes derived from MD5(filename), timestamps/uid/gid zeroed,
-nlink=0, devmajor/devminor=0, check=0, and 512-byte trailing padding.
+`bin/cpio-clean.pl` rewrites every newc cpio entry for determinism:
+directories first (by full path), then the remaining entries by
+(extension, size descending, name); inodes set to 0; timestamps/uid/gid
+zeroed, nlink=0, devmajor/devminor=0, check=0, and 512-byte trailing
+padding.  The zero inode is safe because nlink is also 0, so the kernel
+never builds a hardlink key.  Directories must precede their contents:
+the kernel's `init/initramfs.c do_name()` silently skips a file whose
+parent directory has not been unpacked yet.  The original full-name sort
+already placed parents before children; the `(extension, size, name)`
+grouping broke that guarantee, since a dot-directory such as `.gnupg`
+(whose basename looks like it has an extension) could sort after the files
+it contains, so directories are kept in a leading group.
 `blobs/dev.cpio` is a pre-built, git-tracked archive providing a reproducible
 `/dev/console`.
 
