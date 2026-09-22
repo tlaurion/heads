@@ -15,9 +15,14 @@ libusb-compat_hash := 404ef4b6b324be79ac1bfb3d839eac860fbc929e6acb1ef88793a6ea32
 # discard unused functions and data; each function is in its own section so the
 # linker can drop what the initrd never calls, shrinking the binary.
 
+
+# -fno-asynchronous-unwind-tables -fno-unwind-tables: drop .eh_frame and unwind
+# tables; the initrd is single-purpose and never needs stack unwinding, saving
+# meaningful bytes in the initrd payload.
+
 libusb-compat_configure := \
-	CFLAGS="-Os -ffunction-sections -fdata-sections" \
-	LDFLAGS="-Wl,--gc-sections" \
+	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables" \
+	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
 	./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \

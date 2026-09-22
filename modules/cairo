@@ -28,9 +28,14 @@ endif
 # discard unused functions and data; each function is in its own section so the
 # linker can drop what the initrd never calls, shrinking the binary.
 
+
+# -fno-asynchronous-unwind-tables -fno-unwind-tables: drop .eh_frame and unwind
+# tables; the initrd is single-purpose and never needs stack unwinding, saving
+# meaningful bytes in the initrd payload.
+
 cairo_configure := \
-	CFLAGS="-DCAIRO_NO_MUTEX=1 -Os -ffunction-sections -fdata-sections"  \
-	LDFLAGS="-Wl,--gc-sections" \
+	CFLAGS="-DCAIRO_NO_MUTEX=1 -Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables"  \
+	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
 	$(CROSS_TOOLS) \
 	./configure \
 	$(cairo_float_words_bigendian) \

@@ -12,16 +12,21 @@ zlib_hash := c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
 # discard unused functions and data; each function is in its own section so the
 # linker can drop what the initrd never calls, shrinking the binary.
 
+
+# -fno-asynchronous-unwind-tables -fno-unwind-tables: drop .eh_frame and unwind
+# tables; the initrd is single-purpose and never needs stack unwinding, saving
+# meaningful bytes in the initrd payload.
+
 zlib_configure := \
 	$(CROSS_TOOLS) \
-	CFLAGS="-Os -ffunction-sections -fdata-sections" \
+	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables" \
 	./configure \
 	--prefix="/" \
 
 zlib_target := \
 	$(MAKE_JOBS) \
 	$(CROSS_TOOLS) \
-	LDFLAGS="-Wl,--gc-sections" \
+	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
 	DESTDIR="$(INSTALL)" \
 	install \
 
