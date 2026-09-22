@@ -1,5 +1,10 @@
 modules-$(CONFIG_NEWT) += newt
 
+
+# -ffunction-sections -fdata-sections and -Wl,--gc-sections -Wl,--no-eh-frame-hdr
+# discard unused functions and data; each function is in its own section so the
+# linker can drop what the initrd never calls, shrinking the binary.
+
 newt_depends := popt slang ncurses $(musl_dep)
 
 newt_version := 0.52.24
@@ -20,7 +25,7 @@ newt_libraries := \
 	libnewt.so.0.52 \
 
 newt_configure := \
-	./autogen.sh && CFLAGS="-Os" ./configure \
+	./autogen.sh && CFLAGS="-Os -ffunction-sections -fdata-sections" LDFLAGS="-Wl,--gc-sections" ./configure \
 	$(CROSS_TOOLS) \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \

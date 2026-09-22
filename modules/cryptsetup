@@ -1,5 +1,10 @@
 modules-$(CONFIG_CRYPTSETUP) += cryptsetup
 
+
+# -ffunction-sections -fdata-sections and -Wl,--gc-sections -Wl,--no-eh-frame-hdr
+# discard unused functions and data; each function is in its own section so the
+# linker can drop what the initrd never calls, shrinking the binary.
+
 cryptsetup_depends := util-linux popt lvm2 $(musl_dep)
 
 cryptsetup_version := 1.7.3
@@ -12,7 +17,8 @@ cryptsetup_hash := af2b04e8475cf40b8d9ffd97a1acfa73aa787c890430afd89804fb544d6ad
 # build path.
 cryptsetup_configure := \
 	$(CROSS_TOOLS) \
-	CFLAGS="-Os" \
+	CFLAGS="-Os -ffunction-sections -fdata-sections" \
+	LDFLAGS="-Wl,--gc-sections" \
 	./configure \
 	--host $(MUSL_ARCH)-elf-linux \
 	--prefix "/" \
