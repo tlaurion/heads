@@ -2,21 +2,29 @@
 # Clean all non-deterministric fields in a newc cpio file
 #
 # Items fixed:
-# Files are sorted by name
-# Inode numbers are based on the hash of the filename
+# Entries are sorted by (extension, class, name), where class is one of
+#   dir, ELF, text or other.  Grouping like payloads together gives the
+#   downstream xz filter a better context model and shrinks the archive.
+# Inode numbers are set to zero
 # File timestamp is set to 1970-01-01T00:00:00
 # uid/gid are set to root
 # check field is zeroed
 # nlinks is set to zero, since the filesystem manages it
 #
+# The inode is written as 0 rather than a hash of the name.  This is safe
+# because nlink is also 0 and the kernel (init/initramfs.c) only builds a
+# hardlink key when nlink >= 2; with nlink=0 it never looks the inode up.
+# Directory entries are always kept: the kernel does not create missing
+# parents.  Hardlink de-duplication must NOT be combined with a zeroed
+# inode, since every entry would then share the same link key.
+#
 use warnings;
 use strict;
 use Data::Dumper;
-use Digest::MD5 'md5_hex';
 
 #	   struct cpio_newc_header {
 #		   char    c_magic[6]; -6
-#		   char    c_ino[8]; -- set to a monotonic value 0
+#		   char    c_ino[8]; -- set to zero
 #		   char    c_mode[8]; 8
 #		   char    c_uid[8]; 16
 #		   char    c_gid[8];  24
@@ -92,23 +100,59 @@ while(<>)
 	die "$ARGV: No trailer!\n" unless $trailer;
 }
 
+# Classify an entry so that similar payloads sort together.
+# Order is dir(0) < ELF(1) < text(2) < other(3).
+sub entry_class
+{
+	my ($name, $entry) = @_;
+
+	my $mode = hex substr($entry, 6 + 8, 8);
+	return 0 if (($mode & 0170000) == 0040000);	# directory
+
+	my $namesize = hex substr($entry, 6 + 88, 8);
+	my $filesize = hex substr($entry, 6 + 48, 8);
+	my $data_off = (6 + 104 + $namesize + 3) & ~3;
+	my $data = substr($entry, $data_off, $filesize);
+
+	return 1 if substr($data, 0, 4) eq "\x7fELF";	# ELF magic
+
+	# text: no NUL byte in the first 4 KiB (empty counts as text)
+	return 2 if index(substr($data, 0, 4096), "\0") < 0;
+
+	return 3;
+}
+
+# Extension of the basename, or '' when there is none.
+sub entry_ext
+{
+	my ($name) = @_;
+	$name =~ s/\0+\z//;
+	my $base = $name;
+	$base =~ s{.*/}{}s;
+	return '' unless $base =~ /\./;
+	$base =~ s{.*\.}{}s;
+	return $base;
+}
+
+# Precompute the output sort key (extension, class, name).
+my %sort_key;
+for my $filename (keys %entries)
+{
+	$sort_key{$filename} = join "\0",
+		entry_ext($filename),
+		entry_class($filename, $entries{$filename}),
+		$filename;
+}
+my @order = sort { $sort_key{$a} cmp $sort_key{$b} } keys %entries;
+
 # Apply the cleaning to each one
-for my $filename (sort keys %entries)
+for my $filename (@order)
 {
 	my $entry = $entries{$filename};
 	my $zero = sprintf "%08x", 0;
 
-	# inodes are hashed to be deterministic
-	# and hopefully not colliding
-	my $md5 = md5_hex($filename);
-	my $d0 = hex substr($md5,  0, 8) ;
-	my $d1 = hex substr($md5,  8, 8) ;
-	my $d2 = hex substr($md5, 16, 8) ;
-	my $d3 = hex substr($md5, 24, 8) ;
-	my $hash = sprintf "%08x", $d0 ^ $d1 ^ $d2 ^ $d3;
-	
-	#warn "$filename: $md5 -> $hash\n";
-	substr($entry, 6 + 0, 8) = $hash;
+	# inode is zeroed; safe because nlink is zero (see header)
+	substr($entry, 6 + 0, 8) = $zero;
 
 	# set timestamps to zero
 	substr($entry, 6 + 40, 8) = $zero;
@@ -138,12 +182,8 @@ for my $filename (sort keys %entries)
 }
 
 
-# Output them in sorted order
-my $out = join '', map { $entries{$_} } sort keys %entries;
-#for my $filename (sort keys %entries)
-#{
-	#$out .= $entries{$filename};
-#}
+# Output them in the precomputed (extension, class, name) order
+my $out = join '', map { $entries{$_} } @order;
 
 # Output the trailer to mark the end of the archive
 $out .= $trailer;
