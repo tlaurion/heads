@@ -165,11 +165,11 @@ nix develop --command make BOARD=$BOARD
 
 | Target | What it does |
 |--------|-------------|
-| `real.clean` | Remove all build artifacts |
-| `real.gitclean` | `git clean` — remove all untracked files |
-| `real.gitclean_keep_packages` | `git clean` but keep downloaded tarballs in `packages/` |
-| `real.remove_canary_files-extract_patch_rebuild_what_changed` | Remove all `.canary` sentinels, clear install + coreboot/board build caches, then rebuild.  Use this after changing patches. |
-| `real.gitclean_keep_packages_and_build` | Keep packages + clean + full rebuild |
+| `real.clean` | `rm -rf` each module build dir under `build/$ARCH/` (all modules except `musl`/`musl-cross-make`) plus `kernel_headers`, wipe `install/*`, reset the coreboot `.canary`.  Keeps `packages/` and `crossgcc/`.  Destructive last resort. |
+| `real.gitclean` | `git clean -fxd` — remove all untracked/ignored files (`build/`, `crossgcc/`, `install/`) |
+| `real.gitclean_keep_packages` | `git clean -fxd -e "packages"` — keep downloaded tarballs in `packages/` |
+| `real.remove_canary_files-extract_patch_rebuild_what_changed` | Purge every `build/**/.canary`, clear `install/*/*` and the coreboot/board build caches.  The re-extract/re-patch/rebuild runs on the NEXT `make`.  First choice after changing patches. |
+| `real.gitclean_keep_packages_and_build` | `git clean -fxd -e "packages" -e "build"` — keep `packages/` and `build/` |
 
 All run under `nix develop` (local) or `./docker_repro.sh` (Docker):
 
@@ -177,6 +177,53 @@ All run under `nix develop` (local) or `./docker_repro.sh` (Docker):
 nix develop --command make BOARD=$BOARD real.clean
 nix develop --command make BOARD=$BOARD real.remove_canary_files-extract_patch_rebuild_what_changed
 ```
+
+### Rebuild helpers
+
+The build is stamp-driven.  Each module carries sentinel files in
+`build/$ARCH/PACKAGE-DIR/`: `.canary` (source extracted/cloned and patches
+applied), `.configured` (`configure` ran), and `.build` (built/installed);
+git-cloned modules additionally carry `.patched` (patches applied to the
+clone).  A plain `make BOARD=<board>` rebuilds only what the stamps say is
+stale.  It does **not** track `CFLAGS`, so flag changes are invisible to it.
+
+Pick the helper by what you changed:
+
+| You need to… | Run |
+|---|---|
+| change a file inside a module's source | plain `make BOARD=<board>` |
+| change build flags (`CFLAGS`) | `<module>.clean` then `make BOARD=<board> <module>`; for all modules `modules.clean` then `make BOARD=<board>` |
+| change board or kernel configuration | plain `make BOARD=<board>` |
+| change a patch file | remove that package's `.canary`, `.configured`, and `.build`, then `make BOARD=<board> <pkg>`; broad: the canary purge.  For a git-clone package, removing its `.canary` also triggers that module's board-dir wipe (see the canary-purge caveat below) |
+| change an `initrd/` script | plain `make BOARD=<board>` |
+| get a trusted build after source/patch edits | `real.remove_canary_files-extract_patch_rebuild_what_changed` then `make BOARD=<board>` |
+| prove reproducibility is broken | `real.clean` (destructive, last resort) then `make BOARD=<board>` |
+
+Helper → effect, what each removes and keeps:
+
+| Helper | Removes | Keeps |
+|---|---|---|
+| `<module>.clean` | that module's `.configured`, then `make -C <builddir> clean` (may delete generated sources for `tpm2-tss`/`tpm2-tools`) | `.canary`, `.build` |
+| `modules.clean` | for each module dir, `make -C <dir> clean` + `.configured` | `install/`, `packages/`, `.canary`, `.build` |
+| canary purge (`real.remove_canary_files-…`) | every `build/**/.canary`; `install/*/*`; the coreboot board dir and `build/$ARCH/<board>`; resets the coreboot `.canary` | module objects (`.o`, `.build`) |
+| `real.clean` | each module build dir under `build/$ARCH/` (all modules except `musl`/`musl-cross-make`) plus `kernel_headers`; `install/*`; resets the coreboot `.canary` | `packages/`, `crossgcc/` |
+| `real.gitclean` | `build/`, `crossgcc/`, `install/` (via `git clean -fxd`) | nested git repos, tracked files |
+| `real.gitclean_keep_packages` | `build/`, `crossgcc/`, `install/` | `packages/`, nested git repos |
+| `real.gitclean_keep_packages_and_build` | `crossgcc/`, `install/` | `packages/`, `build/`, nested git repos |
+
+All four `real.*` clean targets call `overwrite_canary_if_coreboot_git`, which
+writes `BOGUS_COMMIT_ID` into the coreboot `.canary` to force a re-check on the
+next build.
+
+Two caveats:
+
+- The `git clean` helpers do **not** remove nested git repositories (git skips
+  them), so the coreboot and other module source clones survive;
+  `overwrite_canary_if_coreboot_git` resets only coreboot's `.canary`, so the
+  other surviving clones keep theirs.
+- The canary purge cannot fix stale flags: module objects (`.o`, `.build`)
+  survive, so flags baked into them remain.  Use `<module>.clean` /
+  `modules.clean` for flag changes.
 
 ### Module-level helpers
 
