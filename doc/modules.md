@@ -49,9 +49,12 @@ Not all tools are BusyBox applets — many are standalone binaries compiled as s
 unconditionally, `xhci-hcd`/`xhci-pci`. Whether the built-in ports actually
 need the xHCI pair depends on the coreboot devicetree: a board whose
 devicetree enables `device ref xhci` (or the SoC-style `device ref
-south_xhci` / `device pci 14.0`) exposes a USB3 controller; otherwise only
-the EHCI USB2 controllers exist and the xHCI modules bind to nothing. An
-add-in USB3 controller (ExpressCard or dock) would still use them.
+south_xhci` / `device pci 14.0`) exposes an integrated USB3 controller. A
+board without that has no *integrated* USB3/xHCI (coreboot leaves dev
+`0:14.0` disabled), but a discrete/add-in controller may still be present
+and would need `xhci-pci` — e.g. the X220 i7's onboard Renesas/NEC USB3
+controller on `pcie_rp7` (coreboot comments it `# Optional XHCI
+controller`), and Talos II's TUSB7340.
 
 | Board(s) | Platform / PCH | Integrated xHCI (USB3) |
 |---|---|---|
@@ -246,7 +249,7 @@ Helper → effect, what each removes and keeps:
 | `real.gitclean_keep_packages` | `build/`, `crossgcc/`, `install/` | `packages/`, nested git repos |
 | `real.gitclean_keep_packages_and_build` | `crossgcc/`, `install/` | `packages/`, `build/`, nested git repos |
 
-All four `real.*` clean targets call `overwrite_canary_if_coreboot_git`, which
+All five `real.*` clean targets call `overwrite_canary_if_coreboot_git`, which
 writes `BOGUS_COMMIT_ID` into the coreboot `.canary` to force a re-check on the
 next build.
 
