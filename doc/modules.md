@@ -43,6 +43,41 @@ Not all tools are BusyBox applets — many are standalone binaries compiled as s
 | `CONFIG_EXFATPROGS` | exfatprogs | Standalone |
 | `CONFIG_NVMUTIL` | nvmutil | Standalone |
 
+## USB3 / xHCI support by board
+
+`enable_usb()` (`initrd/etc/functions.sh`) loads `ehci-hcd`/`ehci-pci` and,
+unconditionally, `xhci-hcd`/`xhci-pci`. Whether the built-in ports actually
+need the xHCI pair depends on the coreboot devicetree: a board whose
+devicetree enables `device ref xhci` (or the SoC-style `device ref
+south_xhci` / `device pci 14.0`) exposes a USB3 controller; otherwise only
+the EHCI USB2 controllers exist and the xHCI modules bind to nothing. An
+add-in USB3 controller (ExpressCard or dock) would still use them.
+
+| Board(s) | Platform / PCH | Integrated xHCI (USB3) |
+|---|---|---|
+| `EOL_x220-{hotp-,}maximized` | Sandy Bridge, 6-series Cougar Point | **no** — dev `0:14.0` left disabled |
+| `EOL_t420-{hotp-,}maximized` | Sandy Bridge, 6-series Cougar Point | **no** — dev `0:14.0` left disabled |
+| `EOL_t430-{hotp-,}maximized` | Ivy Bridge, 7-series Panther Point | yes |
+| `EOL_x230-*` | Ivy Bridge, 7-series Panther Point | yes |
+| `EOL_UNTESTED_t530-{hotp-,}maximized` | Ivy Bridge, 7-series Panther Point | yes |
+| `EOL_w530-{hotp-,}maximized` | Ivy Bridge, 7-series Panther Point | yes |
+| `EOL_optiplex-7010_9010{,-TXT}-{hotp-,}maximized` | Ivy Bridge, 7-series Panther Point | yes |
+| `EOL_z220-cmt-{hotp-,}maximized` | Ivy Bridge, 7-series Panther Point | yes |
+| `EOL_t440p-{hotp-,}maximized` | Haswell, 8-series Lynx Point | yes |
+| `EOL_w541-{hotp-,}maximized` | Haswell, 8-series Lynx Point | yes |
+| `EOL_t480-*`, `EOL_t480s-*`, `EOL_x280-*` | Skylake / Kaby Lake | yes (`south_xhci`) |
+| `EOL_m900_tower-{hotp-,}maximized` | Skylake | yes (`south_xhci`) |
+| `EOL_librem_13v2`, `EOL_librem_13v4`, `EOL_librem_15v3`, `EOL_librem_15v4` | Skylake | yes (`south_xhci`) |
+| `EOL_librem_l1um` | Broadwell-DE | yes (`pci 14.0`) |
+| `librem_11` | Jasper Lake | yes (`pci 14.0`) |
+| `librem_14`, `librem_mini`, `librem_mini_v2`, `librem_l1um_v2` | Cannon Lake | yes |
+| `kano`, `kano-hotp` | Alder Lake | yes |
+| `msi_z790p_ddr5`, `UNTESTED_msi_z690a_ddr4`, `UNTESTED_msi_z690a_ddr5`, `UNTESTED_msi_z790p_ddr4` | Alder Lake | yes |
+| `novacustom-nv4x_adl`, `UNTESTED_nitropad-ns50` | Alder Lake | yes |
+| `novacustom-v540tu`, `novacustom-v560tu` | Meteor Lake | yes |
+| `qemu-coreboot-*` | emulated Q35 / ICH9 | no |
+| `UNTESTED_talos-2` | POWER9 | no |
+
 ## BusyBox applets (always available)
 
 BusyBox v1.36.1 provides the following applets relevant to Heads scripts.
