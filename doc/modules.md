@@ -47,7 +47,7 @@ Not all tools are BusyBox applets — many are standalone binaries compiled as s
 
 The canonical hardware compatibility list is maintained in the heads-wiki:
 
-<https://github.com/linuxboot/heads-wiki/blob/master/Installing-and-Configuring/Hardware-Compatibility.md>
+<https://osresearch.net/Hardware-Compatibility/>
 
 Per-board platform, integrated USB3/xHCI and USB4, flash size, and TPM details
 live there; do not duplicate them in this repository.
