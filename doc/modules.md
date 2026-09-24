@@ -49,8 +49,10 @@ The canonical hardware compatibility list is maintained in the heads-wiki:
 
 <https://osresearch.net/Hardware-Compatibility/>
 
-Per-board platform, integrated USB3/xHCI and USB4, flash size, and TPM details
-live there; do not duplicate them in this repository.
+Each `boards/*/*.config` carries a short hardware-compatibility summary and
+links to its canonical HCL entry (the `unmaintained_boards/*` configs do not);
+the full platform, integrated USB3/xHCI and USB4, flash-size, and TPM details
+live in the wiki.
 
 ## BusyBox applets (always available)
 
