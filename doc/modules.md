@@ -321,7 +321,9 @@ their `git clean` path and `rm -rf build/$ARCH/$BOARD`.  This is not a race.
 On TPM2 boards the `tpm-gpio-reset`/`tpm-gpio-fail` clones are (re)built as part
 of the initrd, so their wipe **will** land after `modules.cpio` has been
 produced but before the initrd is packaged, and the initrd is assembled
-**without the kernel modules**.
+**without the kernel modules**.  `bin/cpio-clean.pl` now refuses to run when a
+named input cannot be opened instead of silently skipping it, so this fails the
+build loudly rather than exiting 0 unnoticed.
 
 After using the helper, always run one extra incremental pass so the deleted
 `modules.cpio` is rebuilt and re-packaged:

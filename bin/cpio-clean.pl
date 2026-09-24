@@ -7,7 +7,7 @@
 #   first: the kernel skips a file whose parent directory has not been
 #   unpacked yet (init/initramfs.c:do_name() returns without opening it).
 #   Grouping like payloads together then gives the downstream xz filter a
-#   better context model and shrinks the archive.
+#   more uniform context.
 # Inode numbers are set to zero
 # File timestamp is set to 1970-01-01T00:00:00
 # uid/gid are set to root
@@ -46,6 +46,17 @@ use Data::Dumper;
 
 # Read the entire file at once
 undef $/;
+
+# Fail fast if a named input cannot be opened.  The diamond operator only
+# warns and moves on to the next file, so an unreadable input would
+# otherwise yield a module-less initrd while still exiting 0.  ('-' means
+# standard input.)
+for my $file (@ARGV)
+{
+	next if $file eq '-';
+	open my $fh, '<', $file or die "$file: $!\n";
+	close $fh;
+}
 
 # Generate a map of all of the files in the cpio archive
 # This will also merge multiple cpio files
