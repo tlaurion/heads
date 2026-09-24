@@ -8,37 +8,51 @@ Not all tools are BusyBox applets — many are standalone binaries compiled as s
 
 ## Module list (from the `bin_modules-$(CONFIG_* )` block in the Makefile)
 
-| Makefile line | Config flag | Package | Type |
-|---|---|---|---|
-| 718 | `CONFIG_KEXEC` | kexec | Standalone |
-| 719 | `CONFIG_TPMTOTP` | tpmtotp | Standalone |
-| 720 | `CONFIG_PCIUTILS` | pciutils | Standalone |
-| 721 | `CONFIG_FLASHROM` | flashrom | Standalone |
-| 722 | `CONFIG_FLASHPROG` | flashprog | Standalone |
-| 723 | `CONFIG_CRYPTSETUP` | cryptsetup | Standalone |
-| 724 | `CONFIG_CRYPTSETUP2` | cryptsetup2 | Standalone |
-| 725 | `CONFIG_GPG` | gpg | Standalone |
-| 726 | `CONFIG_GPG2` | gpg2 | Standalone |
-| 727 | `CONFIG_PINENTRY` | pinentry | Standalone |
-| 728 | `CONFIG_LVM2` | lvm2 | Standalone |
-| 729 | `CONFIG_DROPBEAR` | dropbear | Standalone |
-| 730 | `CONFIG_FLASHTOOLS` | flashtools | Standalone |
-| 731 | `CONFIG_NEWT` | newt | Standalone |
-| 732 | `CONFIG_CAIRO` | cairo | Standalone |
-| 733 | `CONFIG_FBWHIPTAIL` | fbwhiptail | Standalone |
-| 734 | `CONFIG_HOTPKEY` | hotp-verification | Standalone |
-| 735 | `CONFIG_MSRTOOLS` | msrtools | Standalone |
-| 736 | `CONFIG_NKSTORECLI` | nkstorecli | Standalone |
-| 737 | `CONFIG_UTIL_LINUX` | util-linux | Standalone |
-| 738 | `CONFIG_OPENSSL` | openssl | Standalone |
-| 739 | `CONFIG_TPM2_TOOLS` | tpm2-tools | Standalone |
-| 740 | `CONFIG_BASH` | bash | Standalone |
-| 741 | `CONFIG_POWERPC_UTILS` | powerpc-utils | Standalone |
-| 742 | `CONFIG_IO386` | io386 | Standalone |
-| 743 | `CONFIG_IOPORT` | ioport | Standalone |
-| 744 | `CONFIG_KBD` | kbd | Standalone |
-| 745 | **`CONFIG_ZSTD`** | **zstd** | **Standalone** |
-| 746 | `CONFIG_E2FSPROGS` | e2fsprogs | Standalone |
+| Config flag | Package | Type |
+|---|---|---|
+| `CONFIG_KEXEC` | kexec | Standalone |
+| `CONFIG_TPMTOTP` | tpmtotp | Standalone |
+| `CONFIG_PCIUTILS` | pciutils | Standalone |
+| `CONFIG_FLASHROM` | flashrom | Standalone |
+| `CONFIG_FLASHPROG` | flashprog | Standalone |
+| `CONFIG_CRYPTSETUP` | cryptsetup | Standalone |
+| `CONFIG_CRYPTSETUP2` | cryptsetup2 | Standalone |
+| `CONFIG_GPG` | gpg | Standalone |
+| `CONFIG_GPG2` | gpg2 | Standalone |
+| `CONFIG_PINENTRY` | pinentry | Standalone |
+| `CONFIG_LVM2` | lvm2 | Standalone |
+| `CONFIG_DROPBEAR` | dropbear | Standalone |
+| `CONFIG_FLASHTOOLS` | flashtools | Standalone |
+| `CONFIG_NEWT` | newt | Standalone |
+| `CONFIG_CAIRO` | cairo | Standalone |
+| `CONFIG_FBWHIPTAIL` | fbwhiptail | Standalone |
+| `CONFIG_HOTPKEY` | hotp-verification | Standalone |
+| `CONFIG_MSRTOOLS` | msrtools | Standalone |
+| `CONFIG_NKSTORECLI` | nkstorecli | Standalone |
+| `CONFIG_UTIL_LINUX` | util-linux | Standalone |
+| `CONFIG_OPENSSL` | openssl | Standalone |
+| `CONFIG_TPM2_TOOLS` | tpm2-tools | Standalone |
+| `CONFIG_TPM2_TOOLS` | tpm-gpio-reset | Standalone |
+| `CONFIG_BASH` | bash | Standalone |
+| `CONFIG_POWERPC_UTILS` | powerpc-utils | Standalone |
+| `CONFIG_IO386` | io386 | Standalone |
+| `CONFIG_IOPORT` | ioport | Standalone |
+| `CONFIG_KBD` | kbd | Standalone |
+| **`CONFIG_ZSTD`** | **zstd** | **Standalone** |
+| `CONFIG_E2FSPROGS` | e2fsprogs | Standalone |
+| `CONFIG_EXFATPROGS` | exfatprogs | Standalone |
+| `CONFIG_NVMUTIL` | nvmutil | Standalone |
+
+## Hardware compatibility list (HCL)
+
+The canonical hardware compatibility list is maintained in the heads-wiki:
+
+<https://osresearch.net/Hardware-Compatibility/>
+
+Each `boards/*/*.config` carries a short hardware-compatibility summary and
+links to its canonical HCL entry (the `unmaintained_boards/*` configs do not);
+the full platform, integrated USB3/xHCI and USB4, flash-size, and TPM details
+live in the wiki.
 
 ## BusyBox applets (always available)
 
@@ -110,6 +124,18 @@ Some auto-included defaults are set in the Makefile itself (before `include modu
 others in the module `.mk` files.  The effect is the same: `?=` only sets the variable
 if the board config did not already override it.
 
+### Keymaps
+
+`modules/kbd` stages the keymap tree into `usr/lib/kbd/keymaps`.  The console layout is user-selectable at runtime: `config-gui.sh` browses the shipped keymaps and lets the user pick the layout used at the LUKS passphrase prompt, so the full keymap set is kept.  `loadkeys --default` needs `defkeymap.map`, and the layout `.map` files pull shared fragments from the keymap `include` directories, so those must ship alongside.  A board can set `CONFIG_KBD=n` to omit the keymap tree entirely (the x220 boards do).
+
+### TPM1 vs TPM2 tools
+
+The TPM1 `tpm` mega-binary and its library (`util/tpm` → `bin/tpm`,
+`libtpm/libtpm.so`) are built by `modules/tpmtotp`.  They are used only when
+`CONFIG_TPM2_TOOLS` is not `y` (TPM1.2 boards); TPM2 boards enable
+`CONFIG_TPM2_TOOLS`, which pulls in the `tpm2-tools` module instead, and
+`tpmr.sh` dispatches TPM1 vs TPM2 subcommands on that flag.
+
 ### Board-enabled modules
 
 These modules default to `n` and must be explicitly enabled in the board config
@@ -150,11 +176,11 @@ nix develop --command make BOARD=$BOARD
 
 | Target | What it does |
 |--------|-------------|
-| `real.clean` | Remove all build artifacts |
-| `real.gitclean` | `git clean` — remove all untracked files |
-| `real.gitclean_keep_packages` | `git clean` but keep downloaded tarballs in `packages/` |
-| `real.remove_canary_files-extract_patch_rebuild_what_changed` | Remove all `.canary` sentinels, clear install + coreboot/board build caches, then rebuild.  Use this after changing patches. |
-| `real.gitclean_keep_packages_and_build` | Keep packages + clean + full rebuild |
+| `real.clean` | `rm -rf` each module build dir under `build/$ARCH/` (all modules except `musl`/`musl-cross-make`) plus `kernel_headers`, wipe `install/*`, reset the coreboot `.canary`.  Keeps `packages/` and `crossgcc/`.  Destructive last resort. |
+| `real.gitclean` | `git clean -fxd` — remove all untracked/ignored files (`build/`, `crossgcc/`, `install/`) |
+| `real.gitclean_keep_packages` | `git clean -fxd -e "packages"` — keep downloaded tarballs in `packages/` |
+| `real.remove_canary_files-extract_patch_rebuild_what_changed` | Purge every `build/**/.canary`, clear `install/*/*` and the coreboot/board build caches.  The re-extract/re-patch/rebuild runs on the NEXT `make`.  First choice after changing patches. |
+| `real.gitclean_keep_packages_and_build` | `git clean -fxd -e "packages" -e "build"` — keep `packages/` and `build/` |
 
 All run under `nix develop` (local) or `./docker_repro.sh` (Docker):
 
@@ -162,6 +188,53 @@ All run under `nix develop` (local) or `./docker_repro.sh` (Docker):
 nix develop --command make BOARD=$BOARD real.clean
 nix develop --command make BOARD=$BOARD real.remove_canary_files-extract_patch_rebuild_what_changed
 ```
+
+### Rebuild helpers
+
+The build is stamp-driven.  Each module carries sentinel files in
+`build/$ARCH/PACKAGE-DIR/`: `.canary` (source extracted/cloned and patches
+applied), `.configured` (`configure` ran), and `.build` (built/installed);
+git-cloned modules additionally carry `.patched` (patches applied to the
+clone).  A plain `make BOARD=<board>` rebuilds only what the stamps say is
+stale.  It does **not** track `CFLAGS`, so flag changes are invisible to it.
+
+Pick the helper by what you changed:
+
+| You need to… | Run |
+|---|---|
+| change a file inside a module's source | plain `make BOARD=<board>` |
+| change build flags (`CFLAGS`) | `<module>.clean` then `make BOARD=<board> <module>`; for all modules `modules.clean` then `make BOARD=<board>` |
+| change board or kernel configuration | plain `make BOARD=<board>` |
+| change a patch file | remove that package's `.canary`, `.configured`, and `.build`, then `make BOARD=<board> <pkg>`; broad: the canary purge.  For a git-clone package, removing its `.canary` also triggers that module's board-dir wipe (see the canary-purge caveat below) |
+| change an `initrd/` script | plain `make BOARD=<board>` |
+| get a trusted build after source/patch edits | `real.remove_canary_files-extract_patch_rebuild_what_changed` then `make BOARD=<board>` |
+| prove reproducibility is broken | `real.clean` (destructive, last resort) then `make BOARD=<board>` |
+
+Helper → effect, what each removes and keeps:
+
+| Helper | Removes | Keeps |
+|---|---|---|
+| `<module>.clean` | that module's `.configured`, then `make -C <builddir> clean` (may delete generated sources for `tpm2-tss`/`tpm2-tools`) | `.canary`, `.build` |
+| `modules.clean` | for each module dir, `make -C <dir> clean` + `.configured` | `install/`, `packages/`, `.canary`, `.build` |
+| canary purge (`real.remove_canary_files-…`) | every `build/**/.canary`; `install/*/*`; the coreboot board dir and `build/$ARCH/<board>`; resets the coreboot `.canary` | module objects (`.o`, `.build`) |
+| `real.clean` | each module build dir under `build/$ARCH/` (all modules except `musl`/`musl-cross-make`) plus `kernel_headers`; `install/*`; resets the coreboot `.canary` | `packages/`, `crossgcc/` |
+| `real.gitclean` | `build/`, `crossgcc/`, `install/` (via `git clean -fxd`) | nested git repos, tracked files |
+| `real.gitclean_keep_packages` | `build/`, `crossgcc/`, `install/` | `packages/`, nested git repos |
+| `real.gitclean_keep_packages_and_build` | `crossgcc/`, `install/` | `packages/`, `build/`, nested git repos |
+
+All five `real.*` clean targets call `overwrite_canary_if_coreboot_git`, which
+writes `BOGUS_COMMIT_ID` into the coreboot `.canary` to force a re-check on the
+next build.
+
+Two caveats:
+
+- The `git clean` helpers do **not** remove nested git repositories (git skips
+  them), so the coreboot and other module source clones survive;
+  `overwrite_canary_if_coreboot_git` resets only coreboot's `.canary`, so the
+  other surviving clones keep theirs.
+- The canary purge cannot fix stale flags: module objects (`.o`, `.build`)
+  survive, so flags baked into them remain.  Use `<module>.clean` /
+  `modules.clean` for flag changes.
 
 ### Module-level helpers
 
@@ -239,6 +312,37 @@ nix develop --command make BOARD=$BOARD \
 nix develop --command make BOARD=$BOARD
 ```
 
+#### Canary purge deterministically empties the initrd of kernel modules on TPM2 boards
+
+`real.remove_canary_files-extract_patch_rebuild_what_changed` deletes every
+`build/**/.canary`.  The standalone-clone recipes (`coreboot`, `tpm-gpio-reset`,
+`tpm-gpio-fail`) treat a missing `.canary` as a stale source tree: they take
+their `git clean` path and `rm -rf build/$ARCH/$BOARD`.  This is not a race.
+On TPM2 boards the `tpm-gpio-reset`/`tpm-gpio-fail` clones are (re)built as part
+of the initrd, so their wipe **will** land after `modules.cpio` has been
+produced but before the initrd is packaged, and the initrd is assembled
+**without the kernel modules**.  `bin/cpio-clean.pl` now refuses to run when a
+named input cannot be opened instead of silently skipping it, so this fails the
+build loudly rather than exiting 0 unnoticed.
+
+After using the helper, always run one extra incremental pass so the deleted
+`modules.cpio` is rebuilt and re-packaged:
+
+```bash
+nix develop --command make BOARD=$BOARD \
+  real.remove_canary_files-extract_patch_rebuild_what_changed
+nix develop --command make BOARD=$BOARD     # extra pass
+```
+
+Then verify the initrd actually contains `lib/modules` before trusting it (run
+this under `nix develop` so `cpio` is available):
+
+```bash
+xz -dc build/x86/$BOARD/initrd.cpio.xz | cpio -it 2>/dev/null \
+  | grep -m1 '^lib/modules' && echo "kernel modules present" \
+  || echo "MISSING kernel modules"
+```
+
 ## Module file format
 
 Defined in `modules/<name>`.  See `modules/kexec` for a complete example.
@@ -255,7 +359,22 @@ kexec_output := build/sbin/kexec       # installed into initrd
 The `define_module` function in `Makefile` expands these into the
 `.canary` → `.configured` → `.build` chain above.  The package name
 is the Make target: `make BOARD=... kexec` builds just that package.
-```
+
+### Shared module build flags
+
+Standalone modules each pass their own `CFLAGS`/`LDFLAGS`; the two flag groups
+below are common to almost all of them:
+
+- `-ffunction-sections -fdata-sections` together with
+  `-Wl,--gc-sections -Wl,--no-eh-frame-hdr`: the compiler places every function
+  and datum in its own section, and the linker keeps only the sections the
+  initrd actually calls.
+- `-fno-asynchronous-unwind-tables -fno-unwind-tables`: the compiler omits
+  `.eh_frame` and unwind tables; the initrd is single-purpose and never
+  unwinds the stack.
+
+Rather than repeating this rationale in every module file, each module points
+here.
 
 ## Toolchain Modules
 

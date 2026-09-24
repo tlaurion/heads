@@ -236,10 +236,33 @@ USB token (for example `scdaemon` or `pcscd`). The wrapper will warn and, on int
 shells, give a **3-second abort window** before attempting to kill those processes to free
 the token. Set `HEADS_DISABLE_USB=1` to opt out of this automatic cleanup.
 
-For fully unattended builds (script/non-interactive shell), combine with
-`script` to provide the pseudo-TTY that docker_repro.sh's `-ti` requires:
+For fully unattended builds (script/non-interactive shell), wrap the command in
+`script` to provide the pseudo-TTY that `docker_repro.sh`'s `-ti` requires. Pass
+`-f` (flush) as well: without it, `script` buffers its output and a non-tty/agent
+context that reads the stream incrementally can see the build stall or lose
+output. `HEADS_DISABLE_USB=1` skips the USB token passthrough (and its 3-second
+abort window) so nothing prompts:
 
-    HEADS_DISABLE_USB=1 script -qec './docker_repro.sh make BOARD=...' /dev/null
+```bash
+script -qefc "HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=EOL_t480-hotp-maximized"
+script -qefc "HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=EOL_x220-hotp-maximized"
+```
+
+`script` (util-linux) allocates a pseudo-terminal (PTY) so `docker run -ti` has
+a TTY in a non-interactive/agent context; the command's output is still shown on
+screen (stdout). The options used above:
+
+- `-c "<cmd>"` runs that command.
+- `-q` suppresses `script`'s own start/done banners.
+- `-e` propagates the command's exit status, so a failed build is detectable.
+- `-f` flushes output as it is written (no buffering), so incremental readers
+  don't see it stall.
+
+`script` also records the session to a file — by default `./typescript`, which
+this repo gitignores (`.gitignore:34` `typescript*`). Leave it default to keep
+the transcript; pass `/dev/null` as the trailing argument to skip recording.
+
+`HEADS_DISABLE_USB=1` skips USB-token passthrough and its 3-second abort window.
 
 Both `HEADS_DISABLE_USB=1` and `script` are unnecessary when running from
 an interactive terminal.
@@ -434,6 +457,33 @@ fast.  No sudo, no Docker.
 
 See [modules.md](modules.md#build-lifecycle) for the sentinel chain and
 how to force a rebuild after changing patches.
+
+### Stale host-built kernel tooling breaks the in-container build
+
+The host and the container share the same `build/` tree, so a kernel build
+started on the host (for example via `nix develop`) can leave host-built
+tooling behind.  In particular the host-built helpers
+`scripts/basic/fixdep`, `scripts/mod/modpost`, `tools/objtool/fixdep`, and
+`tools/objtool/objtool` under `build/x86/linux-<ver>/<kconfig-name>/` are
+compiled by the host compiler and linked against the Nix-store glibc loader
+(`/nix/store/<...>-glibc-2.39-52/lib/ld-linux-x86-64.so.2`), which does not
+exist inside the container.  The next in-container kernel build then fails
+early with `fixdep: cannot execute: required file not found` (Error 127):
+the stale `scripts/basic/fixdep` (the early copy) cannot be executed by the
+container's loader.
+
+Remove the whole kernel build directory — named after the kernel config
+(`linux-t480`, `linux-x230-maximized`, …), not the board — so the container
+rebuilds it from source:
+
+```bash
+rm -rf build/x86/linux-<ver>/<kconfig-name>
+```
+
+At minimum remove `scripts/basic/fixdep` alongside `tools/objtool`.  Then
+rerun the build inside the container.  The same applies to any other binary
+under `scripts/` or `tools/` that was built outside the container, so prefer
+to keep host and container builds in separate trees.
 
 ### Verify reproducibility before committing
 
