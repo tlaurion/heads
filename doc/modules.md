@@ -357,7 +357,22 @@ kexec_output := build/sbin/kexec       # installed into initrd
 The `define_module` function in `Makefile` expands these into the
 `.canary` → `.configured` → `.build` chain above.  The package name
 is the Make target: `make BOARD=... kexec` builds just that package.
-```
+
+### Shared module build flags
+
+Standalone modules each pass their own `CFLAGS`/`LDFLAGS`; the two flag groups
+below are common to almost all of them:
+
+- `-ffunction-sections -fdata-sections` together with
+  `-Wl,--gc-sections -Wl,--no-eh-frame-hdr`: the compiler places every function
+  and datum in its own section, and the linker keeps only the sections the
+  initrd actually calls.
+- `-fno-asynchronous-unwind-tables -fno-unwind-tables`: the compiler omits
+  `.eh_frame` and unwind tables; the initrd is single-purpose and never
+  unwinds the stack.
+
+Rather than repeating this rationale in every module file, each module points
+here.
 
 ## Toolchain Modules
 
