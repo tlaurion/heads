@@ -45,9 +45,6 @@ xz --check=crc32 $(INITRD_XZ_ARCH_FILTER) $(INITRD_XZ_FILTER)
 - The comma must live in a variable: make splits `$(call)` arguments on
   commas before expansion.
 - `--check=crc32` because the kernel's XZ decoder rejects CRC64.
-- Measured combined gain is 21,056 B (~20.6 KiB) compressed on t480 versus
-  `preset=9e` alone. The `lc/lp/pb` part alone is 12,136 B; the
-  `mf=bt3,nice=128` part alone is 8,920 B raw / 8,704 B padded.
 
 ## Build Flow
 
