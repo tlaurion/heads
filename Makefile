@@ -163,10 +163,12 @@ else
 $(error "Unexpected value of $$(CONFIG_TARGET_ARCH): $(CONFIG_TARGET_ARCH)")
 endif
 
-# BCJ only helps x86 machine code, and the kernel needs CONFIG_XZ_DEC_X86 to
-# decompress it; non-x86 boards (ppc64/talos-2) gain nothing and may fail to
-# unpack the initrd, so --x86 is x86-only.  CONFIG_TARGET_ARCH is set by the
-# board include above.
+# BCJ only helps x86 machine code.  It is reversible, so the filter itself
+# cannot cause an unpack failure; the real failure mode is a kernel built
+# without CONFIG_XZ_DEC_X86, which cannot decode the stream.  Gating on
+# CONFIG_TARGET_ARCH=x86 is a proxy for that (and leaves non-x86 boards such
+# as ppc64/talos-2 unfiltered, where BCJ gains nothing anyway).
+# CONFIG_TARGET_ARCH is set by the board include above.
 #
 # TODO(ppc64): talos-2 is untested and gets no arch filter.  xz's --powerpc BCJ
 # is big-endian only while the talos-2 kernel and initrd are little-endian, so
