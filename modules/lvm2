@@ -61,7 +61,6 @@ lvm2_configure := \
 	--disable-cmirrord \
 	--with-cluster=none \
 	--with-cache=none \
-	--with-vdo=none \
 	--with-writecache=none \
 	--with-integrity=none \
 	--with-mirrors=none \
