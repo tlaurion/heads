@@ -1,0 +1,61 @@
+# libffi -- library-only module (no bin_modules entry).
+# Needed by modules/cpython for the _ctypes extension.  CPython's configure
+# probes for libffi via pkg-config and its headers at configure time, so the
+# build must also install into $(INSTALL) (configure uses --prefix="/"):
+# $(INSTALL)/lib64/pkgconfig/libffi.pc, $(INSTALL)/include/ffi.h and
+# $(INSTALL)/lib64/libffi.so* must all exist before cpython is configured.
+# initrd_lib_add separately stages libffi_libraries (the build-dir-relative
+# .libs/libffi.so.8) into /lib for the runtime image.
+#
+# libffi 3.8 uses AX_ENABLE_BUILDDIR, which by default relocates the whole
+# build into a canonical-host subdirectory (e.g. x86_64-pc-linux-musl/) when
+# cross-compiling.  That put the shared object at
+# <host>/.libs/libffi.so.8, so the declared .libs/libffi.so.8 never existed
+# and initrd_lib_add's strip step failed with "No such file".  Disable it so
+# the artifact lands at the declared, arch-independent in-tree path.
+# GATING POLICY: CONFIG_LIBFFI ?= n (never default-on). libffi_libraries feeds
+# initrd_lib_add, which stages .libs/libffi.so.8 into EVERY board's initrd when the
+# module is enabled — a default-on gate here previously bled libffi into boards with
+# no CPython (e.g. a 72,144 B bleed into the x220 initrd). Boards needing it must
+# set CONFIG_LIBFFI=y explicitly; only the wyng board does (for cpython's _ctypes).
+#
+# Size optimization: CFLAGS adds -Os (the tree norm, see modules/cpython) and
+# -ffunction-sections/-fdata-sections, paired with LDFLAGS=-Wl,--gc-sections so
+# the linker drops unreferenced functions/data.  -fvisibility=hidden is
+# deliberately OMITTED: libffi already localizes its non-public symbols via its
+# libffi.map version script (`local: *;`, applied through
+# -Wl,--version-script,libffi.map), and its public GCC API is declared with
+# FFI_API = (empty) -- no explicit visibility("default") annotation -- so a
+# global -fvisibility=hidden would hide the ffi_call/ffi_type_* symbols that
+# cpython's _ctypes resolves at runtime, breaking the ABI.
+CONFIG_LIBFFI ?= n
+modules-$(CONFIG_LIBFFI) += libffi
+
+libffi_version := 3.8.0
+libffi_dir := libffi-$(libffi_version)
+libffi_tar := libffi-$(libffi_version).tar.gz
+libffi_url := https://github.com/libffi/libffi/releases/download/v$(libffi_version)/$(libffi_tar)
+libffi_hash := 7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4
+
+libffi_configure := \
+	$(CROSS_TOOLS) \
+	CFLAGS="-Os -ffunction-sections -fdata-sections" \
+	LDFLAGS="-Wl,--gc-sections" \
+	./configure \
+	--host=$(MUSL_ARCH)-linux-musl \
+	--prefix="/" \
+	--disable-static \
+	--disable-docs \
+	--disable-builddir \
+
+# NOTE: the module harness appends this target list directly to
+# `$(MAKE) -C <builddir>`, so it must be make goals/flags, not a shell
+# command.  A literal `$(MAKE_JOBS) && $(MAKE_JOBS) ... install` would be
+# run by the shell and fail with "-j22: command not found"; instead pass
+# `install` as the goal (it depends on all-am, so it builds then installs)
+# in a single make invocation, matching modules/libgcrypt.
+libffi_target := $(MAKE_JOBS) DESTDIR="$(INSTALL)" install
+
+libffi_libraries := .libs/libffi.so.8
+
+libffi_depends := $(musl_dep)
