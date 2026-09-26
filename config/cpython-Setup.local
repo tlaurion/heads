@@ -1,0 +1,25 @@
+# THIS IS A DISABLE LIST, NOT A WHITELIST.
+#
+# Modules/makesetup reads Modules/Setup.local first and marks every name it
+# finds here as already handled ("first rule wins ... allows users to disable
+# modules in Setup.local").  When Modules/Setup.stdlib later defines the same
+# module, makesetup skips it and records the name in MODDISABLED_NAMES.  A name
+# therefore has to be spelled here to be turned OFF, and must be ABSENT to be
+# built.  The list must use the module's own name as Setup.stdlib spells it
+# (a bare "ssl" does not match "_ssl").
+#
+# ssl is disabled for size: wyng-backup transports over ssh via the CP
+# command-path rewrite in patches/wyng-backup-0.8.1/0002, not Python TLS.
+# TLS-capable paths (urllib.request/http.client) will raise ImportError at
+# runtime -- out of scope for the wyng image.
+#
+# _hashlib must NOT be listed here.  wyng derives its archive key with
+# hashlib.scrypt, which hashlib defines only as "from _hashlib import scrypt"
+# with no builtin fallback, so without the extension the name does not exist
+# and wyng dies with AttributeError as soon as a passphrase is needed.
+*disabled*
+lzma
+curses
+dbm
+nis
+ssl
