@@ -2,11 +2,11 @@
 CONFIG_E2FSPROGS ?= y
 modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 
-e2fsprogs_version := 1.47.0
+e2fsprogs_version := 1.47.4
 e2fsprogs_dir := e2fsprogs-$(e2fsprogs_version)
 e2fsprogs_tar := e2fsprogs-$(e2fsprogs_version).tar.xz
 e2fsprogs_url := https://mirrors.edge.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v$(e2fsprogs_version)/$(e2fsprogs_tar)
-e2fsprogs_hash := 144af53f2bbd921cef6f8bea88bb9faddca865da3fbc657cc9b4d2001097d5db
+e2fsprogs_hash := fd5bf388cbdbe006a3d3b318d983b2948382440acc85a87f1e7d108653e8db0b
 
 # For reproducibility reasons we have to override the exec_prefix
 # and datarootdir on the configure line so that the Makefiles will
@@ -24,6 +24,10 @@ e2fsprogs_configure := \
 	--host $(MUSL_ARCH)-linux-musl \
 	--prefix "" \
 	--libexecdir "/bin" \
+	--disable-fuse2fs \
+	--disable-nls \
+	--disable-rpath \
+	--disable-uuidd \
 
 # Run one build to generate the executables with the pre-defined
 # exec_prefix and datarootdir, then a second make to install the binaries
@@ -33,6 +37,9 @@ e2fsprogs_target := $(MAKE_JOBS) \
 		DESTDIR="$(INSTALL)" \
 		install
 
-e2fsprogs_output := misc/mke2fs
+# filefrag is a wyng-backup reflink extent-scan dependency only; gate with $(filter y,...)
+# because $(if $(VAR),...) is truthy for ANY non-empty value (incl. 'n') and the
+# wyng-backup ?= n default may not be parsed yet at this line (include order).
+e2fsprogs_output := misc/mke2fs $(if $(filter y,$(CONFIG_WYNG_BACKUP)),misc/filefrag,)
 
 e2fsprogs_depends := $(musl_dep)
