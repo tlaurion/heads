@@ -813,6 +813,17 @@ release_scdaemon() {
 	killall gpg-agent scdaemon >/dev/null 2>&1 || true
 }
 
+# Point SSH_AUTH_SOCK at gpg-agent's SSH socket so OpenSSH tools can use
+# GPG keys held on the security dongle.  Requires enable-ssh-support in
+# gpg-agent.conf; the socket only exists while gpg-agent is running.
+setup_gpg_agent_ssh_socket() {
+	TRACE_FUNC
+	local _sock
+	_sock="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "${GNUPGHOME:-$HOME/.gnupg}/S.gpg-agent.ssh")"
+	export SSH_AUTH_SOCK="$_sock"
+	DEBUG "SSH_AUTH_SOCK set to $SSH_AUTH_SOCK"
+}
+
 cache_gpg_signing_pin() {
 	TRACE_FUNC
 

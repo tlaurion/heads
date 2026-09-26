@@ -118,6 +118,8 @@ Three files interact to determine what goes into `tools.cpio` (the initrd):
 | `Makefile` | `include modules/*` | Loads all module files into the Make namespace |
 | `Makefile` | `bin_modules-$(CONFIG_FOO) += foo` | Conditionally builds and adds the module to `tools.cpio` |
 
+Module authors must choose the right INSTALL macro (INSTALL-BIN / INSTALL-LIB / INSTALL-DATA — see `build-freshness.md`) for each payload; the rule is by file class, not by which cpio the file lands in.
+
 **The inclusion decision tree for any board:**
 
 1. `include $(CONFIG)` loads the board config — any `CONFIG_FOO=y`
@@ -204,6 +206,14 @@ Full ROM build (all modules + initrd + ROM assembly):
 nix develop --command make BOARD=$BOARD
 ```
 
+Payload build (bzImage + initrd.cpio.xz only, no ROM assembly — faster
+iteration on initrd/kernel changes):
+
+```bash
+nix develop --command make BOARD=$BOARD payload
+./docker_repro.sh make BOARD=$BOARD payload
+```
+
 ### Maintenance targets
 
 | Target | What it does |
@@ -213,6 +223,10 @@ nix develop --command make BOARD=$BOARD
 | `real.gitclean_keep_packages` | `git clean -fxd -e "packages"` — keep `packages/`; Git still skips nested repositories |
 | `real.remove_canary_files-extract_patch_rebuild_what_changed` | Source/board-output freshness purge: remove every `build/**/.canary`, clear `install/*/*`, remove the board-specific `coreboot-VERSION/<board>` directory including that board's coreboot `.build`, and remove shared board output.  Non-coreboot module trees/objects and their `.build` stamps plus the coreboot source clone normally remain; this is not a from-scratch full rebuild. |
 | `real.gitclean_keep_packages_and_build` | `git clean -fxd -e "packages" -e "build"` — keep `packages/` and `build/` |
+| `payload` | Build bzImage + initrd.cpio.xz only; no coreboot ROM assembly (see above) |
+| `validate_cbfs_ifd` | Validate coreboot CBFS size against the IFD BIOS region (`bin/validate_cbfs_ifd_fit.sh --coreboot-dir … --board-dir … --config …`) |
+| `fix_cbfs_ifd` | Same as validate, with `--fix` — auto-size the CBFS to match the IFD BIOS region |
+| `modules.clean` | Clean all module build dirs and remove `.configured` sentinels |
 
 All run under `nix develop` (local) or `./docker_repro.sh` (Docker):
 
@@ -298,6 +312,18 @@ Two caveats:
   Run the appropriate clean target,
   then build normally so `.configured` is regenerated before `.build`; explicit
   `.build` removal remains optional.
+
+### Board lifecycle targets
+
+| Target | What it does |
+|--------|-------------|
+| `board.move_untested_to_tested` | Rename UNTESTED_ board config + directory to tested and update `.circleci/config.yml` |
+| `board.move_unmaintained_to_tested` | Move a board from `unmaintained_boards/` to `boards/` as tested |
+| `board.move_untested_to_unmaintained` | Move an UNTESTED_ board to UNMAINTAINED_ |
+| `board.move_tested_to_untested` | Add the UNTESTED_ prefix to a tested board |
+| `board.move_tested_to_EOL` | Add the EOL_ prefix to a tested board |
+| `board.move_tested_to_unmaintained` | Move a tested board to UNMAINTAINED_ |
+| `echo_modules` | Print `$(module_dirs)` — module dirs excluding slow-to-build ones (musl, musl-cross-make, kernel_headers) |
 
 ### Module-level helpers
 

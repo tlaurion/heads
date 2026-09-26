@@ -1,0 +1,128 @@
+# python-zstd: PyPI `zstd` C extension (vendored zstd), for wyng-backup.
+#
+# wyng's optional compression backend is `import zstd`; when present, wyng
+# registers a zstd compressor.  This is the PyPI `zstd` distribution
+# (upstream github.com/sergey-dryabzhinsky/python-zstd), whose sdist vendors
+# its own zstd sources under zstd/lib and builds a single top-level extension
+# named `zstd`.  It is unrelated to modules/zstd (the standalone zstd CLI /
+# decompressor used to read the initramfs).
+#
+# Dependency direction: extension modules depend on cpython (the interpreter
+# they are built against) and setuptools (build-only, provides the build
+# front-end); cpython never depends on them.  setuptools' `_depends` entry only
+# orders the build -- it does not flip CONFIG_SETUPTOOLS on -- so require the
+# gate explicitly, matching modules/wyng-backup.
+#
+# The extension is built by the *target* interpreter, launched through the
+# *cross-toolchain's* musl loader: the target $(INSTALL)/lib ships no loader,
+# and the crossgcc sysroot's `ld-musl-$(MUSL_ARCH).so.1` is a symlink to the
+# absolute target path /lib/libc.so that does not exist on the build host.
+# musl's `libc.so` IS the dynamic loader, so $(python-zstd_loader) (below)
+# points at that.  distutils derives the
+# ABI tag from the target sysconfig, producing (x86_64):
+#   src/zstd.cpython-313-x86_64-linux-musl.so
+# The installed target python cannot execute natively on the glibc build host,
+# so it is launched through the musl dynamic loader against the target sysroot.
+# The .so is stripped in _target because _tools staging (cp -R) never passes
+# through the initrd strip helpers.
+# ---------------------------------------------------------------------------
+# Build recipe, built and runtime-verified via the wyng-staging regrouping
+# (the vendored zstd extension builds and `import zstd` works; runtime-correct).
+# Executed with cwd == $(build)/$(python-zstd_dir):
+#
+#   PYTHONHOME=$(INSTALL) \
+#   PYTHONPATH="$(build)/$(setuptools_dir)" \
+#   $(CROSS_TOOLS) \
+#   $(python-zstd_loader) --library-path $(INSTALL)/lib \
+#   $(INSTALL)/bin/python3.13 setup.py build_ext --inplace
+#
+# Notes (originally flagged as unverified, since validated):
+#   * the loader is resolved via $(CROSS)gcc --print-file-name=libc.so (musl's
+#     libc.so is the dynamic loader); see python-zstd_loader below;
+#   * setuptools 71.1.0 on PYTHONPATH may need its vendored dependencies
+#     resolved (the target install has no site-packages);
+#   * $(CROSS_TOOLS) CC/AR/LD/... duplicate the cross paths already baked into
+#     the installed _sysconfigdata__linux_$(MUSL_ARCH)-linux-musl.py, which
+#     distutils would otherwise use.
+# ---------------------------------------------------------------------------
+CONFIG_PYTHON_ZSTD ?= n
+
+# `_depends` only orders builds; it does NOT auto-enable the setuptools gate.
+# Test for `y` (not `!=n`) so the guard stays quiet when CONFIG_PYTHON_ZSTD is
+# n or empty.
+ifeq "$(CONFIG_PYTHON_ZSTD)" "y"
+ifneq "$(CONFIG_SETUPTOOLS)" "y"
+$(error CONFIG_PYTHON_ZSTD=y requires CONFIG_SETUPTOOLS=y)
+endif
+endif
+
+modules-$(CONFIG_PYTHON_ZSTD) += python-zstd
+
+# Latest usable PyPI release: 1.5.7.3 exists but is yanked ("buggy - not
+# thread safe"), so 1.5.7.2 is the newest non-yanked sdist.  sha256 computed
+# from https://files.pythonhosted.org/packages/source/z/zstd/zstd-1.5.7.2.tar.gz
+# on 2026-09-18 and cross-checked against the PyPI JSON API digest.
+python-zstd_version := 1.5.7.2
+python-zstd_dir := zstd-$(python-zstd_version)
+python-zstd_tar := zstd-$(python-zstd_version).tar.gz
+python-zstd_url := https://files.pythonhosted.org/packages/source/z/zstd/$(python-zstd_tar)
+python-zstd_hash := 6d8684c69009be49e1b18ec251a5eb0d7e24f93624990a8a124a1da66a92fc8a
+
+# Expected in-place extension filename (CPython SOABI, e.g.
+# .cpython-313-x86_64-linux-musl.so); confirmed against the installed target
+# interpreter's sysconfig EXT_SUFFIX/SOABI.  ppc64le is inferred, not built.
+python-zstd_so_name := zstd.cpython-313-$(MUSL_ARCH)-linux-musl.so
+
+# `build_ext --inplace` writes the extension into the sdist's src/ directory
+# (the PyPI zstd source layout), not the sdist root; strip and stage that path.
+python-zstd_so := src/$(python-zstd_so_name)
+
+# Musl dynamic loader.  `--print-file-name=ld-musl-$(MUSL_ARCH).so.1` cannot be
+# used: gcc reports the bare name (not on its search path) and the sysroot's
+# ld-musl-*.so.1 is a dangling symlink to /lib/libc.so.  musl's libc.so is the
+# real loader binary, so resolve that; fall back to the sysroot lib dir if gcc
+# still reports a bare name.
+python-zstd_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
+ifeq "$(python-zstd_loader)" "libc.so"
+python-zstd_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+endif
+
+# Recursive (=) so $(setuptools_dir) resolves at recipe time: modules/* is
+# globbed alphabetically, so setuptools (s) is included after python-zstd (p)
+# and is not yet defined when this file is parsed.
+# PYTHONDONTWRITEBYTECODE: see modules/cryptodome -- the target interpreter
+# must not write __pycache__ into $(INSTALL) after cpython-prune.sh has run.
+# CFLAGS/LDFLAGS: -Os -fvisibility=hidden -ffunction-sections/-fdata-sections
+# + -Wl,--gc-sections for size (rationale in modules/cryptodome); the initrd
+# ships this extension, so -Os plus section GC shrink the vendored zstd build.
+python-zstd_build = \
+	PYTHONHOME="$(INSTALL)" \
+	PYTHONPATH="$(build)/$(setuptools_dir)" \
+	PYTHONDONTWRITEBYTECODE=1 \
+	CFLAGS="-Os -fvisibility=hidden -ffunction-sections -fdata-sections" \
+	LDFLAGS="-Wl,--gc-sections" \
+	$(CROSS_TOOLS) \
+	$(python-zstd_loader) \
+		--library-path "$(INSTALL)/lib" \
+	$(INSTALL)/bin/python3.13 setup.py build_ext --inplace && \
+	$(CROSS)strip --strip-unneeded "$(python-zstd_so)"
+
+# The sdist has no Makefile, so _configure writes one whose only target runs
+# the loader-trick build and strips the result in place.
+python-zstd_configure = \
+	printf 'all:\n\t%s\n' '$(python-zstd_build)' > Makefile
+
+python-zstd_target := all
+
+python-zstd_depends := cpython setuptools $(musl_dep)
+
+# Stage only the stripped extension into the target site-packages via
+# tools.cpio; it is a shared object (*.so*), so under the initrd cpio staging
+# policy it is a lib and belongs in tools.cpio, not data.cpio.
+python-zstd_tools := \
+	$(build)/$(python-zstd_dir)/$(python-zstd_so)|lib/python3.13/site-packages/$(python-zstd_so_name)
+
+# D7: stage_tools_file attaches no .build prerequisite, so declare the module
+# sentinel here and let the Makefile add it to the tools.cpio prerequisites
+# (collected from <modulename>_tools_depends for every enabled module).
+python-zstd_tools_depends := $(build)/$(python-zstd_dir)/.build

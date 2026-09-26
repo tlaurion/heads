@@ -1,0 +1,237 @@
+# Remove the udev dependency: Heads has no udev, so the libudev link would
+# fail.  Drops the `udev` crate (and the libudev-sys/io-lifetimes/hermit-abi/
+# windows-sys transitive deps from Cargo.lock) and reworks DmScanner::dev_to_path
+# to read /sys/dev/block/<major>:<minor>/uevent (the kernel's DEVNAME) instead of
+# enumerating via libudev.  pdata_tools/thin_delta are unaffected.
+diff --git a/Cargo.lock b/Cargo.lock
+index 4f9dce6..fe5b2ab 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -593,12 +593,6 @@ version = "0.5.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+ 
+-[[package]]
+-name = "hermit-abi"
+-version = "0.3.9"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+-
+ [[package]]
+ name = "hermit-abi"
+ version = "0.5.3"
+@@ -646,17 +640,6 @@ dependencies = [
+  "syn 3.0.6",
+ ]
+ 
+-[[package]]
+-name = "io-lifetimes"
+-version = "1.0.11"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "eae7b9aee968036d54dce06cebaefd919e4472e753296daccd6d344e3e2df0c2"
+-dependencies = [
+- "hermit-abi 0.3.9",
+- "libc",
+- "windows-sys 0.48.0",
+-]
+-
+ [[package]]
+ name = "io-uring"
+ version = "0.7.15"
+@@ -788,16 +771,6 @@ version = "0.2.16"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+ 
+-[[package]]
+-name = "libudev-sys"
+-version = "0.1.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
+-dependencies = [
+- "libc",
+- "pkg-config",
+-]
+-
+ [[package]]
+ name = "line-clipping"
+ version = "0.3.8"
+@@ -1575,7 +1548,6 @@ dependencies = [
+  "termion",
+  "thinp",
+  "thiserror",
+- "udev",
+ ]
+ 
+ [[package]]
+@@ -1619,18 +1591,6 @@ version = "0.1.9"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
+ 
+-[[package]]
+-name = "udev"
+-version = "0.9.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "af4e37e9ea4401fc841ff54b9ddfc9be1079b1e89434c1a6a865dd68980f7e9f"
+-dependencies = [
+- "io-lifetimes",
+- "libc",
+- "libudev-sys",
+- "pkg-config",
+-]
+-
+ [[package]]
+ name = "unicode-ident"
+ version = "1.0.26"
+@@ -1742,15 +1702,6 @@ version = "0.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
+ 
+-[[package]]
+-name = "windows-sys"
+-version = "0.48.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "677d2418bec65e3338edb076e806bc1ec15693c5d0104683f2efe857f61056a9"
+-dependencies = [
+- "windows-targets",
+-]
+-
+ [[package]]
+ name = "windows-sys"
+ version = "0.61.2"
+@@ -1760,63 +1711,6 @@ dependencies = [
+  "windows-link",
+ ]
+ 
+-[[package]]
+-name = "windows-targets"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9a2fa6e2155d7247be68c096456083145c183cbbbc2764150dda45a87197940c"
+-dependencies = [
+- "windows_aarch64_gnullvm",
+- "windows_aarch64_msvc",
+- "windows_i686_gnu",
+- "windows_i686_msvc",
+- "windows_x86_64_gnu",
+- "windows_x86_64_gnullvm",
+- "windows_x86_64_msvc",
+-]
+-
+-[[package]]
+-name = "windows_aarch64_gnullvm"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2b38e32f0abccf9987a4e3079dfb67dcd799fb61361e53e2882c3cbaf0d905d8"
+-
+-[[package]]
+-name = "windows_aarch64_msvc"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "dc35310971f3b2dbbf3f0690a219f40e2d9afcf64f9ab7cc1be722937c26b4bc"
+-
+-[[package]]
+-name = "windows_i686_gnu"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a75915e7def60c94dcef72200b9a8e58e5091744960da64ec734a6c6e9b3743e"
+-
+-[[package]]
+-name = "windows_i686_msvc"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8f55c233f70c4b27f66c523580f78f1004e8b5a8b659e05a4eb49d4166cca406"
+-
+-[[package]]
+-name = "windows_x86_64_gnu"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "53d40abd2583d23e4718fddf1ebec84dbff8381c07cae67ff7768bbf19c6718e"
+-
+-[[package]]
+-name = "windows_x86_64_gnullvm"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0b7b52767868a23d5bab768e390dc5f5c55825b6d30b86c844ff2dc7414044cc"
+-
+-[[package]]
+-name = "windows_x86_64_msvc"
+-version = "0.48.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
+-
+ [[package]]
+ name = "wit-bindgen"
+ version = "0.57.1"
+diff --git a/Cargo.toml b/Cargo.toml
+index 515f5dd..aeb6da0 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -39,7 +39,6 @@ ratatui = { version = "0.30", default-features = false, features = [
+   "termion",
+ ], optional = true }
+ termion = { version = "4.0", optional = true }
+-udev = "0.9"
+ 
+ [dev-dependencies]
+ duct = "1.1"
+diff --git a/src/thin/migrate/devices.rs b/src/thin/migrate/devices.rs
+index 6e231b0..fdea387 100644
+--- a/src/thin/migrate/devices.rs
++++ b/src/thin/migrate/devices.rs
+@@ -4,7 +4,6 @@ use nom::IResult;
+ use std::collections::*;
+ use std::os::unix::fs::{FileTypeExt, MetadataExt};
+ use std::path::PathBuf;
+-use udev::Enumerator;
+ 
+ use std::fs::File;
+ 
+@@ -55,8 +54,8 @@ impl From<Device> for DeviceNr {
+ 
+ //---------------------------------
+ 
+-/// When constructed this scans udev to build a mapping from
+-/// device number to DmName.  It does not rescan, so the contents
++/// When constructed this scans the device-mapper device list to build a mapping
++/// from device number to DmName.  It does not rescan, so the contents
+ /// can be out of date.
+ struct DmIndex {
+     /// Maps (major, minor) -> dm name
+@@ -255,19 +254,25 @@ impl DmScanner {
+     }
+ 
+     /// Convert a device nr to a path.
++    ///
++    /// Resolves the device node through sysfs (`/sys/dev/block/<major>:<minor>`)
++    /// rather than libudev: udev itself derives the node name from the kernel's
++    /// `uevent` DEVNAME line, and this keeps the build free of a libudev link
++    /// (Heads has no udev).
+     pub fn dev_to_path(&self, dev: &DeviceNr) -> Result<Option<PathBuf>> {
+-        let mut enumerator = Enumerator::new()?;
+-        let device_path = enumerator
+-            .scan_devices()?
+-            .filter_map(|device| {
+-                device
+-                    .devnum()
+-                    .map(|rdev| (device, split_device_number(rdev)))
+-            })
+-            .find(|&(_, (found_major, found_minor))| {
+-                found_major == dev.major && found_minor == dev.minor
+-            })
+-            .and_then(|(device, _)| device.devnode().map(PathBuf::from));
++        let uevent = format!(
++            "/sys/dev/block/{}:{}/uevent",
++            dev.major, dev.minor
++        );
++        let content = match std::fs::read_to_string(&uevent) {
++            Ok(content) => content,
++            Err(_) => return Ok(None),
++        };
++
++        let device_path = content.lines().find_map(|line| {
++            line.strip_prefix("DEVNAME=")
++                .map(|name| PathBuf::from("/dev").join(name))
++        });
+ 
+         Ok(device_path)
+     }

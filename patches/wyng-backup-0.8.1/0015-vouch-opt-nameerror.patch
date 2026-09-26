@@ -1,0 +1,18 @@
+# Needed: bug fix.
+# Fix a NameError in the non-btrfs reflink branch: the vouch guard read a
+# nonexistent singular `opt`, crashing storage init whenever a
+# `--vouch reflink_fs_<type>` entry enables the rlnk path; the parsed options
+# object in scope is `opts`.
+diff --git a/src/wyng b/src/wyng
+index a8906bb..fa3b75c 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1524,7 +1524,7 @@ class LocalStorage:
+                     self.snappath = self.path+"wyng_snapshot_tmp/"   ; self.can_snapshot = True
+                     self.pooltype = "rlnk"
+             elif self.fstype in self.rltypes:
+-                if "fs_online_factors" in opt.vouch:
++                if "fs_online_factors" in opts.vouch:
+                     self.pooltype = "rlnk"    ; self.local_tags.add(f"wyng_{self.fstype}_factors")
+                 self.snappath = ""   ; self.can_snapshot = self.pooltype == "rlnk"
+ 

@@ -1,0 +1,136 @@
+# OpenSSH client and/or server (ssh, scp, ssh-keygen, sshd).
+#
+# The client is required by wyng-backup; dropbear was disqualified (stale,
+# unbuildable, no modern key/handshake support).  The server is optional and
+# independent, so CONFIG_OPENSSH_CLIENT and CONFIG_OPENSSH_SERVER are gated
+# separately.  The module is only built when at least one of them is enabled,
+# which keeps a single `modules-y` entry for the combined configure/build.
+#
+# Pinned to 10.5p1 (Void Linux musl-tested portable release).  musl notes
+# carried over from that port: pass LD=$CC (here LD="$(heads_cc)") because
+# the stock configure probe fails on musl, and force
+# ac_cv_header_sys_cdefs_h=false.  If configure/autoreconf ever trips on a
+# missing <sys/sysctl.h>, drop that include with a patch under
+# patches/openssh-$(openssh_version)/ -- do not paper over it in the module.
+#
+# gpg-agent / scdaemon integration (Nitrokey SSH) is intentionally out of
+# scope for v1: it would add a gpg2 dependency, so no _depends entry yet.
+# REPRODUCIBILITY NOTE: the wyng recovery stack needs an SSH client, so any board
+# that builds CONFIG_WYNG_BACKUP=y MUST also set CONFIG_OPENSSH_CLIENT=y.  The
+# default here is n and nothing in-tree enables it, so it has to be supplied in the
+# board config (or on the make command line).  modules/wyng-backup enforces this at
+# parse time with its own CONFIG_OPENSSH_CLIENT guard, so a missing value fails the
+# build instead of silently producing a wyng without ssh.
+CONFIG_OPENSSH_CLIENT ?= n
+CONFIG_OPENSSH_SERVER ?= n
+
+# Export the server gate so it lands in the runtime /etc/config.  The Makefile
+# generates /etc/config by extracting every `export CONFIG_*` from the make
+# environment, so without this line CONFIG_OPENSSH_SERVER never reaches the
+# recovery shell and a server-enabled board cannot tell sshd was built in.
+export CONFIG_OPENSSH_SERVER
+
+# A module has a single configure/build pass, so enable it when either gate
+# is on.  Deriving CONFIG_OPENSSH here avoids ever adding two `modules-y`
+# entries (which would try to configure/build the same tree twice).
+ifeq "$(CONFIG_OPENSSH_CLIENT)$(CONFIG_OPENSSH_SERVER)" "nn"
+CONFIG_OPENSSH := n
+else
+CONFIG_OPENSSH := y
+endif
+modules-$(CONFIG_OPENSSH) += openssh
+
+openssh_version := 10.5p1
+openssh_dir := openssh-$(openssh_version)
+openssh_tar := $(openssh_dir).tar.gz
+openssh_url := https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/$(openssh_tar)
+openssh_hash := d44d28a839ea9daf969cc69150fde59910b2b39361dad81a3bd6cbd19218db11
+
+openssh_depends := openssl zlib $(musl_dep)
+
+# Client/server selection is expressed ONLY through openssh_target/openssh_output
+# below, not through configure options.  OpenSSH 10.5p1 does not recognize
+# --disable-server or --disable-sftp-server (configure warns "unrecognized option"),
+# so they are not passed.  The server's built-in internal-sftp is used and no
+# standalone sftp-server is ever built or staged.  sshd's privilege separation
+# chroots its unprivileged child into a root-owned /var/empty directory, so
+# that directory is required only when the server is enabled.  /var/empty is
+# staged into data.cpio at build time (see openssh_data below), gated on
+# CONFIG_OPENSSH_SERVER=y, so a client-only build needs no empty directory.
+ifeq "$(CONFIG_OPENSSH_SERVER)" "y"
+# Server-only flags (CONFIG_OPENSSH_SERVER=y): sshd drops to the `nobody`
+# account for privilege separation and chroots into /var/empty; the
+# client-only build passes no privsep flags.
+openssh_configure_flags := \
+	--with-privsep-user=nobody \
+	--with-privsep-path=/var/empty
+else
+# Client-only build: no daemon is built or staged (see openssh_target below).
+# No board enables the server gate today; when one does, /var/empty is staged
+# at build time and the operator must generate host keys into /etc/ssh before
+# sshd accepts connections.
+openssh_configure_flags :=
+endif
+
+# Toggling CONFIG_OPENSSH_CLIENT/SERVER changes the configure flags above;
+# clear the $(build)/$(openssh_dir)/.configured and .build sentinels
+# (e.g. `make openssh.clean`) to force a reconfigure/rebuild.
+# See doc/modules.md "Shared module build flags" for the section-GC/unwind rationale.
+openssh_configure := \
+	$(CROSS_TOOLS) \
+	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables" \
+	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
+	LD="$(heads_cc)" \
+	./configure \
+	--host $(MUSL_ARCH)-linux-musl \
+	--prefix "/" \
+	--sysconfdir "/etc/ssh" \
+	--with-ssl-dir="$(INSTALL)" \
+	--with-zlib="$(INSTALL)" \
+	--without-pam \
+	--without-kerberos5 \
+	--without-selinux \
+	--without-audit \
+	--without-rpath \
+	--disable-strip \
+	--disable-utmp \
+	--disable-wtmp \
+	--disable-ssh1 \
+	--disable-libedit \
+	--disable-pkcs11 \
+	--disable-security-key \
+	--disable-manpages \
+	ac_cv_header_sys_cdefs_h=false \
+	$(openssh_configure_flags)
+
+# wyng shells out to `/bin/ssh` only (it does not invoke `scp` or
+# `ssh-keygen`), so those two binaries are not built or staged; dropping them
+# trims the x86 BCJ-filtered initrd payload.
+openssh_target := $(MAKE_JOBS)
+openssh_output :=
+ifeq "$(CONFIG_OPENSSH_CLIENT)" "y"
+openssh_target += ssh
+openssh_output += ssh
+endif
+ifeq "$(CONFIG_OPENSSH_SERVER)" "y"
+openssh_target += sshd
+openssh_output += sshd
+endif
+
+# /var/empty is sshd's privilege-separation chroot (--with-privsep-path above):
+# an empty, root-owned, non-world-writable directory the unprivileged sshd
+# child chroots into.  Stage it at build time instead of creating it at boot:
+# Heads runs as root in a single-user initramfs, so the chmod the chroot would
+# otherwise need is meaningless, and do-cpio's `find . | cpio -o` keeps empty
+# directories as explicit dir entries (cpio-clean.pl then forces them root-owned
+# and 0700).  The entry is gated on the server config so a client-only build
+# carries no /var/empty at all.
+ifeq "$(CONFIG_OPENSSH_SERVER)" "y"
+openssh_var_empty := $(build)/$(openssh_dir)/var-empty
+$(openssh_var_empty):
+	mkdir -p "$@"
+openssh_data += $(openssh_var_empty)|var/empty
+endif
+
+# No _libraries: OpenSSH ships none.  It links against libcrypto (openssl)
+# and libz (zlib), both already staged into $(INSTALL) by _depends.

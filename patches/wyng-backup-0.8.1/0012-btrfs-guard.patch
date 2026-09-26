@@ -1,0 +1,36 @@
+# Needed: optional feature.
+# Defer btrfs: the initrd ships no btrfs binary.  Upstream's which() check runs
+# only in check_support (send/monitor), so LocalStorage init/metadata_unlock on
+# a btrfs subvolume with a leftover wyng_snapshot_tmp would exec the missing
+# btrfs command and die with an uncaught FileNotFoundError instead of a clean
+# StorageError(7).
+diff --git a/src/wyng b/src/wyng
+index b30b939..0454e74 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1663,11 +1663,13 @@ class LocalStorage:
+             if p and ver < target_ver:
+                 raise StorageError(7,"Thin provisioning tools version >= "+target_ver+" required.")
+         elif self.pooltype == "rlnk" and self.fstype == "btrfs":
+-            if not shutil.which(CP.btrfs): raise StorageError(7, "btrfs command not found.")
+-            # maybe also check kernel version and non-btrfs reflink support...
++            # btrfs subvolume support is deferred in this build.
++            raise StorageError(7, "btrfs unsupported in this build")
+ 
+     def _btrfs_subvol_snapshot(self, delete=False, retry=False):
+-        if delete and not self.can_snapshot:   return None, None
++        # btrfs support is deferred in this build: never shell out to btrfs.
++        if delete:   return None, None
++        raise StorageError(7, "btrfs unsupported in this build")
+ 
+         svpath = self.path       ; sv_start = time.monotonic()
+         dest   = self.snappath   ; opstate  = ""    ; gen = 0
+@@ -1690,6 +1692,8 @@ class LocalStorage:
+         return gen, opstate, dest
+ 
+     def _get_btrfs_generation(self, path):
++        # btrfs support is deferred in this build: never shell out to btrfs.
++        raise StorageError(7, "btrfs unsupported in this build")
+         base = "/"+os.path.basename(path.rstrip("/"))
+         res = SPr.check_output([CP.env, "-u", "LC_ALL", CP.btrfs, "subvolume", "list", path], text=True)
+         res = [x for x in res.splitlines() if x.strip().endswith(base)]

@@ -1,0 +1,48 @@
+# Needed: optional feature.
+# findmnt is absent from the initrd, so upstream get_fs_type() raises
+# FileNotFoundError on every local path; resolve the mountpoint/fstype from
+# /proc/self/mountinfo and the fs UUID from the /dev/disk/by-uuid symlinks
+# instead.  (filefrag IS staged via e2fsprogs when CONFIG_WYNG_BACKUP=y, so no
+# filefrag guard is needed.)
+diff --git a/src/wyng b/src/wyng
+index e53d4ba..a8906bb 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1778,10 +1783,33 @@ class LocalStorage:
+             return True
+ 
+     def get_fs_type(path):
+-        mtab = {x[1]: x[2] for x in map(str.split, open("/etc/mtab","r"))}
+-        while path not in mtab and path != "/":   path = os.path.dirname(path)
+-        uuid = SPr.check_output([CP.findmnt, "-n", "-o", "uuid", path], text=True).strip()
+-        return mtab[path], uuid
++        # findmnt is absent from the Heads initrd; fall back to parsing
++        # /proc/self/mountinfo (always provided by the kernel) so file storage
++        # still resolves its mountpoint and fs type.
++        if shutil.which(CP.findmnt):
++            mtab = {x[1]: x[2] for x in map(str.split, open("/etc/mtab","r"))}
++            while path not in mtab and path != "/":   path = os.path.dirname(path)
++            uuid = SPr.check_output([CP.findmnt, "-n", "-o", "uuid", path], text=True).strip()
++            return mtab[path], uuid
++
++        # mountinfo: id parent major:minor root mountpoint options [opts] - fstype source superopts
++        mounts = []
++        for ln in open("/proc/self/mountinfo","r"):
++            f = ln.split()    ; sep = f.index("-")
++            mounts.append((f[4].replace("\\040", " "), f[sep+1], f[sep+2]))
++        while not any(path == m[0] for m in mounts) and path != "/":
++            path = os.path.dirname(path)
++        fstype, src = next((fs, src) for mp, fs, src in mounts if mp == path)
++
++        # mountinfo carries no fs UUID; resolve it from the by-uuid symlinks.
++        uuid = ""
++        byuuid = "/dev/disk/by-uuid"
++        if src.startswith("/") and os.path.isdir(byuuid):
++            src_r = os.path.realpath(src)
++            for name in os.listdir(byuuid):
++                if os.path.realpath(byuuid+"/"+name) == src_r:
++                    uuid = name    ; break
++        return fstype, uuid
+ 
+     # accepts either a volgroup/pool or directory path and returns:
+     # type, tvol, tpool, vg or abs path

@@ -1,0 +1,116 @@
+# thin-provisioning-tools: pdata_tools + thin_delta (Rust), for wyng-backup.
+#
+# wyng-backup shells out to `thin_delta` to diff thin-pool snapshots, so this
+# module is a hard runtime dependency of modules/wyng-backup.  Upstream 1.x is
+# pure Rust and ships a single multi-call binary, pdata_tools; every tool is a
+# symlink that selects its behaviour from argv[0].  We stage /bin/pdata_tools
+# through bin_modules and add /bin/thin_delta as an explicit symlink, mirroring
+# the /bin/python3 -> /bin/python mechanism in modules/cpython.
+#
+# ---------------------------------------------------------------------------
+# UNVERIFIED build recipe.  No successful build has been run for this module,
+# so it stays UNVERIFIED until the dev image carries every prerequisite below;
+# until then CONFIG_THIN_PROVISIONING_TOOLS=y is expected to fail.
+#
+# Exact image prerequisites (none are in flake.nix today; the change is
+# prepared but NOT applied — see TODO/patches/thin-provisioning-tools-flake.patch):
+#   * rustc + cargo on PATH, with the `x86_64-unknown-linux-musl` target
+#     installed (`rustup target add x86_64-unknown-linux-musl`, or an
+#     equivalent pkgsCross musl64 Rust std).  The build passes `--target
+#     $(MUSL_ARCH)-unknown-linux-musl`.
+#   * clang + libclang (LLVM) for bindgen: the `devmapper-sys` crate generates
+#     libdevmapper bindings at build time and fails without libclang.
+#   * libdevmapper + its headers in the target sysroot, supplied by
+#     modules/lvm2 (`--enable-devmapper` + `install_device-mapper`, which
+#     installs $(INSTALL)/include/libdevmapper.h).  lvm2 is a hard `_depends`
+#     and CONFIG_LVM2=y is enforced by the parse-time guard below.
+#   * bindgen is pointed at the sysroot via
+#     BINDGEN_EXTRA_CLANG_ARGS='--sysroot=$(INSTALL) -I$(INSTALL)/include'
+#     (wired below).
+#   * NO udev: Heads has no udev.  Upstream 1.3.4 pulls in the `udev` crate
+#     (-> libudev-sys -> libudev) only for the migration code in
+#     src/thin/migrate/devices.rs.  patches/thin-provisioning-tools-1.3.4/
+#     0001-remove-udev-dependency.patch (auto-applied by the module harness)
+#     drops that dependency and reworks DmScanner::dev_to_path to read
+#     /sys/dev/block/<major>:<minor>/uevent instead of enumerating via libudev.
+#     `thin_delta`/pdata_tools are unaffected; Cargo.lock is pruned so the
+#     module's `cargo build --locked` remains valid.
+#   * Assumes Cargo's CARGO_TARGET_<TRIPLE>_LINKER override is honoured.
+#   * The output path target/<triple>/release/pdata_tools is inferred from
+#     upstream src/bin/pdata_tools.rs, not confirmed by a completed run.
+#   * _tar_opt is left at the Makefile default `--strip 1`, which is correct
+#     because the GitHub archive tarball for tag v1.3.4 unpacks to
+#     thin-provisioning-tools-1.3.4/ (== _dir), not v1.3.4/.
+# ---------------------------------------------------------------------------
+CONFIG_THIN_PROVISIONING_TOOLS ?= n
+
+# `_depends` only orders builds; it does NOT auto-enable a dependency's config
+# gate.  bindgen consumes $(INSTALL)/include/libdevmapper.h produced by
+# modules/lvm2, so require CONFIG_LVM2=y explicitly.  Test for `y` (not
+# `!=n`) so the guard stays quiet when CONFIG_THIN_PROVISIONING_TOOLS is
+# n or empty (mirrors modules/wyng-backup).
+ifeq "$(CONFIG_THIN_PROVISIONING_TOOLS)" "y"
+ifneq "$(CONFIG_LVM2)" "y"
+$(error CONFIG_THIN_PROVISIONING_TOOLS=y requires CONFIG_LVM2=y)
+endif
+# These tools exist solely for wyng-backup's tlvm path: wyng shells out to
+# thin_delta to diff thin-pool snapshots, and no other module or board
+# consumes pdata_tools/thin_delta today.  Requiring CONFIG_WYNG_BACKUP=y keeps
+# the module strictly conditional, so a build that does not pack wyng can
+# never pull in thin-provisioning-tools (and with it the rust/libdevmapper
+# toolchain).  To relax this later, if a second consumer of thin_delta appears,
+# drop this guard (or replace it with a consumer-specific one).
+ifneq "$(CONFIG_WYNG_BACKUP)" "y"
+$(error CONFIG_THIN_PROVISIONING_TOOLS=y requires CONFIG_WYNG_BACKUP=y)
+endif
+endif
+
+modules-$(CONFIG_THIN_PROVISIONING_TOOLS) += thin-provisioning-tools
+
+thin-provisioning-tools_version := 1.3.4
+thin-provisioning-tools_dir := thin-provisioning-tools-$(thin-provisioning-tools_version)
+thin-provisioning-tools_tar := thin-provisioning-tools-$(thin-provisioning-tools_version).tar.gz
+thin-provisioning-tools_url := https://github.com/jthornber/thin-provisioning-tools/archive/refs/tags/v$(thin-provisioning-tools_version).tar.gz
+# sha256 of the v1.3.4 archive, downloaded from the URL above on 2026-09-18.
+thin-provisioning-tools_hash := e09caa006ee6ff1e0b32dea934e6cb5d96412cd31163d82bd7ccdc1ac06304d5
+
+# lvm2 supplies libdevmapper + $(INSTALL)/include/libdevmapper.h for the
+# devmapper-sys bindgen step; musl_dep supplies the cross toolchain.
+thin-provisioning-tools_depends := lvm2 $(musl_dep)
+
+thin-provisioning-tools_rust_target := $(MUSL_ARCH)-unknown-linux-musl
+
+# Release-profile knobs (env form of Cargo.toml [profile.release]): size opt,
+# thin LTO, one codegen unit, abort on panic, strip.  The linker override
+# variable name is the triple uppercased with '-' -> '_'.
+thin-provisioning-tools_cargo_env := \
+	CARGO_PROFILE_RELEASE_OPT_LEVEL=z \
+	CARGO_PROFILE_RELEASE_LTO=thin \
+	CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+	CARGO_PROFILE_RELEASE_PANIC=abort \
+	CARGO_PROFILE_RELEASE_STRIP=true \
+	BINDGEN_EXTRA_CLANG_ARGS='--sysroot=$(INSTALL) -I$(INSTALL)/include' \
+	CARGO_TARGET_$(shell echo $(MUSL_ARCH) | tr a-z A-Z)_UNKNOWN_LINUX_MUSL_LINKER=$(CROSS)gcc
+
+# The module harness builds with `make -C <dir>`, so generate a one-target
+# Makefile.  The full cargo invocation (with env) is baked in because the
+# build step does not inherit CROSS_TOOLS from the configure step.
+thin-provisioning-tools_configure := \
+	printf 'all:\n\t%s cargo build --release --locked --target %s\n' \
+		"$(thin-provisioning-tools_cargo_env)" \
+		"$(thin-provisioning-tools_rust_target)" > Makefile
+
+thin-provisioning-tools_target := all
+
+thin-provisioning-tools_output := target/$(thin-provisioning-tools_rust_target)/release/pdata_tools
+
+# /bin/thin_delta -> pdata_tools.  bin_modules flattens by basename and cannot
+# create symlinks, so enumerate it in initrd_bins with an explicit rule (same
+# approach as modules/cpython's python3/python3.13).
+ifeq "$(CONFIG_THIN_PROVISIONING_TOOLS)" "y"
+initrd_bins += $(initrd_bin_dir)/thin_delta
+
+$(initrd_bin_dir)/thin_delta: $(build)/$(thin-provisioning-tools_dir)/.build
+	$(call do,INSTALL-LINK,thin_delta -> pdata_tools,\
+		ln -sfn pdata_tools "$@")
+endif

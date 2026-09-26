@@ -1,0 +1,42 @@
+# Needed: busybox applet.
+# Replace GNU `tail --bytes=N` with the portable `tail -c N`: busybox tail
+# rejects the long option, breaking the four dest-state / dedup / merge
+# log-capture pipelines.
+diff --git a/src/wyng b/src/wyng
+index 610fa54..ad4be34 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -2888,13 +2888,13 @@ class Destination:
+             if cmd1:   do_exec([cmd1], out=tmpdir+"/dest-state.log")
+             do_exec([self.run_args(cmd2),
+                     # sanitize remote output:
+-                    [CP.cat,"-v"],  [CP.tail,"--bytes=2000"]],
++                    [CP.cat,"-v"],  [CP.tail,"-c","2000"]],
+                     pipefail=True,
+                     out=tmpdir+"/dest-state.log", infile=tmpdir+"/rpc/dest_helper.py")
+         except SPr.CalledProcessError as e:
+             for log in ("/dest-state.log", "/err.log"):
+                 if exists(tmpdir+log):
+-                    do_exec([ [CP.cat, "-v", tmpdir+log],  [CP.tail, "--bytes=250"],
++                    do_exec([ [CP.cat, "-v", tmpdir+log],  [CP.tail, "-c", "250"],
+                             [CP.grep, "-vFx", " --+--"] ],
+                             out=tmpdir+log+"-out", check=False)
+                     err_out(open(tmpdir+log+"-out", "r").read())
+@@ -4287,7 +4287,7 @@ def dedup_existing(aset):
+                "/bin/cat >"+dest.dtmp+"/dest.lst.gz"
+                +" && /usr/bin/python3 "+dest.dtmp+"/dest_helper.py dedup"
+                ], destcd=dest.path),
+-              [CP.cat,"-v"],  [CP.tail,"--bytes=2000"]
++              [CP.cat,"-v"],  [CP.tail,"-c","2000"]
+             ], infile=tmpdir+"/dedup.lst.gz", out=tmpdir+"/arch-dedup.log")
+     print(" done.")
+     dest.get_free(tmpdir+"/arch-dedup.log")
+@@ -4815,7 +4815,7 @@ def merge_sessions(volume, sources, target, clear_sources=False):
+                             +" && python3 "+dest.dtmp+"/dest_helper.py merge "+merge_target
+                             + (" --resume" if resume else "")+(" --sync" if opts.maxsync else "")
+                             ], destcd=dest.path),
+-                       [CP.cat, "-v"], [CP.tail, "--bytes=2000"]
++                       [CP.cat, "-v"], [CP.tail, "-c", "2000"]
+                       ], cwd=aset.path, pgroup=0, check=False, pipefail=True,
+                          out=tmpdir+"/merge.log"
+                      )

@@ -177,6 +177,10 @@ fi
 #TODO: do better then this; on dual console gpg only interacts with main console (affects Talos-2 and all whiptail variants)
 export GPG_TTY=/dev/console
 
+# Export gpg-agent's SSH socket before key-init starts the agent, so all
+# children (recovery shells, OEM reset, etc.) inherit SSH_AUTH_SOCK.
+setup_gpg_agent_ssh_socket
+
 # Initialize gpnupg with distro/user keys and setup the keyrings
 /bin/key-init.sh
 

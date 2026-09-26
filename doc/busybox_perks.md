@@ -12,13 +12,13 @@ UROOT configuration can set `CONFIG_BUSYBOX=n`, `CONFIG_ZSTD=n`,
 ## BusyBox applets when `CONFIG_BUSYBOX=y` (from `busybox --list`)
 
 ```
-[, [[, arch, arp, ascii, ash, awk, base32, basename, blkid, blockdev,
+[, [[, arch, arp, ascii, ash, awk, base32, basename, blkdiscard, blkid, blockdev,
 bunzip2, bzcat, bzip2, cat, chattr, chmod, chroot, clear, cmp, cp,
 cpio, crc32, cttyhack, cut, date, dc, dd, devmem, df, diff, dirname,
 dmesg, du, echo, env, expr, factor, fallocate, false, fdisk, find,
 fold, fsck, fsfreeze, getopt, grep, groups, gunzip, gzip, hd, head,
 hexdump, hexedit, hostid, hwclock, i2cdetect, i2cdump, i2cget, i2cset,
-id, ifconfig, insmod, install, ip, kill, killall, killall5, less, link,
+id, ifconfig, insmod, install, ionice, ip, kill, killall, killall5, less, link,
 ln, loadkmap, losetup, ls, lsattr, lsmod, lsof, lsscsi, lsusb, lzcat,
 lzma, md5sum, mkdir, mkdosfs, mkfifo, mkfs.vfat, mknod, mktemp,
 modinfo, more, mount, mv, nc, nl, nproc, nslookup, ntpd, partprobe,
@@ -42,6 +42,23 @@ enabled, its builtins take precedence in the initrd.
 ### awk
 BusyBox awk supports `-F SEP` (field separator) and `-v VAR=VAL`.
 Sufficient for all Heads usage: `awk '{print $2}' /proc/mounts`, `index()`.
+wyng's upstream gawk usage was converted to POSIX awk via the wyng patch series
+(`gawk`→`awk` in `CP.awk`): the `\s` escapes in the `get_reflink_deltas` awk
+program became `[[:space:]]` classes, and the companion grep/sed regexes in
+`get_lvm_deltas`, `merge_sessions` and `receive_volume` were likewise converted
+(`\s`/`\S` → `[[:space:]]`/`[^[:space:]]`).  `CONFIG_FEATURE_AWK_GNU_EXTENSIONS=y`
+is enabled (busybox awk understands `\s` natively), but the wyng code is written
+portably anyway.
+
+### blkdiscard
+BusyBox `blkdiscard [-o OFS] [-l LEN] [-s] DEVICE` discards sectors on a block
+device: `-o OFS` (byte offset, default 0), `-l LEN` (bytes to discard, default
+rest-of-device), `-s` (secure discard via `BLKSECDISCARD`).  wyng calls
+`blkdiscard <dev>` (via `CP.blkdiscard`) to discard thin-pool chunks on
+save/delete.  **Quirk:** busybox issues a single `BLKDISCARD` ioctl for the whole
+`[offset, length]` range and has no fallback loop to chunk oversized ranges (GNU
+`blkdiscard` splits large ranges and falls back to writing zeros on devices that
+do not support discard).
 
 ### blkid
 BusyBox `blkid` emits `TYPE="..."` only when `CONFIG_FEATURE_BLKID_TYPE=y`
@@ -122,6 +139,13 @@ output to `od -A d -v -t x1` (7-digit zero-padded decimal offset + 16 hex bytes 
 ### head
 Supports `-n N` (first N lines), `-c N` (first N bytes), `-q` (no headers), `-v` (always headers).
 
+### ionice
+BusyBox `ionice` supports `-c N` (I/O class: 1 realtime, 2 best-effort, 3 idle),
+`-n N` (priority 0–7), and `-t` (ignore errors); it either sets an existing
+process (`-p PID`) or runs `PROG ARGS` under the new class.  wyng lowers backup
+I/O to the idle class by prepending `ionice -c3` to its command list
+(`[CP.ionice, "-c3"] + cmds`).
+
 ### mktemp
 Supports `-d` (directory), `-t` (tmp dir prefix), `-p DIR` (base directory).
 Heads usage: `mktemp -p /tmp -t prefix.XXXXXX`.
@@ -143,8 +167,13 @@ Supports `-i[SFX]` (in-place), `-n` (quiet), and `-r`/`-E` (extended regex).
 Heads usage: `sed 's|^/dev/||'`, `sed 's/^append //'`, `sed -i 's/a/b/g' file`.
 
 ### sort
-**BusyBox quirk:** `sort -k` keyed sort with `-u` deduplicates based on the
-**entire line**, not the sort key. GNU sort deduplicates by key alone.
+**BusyBox quirk (corrected):** both busybox sort and GNU sort deduplicate by
+the **sort key**, not the full line.  The apparent difference was standard `-k1`
+semantics: with no trailing comma, `-k1` means "field 1 through end of line", so
+`sort -k1 -u` behaves like a whole-line dedup; use `-k1,1` to limit the key to
+field 1.  Busybox sort also **ignores `-m`** (always does a full in-memory sort),
+losing GNU's `--batch-size=16` external-merge disk-spill  --  relevant to wyng's
+`xargs -0 cat | sort -umsd -k2,2`.
 Heads pattern: use `awk -F'|' '!seen[$1]++'` instead of `sort -t\| -k1 -u`.
 Supports `-n` (numeric), `-r` (reverse), `-t CHAR` (field separator), `-z` (NUL).
 
@@ -243,6 +272,16 @@ Built from kbd 2.6.1.  `CONFIG_KBD ?= y` in the Makefile makes it
 default-enabled, but board/UROOT configuration can set `CONFIG_KBD=n`.  When
 enabled, it provides keymap loading.
 
+### filefrag (e2fsprogs)
+Built from e2fsprogs 1.47.4 and staged only when `CONFIG_WYNG_BACKUP=y`
+(`modules/e2fsprogs` adds `misc/filefrag` to `e2fsprogs_output` under that gate).
+wyng's reflink (rlnk) storage scans extents with `filefrag -v` / `filefrag -s`;
+if filefrag is absent, reflink storage fails early with `StorageError(7)`.
+
+`findmnt` is **not** shipped.  wyng falls back to `/proc/self/mountinfo` +
+`/dev/disk/by-uuid` to resolve the mountpoint/fstype and fs UUID (see
+`get_fs_type()` in `src/wyng`).
+
 ## Summary of required BusyBox workarounds
 
 | GNU feature | BusyBox limitation | Workaround |
@@ -250,7 +289,7 @@ enabled, it provides keymap loading.
 | `od -A d -v -t x1` | Not compiled in | `hexdump -v -e '"%07.7_ad " 16/1 "%02x " "\n"'` |
 | `grep -b` (byte offset) | Not available | `dd bs=1 skip=N count=M` |
 | `grep -E "a\|b"` | `\|` is literal in ERE | `grep -E "a|b"` |
-| `sort -k N -u` | Dedups by full line | `awk -F'|' '!seen[$1]++'` |
+| `sort -k N -u` | `-k1` key = field-to-EOL | `sort -k1,1 -u` (or `awk -F'|' '!seen[$1]++'`) |
 | `xxd -p` (plain hex) | Pads to 60 columns | `xxd -p | tr -d '\n '` |
 | `xxd -p -r` (reverse) | Input must be 60-column | `fold -w 60 | xxd -p -r` |
 | `cpio` trailing data | GNU exits 2 | `cpio ... 2>/dev/null || true` |

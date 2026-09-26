@@ -22,6 +22,7 @@ GIT_VERSION_SUFFIX	:= $(HEADS_GIT_VERSION)
 else
 GIT_VERSION_SUFFIX	:= $(GIT_TIMESTAMP)-$(HEADS_GIT_VERSION)
 endif
+export PYTHONDONTWRITEBYTECODE=1  # any recipe invoking target python must not write bytecode into $(INSTALL)
 
 # Override BRAND_NAME to set the name displayed in the UI, filenames, versions, etc.
 BRAND_NAME	?= Heads
@@ -406,6 +407,27 @@ include modules/*
 data_files :=
 $(foreach m,$(modules-y),$(eval data_files += $($(m)_data)))
 
+# Modules whose _data is produced by their own build (rather than shipped in
+# the source tree) may set <modulename>_data_depends to the sentinel(s) that
+# must exist before data.cpio staging starts.  stage_data_file has no .build
+# prerequisite, so without this site-packages/stdlib files could be staged
+# before they exist.
+data_depends :=
+$(foreach m,$(modules-y),$(eval data_depends += $($(m)_data_depends)))
+
+# Collect library payloads that need path-preserving staging from enabled
+# modules.  <modulename>_tools entries are staged into tools.cpio (built from
+# $(initrd_tools_dir)) via stage_tools_file with the INSTALL-LIB contract --
+# unlike initrd_lib_add, which flattens by basename (single .so only) and would
+# destroy a package tree such as lib/python3.13/site-packages/...  See
+# doc/build-freshness.md for the canonical tools.cpio/data.cpio split.
+tools_files :=
+$(foreach m,$(modules-y),$(eval tools_files += $($(m)_tools)))
+
+# Same sentinel mechanism as data_depends, keyed on <modulename>_tools_depends.
+tools_depends :=
+$(foreach m,$(modules-y),$(eval tools_depends += $($(m)_tools_depends)))
+
 define bins =
 $(foreach m,$1,$(call prefix,$(build)/$($m_dir)/,$($m_output)))
 endef
@@ -552,30 +574,38 @@ define define_module =
 		echo "INFO: Updating .canary file with new repo info" && \
 		echo -n '$($1_repo)|$($1_commit_hash)' > "$$@" ; \
 	fi
-	if [ ! -e "$(build)/$($1_base_dir)/.patched" ]; then \
-		echo "INFO: .patched file not found. Beginning patch application for $1" && \
-		if [ -r patches/$($1_patch_name).patch ]; then \
-			echo "INFO: Applying single patch file: patches/$($1_patch_name).patch" && \
-			if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch; then \
-				echo "ERROR: Failed to apply patch: patches/$($1_patch_name).patch. Reversing and reapplying." && \
-				git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || true && \
-				git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || exit 1; \
+    # Invalidate the patch marker when the patch set changes.  The wildcard
+    # file prerequisites make an added or edited patch newer than the marker,
+    # and the patch directory prerequisite catches additions and removals
+    # because its mtime changes.  The .canary prerequisite is order-only:
+    # it must exist first, but refreshing it must not force a re-apply.
+    $(build)/$($1_base_dir)/.patched: \
+		$(wildcard patches/$($1_patch_name).patch) \
+		$(wildcard patches/$($1_patch_name)/*.patch) \
+		$(wildcard patches/$($1_patch_name)) \
+		| $(build)/$($1_base_dir)/.canary
+	@echo "INFO: Patch marker $(build)/$($1_base_dir)/.patched missing or stale. Beginning patch application for $1"
+	if [ -r patches/$($1_patch_name).patch ]; then \
+		echo "INFO: Applying single patch file: patches/$($1_patch_name).patch" && \
+		if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch; then \
+			echo "ERROR: Failed to apply patch: patches/$($1_patch_name).patch. Reversing and reapplying." && \
+			git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || true && \
+			git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || exit 1; \
+		fi; \
+	fi; \
+	if [ -d patches/$($1_patch_name) ]; then \
+		echo "INFO: Applying multiple patch files from directory: patches/$($1_patch_name)" && \
+		for patch in patches/$($1_patch_name)/*.patch; do \
+			echo "INFO: Applying patch file: $$$$patch" && \
+			if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch"; then \
+				echo "ERROR: Failed to apply patch: $$$$patch. Reversing and reapplying." && \
+				git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || true && \
+				git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || exit 1; \
 			fi; \
-		fi; \
-		if [ -d patches/$($1_patch_name) ]; then \
-			echo "INFO: Applying multiple patch files from directory: patches/$($1_patch_name)" && \
-			for patch in patches/$($1_patch_name)/*.patch; do \
-				echo "INFO: Applying patch file: $$$$patch" && \
-				if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch"; then \
-					echo "ERROR: Failed to apply patch: $$$$patch. Reversing and reapplying." && \
-					git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || true && \
-					git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || exit 1; \
-				fi; \
-			done; \
-		fi; \
-		echo "INFO: Patches applied successfully. Creating .patched file." && \
-		touch "$(build)/$($1_base_dir)/.patched"; \
-	fi
+		done; \
+	fi; \
+	echo "INFO: Patches applied successfully. Creating .patched file." && \
+	touch "$$@"
   else
     # Versioned modules (each version a separate module) don't need to include
     # the version a second time.  (The '-' separator is also omitted then.)
@@ -666,6 +696,7 @@ define define_module =
   # cross compilers and libraries might be messed up
   $(dir $($1_config_file_path)).configured: \
 		$(build)/$($1_base_dir)/.canary \
+		$(if $($1_repo),$(build)/$($1_base_dir)/.patched) \
 		$(foreach d,$($1_config_wait),$(build)/$($d_dir)/.build) \
 		$($1_config_file_path) \
 		modules/$($1_module_file)
@@ -779,6 +810,7 @@ bin_modules-$(CONFIG_GPG2) += gpg2
 bin_modules-$(CONFIG_PINENTRY) += pinentry
 bin_modules-$(CONFIG_LVM2) += lvm2
 bin_modules-$(CONFIG_DROPBEAR) += dropbear
+bin_modules-$(CONFIG_OPENSSH) += openssh
 bin_modules-$(CONFIG_FLASHTOOLS) += flashtools
 bin_modules-$(CONFIG_NEWT) += newt
 bin_modules-$(CONFIG_CAIRO) += cairo
@@ -799,6 +831,9 @@ bin_modules-$(CONFIG_ZSTD) += zstd
 bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 bin_modules-$(CONFIG_NVMUTIL) += nvmutil
+bin_modules-$(CONFIG_CPYTHON) += cpython
+bin_modules-$(CONFIG_THIN_PROVISIONING_TOOLS) += thin-provisioning-tools
+bin_modules-$(CONFIG_WYNG_BACKUP) += wyng-backup
 
 $(foreach m, $(bin_modules-y), \
 	$(call map,initrd_bin_add,$(call bins,$m)) \
@@ -894,7 +929,7 @@ $(foreach entry,$(data_files),\
 
 # Rule to build final data.cpio archive from staged files
 ifneq ($(strip $(data_files)),)
-$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) FORCE
+$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) $(data_depends) FORCE
 	$(call do-cpio,$@,$(initrd_data_dir))
 	@$(RM) -rf "$(initrd_data_dir)"
 initrd-y += $(build)/$(initrd_dir)/data.cpio
@@ -906,12 +941,43 @@ endif
 # The temp dir is cleaned up after cpio creation.
 # (see modules/linux for details)
 
+# --- TOOLS.CPIO STAGING (path-preserving libraries) ---
+
+# stage_tools_file stages a library (lib* tree or *.so, i.e. anything loadable)
+# into tools.cpio, preserving its relative path.  initrd_lib_add flattens by
+# basename (single .so only) and would destroy a package tree like
+# lib/python3.13/site-packages/...; this macro is its path-preserving sibling
+# for directory/package payloads.  It emits INSTALL-LIB (the lib contract:
+# loadable .a/.la/.so/.pc → tools.cpio) and mirrors stage_data_file's shape,
+# only targeting $(initrd_tools_dir) so the payload lands in tools.cpio, not
+# data.cpio.
+# Arguments:
+#   1: Source path (file or directory)
+#   2: Destination path inside initrd (relative path inside archive)
+define stage_tools_file =
+$(initrd_tools_dir)/$2: $1
+	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%) => $2,\
+		mkdir -p "$(dir $(initrd_tools_dir)/$2)"; \
+		cp -R "$1" "$(initrd_tools_dir)/$2"; \
+	)
+tools_initrd_files += $(initrd_tools_dir)/$2
+endef
+
+# Expand all tools_files entries. Each entry: "src_path|dest_path"
+$(foreach entry,$(tools_files),\
+  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
+  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
+  $(eval $(call stage_tools_file,$(src),$(dst))) \
+)
+
 # --- TOOLS.CPIO ---
 
 # tools.cpio is built from all binaries, libraries, and config staged in initrd_tools_dir
 $(build)/$(initrd_dir)/tools.cpio: \
 	$(initrd_bins) \
 	$(initrd_libs) \
+	$(tools_initrd_files) \
+	$(tools_depends) \
 	$(initrd_tools_dir)/etc/config \
 	FORCE
 	$(call do-cpio,$@,$(initrd_tools_dir))

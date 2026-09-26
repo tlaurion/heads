@@ -1,0 +1,198 @@
+# Target CPython (musl cross-build), shipped in the Heads initrd.
+#
+# This is the interpreter that runs wyng-backup (and its cryptodome /
+# python-zstd extensions).  It is built dynamically against the Heads musl
+# toolchain -- no `-static`, no static libpython -- so dlopen() keeps working
+# for lib-dynload/*.so and the interpreter links /lib/ld-musl-<arch>.so.1.
+#
+# The build interpreter required by the cross-configure is modules/cpython-host
+# (same pinned 3.13.x source, built natively in the pinned dev-env image); the
+# image's Python 3.11 cannot build a 3.13 target, so major.minor must match by
+# construction.  cpython-host is a build tool only and is never staged.
+#
+# TOOLCHAIN COUPLING: the cross compiler is built in-repo by
+# modules/musl-cross-make (pinned commit, installed to crossgcc/$(CONFIG_TARGET_ARCH));
+# the dev-env image / flake supplies only the host tools (host gcc, perl, make,
+# python3, autoconf/automake/libtool, pkg-config, ...).  A dev-image or
+# flake.lock/nixpkgs bump, or a musl-cross-make (GCC/binutils/musl) bump,
+# therefore requires re-validating the whole cross C/C++ build: rebuild cpython
+# plus its cross-built stack (cpython-host, libffi, openssl, openssh,
+# cryptodome, python-zstd and any other autoconf-based dependency), re-check the
+# CONFIG_SITE autoconf cache (config/python-cross-cache-$(MUSL_ARCH)) and patch
+# application/rebasing (source checksums do not change; patches/configure may
+# need rebasing), confirm SOURCE_DATE_EPOCH=0 still holds, and re-run the
+# pruned-Python smoke (wyng version/--help/list) because the keep-list prune is
+# a closed allowlist.
+#
+# Staging: the interpreter flattens into /bin/python via bin_modules; the
+# stdlib under /lib/python3.13 is staged through _tools into tools.cpio.
+# /bin/python3 and /bin/python3.13 are added as explicit symlinks (see D6
+# below); bin_modules cannot create them because it flattens by basename.
+#
+# v1 ships no bzip2: `import bz2` is guarded in the wyng patch series exactly
+# like zstd (option B), so _bz2 is built/installed only if libbz2 is present
+# and there is no libbz2 dependency here.
+CONFIG_CPYTHON ?= n
+# CONFIG_CPYTHON requires libffi for _ctypes (both configure-time pkg-config probe
+# and runtime dlopen of libffi.so.8); enforcing it here avoids a silent build
+# failure when a board enables cpython without CONFIG_LIBFFI=y.
+ifeq "$(CONFIG_CPYTHON)" "y"
+ifneq "$(CONFIG_LIBFFI)" "y"
+$(error CONFIG_CPYTHON=y requires CONFIG_LIBFFI=y)
+endif
+endif
+modules-$(CONFIG_CPYTHON) += cpython
+
+cpython_version := 3.13.15
+cpython_dir := Python-$(cpython_version)
+cpython_tar := Python-$(cpython_version).tar.xz
+cpython_url := https://www.python.org/ftp/python/$(cpython_version)/$(cpython_tar)
+cpython_hash := 1e66a7945a48390ee4c2a4268a0e4185884059a13c4aab6d148aa208deea4a76
+cpython_source_date_epoch := 0
+
+# Same-source host interpreter used as --with-build-python (modules/cpython-host).
+cpython_host_python = $(build)/$(cpython-host_dir)/python
+
+# CONFIG_SITE supplies the per-arch autoconf cache (config/python-cross-cache-<MUSL_ARCH>)
+# so the cross configure does not attempt to run target test programs.
+# --build is pinned for reproducibility; --host=$(target) matches modules/bash.
+# --without-static-libpython: no libpython3.13.a is produced/installed.
+# --disable-ipv6 / --without-readline / --without-doc-strings trim the image;
+# --without-ensurepip / --disable-test-modules keep build-time payload small.
+# --disable-idle3/pydoc/tk/lib2to3/pyc-build drop dev-only bits (install size).
+# OPT="-Os" overrides CPython configure's own default (-O3 / -O2 for debug):
+# -Os is the tree norm and the size goal here (the interpreter ships in the
+# Heads initrd and is run, not benchmarked).
+# CFLAGS/LDFLAGS enable section GC: -ffunction-sections/-fdata-sections put
+# each function/global in its own section and --gc-sections drops unreferenced
+# ones at link time.  CFLAGS must repeat -Os (it does not inherit OPT) so the
+# section flags compose with the same optimization level.
+#
+# CPython 3.13 dropped the --without-{lzma,curses,dbm,nis,...} configure flags,
+# so unused stdlib extensions are pruned via config/cpython-Setup.local (the
+# *disabled* block), copied into Modules/ before configure runs.  lzma/curses/
+# dbm/nis are unused by wyng; ssl IS deliberately disabled in Setup.local
+# (for size — wyng-backup transports over ssh via the CP command-path rewrite in
+# patches/wyng-backup-0.8.1/0002, not Python TLS).  Consequence: Python TLS paths (urllib.request/http.client)
+# will raise ImportError at runtime, which is the accepted trade-off since the
+# keep-lists' urllib/http trace coverage came from the smoke run's import
+# closure, not from TLS use.  See config/cpython-Setup.local.
+#
+# _hashlib is the one entry that must NOT be disabled: hashlib.scrypt is
+# imported from it unconditionally and has no builtin fallback, so wyng cannot
+# derive an archive key without it.  Note that Setup.local is a disable list --
+# makesetup honours "first rule wins" across Setup.local, Setup.stdlib and
+# Setup, so a name there turns a module off and its absence leaves it on.  It
+# also needs openssl in cpython_depends below, so the in-tree libcrypto.pc is
+# staged before the target configures and the .so has a runtime provider.
+cpython_configure = \
+	cp "$(pwd)/config/cpython-Setup.local" "$(build)/$(cpython_dir)/Modules/Setup.local" && \
+	CONFIG_SITE="$(pwd)/config/python-cross-cache-$(MUSL_ARCH)" \
+	$(CROSS_TOOLS) \
+	OPT="-Os" \
+	CFLAGS="-Os -ffunction-sections -fdata-sections" \
+	LDFLAGS="-Wl,--gc-sections" \
+	SOURCE_DATE_EPOCH=$(cpython_source_date_epoch) \
+	./configure \
+		--build=x86_64-pc-linux-gnu \
+		--host=$(target) \
+		--with-build-python="$(cpython_host_python)" \
+		--prefix=/ \
+		--without-ensurepip \
+		--disable-test-modules \
+		--disable-idle3 \
+		--disable-pydoc \
+		--disable-tk \
+		--disable-lib2to3 \
+		--disable-pyc-build \
+		--without-doc-strings \
+		--without-readline \
+		--disable-ipv6 \
+		--without-static-libpython
+
+# The post-install work (strip the dynload .so files, then prune everything not
+# on the trace-derived allowlists) lives in bin/cpython-prune.sh.  It must
+# not be inlined here: the harness runs the _target through
+# `$(MAKE) -C <dir> $(_target)`, so after this variable's `$$name` is expanded
+# to `$name` once, make re-scans the recipe and eats `$name` as the undefined
+# make variable `$n` followed by `ame`.  Every loop variable was thus mangled to
+# empty and the allowlist loops silently no-opped (the payload shipped the full
+# stdlib).  A script keeps the shell expansions intact.
+#
+# wyng now runs on this target interpreter, so the keep lists under config/ come
+# from the real `wyng version`/`--help`/`list` import trace instead of
+# guesswork:
+#   config/cpython-stdlib-keep.txt  -- top-level stdlib entries to keep under
+#                                      lib/python3.13 (dirs AND files).
+#   config/cpython-dynload-keep.txt -- lib-dynload extension basenames to keep.
+# lib-dynload and site-packages are excluded from the top-level sweep: the
+# dynload list governs the former, and site-packages holds the cryptodome/zstd
+# extensions and is always kept.
+#
+# RISK: this is a closed allowlist -- anything not listed is deleted, so a new
+# wyng import path needs a matching line here or it fails at runtime (a smoke
+# test after any change is required).  Each loop in the script is guarded by an
+# `[ -s ... ]` test so a missing/empty keep file skips pruning instead of
+# wiping the stdlib.
+#
+# The allowlist comes from an import trace, which only exercises the paths a
+# trace can reach.  It cannot see a capability imported lazily, nor one that is
+# already missing for an unrelated reason and therefore raises before the trace
+# ever asks for it.  _hashlib is the worked example: the trace never reached
+# hashlib.scrypt because wyng aborts on the missing attribute first, so no line
+# was ever added and the prune went on deleting the .so that would have
+# supplied it.  When a runtime-only failure names a module or an
+# hashlib/openssl capability, check both allowlists before regenerating a
+# trace, and prefer stating the requirement outright -- as Setup.local and the
+# dynload list now do for _hashlib -- over re-deriving it from a trace.
+cpython_target := \
+	$(MAKE_JOBS) \
+	$(CROSS_TOOLS) \
+	DESTDIR="$(INSTALL)" \
+	install && \
+	sh "$(pwd)/bin/cpython-prune.sh" \
+		"$(INSTALL)" "$(pwd)/config" "$(CROSS)strip"
+
+# Setup.local is copied into Modules/ before configure (see cpython_configure);
+# depend on it so an edit forces a reconfigure, mirroring the .build prereqs below.
+$(build)/$(cpython_dir)/.configured: $(pwd)/config/cpython-Setup.local
+
+# Re-run install+prune whenever either allowlist changes.  The scripts are read
+# at recipe time, so a script edit must also force the module to rebuild: the
+# module file itself is already a .configured prerequisite, but depend on the
+# prune helper explicitly as well.
+$(build)/$(cpython_dir)/.build: \
+	$(pwd)/bin/cpython-prune.sh \
+	$(pwd)/config/cpython-stdlib-keep.txt \
+	$(pwd)/config/cpython-dynload-keep.txt
+
+# `python` is the in-source build artifact; bin_modules flattens it to /bin/python.
+cpython_output := python
+
+# stdlib is installed to $(INSTALL)/lib/python3.13; stage it into tools.cpio.
+# It is a lib* tree: lib-dynload/*.so and site-packages/*.so are shared objects,
+# so under the initrd cpio staging policy (tools.cpio = lib*/bin*/*.so*/executables)
+# the whole tree belongs in tools.cpio, not data.cpio.
+cpython_tools := $(INSTALL)/lib/python3.13|lib/python3.13
+
+# D7: stage_tools_file attaches no .build prerequisite, so declare the module's
+# sentinel here and have the Makefile add it to the tools.cpio prerequisites
+# (collected from <modulename>_tools_depends for every enabled module).
+cpython_tools_depends := $(build)/$(cpython_dir)/.build
+
+cpython_depends := cpython-host libffi zlib openssl $(musl_dep)
+
+# D6: /bin/python3 and /bin/python3.13 -> /bin/python.  The automatic
+# bin_modules staging flattens by basename and cannot create symlinks, so
+# enumerate them in initrd_bins and create them with an explicit rule,
+# modelled on modules/busybox (initrd_bins + applets/install.sh --symlinks).
+ifeq "$(CONFIG_CPYTHON)" "y"
+initrd_bins += \
+	$(initrd_bin_dir)/python3 \
+	$(initrd_bin_dir)/python3.13
+
+$(initrd_bin_dir)/python3 \
+$(initrd_bin_dir)/python3.13: $(build)/$(cpython_dir)/.build
+	$(call do,INSTALL-LINK,$(notdir $@) -> /bin/python,\
+		ln -sfn /bin/python "$@")
+endif

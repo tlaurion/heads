@@ -1,5 +1,12 @@
 # Heads documentation index
 
+## If you are an agent writing/reviewing a module
+
+1. **Staging rule**: see [build-freshness.md — tools.cpio vs data.cpio](build-freshness.md#toolscpio-vs-datacpio--staging-rule) for INSTALL-BIN vs INSTALL-LIB vs INSTALL-DATA, the MIX-directory rule, and the kernel-exec vs interpreter-load test.
+2. **Module inclusion**: see [modules.md](modules.md) for `bin_modules-$(CONFIG_FOO)` + sentinel chain.
+3. **Build invocation**: see [docker.md](docker.md) + `script -qefc "HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=<board>"` (canonical form).
+4. **Reproducibility**: see [reproducible-builds.md](reproducible-builds.md).
+
 Quick reference: read the relevant doc when working on a topic.
 
 ## Build System & CI

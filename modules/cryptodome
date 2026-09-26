@@ -1,0 +1,219 @@
+# cryptodome: PyPI `pycryptodomex` C extensions (runtime namespace `Cryptodome`).
+#
+# wyng-backup imports the `Cryptodome.*` namespace, i.e. the *pycryptodomex*
+# distribution -- NOT `pycryptodome`, which installs under `Crypto.*`.  The
+# sdist ships its packages under lib/ (package_dir={"": "lib"}) and builds a
+# set of C extensions from src/; the `.separate_namespace` marker file in the
+# sdist root makes setup.py rewrite every `Crypto` package/ext name to
+# `Cryptodome`, so the compiled extensions must live next to the pure-Python
+# tree under lib/Cryptodome/.
+#
+# Dependency direction: extension modules depend on cpython (the interpreter
+# they are built against) and setuptools (build-only, provides the build
+# front-end); cpython never depends on them.  setuptools' `_depends` entry only
+# orders the build -- it does not flip CONFIG_SETUPTOOLS on -- so require the
+# gate explicitly, matching modules/wyng-backup and modules/python-zstd.
+#
+# GMP: since pycryptodome 3.9.0 GMP is NOT a build-time dependency -- setup.py
+# links no GMP and never probes for headers/static libraries.  The
+# `_IntegerGMP` backend dlopen()s the system libgmp at *runtime*, and
+# Cryptodome/Math/Numbers.py falls back to `_IntegerCustom`/`_IntegerNative`
+# when it is absent (the musl initrd ships no libgmp).  PYCRYPTODOME_DISABLE_GMP
+# is the correct variable spelling, but it is read at *import* time in
+# Cryptodome/Math/Numbers.py, not by setup.py, so it is a build-time no-op; it
+# is still exported below so a build-time import cannot pick GMP.  There is no
+# `--no-gmp` build flag and none is needed.
+#
+# The extensions are built by the *target* interpreter so distutils derives
+# the ABI tag from the target sysconfig, producing (x86_64):
+#   _raw_aes.cpython-313-x86_64-linux-musl.so   (and ~40 more)
+# The installed target python cannot execute natively on the glibc build host,
+# so it is launched through the cross-toolchain's musl dynamic loader against
+# the target sysroot.  $(INSTALL)/lib has no loader, and the crossgcc sysroot's
+# `ld-musl-$(MUSL_ARCH).so.1` is a symlink to the *absolute* target path
+# /lib/libc.so that does not exist on the build host; musl's `libc.so` IS the
+# dynamic loader, so $(cryptodome_loader) (below) points at that instead.
+# CROSS is available because `include modules/musl-cross-make` precedes
+# `include modules/*` in the top-level Makefile.
+# The .so files are stripped in _target because _tools staging (cp -R) never
+# passes through the initrd strip helpers.
+#
+# Size optimization: cross-gcc defaults these extensions to -O0, and the
+# initrd ships every .so we build.  -Os is the tree norm (see modules/cpython,
+# OPT="-Os"); -fvisibility=hidden keeps non-API symbols out of the dynamic
+# symbol table -- the only symbol Python needs exported is the PyInit_* entry
+# point, which pycryptodomex declares PyMODINIT_FUNC (default visibility), so
+# the ABI is preserved; -ffunction-sections/-fdata-sections pair with
+# LDFLAGS=-Wl,--gc-sections so the linker drops unreferenced functions/data.
+# distutils' build_ext reads CFLAGS/LDFLAGS from the environment
+# (distutils.sysconfig.customize_compiler appends them to the compiler/linker
+# command), so they are exported on the setup.py invocation below.  CXXFLAGS
+# is set for parity only (pycryptodomex is pure C, no C++ translation units).
+# ---------------------------------------------------------------------------
+# Build recipe, built and runtime-verified via the wyng-staging regrouping
+# (the Cryptodome package builds and imports cleanly -- Cryptodome.ChaCha20,
+# SHA512, Protocol.KDF, Random -- and the pruned allowlist is runtime-correct
+# for wyng's exact import closure).  Executed with
+# cwd == $(build)/$(cryptodome_dir):
+#
+#   PYTHONHOME=$(INSTALL) \
+#   PYTHONPATH="$(build)/$(setuptools_dir)" \
+#   PYCRYPTODOME_DISABLE_GMP=1 \
+#   $(CROSS_TOOLS) \
+#   $(cryptodome_loader) --library-path $(INSTALL)/lib \
+#   $(INSTALL)/bin/python3.13 setup.py build_ext --inplace
+#
+# Notes (originally flagged as unverified, since validated):
+#   * the loader is resolved via $(CROSS)gcc --print-file-name=libc.so (musl's
+#     libc.so is the dynamic loader); see cryptodome_loader below;
+#   * setuptools 71.1.0 on PYTHONPATH may need its vendored dependencies
+#     resolved (the target install has no site-packages);
+#   * $(CROSS_TOOLS) CC/AR/LD/... duplicate the cross paths already baked into
+#     the installed _sysconfigdata__linux_$(MUSL_ARCH)-linux-musl.py, which
+#     distutils would otherwise use.
+# ---------------------------------------------------------------------------
+CONFIG_CRYPTODOME ?= n
+
+# `_depends` only orders builds; it does NOT auto-enable the cpython or
+# setuptools gates.  Test for `y` (not `!=n`) so the guards stay quiet when
+# CONFIG_CRYPTODOME is n or empty.
+ifeq "$(CONFIG_CRYPTODOME)" "y"
+ifneq "$(CONFIG_CPYTHON)" "y"
+$(error CONFIG_CRYPTODOME=y requires CONFIG_CPYTHON=y)
+endif
+ifneq "$(CONFIG_SETUPTOOLS)" "y"
+$(error CONFIG_CRYPTODOME=y requires CONFIG_SETUPTOOLS=y)
+endif
+endif
+
+modules-$(CONFIG_CRYPTODOME) += cryptodome
+
+# Latest usable PyPI release: 3.23.0 (released 2025-05-17), whose classifiers
+# list Python 3.13.  sha256 computed from
+# https://files.pythonhosted.org/packages/c9/85/e24bf90972a30b0fcd16c73009add1d7d7cd9140c2498a68252028899e41/pycryptodomex-3.23.0.tar.gz
+# on 2026-09-18 and cross-checked against the PyPI JSON API digest.  The
+# distribution is **pycryptodomex** (namespace Cryptodome), not pycryptodome.
+cryptodome_version := 3.23.0
+cryptodome_dir := pycryptodomex-$(cryptodome_version)
+cryptodome_tar := pycryptodomex-$(cryptodome_version).tar.gz
+cryptodome_url := https://files.pythonhosted.org/packages/c9/85/e24bf90972a30b0fcd16c73009add1d7d7cd9140c2498a68252028899e41/$(cryptodome_tar)
+cryptodome_hash := 71909758f010c82bc99b0abf4ea12012c98962fbf0583c2164f8b84533c2e4da
+
+# The sdist ships its Python packages under lib/ (package_dir={"": "lib"}), so
+# `build_ext --inplace` writes the compiled extensions next to them in
+# lib/Cryptodome/.  That is the tree staged below.
+cryptodome_pkgdir := lib/Cryptodome
+
+# Size optimization: after building and stripping, prune the package tree down
+# to exactly what wyng imports.  wyng needs only ChaCha20/ChaCha20_Poly1305,
+# SHA512, Protocol.KDF and Random, but importing KDF transitively pulls in the
+# hashes it imports at module scope (SHA1, SHA256, HMAC, CMAC, BLAKE2s) plus
+# Poly1305 (via ChaCha20_Poly1305), the _scrypt and _Salsa20 raw libraries it
+# loads at import time, and the Util helpers.  config/cryptodome-keep.txt is
+# the empirically derived allowlist (one path relative to lib/Cryptodome/ per
+# line): it was produced by tracing the import closure of the exact wyng import
+# line and then adding back whatever the import needed until the smoke test
+# passed.  Everything not listed is removed -- including PublicKey, Signature,
+# SelfTest, IO, Math, every Cipher/Salsa20/AES/… module, the unused Hash
+# algorithms (MD*, RIPEMD*, SHA3*, SHAKE*, BLAKE2b, keccak, …) and all .pyi
+# type stubs -- and the directories left empty (IO, Math, PublicKey, …) are
+# dropped.
+#
+# RISK: like cpython's stdlib allowlist this is a closed keep list -- a new
+# wyng import path needs a matching line here or it fails at runtime.  The
+# prune is guarded by `[ -s ... ]` so a missing/empty allowlist skips pruning
+# instead of wiping the package, and the build is re-run whenever the allowlist
+# changes (see the .build prerequisite at the end of this file).
+cryptodome_keep_file := $(pwd)/config/cryptodome-keep.txt
+cryptodome_pkgpath := $(build)/$(cryptodome_dir)/$(cryptodome_pkgdir)
+
+# Recursive (=) so it can reference cryptodome_pkgpath/cryptodome_keep_file.
+# The actual filtering lives in bin/cryptodome-prune.sh: inlining the loop
+# here requires escaping `$` through two make layers plus a sub-make, and a
+# miscount silently turns `${rel#./}` into a make variable reference (expanding
+# to empty) in the generated Makefile instead of a shell parameter expansion --
+# which is exactly what let the previous inline prune no-op.  The script removes
+# make from the picture.
+cryptodome_prune = \
+	sh "$(pwd)/bin/cryptodome-prune.sh" \
+		"$(cryptodome_pkgpath)" "$(cryptodome_keep_file)"
+
+# Musl dynamic loader.  `--print-file-name=ld-musl-$(MUSL_ARCH).so.1` cannot be
+# used: gcc reports the bare name (not on its search path) and the sysroot's
+# ld-musl-*.so.1 is a dangling symlink to /lib/libc.so.  musl's libc.so is the
+# real loader binary, so resolve that; fall back to the sysroot lib dir if gcc
+# still reports a bare name.
+cryptodome_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
+ifeq "$(cryptodome_loader)" "libc.so"
+cryptodome_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+endif
+
+# Restore the pristine sdist tree before every (re)build.  cryptodome_prune is
+# destructive: it deletes everything outside config/cryptodome-keep.txt,
+# including whole package directories (PublicKey/, Math/, ...), so rebuilding
+# over an already-pruned tree makes `build_ext --inplace` fail with
+#   could not create '.../PublicKey/_ec_ws.abi3.so': No such file or directory
+# .build re-runs when the keep-list/prune-script changes, when this module file
+# changes (which re-configures), or when a dependency (cpython/setuptools)
+# rebuilds -- so the restore must be part of the build recipe itself; a plain
+# prerequisite sentinel would miss at least one of those triggers.  Wiping the
+# package dir and re-extracting from the verified tarball is cheap and makes
+# `make cryptodome` idempotent from any tree state (pruned or pristine).
+cryptodome_restore = \
+	rm -rf "$(cryptodome_pkgpath)" && \
+	tar -xf "$(packages)/$(cryptodome_tar)" --strip 1 -C "$(build)/$(cryptodome_dir)"
+
+# Recursive (=) so $(setuptools_dir) resolves at recipe time: modules/* is
+# globbed alphabetically, so setuptools (s) is included after cryptodome (c)
+# and is not yet defined when this file is parsed.  Double quotes (not single)
+# around "*.so" keep the shell parsing of _configure's printf argument intact.
+# PYTHONDONTWRITEBYTECODE: importing the target stdlib to run setup.py would
+# otherwise write __pycache__ into $(INSTALL) *after* cpython-prune.sh has run;
+# those .pyc files are dead weight and would be staged into tools.cpio.
+cryptodome_build = \
+	$(cryptodome_restore) && \
+	PYTHONHOME="$(INSTALL)" \
+	PYTHONPATH="$(build)/$(setuptools_dir)" \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYCRYPTODOME_DISABLE_GMP=1 \
+	CFLAGS="-Os -fvisibility=hidden -ffunction-sections -fdata-sections" \
+	CXXFLAGS="-Os -fvisibility=hidden -ffunction-sections -fdata-sections" \
+	LDFLAGS="-Wl,--gc-sections" \
+	$(CROSS_TOOLS) \
+	$(cryptodome_loader) \
+		--library-path "$(INSTALL)/lib" \
+	$(INSTALL)/bin/python3.13 setup.py build_ext --inplace && \
+	find "$(build)/$(cryptodome_dir)/$(cryptodome_pkgdir)" -name "*.so" \
+		-exec $(CROSS)strip --strip-unneeded {} + && \
+	$(cryptodome_prune)
+
+# The sdist has no Makefile, so _configure writes one whose only target runs
+# the loader-trick build and strips the results in place.
+cryptodome_configure = \
+	printf 'all:\n\t%s\n' '$(cryptodome_build)' > Makefile
+
+# Rebuild (and re-prune) whenever the allowlist, the prune helper, or the
+# source tarball changes.  The recipe re-extracts the sdist first
+# (cryptodome_restore), so a rebuild always starts from a pristine tree.
+$(build)/$(cryptodome_dir)/.build: \
+	$(pwd)/bin/cryptodome-prune.sh \
+	$(pwd)/config/cryptodome-keep.txt \
+	$(packages)/$(cryptodome_tar)
+
+cryptodome_target := all
+
+cryptodome_depends := cpython setuptools $(musl_dep)
+
+# Stage the whole path-preserving Cryptodome package tree (pure Python plus the
+# stripped C extensions) into the target site-packages via tools.cpio.  The
+# compiled extensions are shared objects (*.so*), so under the initrd cpio
+# staging policy the whole package is a lib* tree and belongs in tools.cpio
+# (data.cpio is reserved for fixed-path data like keymaps/docs).  Note the
+# `lib/` component -- that is where the sdist keeps its packages.
+cryptodome_tools := \
+	$(build)/$(cryptodome_dir)/$(cryptodome_pkgdir)|lib/python3.13/site-packages/Cryptodome
+
+# D7: stage_tools_file attaches no .build prerequisite, so declare the module
+# sentinel here and let the Makefile add it to the tools.cpio prerequisites
+# (collected from <modulename>_tools_depends for every enabled module).
+cryptodome_tools_depends := $(build)/$(cryptodome_dir)/.build

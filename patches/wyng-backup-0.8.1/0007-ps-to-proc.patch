@@ -1,0 +1,44 @@
+# Needed: busybox applet.
+# Replace `ps -u<uid> -o pid,command` with a direct /proc scan
+# (scan_agent_pids): busybox ps does not provide that GNU option form, and
+# agent_get() runs during normal archive open, so the old code would raise
+# CalledProcessError whenever a key agent is configured.
+diff --git a/src/wyng b/src/wyng
+index ad4be34..7837e3b 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1079,11 +1079,31 @@ while True:
+             progf.write(bytes(agent_program, encoding="UTF-8"))
+ 
+ 
++def scan_agent_pids(agname):
++    # busybox `ps` has no portable `-o pid,command`; scan /proc directly so
++    # agent lookup does not depend on the ps binary at all.
++    pids = []    ; uid = os.getuid()    ; needle = prog_name+"_agent.py store"
++    for entry in os.listdir("/proc"):
++        if not entry.isdigit():   continue
++        try:
++            with open("/proc/"+entry+"/status", "r") as statf:
++                for ln in statf:
++                    if ln.startswith("Uid:"):
++                        if int(ln.split()[1]) == uid:
++                            with open("/proc/"+entry+"/cmdline", "rb") as cmdf:
++                                cmdline = cmdf.read().replace(b"\0", b" ").decode("UTF-8", "replace")
++                            if agname in cmdline and needle in cmdline:
++                                pids.append(int(entry))
++                        break
++        except (OSError, ValueError):
++            continue
++    return pids
++
++
+ def agent_get(agname, duration):
+-    ps = SPr.check_output([CP.ps, "-u"+str(os.getuid()), "-o", "pid,command"], text=True)
+-    findp  = [x for x in ps.splitlines() if (agname in x and prog_name+"_agent.py store" in x)]
++    findp  = scan_agent_pids(agname)
+     if not findp:   return None
+-    pid    = int(findp[0].split()[0])   ;  os_kill(pid, signal.SIGUSR1)
++    pid    = findp[0]   ;  os_kill(pid, signal.SIGUSR1)
+     if duration == -1:   os_kill(pid)   ;  return None
+     result = []   ; catch_signals(["ALRM"], iflag=True) ;   signal.alarm(10)
+     try:
