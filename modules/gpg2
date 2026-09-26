@@ -1,3 +1,10 @@
+# GnuPG: gpg + gpg-agent + scdaemon.
+#
+# Supplies the OpenPGP/SmartCard tooling for key management and TPM/disk-unlock.
+# gpg-agent's SSH support (enable-ssh-support in initrd/.gnupg/gpg-agent.conf)
+# also provides SSH_AUTH_SOCK for the OpenSSH client used by wyng-backup's ssh
+# transport.  Gated on CONFIG_GPG2; gpgconf is deliberately not staged (see the
+# output list below).
 modules-$(CONFIG_GPG2) += gpg2
 
 gpg2_version := 2.4.0
@@ -58,4 +65,9 @@ gpg2_target := $(MAKE_JOBS) \
 		DESTDIR="$(INSTALL)" \
 		install
 
+# gpgconf is intentionally not staged: the initrd runs with HOME=/ and
+# GNUPGHOME unset, so gpg-agent's SSH socket is deterministically
+# /.gnupg/S.gpg-agent.ssh, which initrd/etc/functions.sh:
+# setup_gpg_agent_ssh_socket() already uses as its fallback.  Dropping it
+# saves SPI space.
 gpg2_output := g10/gpg agent/gpg-agent scd/scdaemon

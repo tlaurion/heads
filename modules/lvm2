@@ -1,16 +1,32 @@
+# LVM2 userspace: lvm + dmsetup + libdevmapper.
+#
+# wyng-backup restores into LVM thin pools, so its restore path shells out to
+# `lvm` and `dmsetup`; modules/thin-provisioning-tools (thin_delta) links
+# libdevmapper through the headers installed by --enable-devmapper.  Gated on
+# CONFIG_LVM2; stages lvm + dmsetup via bin_modules and libdevmapper.so.1.02
+# via _libraries.  Configure trims the check/cluster/raid stack (see the
+# comment below) to what the initrd actually needs.
 modules-$(CONFIG_LVM2) += lvm2
 
-lvm2_version := 2.03.23
+lvm2_version := 2.03.42
 lvm2_dir := lvm2.$(lvm2_version)
 lvm2_tar := LVM2.$(lvm2_version).tgz
 lvm2_url := https://mirrors.kernel.org/sourceware/lvm2/$(lvm2_tar)
-lvm2_hash := 74e794a9e9dee1bcf8a2065f65b9196c44fdf321e22d63b98ed7de8c9aa17a5d
+lvm2_hash := 352703ef5b72ebb22d4f250284a29b89fe64d4049c6bf64c693f9af486c8081e
 
 # cross compiling test assumes malloc/realloc aren't glibc compat
 # so we force it via the configure cache.
-
 # See doc/modules.md "Shared module build flags" for the section-GC/unwind rationale.
 
+#
+# The dm activation checks are deliberately disabled by pointing the checker
+# binaries at an empty path. Restore-only wyng needs lvm and dmsetup (thin_delta
+# is optional and built separately). Enabling them
+# (--with-thin-check/--with-cache-check) would require
+# staging thin_check/cache_check (and for thin, dropping the needs_check
+# clearing caveat); activation would then hard-fail on flagged metadata with no
+# thin_repair available in the initrd. The former --disable-*_check_needs_check
+# flags are inert: they only matter once a checker binary is configured.
 lvm2_configure := \
 	$(CROSS_TOOLS) \
 	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables" \
@@ -38,12 +54,19 @@ lvm2_configure := \
 	--enable-static_link \
 	--disable-use-lvmlockd \
 	--disable-use-lvmpolld \
-	--disable-dmfilemapd \
+	--disable-cmdlib \
+	--disable-fsadm \
+	--disable-blkdeactivate \
+	--disable-blkid_wiping \
 	--disable-cmirrord \
-	--disable-cache_check_needs_check \
-	--disable-thin_check_needs_check \
 	--with-cluster=none \
+	--with-cache=none \
+	--with-vdo=none \
+	--with-writecache=none \
+	--with-integrity=none \
+	--with-mirrors=none \
 	--with-thin-check= \
+	--with-cache-check= \
 
 # not sure why LIB_SUFFIX is not defined in the cross build
 lvm2_target := \

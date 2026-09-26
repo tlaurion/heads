@@ -1,0 +1,21 @@
+# Needed: busybox applet.
+# busybox tar rejects --no-recursion/--verbatim-files-from, so update_dest's
+# metadata push would fail; `-T -` is its portable files-from form.  The list
+# holds plain file names (no directory entries), so the archived set is
+# unchanged.
+diff --git a/src/wyng b/src/wyng
+index 7837e3b..b30b939 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -3334,7 +3334,10 @@ def update_dest(arch, pathlist=[], volumes=[], sessions=[], ext="", delete=False
+         assert not ext;  dest.run(["xargs rm -f"], destcd=dest.path, inlines=update_list)
+         return
+ 
+-    do_exec([[CP.tar,"-cf","-","--no-recursion","--verbatim-files-from","--files-from", "-"],
++    # busybox tar has no --no-recursion/--verbatim-files-from; -T - is its
++    # portable files-from form.  update_list holds plain file names (no
++    # directory entries), so dropping --no-recursion does not change the set.
++    do_exec([[CP.tar,"-cf","-","-T", "-"],
+              dest.run_args(["tar -o -xf -"]
+                             + [" && mv '"+x+ext+"' '"+x+"'" for x in update_list if ext]
+                             + [" && cp -a '"+x+"' '"+x+".bak'" for x in update_list

@@ -1,0 +1,14 @@
+# Needed: foundation.
+# Point the shebang at /bin/python3 (the Heads interpreter): the initrd has no
+# /usr/bin/env and no /usr/bin/python3, so the upstream shebang makes a direct
+# `wyng` invocation fail with ENOENT before Python starts.
+diff --git a/src/wyng b/src/wyng
+index f151d49..5c5c67a 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python3
++#!/bin/python3
+ # editor width: 100   -----------------------------------------------------------------------------
+ 
+ 

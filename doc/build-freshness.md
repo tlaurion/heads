@@ -21,11 +21,41 @@ the selected set therefore contains at most six archives.
 |------|--------|----------|----------|
 | `dev.cpio` | `blobs/dev.cpio` | Static (pre-built; also embedded in maintained x86 kernels) | Always |
 | `modules.cpio` | Linux kernel modules | `modules/linux` | Always |
-| `tools.cpio` | Binaries + libraries + **/etc/config** | Makefile | Always |
+| `tools.cpio` | Binaries + libraries + **/etc/config** (anything the runtime LOADS or EXECUTES — the `INSTALL-BIN` and `INSTALL-LIB` macros) | Makefile | Always |
 | `board.cpio` | Board-specific scripts | Makefile | Always; direct empty archive when no files exist |
-| `data.cpio` | Configurable module data files | Makefile | Only when enabled modules contribute `*_data` |
+| `data.cpio` | Configurable module data files with direct-path lookup semantics ONLY (the `INSTALL-DATA` macro) — no libs, no bins, no scripts | Makefile | Only when enabled modules contribute `*_data` |
 | `heads.cpio` | `initrd/*` Heads scripts | Makefile | When `CONFIG_HEADS=y` (default outside u-root) |
 | `u-root.cpio` | u-root BusyBox-format cpio | `modules/u-root` | When `CONFIG_UROOT=y`; this path sets `CONFIG_HEADS=n` |
+
+## tools.cpio vs data.cpio — staging rule
+
+The cpio BUCKET names (tools.cpio, data.cpio) are about WHERE the file lands. The
+MACRO names (INSTALL-BIN, INSTALL-LIB, INSTALL-DATA) are about WHAT THE FILE IS.
+Choose the macro by file class — not by which cpio the file ends up in. tools.cpio
+holds both INSTALL-BIN output (executables) and INSTALL-LIB output (libraries).
+
+Macro map (authoritative; the three Makefile macros):
+| Macro | File class | Lands in |
+|-------|------------|----------|
+| `INSTALL-BIN` (Makefile:764) | Executables the kernel can run directly — files under `bin/` with +x AND a valid interpreter (ELF or `#!` shebang) | tools.cpio |
+| `INSTALL-LIB` (Makefile:771) | Libraries — anything under `lib/`, every `.a`/`.la`/`.so`/`.pc` that is a runtime dep; mixed dirs containing both `.py` and `.so` | tools.cpio |
+| `INSTALL-DATA` (Makefile:893) | Data files the runtime READS at a fixed path — keymaps, locale, fonts, `share/`, docs, fixed configs | data.cpio |
+
+Classification tests (apply in order):
+
+1. **Kernel-exec test**: does the kernel exec this file as its own process? — file has +x and `#!` shebang, OR is an ELF under `bin/`. → `INSTALL-BIN` → tools.cpio. Note: this applies even when the file's contents are a script in any language (shell, python, perl). The kernel-level operation is EXEC; the language of the bytes does not change the bucket.
+
+2. **MIX-directory test**: does the directory contain ANY `.so` (or `.cpython-313-*.so`) file? — `find <dir> -name '*.so' -o -name '*.cpython-3*'`. If any hit, the whole directory is `INSTALL-LIB` → tools.cpio (the interpreter's `dlopen` requires the `.so` to be at the canonical `lib/python3.13/...` path; the `.py` files in the same directory ride along). This rule covers all CPython extension packages (Cryptodome, zstd, anything under `site-packages/`, the stdlib directory which contains `lib-dynload/*.so`).
+
+3. **Interpreter-load / library-load test**: is this a `.a`/`.la`/`.so`/`.pc` runtime dep, OR a directory of modules an interpreter loads at runtime? → `INSTALL-LIB` → tools.cpio.
+
+4. **Fixed-path-data test**: is this a data file the runtime READS at a fixed path (keymap, locale, doc, font, share/, fixed config)? → `INSTALL-DATA` → data.cpio.
+
+5. Anything else (data with no fixed-path requirement) → no initrd entry.
+
+Quick verification recipe for any new module or build: extract `data.cpio` from the ROM and grep for `\.(so|a)$|lib/|bin/` — those names are FORBIDDEN in `data.cpio`. Their presence means a module's macro is wrong.
+
+If you are writing or reviewing a module's install recipe, see `modules.md` for how `bin_modules-$(CONFIG_FOO)` interacts with this rule.
 
 The final packaging rule:
 ```makefile

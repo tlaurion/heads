@@ -1,0 +1,18 @@
+# Needed: busybox applet.
+# busybox less rejects -r and -f, so `wyng help-doc` would fail instead of
+# paging the staged Wyng_User_Reference.txt; -R alone renders its ANSI escapes.
+diff --git a/src/wyng b/src/wyng
+index 8ec47fd..e53d4ba 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -2555,7 +2555,9 @@ def parse_options(args, pdefs, altconf=""):
+     options = parser.parse_args(args)   ; options.action = options.action.lower()
+ 
+     if options.action == "help-doc":
+-        SPr.run(["less", "-rf", "/usr/share/doc/wyng/0.8/Wyng_User_Reference.txt"], check=False)
++        # busybox less supports only -R (it rejects -r and -f); -R keeps raw
++        # control-character passthrough, so this stays busybox-compatible.
++        SPr.run(["less", "-R", "/usr/share/doc/wyng/0.8/Wyng_User_Reference.txt"], check=False)
+         x_it(0)
+ 
+     if options.config and not altconf:
