@@ -1,0 +1,42 @@
+From a60d1fb139f62f546d1ec8b4c3193e25c5267c56 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Filip=20Lewi=C5=84ski?= <filip.lewinski@3mdeb.com>
+Date: Tue, 8 Sep 2026 15:23:16 +0200
+Subject: [PATCH 1/9] soc/intel/common/block/gpio: return a value from
+ gpio_lock_pads()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Origin: Dasharo/coreboot `dasharo` branch commit 4cc0d18f140c11e0c624b4833f01c9ef9494d127 (2026-09-08, direct push)
+Upstream-Status: Pending — Gerrit mirror is review.coreboot.org topic tpm_gpio_pltrst_lock (CB:95509-95516; of which 95509/95510/95511 merged to coreboot main as of 2026-10-10); supersedes Dasharo/coreboot PR #959 (closed 2026-09-15, not merged)
+Refs: "TPM GPIO fail" https://mkukri.xyz/2024-06-01/tpm-gpio-fail.html ; coreboot ticket #576 ; https://github.com/tlaurion/tpm-gpio-fail
+
+gpio_lock_pads() is declared to return int, but the success path fell
+off the end of the function without returning anything. Every caller
+that looks at the return value, e.g. gpio_lock_pad(), therefore acted on
+an undefined value on success.
+
+Return 0 once all pads have been walked.
+
+Upstream-Status: Pending
+Signed-off-by: Filip Lewiński <filip.lewinski@3mdeb.com>
+---
+ src/soc/intel/common/block/gpio/gpio.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/soc/intel/common/block/gpio/gpio.c b/src/soc/intel/common/block/gpio/gpio.c
+index 625c3f4355..9d2a75243a 100644
+--- a/src/soc/intel/common/block/gpio/gpio.c
++++ b/src/soc/intel/common/block/gpio/gpio.c
+@@ -651,6 +651,8 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+ 	}
+ 
+ 	p2sb_hide();
++
++	return 0;
+ }
+ 
+ static void
+-- 
+2.47.3
+

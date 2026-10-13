@@ -1,0 +1,102 @@
+From 0e56cdc763396e3c3afd039da4e5afe8517cc4f1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Filip=20Lewi=C5=84ski?= <filip.lewinski@3mdeb.com>
+Date: Tue, 8 Sep 2026 15:23:16 +0200
+Subject: [PATCH 2/9] soc/intel/common/block/gpio: honor the SoC lock method in
+ SMM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Origin: Dasharo/coreboot `dasharo` branch commit dfcb7533486b91f1449d2cdf10ddf8e1a58ec3e2 (2026-09-08, direct push)
+Upstream-Status: Pending — Gerrit mirror is review.coreboot.org topic tpm_gpio_pltrst_lock (CB:95509-95516; of which 95509/95510/95511 merged to coreboot main as of 2026-10-10); supersedes Dasharo/coreboot PR #959 (closed 2026-09-15, not merged)
+Refs: "TPM GPIO fail" https://mkukri.xyz/2024-06-01/tpm-gpio-fail.html ; coreboot ticket #576 ; https://github.com/tlaurion/tpm-gpio-fail
+
+gpio_lock_pads() always locked the pad configuration with a sideband
+interface message, while the path used outside of SMM picks between the
+sideband interface and a private configuration register write based on
+what the SoC selected. Starting with Meteor Lake, the recommendation is
+to use PCR writes, so the SMM path silently did nothing there.
+
+Pick the same method as gpio_non_smm_lock_pad() does. The PCR helper is
+moved ahead of its new user to avoid a forward declaration.
+
+Upstream-Status: Pending
+Signed-off-by: Filip Lewiński <filip.lewinski@3mdeb.com>
+---
+ src/soc/intel/common/block/gpio/gpio.c | 46 +++++++++++++++-----------
+ 1 file changed, 26 insertions(+), 20 deletions(-)
+
+diff --git a/src/soc/intel/common/block/gpio/gpio.c b/src/soc/intel/common/block/gpio/gpio.c
+index 9d2a75243a..6f71c19ae4 100644
+--- a/src/soc/intel/common/block/gpio/gpio.c
++++ b/src/soc/intel/common/block/gpio/gpio.c
+@@ -603,6 +603,25 @@ gpio_pad_config_lock_using_sbi(const struct gpio_lock_config *pad_info,
+ 	}
+ }
+ 
++static void
++gpio_pad_config_lock_using_pcr(const struct gpio_lock_config *pad_info,
++	uint8_t pid, uint16_t offset, const uint32_t bit_mask)
++{
++	if ((pad_info->lock_action & GPIO_LOCK_CONFIG) == GPIO_LOCK_CONFIG) {
++		if (CONFIG(DEBUG_GPIO))
++			printk(BIOS_INFO, "%s: Locking pad %d configuration\n",
++						__func__, pad_info->pad);
++		pcr_or32(pid, offset, bit_mask);
++	}
++
++	if ((pad_info->lock_action & GPIO_LOCK_TX) == GPIO_LOCK_TX) {
++		if (CONFIG(DEBUG_GPIO))
++			printk(BIOS_INFO, "%s: Locking pad %d TX state\n",
++				__func__, pad_info->pad);
++		pcr_or32(pid, offset + sizeof(uint32_t), bit_mask);
++	}
++}
++
+ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+ {
+ 	const struct pad_community *comm;
+@@ -647,7 +666,13 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+ 
+ 		const uint32_t bit_mask = gpio_bitmask_within_group(comm, rel_pad);
+ 
+-		gpio_pad_config_lock_using_sbi(&pad_list[x], comm->port, offset, bit_mask);
++		/* Use the lock method the SoC selected, as done outside of SMM */
++		if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_PCR))
++			gpio_pad_config_lock_using_pcr(&pad_list[x], comm->port, offset,
++						       bit_mask);
++		else
++			gpio_pad_config_lock_using_sbi(&pad_list[x], comm->port, offset,
++						       bit_mask);
+ 	}
+ 
+ 	p2sb_hide();
+@@ -655,25 +680,6 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+ 	return 0;
+ }
+ 
+-static void
+-gpio_pad_config_lock_using_pcr(const struct gpio_lock_config *pad_info,
+-	uint8_t pid, uint16_t offset, const uint32_t bit_mask)
+-{
+-	if ((pad_info->lock_action & GPIO_LOCK_CONFIG) == GPIO_LOCK_CONFIG) {
+-		if (CONFIG(DEBUG_GPIO))
+-			printk(BIOS_INFO, "%s: Locking pad %d configuration\n",
+-						__func__, pad_info->pad);
+-		pcr_or32(pid, offset, bit_mask);
+-	}
+-
+-	if ((pad_info->lock_action & GPIO_LOCK_TX) == GPIO_LOCK_TX) {
+-		if (CONFIG(DEBUG_GPIO))
+-			printk(BIOS_INFO, "%s: Locking pad %d TX state\n",
+-				__func__, pad_info->pad);
+-		pcr_or32(pid, offset + sizeof(uint32_t), bit_mask);
+-	}
+-}
+-
+ static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
+ {
+ 	const struct pad_community *comm = gpio_get_community(pad_info->pad);
+-- 
+2.47.3
+

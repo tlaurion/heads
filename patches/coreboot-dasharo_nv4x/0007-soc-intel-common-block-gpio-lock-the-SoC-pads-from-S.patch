@@ -1,0 +1,121 @@
+From d55a3cfb83c3432604c1d82deefc742b8692b31f Mon Sep 17 00:00:00 2001
+From: Thierry Laurion <insurgo@riseup.net>
+Date: Mon, 12 Oct 2026 19:19:58 -0400
+Subject: [PATCH 7/9] soc/intel/common/block/gpio: lock the SoC pads from
+ SMM-privileged stages
+
+Origin: derived from the Dasharo/coreboot `dasharo` branch train (3306f5bd32c230491016d21fb33ad359782a115d et al., 2026-09-08), modified
+Upstream-Status: Pending
+Refs: "TPM GPIO fail" https://mkukri.xyz/2024-06-01/tpm-gpio-fail.html ; coreboot ticket #576 ; https://github.com/tlaurion/tpm-gpio-fail
+
+gpio_lock_pads() bailed out for every stage that was not the SMM handler
+image, using ENV_SMM, a build property, as a stand-in for the hardware
+property that actually matters: the privilege to unhide the P2SB device
+and send the sideband interface lock message, i.e. running in the SMM
+ring.
+
+On SoCs that enable the common block SMM the CPU runs in the SMM ring from
+reset until the handoff to the payload, so every pre-payload stage, including
+the ramstage, has that privilege, not only the SMM handler image. Bail out
+only when the build has no SMM at all, and give the stages a helper,
+gpio_lock_soc_gpios(), that is the same entry point the SMM finalize
+handler already uses.
+
+The weak default of soc_gpio_lock_config() moves to this file so the helper
+links in every image; SoCs that provide a pad list override it as before.
+
+Signed-off-by: Thierry Laurion <insurgo@riseup.net>
+---
+ src/soc/intel/common/block/gpio/gpio.c        | 32 +++++++++++++++++--
+ .../common/block/include/intelblocks/gpio.h   |  6 ++++
+ src/soc/intel/common/block/smm/smihandler.c   |  6 ----
+ 3 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/soc/intel/common/block/gpio/gpio.c b/src/soc/intel/common/block/gpio/gpio.c
+index 54ae741ced..911c0886c2 100644
+--- a/src/soc/intel/common/block/gpio/gpio.c
++++ b/src/soc/intel/common/block/gpio/gpio.c
+@@ -660,10 +660,13 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+ 	 * FSP-S will unlock all the GPIO pads and hide the P2SB device.  With
+ 	 * the device hidden, we will not be able to send the sideband interface
+ 	 * message to lock the GPIO configuration. Therefore, we need to unhide
+-	 * the P2SB device which can only be done in SMM requiring that this
+-	 * function is called from SMM.
++	 * the P2SB device, which requires running with SMM privilege, i.e. in
++	 * the SMM ring.  That is the case in the SMM handler image and, on SoCs
++	 * that enable the common block SMM, in every pre-payload stage,
++	 * including the ramstage.  Stages without SMM privilege must use
++	 * gpio_non_smm_lock_pad() instead.
+ 	 */
+-	if (!ENV_SMM) {
++	if (!ENV_SMM && !CONFIG(SOC_INTEL_COMMON_BLOCK_SMM)) {
+ 		printk(BIOS_ERR, "%s: Error: must be called from SMM!\n", __func__);
+ 		return -1;
+ 	}
+@@ -707,6 +710,29 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+ 	return ret;
+ }
+ 
++__weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
++{
++	*num = 0;
++	return NULL;
++}
++
++/*
++ * Lock the pads the SoC asked to have locked (see
++ * soc_gpio_lock_config()), the same pads the SMM finalize handler locks.
++ * Usable from any stage that runs with SMM privilege: the SMM handler, and
++ * on SoCs that enable the common block SMM every pre-payload stage,
++ * including the ramstage.
++ */
++void gpio_lock_soc_gpios(void)
++{
++	const struct gpio_lock_config *soc_gpios;
++	size_t num;
++
++	soc_gpios = soc_gpio_lock_config(&num);
++	if (num)
++		gpio_lock_pads(soc_gpios, num);
++}
++
+ static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
+ {
+ 	const struct pad_community *comm = gpio_get_community(pad_info->pad);
+diff --git a/src/soc/intel/common/block/include/intelblocks/gpio.h b/src/soc/intel/common/block/include/intelblocks/gpio.h
+index a501f7fd54..3b50dd389e 100644
+--- a/src/soc/intel/common/block/include/intelblocks/gpio.h
++++ b/src/soc/intel/common/block/include/intelblocks/gpio.h
+@@ -273,6 +273,12 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count);
+  */
+ const struct gpio_lock_config *soc_gpio_lock_config(size_t *num);
+ 
++/*
++ * Locks the pads returned by soc_gpio_lock_config(), the same pads the SMM
++ * finalize handler locks. Requires SMM privilege, see gpio_lock_pads().
++ */
++void gpio_lock_soc_gpios(void);
++
+ /*
+  * Returns the pmc_gpe to gpio_gpe mapping table
+  *
+diff --git a/src/soc/intel/common/block/smm/smihandler.c b/src/soc/intel/common/block/smm/smihandler.c
+index 65a15b0964..44184ec5e7 100644
+--- a/src/soc/intel/common/block/smm/smihandler.c
++++ b/src/soc/intel/common/block/smm/smihandler.c
+@@ -320,12 +320,6 @@ static void southbridge_smi_store(
+ 	}
+ }
+ 
+-__weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
+-{
+-	*num = 0;
+-	return NULL;
+-}
+-
+ static void soc_lock_gpios(void)
+ {
+ 	const struct gpio_lock_config *soc_gpios;
+-- 
+2.47.3
+

@@ -1,0 +1,96 @@
+From a4f2fcfb2c038f5dc15d72145eee57d058fc5829 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Filip=20Lewi=C5=84ski?= <filip.lewinski@3mdeb.com>
+Date: Tue, 8 Sep 2026 15:23:17 +0200
+Subject: [PATCH 5/9] soc/intel/common/block/gpio: add option to lock the
+ PLTRST# pad
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Origin: Dasharo/coreboot `dasharo` branch commit a6df47479d3d3a5ac30d0b9d23383cd5a148460a (2026-09-08, direct push)
+Upstream-Status: Pending — Gerrit mirror is review.coreboot.org topic tpm_gpio_pltrst_lock (CB:95509-95516; of which 95509/95510/95511 merged to coreboot main as of 2026-10-10); supersedes Dasharo/coreboot PR #959 (closed 2026-09-15, not merged)
+Refs: "TPM GPIO fail" https://mkukri.xyz/2024-06-01/tpm-gpio-fail.html ; coreboot ticket #576 ; https://github.com/tlaurion/tpm-gpio-fail
+
+PLTRST# is the native function of a GPIO pad on Intel PCHs. Software
+running after the firmware can switch that pad to GPIO mode and drive
+it, which resets a discrete TPM while the host keeps running: the PCRs
+go back to their reset values and can be extended with arbitrary
+measurements, so sealed secrets can be unsealed on a machine that never
+went through a measured boot. See
+https://mkukri.xyz/2024/06/01/tpm-gpio-fail.html
+
+Add an option for SoCs that provide the pad in soc_gpio_lock_config(),
+locking it from the SMM finalize handler, which is the only place where
+the write is honored and where FSP can no longer undo it.
+
+The option therefore depends on something issuing APM_CNT_FINALIZE.
+Either trigger will do: with INTEL_CHIPSET_LOCKDOWN coreboot issues it
+itself, and with SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM the payload issues it
+after it has set up flash protection. The two are mutually exclusive, as
+SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM depends on !INTEL_CHIPSET_LOCKDOWN.
+Depending on INTEL_CHIPSET_LOCKDOWN alone would hide the option on
+exactly the boards that need it, since a payload such as heads takes
+over the lockdown and clears INTEL_CHIPSET_LOCKDOWN.
+
+SoCs opt in by selecting SOC_INTEL_COMMON_BLOCK_GPIO_HAS_PLTRST_PAD, so
+that the option stays hidden where no pad list is provided and the
+lock would silently do nothing.
+
+Upstream-Status: Pending
+Signed-off-by: Filip Lewiński <filip.lewinski@3mdeb.com>
+---
+ src/soc/intel/common/block/gpio/Kconfig | 38 +++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+diff --git a/src/soc/intel/common/block/gpio/Kconfig b/src/soc/intel/common/block/gpio/Kconfig
+index 60a5967bde..7f4c2edc00 100644
+--- a/src/soc/intel/common/block/gpio/Kconfig
++++ b/src/soc/intel/common/block/gpio/Kconfig
+@@ -55,6 +55,44 @@ config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_PCR
+ 	  Starting with MTL SoC, the recommendation is to use PCR for locking down the
+ 	  GPIO configuration.
+ 
++# Selected by SoCs that return the pad driving PLTRST# from
++# soc_gpio_lock_config().
++config SOC_INTEL_COMMON_BLOCK_GPIO_HAS_PLTRST_PAD
++	bool
++
++config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
++	bool "Lock the PLTRST# pad configuration"
++	default y
++	depends on SOC_INTEL_COMMON_BLOCK_GPIO_HAS_PLTRST_PAD
++	depends on HAVE_SMI_HANDLER
++	depends on INTEL_CHIPSET_LOCKDOWN || SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM
++	depends on SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI || \
++		   SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_PCR
++	select SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS
++	help
++	  PLTRST# is the native function of a GPIO pad. As long as that pad
++	  configuration stays writable, system software can switch the pad to
++	  GPIO mode and drive a platform reset edge. A discrete TPM is reset by
++	  that edge while the host keeps running, so its PCRs are cleared
++	  without restarting the measured boot chain and can be replayed with
++	  arbitrary values.
++
++	  Lock the pad configuration from the SMM finalize handler, i.e. after
++	  FSP has run its notify phases, so the pad mode can no longer be
++	  changed. Only the configuration is locked. The Tx state is left
++	  writable, as it has no effect while the pad drives PLTRST#.
++
++	  The finalize handler runs when APM_CNT_FINALIZE is issued. coreboot
++	  issues it on the normal boot path when INTEL_CHIPSET_LOCKDOWN is set,
++	  and always on S3 resume, where the payload does not run. When
++	  SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM defers the SPI and LPC lockdown to
++	  the payload, the payload issues it instead, so the pad configuration
++	  stays writable for as long as the payload runs.
++
++	  Say N on a board that does not use this pad for PLTRST#, or that uses
++	  it as a GPIO: locking the configuration of a pad that already is in
++	  GPIO mode does not keep software from driving it.
++
+ # Indicate if SoC supports 4 bits Pad Mode with PAD_CFG_DW0 registers
+ config SOC_INTEL_COMMON_BLOCK_GPIO_PMODE_4BITS
+ 	bool
+-- 
+2.47.3
+

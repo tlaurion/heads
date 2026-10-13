@@ -1,0 +1,79 @@
+From ec1afaa21e43a7968fe9bb55bdf2e978b6c6b25f Mon Sep 17 00:00:00 2001
+From: Thierry Laurion <insurgo@riseup.net>
+Date: Tue, 13 Oct 2026 19:03:49 -0400
+Subject: [PATCH] soc/intel/common/block/gpio: lock the PLTRST pad on all
+ configurations
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Origin: Dasharo/coreboot `dasharo` branch commit 247af1ec5289fd9925c63ccd6c8a69a353197f0b (2026-09-08, direct push), modified
+Upstream-Status: Pending — Gerrit mirror is review.coreboot.org topic tpm_gpio_pltrst_lock (CB:95509-95516; of which 95509/95510/95511 merged to coreboot main as of 2026-10-10); supersedes Dasharo/coreboot PR #959 (closed 2026-09-15, not merged)
+Refs: "TPM GPIO fail" https://mkukri.xyz/2024-06-01/tpm-gpio-fail.html ; coreboot ticket #576 ; https://github.com/tlaurion/tpm-gpio-fail
+
+The option gated itself on whoever was going to issue APM_CNT_FINALIZE:
+coreboot under INTEL_CHIPSET_LOCKDOWN, or the payload under
+SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM. Both work, but relying on the payload
+leaves the pad writable for as long as the payload runs, and ties the
+mitigation to whether the payload chose to lock the flash: in heads, for
+instance, turning off write protection also skips the finalize SMI, and
+with it the pad lock.
+
+The SoC now issues its own APM_CNT_GPIO_LOCK SMI from the ramstage, so
+neither finalize trigger is needed, and the dependency goes. The pad is
+locked before the payload is entered, on every configuration, whether or
+not anything ever issues APM_CNT_FINALIZE.
+
+Signed-off-by: Filip Lewiński <filip.lewinski@3mdeb.com>
+Signed-off-by: Thierry Laurion <insurgo@riseup.net>
+---
+ src/soc/intel/common/block/gpio/Kconfig | 26 +++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/soc/intel/common/block/gpio/Kconfig b/src/soc/intel/common/block/gpio/Kconfig
+index 7f4c2edc00..0073dbfbde 100644
+--- a/src/soc/intel/common/block/gpio/Kconfig
++++ b/src/soc/intel/common/block/gpio/Kconfig
+@@ -65,7 +65,6 @@ config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
+ 	default y
+ 	depends on SOC_INTEL_COMMON_BLOCK_GPIO_HAS_PLTRST_PAD
+ 	depends on HAVE_SMI_HANDLER
+-	depends on INTEL_CHIPSET_LOCKDOWN || SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM
+ 	depends on SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI || \
+ 		   SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_PCR
+ 	select SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS
+@@ -77,17 +76,20 @@ config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
+ 	  without restarting the measured boot chain and can be replayed with
+ 	  arbitrary values.
+ 
+-	  Lock the pad configuration from the SMM finalize handler, i.e. after
+-	  FSP has run its notify phases, so the pad mode can no longer be
+-	  changed. Only the configuration is locked. The Tx state is left
+-	  writable, as it has no effect while the pad drives PLTRST#.
+-
+-	  The finalize handler runs when APM_CNT_FINALIZE is issued. coreboot
+-	  issues it on the normal boot path when INTEL_CHIPSET_LOCKDOWN is set,
+-	  and always on S3 resume, where the payload does not run. When
+-	  SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM defers the SPI and LPC lockdown to
+-	  the payload, the payload issues it instead, so the pad configuration
+-	  stays writable for as long as the payload runs.
++	  Lock the pad configuration from SMM at the end of the ramstage, i.e.
++	  after FSP has run its notify phases and unlocked every pad, so the
++	  pad mode can no longer be changed. Only the configuration is
++	  locked. The Tx state is left writable, as it has no effect while
++	  the pad drives PLTRST#.
++
++	  The SoC applies the lock from its ramstage, which runs with SMM
++	  privilege on the SoCs that support this, before handing control to
++	  the payload. It does not depend on INTEL_CHIPSET_LOCKDOWN, on the
++	  payload, or on APM_CNT_FINALIZE being issued at all, so the pad is
++	  already locked by the time anything after the firmware can run. When
++	  the finalize SMI is issued anyway, the SMM finalize handler locks the
++	  same pad again, which is harmless: locking an already locked pad is a
++	  write of a bit that is already set.
+ 
+ 	  Say N on a board that does not use this pad for PLTRST#, or that uses
+ 	  it as a GPIO: locking the configuration of a pad that already is in
+-- 
+2.47.3
+
