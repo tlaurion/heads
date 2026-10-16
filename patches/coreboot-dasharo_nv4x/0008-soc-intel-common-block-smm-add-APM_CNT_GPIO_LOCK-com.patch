@@ -1,7 +1,7 @@
 From 4206a60f8dc85ed731208f05e1449bf7cc571771 Mon Sep 17 00:00:00 2001
 From: Thierry Laurion <insurgo@riseup.net>
 Date: Tue, 13 Oct 2026 19:10:09 -0400
-Subject: [PATCH 1/2] soc/intel/common/block/smm: add APM_CNT_GPIO_LOCK command
+Subject: [PATCH 8/9] soc/intel/common/block/smm: add APM_CNT_GPIO_LOCK command
 
 Upstream-Status: Pending
 Refs: "TPM GPIO fail" https://mkukri.xyz/2024-06-01/tpm-gpio-fail.html ; coreboot ticket #576 ; https://github.com/tlaurion/tpm-gpio-fail
@@ -17,6 +17,12 @@ FLOCKDN timing, and leaves the sideband usable for the later finalize
 SMI. Locking an already locked pad is idempotent, so issuing both
 commands is harmless.
 
+soc_lock_gpios() now returns gpio_lock_pads()'s result and the handler
+sets its done latch only on success: a failed pad write is logged and
+leaves the latch clear, so a later command -- or the finalize SMI, which
+re-locks the same pads -- retries instead of the failure being recorded
+as success.
+
 The APM_CNT value is firmware-defined, like the other commands
 dispatched by smihandler_southbridge_apmc(); 0xcd is unused. It matches
 the APM_CNT_GPIO_LOCK value used by the Dasharo coreboot fork PLTRST
@@ -25,8 +31,8 @@ series, so both converge on the same channel.
 Signed-off-by: Thierry Laurion <insurgo@riseup.net>
 ---
  src/include/cpu/x86/smm.h                   |  1 +
- src/soc/intel/common/block/smm/smihandler.c | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+)
+ src/soc/intel/common/block/smm/smihandler.c | 30 +++++++++++++++++++--
+ 2 files changed, 29 insertions(+), 2 deletions(-)
 
 diff --git a/src/include/cpu/x86/smm.h b/src/include/cpu/x86/smm.h
 index b552d33b5a..04320b7a43 100644
@@ -41,13 +47,28 @@ index b552d33b5a..04320b7a43 100644
  #define APM_CNT_SMMINFO		0xec
  #define APM_CNT_SMMSTORE	0xed
 diff --git a/src/soc/intel/common/block/smm/smihandler.c b/src/soc/intel/common/block/smm/smihandler.c
-index 44184ec5e7..917e38dee3 100644
+index 65a15b0964..0acebe38cf 100644
 --- a/src/soc/intel/common/block/smm/smihandler.c
 +++ b/src/soc/intel/common/block/smm/smihandler.c
-@@ -333,6 +333,22 @@ static void soc_lock_gpios(void)
- 		gpio_lock_pads(soc_gpios, soc_gpio_num);
+@@ -326,7 +326,7 @@ __weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
+ 	return NULL;
  }
  
+-static void soc_lock_gpios(void)
++static int soc_lock_gpios(void)
+ {
+ 	const struct gpio_lock_config *soc_gpios;
+ 	size_t soc_gpio_num;
+@@ -336,7 +336,29 @@ static void soc_lock_gpios(void)
+ 
+ 	/* Lock any soc requested gpios */
+ 	if (soc_gpio_num)
+-		gpio_lock_pads(soc_gpios, soc_gpio_num);
++		return gpio_lock_pads(soc_gpios, soc_gpio_num);
++
++	return 0;
++}
++
 +/*
 + * Lock the SoC GPIO pads from a dedicated SMI, independent of finalize().
 + * That command runs the SPI and LPC lockdown and ends by locking down the
@@ -60,14 +81,16 @@ index 44184ec5e7..917e38dee3 100644
 +
 +	if (gpio_lock_done)
 +		return;
++	if (soc_lock_gpios()) {
++		printk(BIOS_ERR,
++		       "GPIO pad lock failed; payload handoff would be unprotected\n");
++		return;
++	}
 +	gpio_lock_done = 1;
-+	soc_lock_gpios();
-+}
-+
+ }
+ 
  static void finalize(void)
- {
- 	static int finalize_done;
-@@ -399,6 +415,10 @@ void smihandler_southbridge_apmc(
+@@ -405,6 +427,10 @@ void smihandler_southbridge_apmc(
  	case APM_CNT_FINALIZE:
  		finalize();
  		break;
