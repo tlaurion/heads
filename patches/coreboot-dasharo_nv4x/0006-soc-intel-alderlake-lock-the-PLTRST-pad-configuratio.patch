@@ -15,10 +15,10 @@ security relevant pads from SMM. Without it, system software can
 reconfigure the pad as a GPIO and reset a discrete TPM while the host
 keeps running, clearing the PCRs.
 
-The pad list is built into the SMM handler and into the ramstage: the
-ramstage of this SoC runs with SMM privilege, so it can lock the pad
-directly at the end of the ramstage, before the payload, without issuing
-an SMI.
+The pad list is built into the SMM handler: the pad is locked from a
+dedicated SMI the SoC issues at the end of the ramstage, before the
+payload, because the lock registers are only writable through the
+sideband interface, and that access is armed for the SMM context.
 
 Signed-off-by: Filip Lewiński <filip.lewinski@3mdeb.com>
 Signed-off-by: Thierry Laurion <insurgo@riseup.net>
