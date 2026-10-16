@@ -61,7 +61,7 @@ index 9d2a75243a..6f71c19ae4 100644
  		const uint32_t bit_mask = gpio_bitmask_within_group(comm, rel_pad);
  
 -		gpio_pad_config_lock_using_sbi(&pad_list[x], comm->port, offset, bit_mask);
-+		/* Use the lock method the SoC selected, as done outside of SMM */
++		/* Use the lock method the SoC selected, as outside SMM. */
 +		if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_PCR))
 +			gpio_pad_config_lock_using_pcr(&pad_list[x], comm->port, offset,
 +						       bit_mask);

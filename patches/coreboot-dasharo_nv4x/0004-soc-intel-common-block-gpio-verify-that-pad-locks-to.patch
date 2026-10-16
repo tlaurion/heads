@@ -35,8 +35,8 @@ index bd62928edc..54ae741ced 100644
  	return !!(reg & PAD_CFG0_TX_STATE);
  }
  
-+static int
-+gpio_pad_config_lock_verify(const struct gpio_lock_config *pad_info,
++static int gpio_pad_config_lock_verify(
++	const struct gpio_lock_config *pad_info,
 +	uint8_t pid, uint16_t offset, const uint32_t bit_mask)
 +{
 +	int ret = 0;
@@ -69,12 +69,13 @@ index bd62928edc..54ae741ced 100644
  
  	if (!CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS))
  		return -1;
-@@ -673,11 +697,14 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
+@@ -673,11 +697,15 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
  		else
  			gpio_pad_config_lock_using_sbi(&pad_list[x], comm->port, offset,
  						       bit_mask);
 +
-+		if (gpio_pad_config_lock_verify(&pad_list[x], comm->port, offset, bit_mask))
++		if (gpio_pad_config_lock_verify(&pad_list[x], comm->port,
++						 offset, bit_mask))
 +			ret = -1;
  	}
  
@@ -85,7 +86,7 @@ index bd62928edc..54ae741ced 100644
  }
  
  static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
-@@ -720,9 +747,10 @@ static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
+@@ -720,9 +747,11 @@ static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
  	} else {
  		printk(BIOS_ERR, "%s: Error: No pad configuration lock method is selected!\n",
  						__func__);
@@ -93,7 +94,8 @@ index bd62928edc..54ae741ced 100644
  	}
  
 -	return 0;
-+	return gpio_pad_config_lock_verify(pad_info, comm->port, offset, bit_mask);
++	return gpio_pad_config_lock_verify(pad_info, comm->port, offset,
++					 bit_mask);
  }
  
  int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action)

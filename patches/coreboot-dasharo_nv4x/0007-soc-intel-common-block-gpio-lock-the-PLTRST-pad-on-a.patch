@@ -64,9 +64,9 @@ index 7f4c2edc00..0073dbfbde 100644
 +	  the pad drives PLTRST#.
 +
 +	  The SoC issues APM_CNT_GPIO_LOCK from its ramstage, and the SMI
-+	  handler performs the lock, before handing control to
-+	  the payload. It does not depend on INTEL_CHIPSET_LOCKDOWN, on the
-+	  payload, or on APM_CNT_FINALIZE being issued at all, so the pad is
++	  handler performs the lock, before handing control to the payload.
++	  It does not depend on INTEL_CHIPSET_LOCKDOWN, on the payload, or
++	  on APM_CNT_FINALIZE being issued at all, so the pad is
 +	  already locked by the time anything after the firmware can run. When
 +	  the finalize SMI is issued anyway, the SMM finalize handler locks the
 +	  same pad again, which is harmless: locking an already locked pad is a
