@@ -2812,16 +2812,30 @@ fromhex_plain() {
 	fold -w 60 | xxd -p -r
 }
 
+# Before coreboot 26.09 filename pattern was charge_now. Since 26.09 energy_now.
+# We support both in the same script.
+get_battery_state_filename() {
+  local battery
+  local suffix
+  battery="$1"
+  suffix="$2"
+  if [[ -r "${battery}/energy_${suffix}" ]]; then
+    echo -n "${battery}/energy_${suffix}"
+  else
+    echo -n "${battery}/charge_${suffix}"
+  fi
+}
+
 print_battery_charge() {
 	local battery
 	battery="$1"
-	echo "$((100 * $(cat "${battery}/charge_now") / $(cat "${battery}/charge_full")))"
+	echo "$((100 * $(cat "$(get_battery_state_filename "${battery}" "now")") / $(cat "$(get_battery_state_filename "${battery}" "full")")))"
 }
 
 print_battery_health() {
 	local battery
 	battery="$1"
-	echo "$((100 * $(cat "${battery}/charge_full") / $(cat "${battery}/charge_full_design")))"
+	echo "$((100 * $(cat "$(get_battery_state_filename "${battery}" "full")") / $(cat "$(get_battery_state_filename "${battery}" "full_design")")))"
 }
 
 print_battery_name() {
