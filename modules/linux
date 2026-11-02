@@ -297,14 +297,18 @@ linux.save_in_defconfig_format_in_place:
 	&& mv "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)"
 
 linux.save_in_defconfig_format_backup:
-	mkdir -p "$(build)/$(linux_dir)" \
-	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
-	&& $(MAKE) -C "$(build)/$(linux_base_dir)" \
-		O="$(build)/$(linux_dir)" \
+	@set -e; tmp="$$(mktemp -d /tmp/heads-linux-config.XXXXXX)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	cp "$(pwd)/$(linux_kconfig)" "$$tmp/.config"; \
+	$(MAKE) -C "$(build)/$(linux_base_dir)" \
+		O="$$tmp" \
 		ARCH="$(LINUX_ARCH)" \
 		CROSS_COMPILE="$(CROSS)" \
-		savedefconfig \
-	&& cp "$(build)/$(linux_dir)/defconfig" "$(pwd)/$(linux_kconfig)_defconfig"
+		savedefconfig; \
+	if ! cmp -s "$$tmp/defconfig" "$(pwd)/$(linux_kconfig)_defconfig"; then \
+		cp "$$tmp/defconfig" "$(pwd)/$(linux_kconfig)_defconfig.tmp"; \
+		mv "$(pwd)/$(linux_kconfig)_defconfig.tmp" "$(pwd)/$(linux_kconfig)_defconfig"; \
+	fi
 
 linux.save_in_versioned_defconfig_format:
 	mkdir -p "$(build)/$(linux_dir)" \
@@ -319,14 +323,18 @@ linux.save_in_versioned_defconfig_format:
 # This one can be used in kernel version bump, which will accept all new defconfig options for the new version.
 #  PLEASE VERIFY CHANGES AND KEEP THINGS MINIMAL IN PRs.
 linux.save_in_olddefconfig_format_in_place:
-	mkdir -p "$(build)/$(linux_dir)" \
-	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
-	&& $(MAKE) -C "$(build)/$(linux_base_dir)" \
-		O="$(build)/$(linux_dir)" \
+	@set -e; tmp="$$(mktemp -d /tmp/heads-linux-config.XXXXXX)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	cp "$(pwd)/$(linux_kconfig)" "$$tmp/.config"; \
+	$(MAKE) -C "$(build)/$(linux_base_dir)" \
+		O="$$tmp" \
 		ARCH="$(LINUX_ARCH)" \
 		CROSS_COMPILE="$(CROSS)" \
-		olddefconfig \
-	&& mv "$(build)/$(linux_dir)/.config" "$(pwd)/$(linux_kconfig)"
+		olddefconfig; \
+	if ! cmp -s "$$tmp/.config" "$(pwd)/$(linux_kconfig)"; then \
+		cp "$$tmp/.config" "$(pwd)/$(linux_kconfig).tmp"; \
+		mv "$(pwd)/$(linux_kconfig).tmp" "$(pwd)/$(linux_kconfig)"; \
+	fi
 
 # non-interactive: olddefconfig (accepts defaults for new options), not the
 # interactive oldconfig used by save_in_versioned_oldconfig

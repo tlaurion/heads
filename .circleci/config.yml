@@ -62,6 +62,43 @@ commands:
             fi
       - store_artifacts:
           path: build/<< parameters.arch >>/<< parameters.target >>
+      - run:
+          name: "Config sync fail-safe: config/ must match what linux and coreboot actually consume"
+          command: |
+            # Runs after store_artifacts, so the ROMs stay downloadable even
+            # when this step fails.  Runs the explicit post-build config_sync
+            # target, so a cache hit or a targeted module build cannot skip
+            # it; config_sync fails hard on a save-helper error.  Then checks
+            # config/ for drift.  No marker file is written: the target's
+            # exit status and the git diff are the evidence.
+            # --no-pager: CircleCI runs steps with a PTY; an unpaged git diff
+            # would hang in the pager until the step timeout.
+            if [ "<< parameters.subcommand >>" = "musl-cross-make" ]; then
+              echo "Toolchain-only job; no board config to sync."
+              exit 0
+            fi
+            source /devenv.sh
+            make_status=0
+            make BOARD=<< parameters.target >> config_sync AVAILABLE_MEM_GB=8 || make_status=$?
+            drift=$(git --no-pager status --porcelain -- config/)
+            if [ "$make_status" -ne 0 ]; then
+              echo "FAIL-SAFE: config regeneration failed for this build (see above)." >&2
+            fi
+            if [ -n "$drift" ]; then
+              echo "FAIL-SAFE: these config files changed from the git-committed state:" >&2
+              printf '%s\n' "$drift" | while IFS= read -r line; do
+                [ -n "$line" ] || continue
+                echo "    ${line:3} changed from the git-committed state" >&2
+              done
+              echo "Review the diff below, keep it minimal, and commit the" >&2
+              echo "regenerated config files with the change that caused them" >&2
+              echo "(manual edit, coreboot/kernel bump, build-system change)." >&2
+              git --no-pager diff -- config/ >&2
+            fi
+            if [ "$make_status" -ne 0 ] || [ -n "$drift" ]; then
+              exit 1
+            fi
+            echo "config/ in sync: committed files match what linux and coreboot consumed."
 
 jobs:
 

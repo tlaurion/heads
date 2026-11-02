@@ -402,6 +402,26 @@ endef
 # as part of creating the Heads firmware image.
 include modules/*
 
+# Regenerate the in-place oldconfig and the defconfig backups after a board
+# has been built.  This is an explicit post-build target, not a side effect
+# of `all` or of the module aliases: CI and bin/build_all_boards.sh invoke
+# it after the build, so a warm cache or a targeted module build cannot skip
+# it.  The save helpers run in a mktemp dir outside the tree, compare the
+# regenerated content with the committed file, and replace it only when it
+# differs.  A helper failure fails this target; normal board builds are
+# unaffected.
+.PHONY: config_sync
+config_sync: linux.save_in_olddefconfig_format_in_place linux.save_in_defconfig_format_backup
+ifeq "$(CONFIG_COREBOOT)" "y"
+config_sync: coreboot.save_in_oldconfig_format_in_place coreboot.save_in_defconfig_format_backup
+endif
+linux.save_in_olddefconfig_format_in_place linux.save_in_defconfig_format_backup: $(build)/$(linux_dir)/.build
+linux.save_in_defconfig_format_backup: linux.save_in_olddefconfig_format_in_place
+ifeq "$(CONFIG_COREBOOT)" "y"
+coreboot.save_in_oldconfig_format_in_place coreboot.save_in_defconfig_format_backup: $(build)/$(coreboot_dir)/.build
+coreboot.save_in_defconfig_format_backup: coreboot.save_in_oldconfig_format_in_place
+endif
+
 # Collect all data files from enabled modules
 data_files :=
 $(foreach m,$(modules-y),$(eval data_files += $($(m)_data)))

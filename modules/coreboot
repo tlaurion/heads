@@ -429,22 +429,33 @@ coreboot.save_in_defconfig_format_in_place:
 	mv "$(build)/$(coreboot_base_dir)/defconfig" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)"
 
 coreboot.save_in_oldconfig_format_in_place:
-	mkdir -p "$(build)/$(coreboot_dir)" && \
-	cp "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" "$(build)/$(coreboot_dir)/.config" && \
+	@set -e; tmp="$$(mktemp -d /tmp/heads-coreboot-config.XXXXXX)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	cp "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" "$$tmp/.config"; \
 	$(MAKE) \
 		-C "$(build)/$(coreboot_base_dir)" \
-		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
-		olddefconfig \
-	&& mv "$(build)/$(coreboot_dir)/.config" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)"
+		obj="$$tmp" \
+		DOTCONFIG="$$tmp/.config" \
+		olddefconfig; \
+	if ! cmp -s "$$tmp/.config" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)"; then \
+		cp "$$tmp/.config" "$(pwd)/$(CONFIG_COREBOOT_CONFIG).tmp"; \
+		mv "$(pwd)/$(CONFIG_COREBOOT_CONFIG).tmp" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)"; \
+	fi
 
 coreboot.save_in_defconfig_format_backup:
-	mkdir -p "$(build)/$(coreboot_dir)" && \
-	cp "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" "$(build)/$(coreboot_dir)/.config" && \
+	@set -e; tmp="$$(mktemp -d /tmp/heads-coreboot-config.XXXXXX)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	cp "$(pwd)/$(CONFIG_COREBOOT_CONFIG)" "$$tmp/.config"; \
 	$(MAKE) \
 		-C "$(build)/$(coreboot_base_dir)" \
-		DOTCONFIG="$(build)/$(coreboot_dir)/.config" \
-		savedefconfig && \
-	cp "$(build)/$(coreboot_base_dir)/defconfig" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)_defconfig"
+		obj="$$tmp" \
+		DOTCONFIG="$$tmp/.config" \
+		DEFCONFIG="$$tmp/defconfig" \
+		savedefconfig; \
+	if ! cmp -s "$$tmp/defconfig" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)_defconfig"; then \
+		cp "$$tmp/defconfig" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)_defconfig.tmp"; \
+		mv "$(pwd)/$(CONFIG_COREBOOT_CONFIG)_defconfig.tmp" "$(pwd)/$(CONFIG_COREBOOT_CONFIG)_defconfig"; \
+	fi
 
 coreboot.modify_defconfig_in_place:
 	mkdir -p "$(build)/$(coreboot_dir)" && \
