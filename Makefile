@@ -195,12 +195,18 @@ PACKAGES	:= $(shell mkdir -p "$(packages)")
 HASHES		:= $(board_build)/hashes.txt
 SIZES		:= $(board_build)/sizes.txt
 
-# Create the board output directory if it doesn't already exist
+# Create the board output directory if it doesn't already exist.
+# config_sync only reads existing build outputs; resetting the manifests here
+# would discard the records from the build it is checking.
+ifeq ($(MAKECMDGOALS),config_sync)
+BOARD_LOG	:= $(shell mkdir -p "$(board_build)")
+else
 BOARD_LOG	:= $(shell \
 	mkdir -p "$(board_build)" ; \
 	echo "$(DATE) $(GIT_HASH) $(GIT_STATUS)" > "$(HASHES)" ; \
 	echo "$(DATE) $(GIT_HASH) $(GIT_STATUS)" > "$(SIZES)" ; \
 )
+endif
 
 ifeq "y" "$(CONFIG_LINUX_BUNDLED)"
 # Create empty initrd for initial kernel "without" initrd.
