@@ -633,6 +633,8 @@ save_default_option() {
 
 default_select() {
 	# Attempt boot with expected parameters
+	default_boot="y"
+	valid_default_hash="n"
 
 	# Check that entry matches that which is expected from menu
 	default_index=$(basename "$TMP_DEFAULT_FILE" | cut -d. -f 2)
@@ -656,7 +658,7 @@ default_select() {
 		# Check the hashes of all the files
 		if (cd $bootdir && sha256sum -c "$TMP_DEFAULT_HASH_FILE" >/tmp/hash_output); then
 			STATUS_OK "Verified default boot hashes"
-			valid_hash='y'
+			valid_default_hash='y'
 		else
 			if [ "$gui_menu" = "y" ]; then
 				CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':')
@@ -673,6 +675,7 @@ default_select() {
 
 user_select() {
 	# No default expected boot parameters, ask user
+	default_boot="n"
 
 	option_confirm=""
 	while [ "$option_confirm" != "y" -a "$option_confirm" != "d" ]; do
@@ -707,7 +710,7 @@ do_boot() {
 		DIE "Missing required rollback counter state"
 	fi
 
-	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_BOOT_REQ_HASH" = "y" ] && [ "$valid_hash" = "n" ]; then
+	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_BOOT_REQ_HASH" = "y" ] && [ "$default_boot" = "y" ] && [ "$valid_default_hash" = "n" ]; then
 		DIE "Missing required boot hashes"
 	fi
 
