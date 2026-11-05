@@ -660,11 +660,15 @@ default_select() {
 			STATUS_OK "Verified default boot hashes"
 			valid_default_hash='y'
 		else
+			WARN "Default boot hash verification failed"
 			if [ "$gui_menu" = "y" ]; then
 				CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':')
 				whiptail_error --title 'ERROR: Default Boot Hash Mismatch' \
-					--msgbox "The following files failed the verification process:\n${CHANGED_FILES}\nExiting to a recovery shell" 0 80
+					--msgbox "The following files failed the verification process:\n${CHANGED_FILES}\n\nDefault boot hashes are out of date.\nPlease re-save the default boot option or run Update checksums." 0 80
 			fi
+			valid_default_hash='n'
+			WARN "Falling back to boot menu due to default boot hash mismatch"
+			return
 		fi
 	fi
 
@@ -711,7 +715,8 @@ do_boot() {
 	fi
 
 	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_BOOT_REQ_HASH" = "y" ] && [ "$default_boot" = "y" ] && [ "$valid_default_hash" = "n" ]; then
-		DIE "Missing required boot hashes"
+		WARN "Missing required boot hashes for default boot"
+		return 1
 	fi
 
 	if [ "$CONFIG_BASIC" != y ] && [ "$CONFIG_TPM" = "y" ] && [ -r "$TMP_KEY_DEVICES" ] && [ "$force_boot" != "y" ]; then
