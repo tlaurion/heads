@@ -642,8 +642,10 @@ default_select() {
 	option=$(head -n $default_index $TMP_MENU_FILE | tail -1)
 	if [ "$option" != "$expectedoption" ]; then
 		if [ "$gui_menu" = "y" ]; then
+			# `|| true`: a dismissed dialog (Esc -> non-zero) must not abort the
+			# script under `set -e`, or the caller would land in a recovery shell.
 			whiptail_error --title 'ERROR: Boot Entry Has Changed' \
-				--msgbox "The list of boot entries has changed\n\nPlease set a new default" 0 80
+				--msgbox "The list of boot entries has changed\n\nPlease set a new default" 0 80 || true
 		fi
 		WARN "Boot entry has changed - please set a new default"
 		return
@@ -653,22 +655,39 @@ default_select() {
 	if [ "$CONFIG_BASIC" != "y" ]; then
 		# Enforce that default option hashes are valid
 		STATUS "Checking verified default boot hash file"
-		# Check the hashes of all the files
-		if (cd $bootdir && sha256sum -c "$TMP_DEFAULT_HASH_FILE" >/tmp/hash_output); then
+		# Check the hashes of all the files.  A manifest line that hashes STDIN
+		# ("<hash>  -") must never be trusted: sha256sum -c would read the
+		# console instead of a file, and it can report OK, i.e. the default
+		# entry would boot with nothing actually verified.
+		: >/tmp/hash_output
+		if ! grep -qE '^[0-9a-f]{64}  -$' "$TMP_DEFAULT_HASH_FILE" \
+			&& (cd "$bootdir" && sha256sum -c "$TMP_DEFAULT_HASH_FILE" >/tmp/hash_output); then
 			STATUS_OK "Verified default boot hashes"
 			valid_hash='y'
 		else
+			WARN "Default boot hash verification failed"
 			if [ "$gui_menu" = "y" ]; then
 				CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':')
+				if [ -n "$CHANGED_FILES" ]; then
+					TEXT="The following files failed the verification process:\n${CHANGED_FILES}\n\n"
+				else
+					TEXT=""
+				fi
+				# `|| true`: a dismissed dialog (Esc -> non-zero) must not abort the
+				# script under `set -e`, or the caller would land in a recovery shell.
 				whiptail_error --title 'ERROR: Default Boot Hash Mismatch' \
-					--msgbox "The following files failed the verification process:\n${CHANGED_FILES}\nExiting to a recovery shell" 0 80
+					--msgbox "${TEXT}The default boot hashes are out of date.\n\nPlease set a new default." 0 80 || true
 			fi
+			WARN "Default boot hashes are out of date - please set a new default"
+			return
 		fi
 	fi
 
 	STATUS "Executing default boot for $name"
-	do_boot
-	WARN "Failed to boot default option"
+	if ! do_boot; then
+		WARN "Failed to boot default option"
+		return 1
+	fi
 }
 
 user_select() {
@@ -809,7 +828,7 @@ while true; do
 		-a -r "$TMP_DEFAULT_FILE" \
 		-a -r "$TMP_DEFAULT_HASH_FILE" ] \
 		; then
-		default_select
+		default_select || true
 		default_failed="y"
 	else
 		user_select
