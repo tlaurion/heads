@@ -59,6 +59,19 @@ if [ "$update" = "y" ]; then
 			hash_pipeline_exit=$?
 		#also save the file & directory structure to detect added files
 		print_tree >"$stagedir/kexec_tree.txt"
+
+		# Regenerate kexec_default_hashes.txt from current default boot entry
+		for default_entry_file in "$stagedir"/kexec_default.*.txt; do
+			[ -r "$default_entry_file" ] || continue
+			default_entry="$(cat "$default_entry_file")"
+			if [ -n "$default_entry" ]; then
+				DEBUG "update=y: Regenerating kexec_default_hashes.txt from default entry"
+				/bin/kexec-boot.sh -b /boot -e "$default_entry" -f 2>/dev/null | xargs sha256sum >"$stagedir/kexec_default_hashes.txt" ||
+					hash_pipeline_exit=$?
+				break
+			fi
+		done
+
 		exit $hash_pipeline_exit
 	)
 	[ $? -eq 0 ] || DIE "$paramsdir: Failed to update hashes."
