@@ -27,7 +27,8 @@ bzImage payload + separate CBFS initrd.cpio.xz
   │  TPM preflight, GPG key check, TOTP/HOTP attestation
   ▼
 kexec-select-boot
-  │  verify /boot hashes + GPG signature, rollback counter
+  │  verify /boot hashes + GPG signature, rollback counter,
+  │  default-entry hash gate
   ▼
 kexec  ← hands off to OS kernel
 ```
@@ -113,6 +114,8 @@ for the no-TPM path.
 
 If HOTP succeeded and `CONFIG_AUTO_BOOT_TIMEOUT` is set, a countdown starts and
 the default boot entry is selected automatically if the user does not intervene.
+On non-Basic boards, if the saved default entry's own hash manifest no longer
+matches, that automatic boot is aborted and the OS boot menu is opened instead.
 
 ### Main menu loop
 
@@ -319,22 +322,48 @@ When the user saves a default boot entry
 (`Options -> Boot Options -> Show OS Boot Menu -> pick OS -> Make default`),
 `kexec-save-default.sh` hashes the files that entry needs into
 `kexec_default_hashes.txt`, which is signed together with the other `kexec*.txt`
-files. Before the saved default entry is booted, `kexec-select-boot` verifies
-that manifest with `sha256sum -c`.
+files. On non-Basic boards, before the saved default entry is booted,
+`kexec-select-boot` verifies that manifest with `sha256sum -c`.
 
-On non-Basic boards (`CONFIG_BASIC != y`), a mismatch gates the default entry:
-it is not booted, the mismatching files are listed, and the user is asked to set
-a new default — the same treatment as a boot entry that no longer matches the
-saved one. Setting a new default re-hashes the entry and re-signs the manifest.
+A manifest line that hashes standard input — 64 hex digits (either case)
+followed by a space and `-` (the text form `<hash>  -`) or by `*` and `-`
+(the binary form `<hash> *-`) — is refused before `sha256sum` runs: it would
+read the console instead of a file and can report success, so the entry would
+boot with nothing verified.  `kexec-save-default.sh` can no longer emit that
+marker: it uses `xargs -r sha256sum`, so an entry with no files yields an
+empty manifest, which `sha256sum -c` refuses outright.
+
+The manifest can go stale without the boot entry changing: a file is
+replaced under the same path (a QubesOS Xen security update, for example)
+while the entry still names it. That is what the per-entry manifest is for,
+and why the entry cannot be trusted just because it still looks the same.
+
+On non-Basic boards (`CONFIG_BASIC != y`), a mismatch gates the automatic
+default boot: the entry is not auto-booted and the user is asked to set a new
+default — the same treatment as a boot entry that no longer matches the saved
+one.  The files that failed the verification are listed only in the GUI
+dialog; in CLI mode and for the stdin-marker case there is no file list.  The
+OS boot menu is then shown, so the user can pick another entry or set a new
+one — including the mismatched entry itself, which a manual selection boots
+under the global `/boot` signature alone (there is no per-entry check in
+`user_select`/`do_boot`).  Setting a new
+default re-hashes the entry and re-signs the manifest. Setting a new default
+is the only repair: it recomputes the manifest from the selected entry.
+"Update checksums" cannot do it, because it re-signs the existing manifest
+without recomputing it, so the default entry stays out of date.
+If the manifest is missing or unreadable, the automatic default boot is
+skipped entirely: `kexec-select-boot` shows the OS boot menu directly, with
+no dialog and no warning.
 This is not a whole-system tamper alarm — `/boot` as a whole is covered
 separately by `kexec_hashes.txt` (see the subsection above).
 
 `CONFIG_BOOT_REQ_HASH` has been removed. It was introduced in 2017 to require
 the default boot entry's hash verification before a non-recovery boot, but no
-board ever enabled it, so the gate it controlled was never reachable.  The
+shipped board config enabled it, so the gate it controlled was unreachable in
+the shipped board configs (a user override could still enable it).  The
 default boot entry's manifest is now verified on every non-Basic board
 regardless of any board flag, and a mismatch asks the user to set a new
-default instead of failing to a recovery shell.
+default instead of falling through and booting the stale entry.
 
 ### Rollback counter verification (`verify_rollback_counter`)
 

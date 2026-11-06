@@ -168,7 +168,9 @@ Use STATUS when an action is beginning or underway:
 
 * "Verifying ISO" - a signature check is running (→ STATUS_OK or DIE follows)
 * "Unlocking LUKS device(s) using the Disk Recovery Key passphrase" - an unlock is in progress (→ STATUS_OK or WARN follows)
-* "Executing default boot for $name" - what is about to boot (→ WARN or DIE on failure)
+* "Executing default boot for $name" - what is about to boot (→ WARN or DIE on
+  failure); the default-entry hash-gate failure happens before this STATUS and
+  is a WARN plus a return to the boot menu, not a DIE
 * "GPG User PIN retries remaining: N" - state shown before an operation that will consume a PIN attempt
 
 Do NOT use STATUS for descriptions of what will happen based on a user's configuration choice

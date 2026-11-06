@@ -275,7 +275,13 @@ At each boot, `verify_global_hashes` in `kexec-select-boot` calls
 matches its stored hash and that `kexec.sig` is valid.  On mismatch, an
 interactive whiptail menu offers three options: investigate discrepancies,
 update checksums, or return to the main menu.  Choosing "return" causes
-`DIE` — there is no "boot anyway" path.
+`DIE` in `kexec-select-boot`'s own loop — there is no "boot anyway" path;
+in `gui-init`'s pre-check the same choice instead returns to the main menu.
+The default-entry refusal is one hash-verification failure that does not die:
+the entry is not booted and the boot menu is shown instead, and any entry the
+user then chooses is covered by the global `/boot` signature.  It is not the
+only path back to the menu: a boot entry that has changed ("Boot Entry Has
+Changed") also returns.
 
 The ROM contains only the **public key**. Verification uses `gpgv` with
 the ROM keyring; no private key material is needed at boot.
@@ -437,14 +443,20 @@ For the UNKNOWN_KEY scenario and correct error messaging, see
 
 ## Fail-closed design
 
-All verification failures are fatal by default:
+Hash and signature verification failures are fatal by default, with one
+exception:
 
 - GPG signature mismatch → `die` (recovery shell)
-- Hash mismatch → `die` (recovery shell)
+- Global `/boot` hash mismatch → `die` (recovery shell)
+- Default boot entry hash mismatch (non-Basic only) → the entry is not booted;
+  a dialog lists the failing files when it can name them, and the boot menu is
+  shown (non-fatal; see
+  [boot-process.md](boot-process.md#default-boot-hash-verification))
 - TPM counter mismatch (when `CONFIG_IGNORE_ROLLBACK` is not set and the
   rollback file exists) → `die` (recovery shell)
-- TOTP unseal failure → error menu (no unattended boot)
-- LUKS DUK unseal failure → OS prompts for DRK passphrase (no silent failure)
+- TOTP unseal failure → error menu (no unattended boot); separately non-fatal
+- LUKS DUK unseal failure → OS prompts for DRK passphrase (no silent failure);
+  separately non-fatal
 
 Some failures remain overridable: the TOTP/HOTP error menus offer an ignore
 option, and the boot options menu offers an unsafe forced boot. Overrides
