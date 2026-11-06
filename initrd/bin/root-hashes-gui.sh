@@ -138,7 +138,6 @@ check_root_checksums() {
 	STATUS "Checking hashes for all files in $CONFIG_ROOT_DIRLIST_PRETTY (this may take a while)"
 	if (cd $ROOT_MOUNT && sha256sum -c ${HASH_FILE} >/tmp/hash_output 2>/dev/null); then
 		STATUS_OK "Verified root hashes"
-		valid_hash='y'
 		unmount_root_device
 
 		if [ "$new_files_found" == "y" ]; then
