@@ -175,16 +175,16 @@ get_menu_option() {
 		else
 			local menu_prompt="Choose the boot option [1-$n, Esc to abort]:"
 		fi
-		whiptail_type $BG_COLOR_MAIN_MENU --title "Select your boot option" \
+		# Use whiptail_type's exit status directly: on success read its output
+		# file; on cancel/Esc (non-zero) the output file is empty, so reading
+		# it would produce no index and must not overwrite the cancel marker.
+		if whiptail_type $BG_COLOR_MAIN_MENU --title "Select your boot option" \
 			--menu "$menu_prompt" 0 80 8 \
 			-- "${MENU_OPTIONS[@]}" \
-			2>/tmp/whiptail || option_index="a"
-
-		# Only read whiptail's output when it succeeded. On cancel/Esc the
-		# exit status is non-zero and option_index is already "a"; the output
-		# file is empty, so reading it would erase the cancel marker.
-		if [ "$option_index" != "a" ]; then
+			2>/tmp/whiptail; then
 			option_index=$(cat /tmp/whiptail)
+		else
+			option_index="a"
 		fi
 	else
 		STATUS "Select your boot option:"
@@ -219,8 +219,11 @@ get_menu_option() {
 	if [ "$option_index" = "a" ]; then
 		STATUS "Boot aborted by user"
 		# Exit 3 means "cancelled by the user": distinct from 1 (a genuine
-		# failure) and 2 (different ISO). Callers use it to return to the
-		# main menu instead of entering the recovery shell.
+		# failure) and 2 (different ISO).  The main-disk callers (gui-init.sh,
+		# gui-init-basic.sh, generic-init.sh) honour it by returning to their
+		# menu/prompt; the ISO-file (kexec-iso-init.sh) and bootable-USB
+		# (media-scan.sh) menus deliberately treat a cancel as a failure
+		# because they have no menu to return to.
 		exit 3
 	fi
 	if [ "$option_index" = "b" ] && [ -n "$add" ]; then

@@ -59,6 +59,8 @@ if [ -d "/etc" ] && [ -f "/etc/functions.sh" ]; then
 	IS_INITRD="y"
 	_PATCHED_ISO="$KEXEC_ISO"
 	_PATCHED_SELECT="$KEXEC_SELECT"
+	_PATCHED_GUI_INIT="$GUI_INIT"
+	_PATCHED_GUI_INIT_BASIC="$GUI_INIT_BASIC"
 else
 	# On host (development): paths relative to repo
 	REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -98,6 +100,20 @@ else
 	_PATCHED_SELECT="$TMPDIR/kexec-select-boot.sh"
 	sed 's|\. /etc/functions\.sh|. '"$FUNCTIONS"'|g; s|\. /etc/gui_functions\.sh|. '"$_PATCHED_GUI"'|g; /\. \/tmp\/config/d' \
 		"$KEXEC_SELECT" > "$_PATCHED_SELECT"
+
+	# Patched copies of the two GUI callers for the Step 7d behavioural test.
+	# gui-init.sh sources gpg_functions.sh (self-contained function defs) and
+	# luks-functions.sh (which itself sources functions.sh/gui_functions.sh/
+	# tmp/config), so patch luks-functions.sh too.
+	_PATCHED_LUKS="$TMPDIR/luks-functions.sh"
+	sed 's|\. /etc/functions\.sh|. '"$FUNCTIONS"'|g; s|\. /etc/gui_functions\.sh|. '"$_PATCHED_GUI"'|g; /\. \/tmp\/config/d' \
+		"$REPO/initrd/etc/luks-functions.sh" > "$_PATCHED_LUKS"
+	_PATCHED_GUI_INIT="$TMPDIR/gui-init.sh"
+	sed 's|\. /etc/functions\.sh|. '"$FUNCTIONS"'|g; s|\. /etc/gui_functions\.sh|. '"$_PATCHED_GUI"'|g; s|\. /etc/gpg_functions\.sh|. '"$REPO/initrd/etc/gpg_functions.sh"'|g; s|\. /etc/luks-functions\.sh|. '"$_PATCHED_LUKS"'|g; /\. \/tmp\/config/d' \
+		"$GUI_INIT" > "$_PATCHED_GUI_INIT"
+	_PATCHED_GUI_INIT_BASIC="$TMPDIR/gui-init-basic.sh"
+	sed 's|\. /etc/functions\.sh|. '"$FUNCTIONS"'|g; s|\. /etc/gui_functions\.sh|. '"$_PATCHED_GUI"'|g; /\. \/tmp\/config/d' \
+		"$GUI_INIT_BASIC" > "$_PATCHED_GUI_INIT_BASIC"
 
 	# Prefer fuseiso on host, fall back to mount -o loop
 	if command -v fuseiso >/dev/null 2>&1; then
@@ -509,14 +525,59 @@ get_menu_option
 check "$([ "$option_index" = "2" ] && echo pass || echo fail)" \
 	"get_menu_option: success selects the index written to /tmp/whiptail"
 
-# --- Source-level: attempt_default_boot() in both gui-init variants must route
-# only statuses other than 0 and 3 to recovery. 3 (cancel) returns to the menu.
-check "$(grep -qF 'recovery "Failed default boot (exit $status)"' "$GUI_INIT" && \
-	grep -qF '"$status" -ne 3' "$GUI_INIT" && echo pass || echo fail)" \
-	"gui-init: attempt_default_boot excludes cancel (3) from recovery"
-check "$(grep -qF 'recovery "Failed default boot (exit $status)"' "$GUI_INIT_BASIC" && \
-	grep -qF '"$status" -ne 3' "$GUI_INIT_BASIC" && echo pass || echo fail)" \
-	"gui-init-basic: attempt_default_boot excludes cancel (3) from recovery"
+# --- Behavioural: drive attempt_default_boot() in both gui-init variants with
+# stubbed recovery()/DO_WITH_DEBUG so the routing is executed, not grepped.
+# The _HEADS_TEST source guard loads only the function definitions and skips
+# each caller's main menu loop.
+DEFAULT_FILE_FIXTURE="$TMPDIR/default_boot_fixture.txt"
+: > "$DEFAULT_FILE_FIXTURE"
+
+# Stub the dependencies of attempt_default_boot() and drive the currently
+# sourced caller.  DO_WITH_DEBUG stands in for kexec-select-boot.sh and returns
+# the chosen status; recovery() records its argument so the routing is asserted.
+# attempt_default_boot() itself is left untouched, so its own routing runs.
+test_default_boot_routing() {
+	local caller="$1"
+	mount_boot() { return 0; }
+	verify_global_hashes() { return 0; }
+	find() { printf '%s\n' "$DEFAULT_FILE_FIXTURE"; }
+	DO_WITH_DEBUG() { return "$do_with_debug_status"; }
+	recovery() { recovery_called="$*"; }
+
+	recovery_called=""
+	do_with_debug_status=3
+	set +e
+	attempt_default_boot
+	set -e
+	check "$([ -z "$recovery_called" ] && echo pass || echo fail)" \
+		"$caller attempt_default_boot: cancel (3) does not reach recovery"
+
+	recovery_called=""
+	do_with_debug_status=1
+	set +e
+	attempt_default_boot
+	set -e
+	check "$([ -n "$recovery_called" ] && echo pass || echo fail)" \
+		"$caller attempt_default_boot: genuine failure (1) reaches recovery"
+}
+
+export _HEADS_TEST=y
+. "$_PATCHED_GUI_INIT"
+unset _HEADS_TEST
+test_default_boot_routing "gui-init"
+
+# gui-init-basic auto-boots the first entry unless CONFIG_BASIC_NO_AUTOMATIC_DEFAULT
+# is set; force the saved-default branch so its routing is exercised.
+CONFIG_BASIC_NO_AUTOMATIC_DEFAULT="y"
+export _HEADS_TEST=y
+. "$_PATCHED_GUI_INIT_BASIC"
+unset _HEADS_TEST
+test_default_boot_routing "gui-init-basic"
+
+unset DEFAULT_FILE_FIXTURE recovery_called do_with_debug_status \
+	CONFIG_BASIC_NO_AUTOMATIC_DEFAULT
+unset -f mount_boot verify_global_hashes find DO_WITH_DEBUG recovery \
+	attempt_default_boot test_default_boot_routing 2>/dev/null || true
 
 echo ""
 
