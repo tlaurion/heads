@@ -661,17 +661,21 @@ default_select() {
 		# Enforce that default option hashes are valid
 		STATUS "Checking verified default boot hash file"
 		# Check the hashes of all the files.  A manifest line that hashes STDIN
-		# ("<hash>  -") must never be trusted: sha256sum -c would read the
-		# console instead of a file, and it can report OK, i.e. the default
-		# entry would boot with nothing actually verified.
+		# ("<hash>  -" text, "<hash> *-" binary) must never be trusted:
+		# sha256sum -c would read the console instead of a file, and it can
+		# report OK, i.e. the default entry would boot with nothing actually
+		# verified.  The pattern accepts uppercase hex and the binary "*" flag.
 		: >/tmp/hash_output
-		if ! grep -qE '^[0-9a-f]{64}  -$' "$TMP_DEFAULT_HASH_FILE" \
+		if ! grep -qE '^[0-9a-fA-F]{64} [ *]-$' "$TMP_DEFAULT_HASH_FILE" \
 			&& (cd "$bootdir" && sha256sum -c "$TMP_DEFAULT_HASH_FILE" >/tmp/hash_output); then
 			STATUS_OK "Verified default boot hashes"
 		else
 			WARN "Default boot hash verification failed"
 			if [ "$gui_menu" = "y" ]; then
-				CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':')
+				# `|| true`: an empty or all-OK hash_output makes grep exit 1,
+				# which under `set -e -o pipefail` would kill the script here
+				# instead of falling through to the WARN/return below.
+				CHANGED_FILES=$(grep -v 'OK$' /tmp/hash_output | cut -f1 -d ':') || true
 				if [ -n "$CHANGED_FILES" ]; then
 					TEXT="The following files failed the verification process:\n${CHANGED_FILES}\n\n"
 				else
@@ -688,6 +692,9 @@ default_select() {
 	fi
 
 	STATUS "Executing default boot for $name"
+	# Defence-in-depth: do_boot either kexecs away or exits via DIE, so this
+	# branch is normally unreachable.  It exists so an unexpected do_boot
+	# failure still returns non-zero instead of silently continuing.
 	if ! do_boot; then
 		WARN "Failed to boot default option"
 		return 1
@@ -828,6 +835,9 @@ while true; do
 		-a -r "$TMP_DEFAULT_FILE" \
 		-a -r "$TMP_DEFAULT_HASH_FILE" ] \
 		; then
+		# `|| true` suspends errexit across default_select and its callees, so
+		# a dismissed dialog (Esc -> non-zero) or a non-zero return returns to
+		# the loop; default_failed=y then shows the menu on the next pass.
 		default_select || true
 		default_failed="y"
 	else

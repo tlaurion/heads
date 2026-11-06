@@ -396,18 +396,72 @@ check "$([ "$rc" = "0" ] && [ "$boot_count" = "0" ] && echo pass || echo fail)" 
 	"default_select: mismatched manifest does not boot (menu fallback)"
 
 # Test 4: stdin-marker manifest (64 hex + "  -") must be treated as failure.
-STDIN_MARKER="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  -"
+# The digest is the real sha256 of empty stdin, so this test would pass for
+# the wrong reason if the guard were removed: without it, sha256sum -c reads
+# the (empty) console, matches, reports "-: OK", and the entry boots with
+# nothing actually verified.  A fabricated digest used to mask that gap.
+STDIN_MARKER="$(printf '' | sha256sum | cut -d' ' -f1)  -"
 printf '%s\n' "$STDIN_MARKER" > "$TMP_DEFAULT_HASH_FILE"
 boot_count=0
 if default_select; then rc=0; else rc=1; fi
 check "$([ "$rc" = "0" ] && [ "$boot_count" = "0" ] && echo pass || echo fail)" \
 	"default_select: stdin-marker manifest treated as failure (no boot)"
 
+# --- GUI-mode variant: both `|| true` guards must hold under set -e. ---
+# The CLI checks above run with gui_menu="n", so neither dialog is reached.
+# In production the script runs under `set -e -o pipefail` (sourced from
+# kexec-select-boot.sh); a dismissed whiptail_error (Esc -> non-zero) must not
+# abort default_select, or the caller lands in a recovery shell.  Run each path
+# in a subshell with `set -e` re-enabled, so the guards are genuinely
+# exercised: without them the subshell would exit non-zero on the dismissal.
+# The production STATUS/STATUS_OK/WARN helpers write to /dev/console, which is
+# not writable on the host, so they are stubbed to no-ops here — otherwise they
+# would fail under set -e for the wrong reason.
+gui_menu="y"
+whiptail_error() { return 255; }
+STATUS() { return 0; }
+STATUS_OK() { return 0; }
+WARN() { return 0; }
+# Record do_boot via a file so it survives the subshell boundary below.
+gui_boot_sentinel="$TMPDIR/gui_boot_happened"
+do_boot() {
+	: > "$gui_boot_sentinel"
+	return 0
+}
+
+# Reset the saved default to differ from the menu entry, reaching the
+# "Boot Entry Has Changed" dialog (the first `|| true` guard).
+printf '%s\n' 'linux|linux|kernel /vmlinuz-y|initrd /initrd-y|append root=/dev/sda2' \
+	> "$TMP_DEFAULT_FILE"
+rm -f "$gui_boot_sentinel"
+set +e
+( set -e; default_select )
+gui_rc=$?
+set -e
+check "$([ "$gui_rc" = "0" ] && [ ! -e "$gui_boot_sentinel" ] && echo pass || echo fail)" \
+	"default_select GUI: changed entry refuses and survives a dismissed dialog under set -e"
+
+# Reset to a matching entry, then break the manifest hash so the hash-mismatch
+# dialog (the second `|| true` guard) is reached.
+printf '%s\n' "$ENTRY" > "$TMP_DEFAULT_FILE"
+printf 'kernel-data\n' > "$FAKE_BOOT/vmlinuz-x"
+printf 'initrd-data\n' > "$FAKE_BOOT/initrd-x"
+( cd "$FAKE_BOOT" && sha256sum ./vmlinuz-x ./initrd-x ) > "$TMP_DEFAULT_HASH_FILE"
+printf 'mutated-kernel\n' > "$FAKE_BOOT/vmlinuz-x"
+rm -f "$gui_boot_sentinel"
+set +e
+( set -e; default_select )
+gui_rc=$?
+set -e
+check "$([ "$gui_rc" = "0" ] && [ ! -e "$gui_boot_sentinel" ] && echo pass || echo fail)" \
+	"default_select GUI: hash mismatch refuses and survives a dismissed dialog under set -e"
+
 # Clean up fixture variables.
 unset bootdir option params name kernel kexectype initrd gui_menu \
 	ENTRY FAKE_BOOT FAKE_KEXEC \
-	rc boot_count valid_rollback removed_knob removed_hash_flag \
-	STDIN_MARKER
+	rc boot_count gui_rc valid_rollback removed_knob removed_hash_flag \
+	STDIN_MARKER gui_boot_sentinel
+unset -f do_boot whiptail_error 2>/dev/null || true
 echo ""
 
 # ================================================================
