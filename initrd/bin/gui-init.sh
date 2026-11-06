@@ -928,8 +928,11 @@ attempt_default_boot() {
 	DEFAULT_FILE=$(find /boot/kexec_default.*.txt 2>/dev/null | head -1)
 	if [ -r "$DEFAULT_FILE" ]; then
 		TRACE_FUNC
-		DO_WITH_DEBUG kexec-select-boot.sh -b /boot -c "grub.cfg" -g ||
-			recovery "Failed default boot"
+		DO_WITH_DEBUG kexec-select-boot.sh -b /boot -c "grub.cfg" -g
+		status=$?
+		if [ "$status" -ne 0 ] && [ "$status" -ne 3 ]; then
+			recovery "Failed default boot (exit $status)"
+		fi
 	elif (whiptail_warning --title 'No Default Boot Option Configured' \
 		--yesno "There is no default boot option configured yet.\nWould you like to load a menu of boot options?\nOtherwise you will return to the main menu." 0 80); then
 		TRACE_FUNC
