@@ -1,22 +1,48 @@
 # OpenSSL library
 modules-$(CONFIG_OPENSSL) += openssl
 
-openssl_version := 3.0.8
+openssl_version := 3.5.8
 openssl_dir := openssl-$(openssl_version)
 openssl_tar := openssl-$(openssl_version).tar.gz
 openssl_url := https://www.openssl.org/source/$(openssl_tar)
-openssl_hash := 6c13d2bf38fdf31eac3ce2a347073673f5d63263398f1f69d0df4a41253e4b3e
+openssl_hash := a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2
 
 # The only optional algorithm that's enabled is SM3.  tpm2-tss uses SHA, AES,
 # and SM3.
 # See doc/modules.md "Shared module build flags" for the section-GC/unwind rationale.
 
+# ECC (ecdh/ecdsa) is required by OpenSSH 10.5p1 (incl. NISTP521), so unlike the
+# earlier 3.0.8 trim these are NOT disabled.
+# no-secure-memory drops the mlock'd secure heap in crypto/mem_sec.c, which is
+# also the only file pulling in linux/mman.h, so the musl build issue tracked in
+# openssl/openssl#7207 is compiled out rather than worked around.
+# no-thread-pool/no-default-thread-pool drop the work offload pool.  Its only
+# in-tree users are the Argon2 KDF and the QUIC thread assist, and both are
+# already gone (no-blake2 cascades no-argon2, and no-quic is set below), so the
+# pool only contributes the OSSL_LIB_CTX thread pool API in crypto/context.c.
+# no-argon2 is deliberately NOT listed: Configure already cascades it off from
+# no-blake2, so naming it would change nothing.  no-filenames is omitted for
+# the same reason in reverse: it only blanks OPENSSL_FILE/OPENSSL_LINE, which
+# the error strings would have carried, and no-err already removes those.
+# no-scrypt was removed: wyng derives its archive key with hashlib.scrypt, which
+# calls the legacy EVP_PBE_scrypt.  no-scrypt compiles out all of
+# crypto/evp/pbe_scrypt.c behind OPENSSL_NO_SCRYPT and drops the SCRYPT KDF from
+# the default provider, so the symbol _hashlib links against is simply absent.
+# Size audit: libcrypto/libssl still link these but no consumer uses them --
+# no-cmp/no-ml-dsa/no-ml-kem/no-slh-dsa (PQC+CMP), no-ec2m/no-http/no-rfc3779.
+# tpm2-tss/tpm2-tools keep ECC/DH/RSA/SM3/ECX; OpenSSH keeps DH/ECDH/ECDSA/
+# RSA/X25519/AES/MD5/SHA, so none of those are touched here.  ECX is kept on
+# purpose: no-ecx would also strip X25519/X448 and cost curve25519-sha256.
+# OpenSSH 10.5p1 requires the deprecated EC_KEY API family (EC_KEY_new,
+# EC_KEY_new_by_curve_name, etc.) for its configure probe and runtime code,
+# so no-deprecated cannot be set: it would hide EC_KEY behind OPENSSL_NO_DEPRECATED_3_0.
 openssl_configure := \
 	$(CROSS_TOOLS) \
 	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables" \
 	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
 	./Configure \
 		--prefix="/" \
+		--libdir="lib" \
 		linux-$(strip $(arch)) \
 		no-aria \
 		no-bf \
@@ -26,10 +52,8 @@ openssl_configure := \
 		no-chacha \
 		no-cmac \
 		no-des \
-		no-dh \
+		enable-dh \
 		no-dsa \
-		no-ecdh \
-		no-ecdsa \
 		no-idea \
 		no-md4 \
 		no-mdc2 \
@@ -38,23 +62,56 @@ openssl_configure := \
 		no-rc2 \
 		no-rc4 \
 		no-rmd160 \
-		no-scrypt \
+		no-secure-memory \
 		no-seed \
 		no-siphash \
 		no-siv \
 		no-sm2 \
 		no-sm4 \
 		no-tests \
+		no-apps \
+		no-docs \
 		no-whirlpool \
+		no-cms \
+		no-ocsp \
+		no-srp \
+		no-ts \
+		no-ct \
+		no-comp \
+		no-engine \
+		no-async \
+		no-egd \
+		no-legacy \
+		no-dtls \
+		no-nextprotoneg \
+		no-psk \
+		no-srtp \
+		no-thread-pool \
+		no-default-thread-pool \
+		no-weak-ssl-ciphers \
+		no-cmp \
+		no-ml-dsa \
+		no-ml-kem \
+		no-slh-dsa \
+		no-ec2m \
+		no-http \
+		no-rfc3779 \
+		no-ssl no-ssl3 no-tls1 no-tls1_1 no-tls1_2 no-quic no-err no-autoload-config \
 
+# --libdir is given to Configure, not to install_sw as LIBDIR=.  The pkg-config
+# files are rendered from installdata.pm, whose LIBDIR_REL_PREFIX comes from the
+# configured libdir, and this target's multilib postfix defaults the libdir to
+# lib64.  A make-time LIBDIR= only moves where the files are copied, so the
+# staged libcrypto.pc would still advertise a lib64 that does not exist and
+# dependent modules would resolve some other libcrypto instead.
+# no-apps is set above, so `build_programs` builds nothing while still
+# requiring the generated apps/*.o prereqs.  install_sw is self-sufficient:
+# install_dev -> install_runtime_libs -> build_libs builds libcrypto/libssl,
+# and install_runtime -> install_programs is a no-op without apps.  Dropping
+# the separate build_programs pass avoids that redundant goal entirely.
 openssl_target := $(MAKE_JOBS) \
-	build_programs \
-	&& \
-	$(MAKE) \
-		-C "$(build)/$(openssl_dir)" \
-		DESTDIR="$(INSTALL)" \
-		LIBDIR="lib" \
-		install_sw \
+	install_sw \
+	DESTDIR="$(INSTALL)" \
 
 # Only libcrypto is needed currently, libssl is not included in initrd
 openssl_libraries := \
