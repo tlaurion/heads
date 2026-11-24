@@ -1,0 +1,21 @@
+The cbmem utility uses le32toh() and le16toh() which are defined in
+<endian.h>. On glibc these may be pulled in indirectly, but musl does not
+transitively include <endian.h>. Add the explicit include to fix build
+under the Heads musl cross-compiler.
+
+---
+ util/cbmem/cbmem.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/util/cbmem/cbmem.c b/util/cbmem/cbmem.c
+index 0b2dd8f2b2..0000000000 100644
+--- a/util/cbmem/cbmem.c
++++ b/util/cbmem/cbmem.c
+@@ -3,6 +3,7 @@
+ #include <inttypes.h>
+ #include <stdbool.h>
+ #include <stdio.h>
++#include <endian.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <strings.h>
