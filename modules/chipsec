@@ -1,0 +1,40 @@
+# chipsec: Intel CHIPSEC platform security assessment framework (userspace).
+#
+# DRAFT / OPT-IN.  Not wired into any board by default.
+#
+# Heads integration intent: provide chipsec userspace tooling in initrd for
+# platform security checks where appropriate.  This module packages Python
+# sources only; Linux helper/driver strategy is separate and may require
+# kernel module support or native helpers not included here.
+#
+# Python dependency model: selects cpython profile "chipsec" (additive merge).
+# The profile widens stdlib/dynload allowlists vs wyng (e.g. lzma, csv,
+# logging, concurrent/multiprocessing, decimal).  Keep image impact reviewed.
+CONFIG_CHIPSEC ?= n
+
+ifeq "$(CONFIG_CHIPSEC)" "y"
+ifneq "$(CONFIG_CPYTHON)" "y"
+$(error CONFIG_CHIPSEC=y requires CONFIG_CPYTHON=y)
+endif
+endif
+
+modules-$(CONFIG_CHIPSEC) += chipsec
+
+# Declare CPython profile requirements for module-driven merge.
+chipsec_cpython_profiles += chipsec
+
+# Pin to a reviewed commit/tag; do not float.
+chipsec_version := git
+chipsec_dir := chipsec-git
+chipsec_repo := https://github.com/chipsec/chipsec.git
+chipsec_commit_hash := 25457060db45217c74b46f61cc934098ddff8d64
+
+chipsec_depends := cpython $(musl_dep)
+
+# No build step yet; packaging/install rules TBD after helper strategy decided.
+chipsec_target := \
+	true
+
+# TODO: stage selected chipsec package/scripts into site-packages or /bin.
+# chipsec_output :=
+# chipsec_tools :=

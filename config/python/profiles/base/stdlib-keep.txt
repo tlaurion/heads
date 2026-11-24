@@ -1,0 +1,29 @@
+# Minimal base stdlib keep-list for CPython startup.
+# Modules declare additional needs via *_cpython_profile(s); merge unions.
+__future__
+_abc
+_codecs
+_collections
+_collections_abc
+_functools
+functools
+_io
+_signal
+_sitebuiltins
+_sre
+_stat
+_thread
+_warnings
+_weakref
+abc
+codecs
+collections
+encodings
+genericpath
+io
+os
+posixpath
+site
+stat
+types
+warnings

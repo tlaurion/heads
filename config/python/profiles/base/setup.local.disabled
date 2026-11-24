@@ -1,0 +1,16 @@
+# Base CPython profile: disable optional/bulky stdlib extension modules.
+# This is a DISABLE LIST (makesetup "first rule wins"): names listed here are
+# turned off unless removed by merge intersection with another selected profile.
+# _hashlib is intentionally NOT listed; CPython/wyng security paths need it and
+# modules/cpython depends on openssl.
+*disabled*
+_uuid
+lzma
+curses
+dbm
+nis
+ssl
+readline
+_tkinter
+_gdbm
+_decimal

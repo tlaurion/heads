@@ -1,0 +1,3 @@
+# Chipsec runtime dynload additions over base profile.
+_decimal
+_lzma
