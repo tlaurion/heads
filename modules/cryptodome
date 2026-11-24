@@ -207,6 +207,23 @@ cryptodome_target := all
 
 cryptodome_depends := cpython setuptools $(musl_dep)
 
+# CPython build-time stdlib/dynload requirements owned by this module.
+# cpython prune uses these when building INSTALL (not staged runtime).
+cryptodome_cpython_build_required_stdlib := \
+	functools operator collections itertools enum types abc _collections_abc \
+	importlib contextlib warnings re traceback linecache token tokenize \
+	keyword ast dis opcode _opcode_metadata inspect dataclasses _colorize \
+	weakref copy copyreg pickle _compat_pickle struct io _py_abc \
+	pathlib glob fnmatch stat posixpath genericpath ntpath urllib \
+	email http mimetypes calendar datetime zoneinfo _datetime \
+	json _json selectors socket _socket ssl hashlib hmac base64 binascii \
+	threading queue logging gettext argparse shutil tempfile subprocess \
+	platform sysconfig _sysconfigdata__linux_x86_64-linux-musl
+
+cryptodome_cpython_build_required_dynload := \
+	_hashlib _socket _opcode _datetime _json _struct binascii math select \
+	_posixsubprocess fcntl array zlib
+
 # Stage the whole path-preserving Cryptodome package tree (pure Python plus the
 # stripped C extensions) into the target site-packages via tools.cpio.  The
 # compiled extensions are shared objects (*.so*), so under the initrd cpio

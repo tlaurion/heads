@@ -119,6 +119,18 @@ python-zstd_target := all
 
 python-zstd_depends := cpython setuptools $(musl_dep)
 
+# CPython build-time stdlib/dynload requirements owned by this module.
+python-zstd_cpython_build_required_stdlib := \
+	functools operator collections itertools enum types abc _collections_abc \
+	importlib contextlib warnings re traceback linecache token tokenize \
+	keyword ast dis opcode _opcode_metadata inspect dataclasses _colorize \
+	copy copyreg pickle _compat_pickle io pathlib glob fnmatch stat posixpath \
+	genericpath threading queue logging argparse shutil tempfile subprocess \
+	platform sysconfig _sysconfigdata__linux_x86_64-linux-musl
+
+python-zstd_cpython_build_required_dynload := \
+	_hashlib _socket _opcode _struct _datetime math select _posixsubprocess fcntl array zlib
+
 # Stage only the stripped extension into the target site-packages via
 # tools.cpio; it is a shared object (*.so*), so under the initrd cpio staging
 # policy it is a lib and belongs in tools.cpio, not data.cpio.

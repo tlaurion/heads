@@ -165,13 +165,42 @@ cpython_configure = \
 # hashlib/openssl capability, check both allowlists before regenerating a
 # trace, and prefer stating the requirement outright -- as Setup.local and the
 # dynload list now do for _hashlib -- over re-deriving it from a trace.
+cpython_runtime_lib := $(build)/$(cpython_dir)/runtime-lib/python$(cpython_mm)
+cpython_runtime_lib_dep := $(build)/$(cpython_dir)/.runtime-lib
+
+# Build-time CPython requirements owned by dependent modules.
+cpython_build_required_stdlib := $(strip \
+	$(foreach m,$(modules-y),$($(m)_cpython_build_required_stdlib)) \
+	$(CPYTHON_BUILD_REQUIRED_STDLIB_EXTRA))
+cpython_build_required_dynload := $(strip \
+	$(foreach m,$(modules-y),$($(m)_cpython_build_required_dynload)) \
+	$(CPYTHON_BUILD_REQUIRED_DYNLOAD_EXTRA))
+cpython_build_required_stdlib_file := $(build)/$(BOARD)/cpython-build-required-stdlib.txt
+cpython_build_required_dynload_file := $(build)/$(BOARD)/cpython-build-required-dynload.txt
+
+$(cpython_build_required_stdlib_file): $(CONFIG)
+	@mkdir -p "$(dir $@)"
+	@{ for x in $(cpython_build_required_stdlib); do echo "$$x"; done; } | sort -u > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+$(cpython_build_required_dynload_file): $(CONFIG)
+	@mkdir -p "$(dir $@)"
+	@{ for x in $(cpython_build_required_dynload); do echo "$$x"; done; } | sort -u > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+# INSTALL keeps build-required stdlib for dependent module builds.
+# RUNTIME is a separately pruned tree staged into tools.cpio.
 cpython_target := \
 	$(MAKE_JOBS) \
 	$(CROSS_TOOLS) \
 	DESTDIR="$(INSTALL)" \
 	install && \
 	sh "$(pwd)/bin/cpython-prune.sh" \
-		"$(INSTALL)" "$(cpython_profile_out)" "$(CROSS)strip" "$(cpython_mm)"
+		"$(INSTALL)" "$(cpython_profile_out)" "$(dir $(cpython_build_required_stdlib_file))" \
+		"$(CROSS)strip" "$(cpython_mm)" "$(cpython_runtime_lib)" \
+		"$(cpython_build_required_stdlib_file)" "$(cpython_build_required_dynload_file)" && \
+	mkdir -p "$(dir $(cpython_runtime_lib_dep))" && \
+	touch "$(cpython_runtime_lib_dep)"
 
 # Merge selected profile files into board-local effective files.  This keeps the
 # wyng default identical while allowing additive module profiles (chipsec, etc).
@@ -194,22 +223,21 @@ $(build)/$(cpython_dir)/.configured: $(cpython_profile_stamp)
 # merge/prune helpers explicitly as well.
 $(build)/$(cpython_dir)/.build: \
 	$(cpython_profile_stamp) \
+	$(cpython_build_required_stdlib_file) \
+	$(cpython_build_required_dynload_file) \
 	$(pwd)/bin/cpython-profile-merge.sh \
-	$(pwd)/bin/cpython-prune.sh
+	$(pwd)/bin/cpython-prune.sh \
+	$(pwd)/config/cpython/runtime-required-encodings.txt
 
 # `python` is the in-source build artifact; bin_modules flattens it to /bin/python.
 cpython_output := python
 
-# stdlib is installed to $(INSTALL)/lib/python$(cpython_mm); stage it into tools.cpio.
-# It is a lib* tree: lib-dynload/*.so and site-packages/*.so are shared objects,
-# so under the initrd cpio staging policy (tools.cpio = lib*/bin*/*.so*/executables)
-# the whole tree belongs in tools.cpio, not data.cpio.
-cpython_tools := $(INSTALL)/lib/python$(cpython_mm)|lib/python$(cpython_mm)
+# Stage the pruned RUNTIME stdlib, not INSTALL.  INSTALL retains build-only
+# stdlib needed by cryptodome/python-zstd wheel builds.
+cpython_tools := $(cpython_runtime_lib)|lib/python$(cpython_mm)
 
-# D7: stage_tools_file attaches no .build prerequisite, so declare the module's
-# sentinel here and have the Makefile add it to the tools.cpio prerequisites
-# (collected from <modulename>_tools_depends for every enabled module).
-cpython_tools_depends := $(build)/$(cpython_dir)/.build
+# D7: stage_tools_file attaches no .build prerequisite; use runtime marker.
+cpython_tools_depends := $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
 
 cpython_depends := cpython-host libffi zlib openssl $(musl_dep)
 
