@@ -1,0 +1,34 @@
+# setuptools: build-only Python packaging library (NEVER shipped).
+#
+# Python extension modules built for the target CPython (modules/cpython),
+# such as cryptodome and python-zstd, import setuptools from their build
+# front-end.  This module only *extracts* the pinned setuptools sdist so those
+# modules can put its tree on PYTHONPATH, e.g.
+#
+#   PYTHONPATH="$(build)/$(setuptools_dir)" $(CPYTHON) setup.py build
+#
+# It is intentionally never staged into the initrd: there is no _output (no
+# binary), no _libraries (no shared object) and no _data (nothing for
+# data.cpio).  Only the extracted tree at $(build)/$(setuptools_dir) is used,
+# and only while cross-building the extension modules.
+#
+# Pinned <72 (71.1.0, newest 71.x) because python-zstd's extension build
+# relies on pre-72 setuptools behaviour.
+CONFIG_SETUPTOOLS ?= n
+modules-$(CONFIG_SETUPTOOLS) += setuptools
+
+setuptools_version := 71.1.0
+setuptools_dir := setuptools-$(setuptools_version)
+setuptools_tar := setuptools-$(setuptools_version).tar.gz
+setuptools_url := https://files.pythonhosted.org/packages/32/c0/5b8013b5a812701c72e3b1e2b378edaa6514d06bee6704a5ab0d7fa52931/$(setuptools_tar)
+setuptools_hash := 032d42ee9fb536e33087fb66cac5f840eb9391ed05637b3f2a76a7c8fb477936
+
+# The sdist ships no root Makefile.  The module build rule runs
+# `make -C $(build)/$(setuptools_dir) $(setuptools_target)`, so generate a
+# trivial no-op Makefile providing the `true` target; nothing is compiled.
+setuptools_configure := printf '.PHONY: true\ntrue:\n' > Makefile
+
+# Nothing to build: `true` is an empty phony target.
+setuptools_target := true
+
+setuptools_depends :=

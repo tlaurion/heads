@@ -1,0 +1,23 @@
+# Autoconf cache for the CPython target cross-build, x86_64-linux-musl.
+#
+# Pointed at via CONFIG_SITE by modules/cpython.  These are the answer
+# variables configure would otherwise obtain by running (target) test
+# programs, which cannot execute on the build host.  Values follow the WIP
+# plan and must be re-validated by an actual cross build; add entries only
+# for real probe failures.
+ac_cv_buggy_getaddrinfo=no
+ac_cv_file__dev_ptmx=yes
+ac_cv_file__dev_ptc=no
+ac_cv_func_dlopen=yes
+ac_cv_little_endian_double=yes
+ac_cv_broken_sem_getvalue=no
+ac_cv_posix_semaphores_enabled=yes
+# _bz2/_lzma are deliberately not built.  v1 ships no libbz2 dependency
+# (`import bz2` is guarded by wyng patch 0004) and never uses _lzma.  The
+# dev-env image exposes a stale bzip2/xz pkg-config path whose -dev include
+# tree has no bzlib.h/lzma.h, so configure detects them "yes" and then the
+# module build dies on the missing headers.  PY_STDLIB_MOD (configure.ac)
+# only skips a module when py_cv_module_<name>=n/a; "disabled"/"no" are
+# overwritten by the have_bzip2/have_liblzma probe, so n/a is required.
+py_cv_module__bz2=n/a
+py_cv_module__lzma=n/a
