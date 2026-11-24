@@ -1,0 +1,39 @@
+# Needed: busybox applet.
+# busybox sort rejects --batch-size/--files0-from, breaking merge_manifests;
+# feed the NUL-separated manifest list through `xargs -0 cat` instead.
+# --batch-size was a memory-tuning knob only, so the output is unchanged.
+diff --git a/src/wyng b/src/wyng
+index e29599c..80521a7 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -4714,7 +4714,11 @@ def merge_manifests(vol, msessions=None, mtarget=None, vsize=None, addcol=False,
+     else:
+         cdir  = vol.path     ; slsort  = slist[0]
+ 
+-    cmds = [[CP.sort, "-umsd", "-k2,2", "--batch-size=16", "--files0-from="+slsort]]
++    # busybox sort lacks the GNU long options --batch-size/--files0-from.
++    # Feed the NUL-separated filename list through xargs -0 instead; the
++    # former was a memory-tuning knob only and does not affect the result.
++    cmds = [[CP.xargs, "-0", "cat"],
++            [CP.sort, "-umsd", "-k2,2"]]
+ 
+     if rdiff and (rdsize := vol.sessions[rdiff[-1]].volsize) > 0:
+         # merge a different set of manifests, use their address column to filter the main merge:
+@@ -4728,7 +4732,7 @@ def merge_manifests(vol, msessions=None, mtarget=None, vsize=None, addcol=False,
+         # session vol size shrank, so filter result by requested vsize
+         cmds.append([CP.awk, r'$2<="'+vol.last_chunk_addr(vsize)[1]+'"'])
+ 
+-    do_exec(cmds, out=outfile.file, cwd=cdir)
++    do_exec(cmds, out=outfile.file, cwd=cdir, infile=slsort)
+ 
+     if not debug:
+         for f in slist:  os.remove(f)
+@@ -4787,7 +4791,7 @@ def merge_sessions(volume, sources, target, clear_sources=False):
+             print("###", file=lstf)
+ 
+         # Unique-merge filenames: one for rename, one for new full manifest.
+-        do_exec([[CP.sort, "-umsd", "-k2,2", "--batch-size=16"] + manifests],
++        do_exec([[CP.sort, "-umsd", "-k2,2"] + manifests],
+                 out="manifest.one", cwd=m_tmp)
+         do_exec([[CP.sort, "-umsd", "-k2,2", "manifest.one",
+                 pjoin(volume.path, merge_target, "manifest")]],

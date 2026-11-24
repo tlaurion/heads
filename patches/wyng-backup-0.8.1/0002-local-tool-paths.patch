@@ -1,0 +1,43 @@
+# Needed: foundation.
+# Rewrite the absolute command paths (class CP) from the upstream /usr/*,
+# /usr/sbin and /sbin layout to the initrd's flat /bin.  bin_modules stages
+# every binary to /bin only, so every do_exec() would otherwise fail with
+# FileNotFoundError; the /usr/sbin/btrfs fallback is dropped as btrfs is
+# unsupported in this build.
+diff --git a/src/wyng b/src/wyng
+index 5c5c67a..06a55ee 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1420,19 +1420,19 @@ class DataCryptography:
+ # CP: Define absolute paths of commands
+ 
+ class CP:
+-    awk    = "/usr/bin/gawk"    ; sed   = "/usr/bin/sed"     ; sort     = "/usr/bin/sort"
+-    cat    = "/usr/bin/cat"     ; mkdir = "/usr/bin/mkdir"   ; python   = "/usr/bin/python3"
+-    mv     = "/usr/bin/mv"      ; grep  = "/usr/bin/grep"    ; ssh      = "/usr/bin/ssh"
+-    sh     = "/usr/bin/sh"      ; tar   = "/usr/bin/tar"     ; tail     = "/usr/bin/tail"
+-    tee    = "/usr/bin/tee"     ; sync  = "/usr/bin/sync"    ; cp       = "/usr/bin/cp"
+-    chattr = "/usr/bin/chattr"  ; lsattr= "/usr/bin/lsattr"  ; sha256sum= "/usr/bin/sha256sum"
+-    cmp    = "/usr/bin/cmp"     ; gzip  = "/usr/bin/gzip"    ; env      = "/usr/bin/env"
+-    ps     = "/usr/bin/ps"      ; uniq  = "/usr/bin/uniq"    ; ionice   = "/usr/bin/ionice"
+-    qvm_run= "/usr/bin/qvm-run" ; rm    = "/usr/bin/rm"      ; find     = "/usr/bin/find"
+-    findmnt= "/usr/bin/findmnt"
+-    thin_delta = "/usr/sbin/thin_delta" ; filefrag = "/usr/sbin/filefrag"  ; lvm = "/usr/sbin/lvm"
+-    blkdiscard = "/sbin/blkdiscard"     ; dmsetup  = "/sbin/dmsetup"   ; xargs = "/usr/bin/xargs"
+-    btrfs      = "/usr/sbin/btrfs" if os.path.exists("/usr/sbin/btrfs") else "/bin/btrfs"
++    awk    = "/bin/gawk"    ; sed   = "/bin/sed"     ; sort     = "/bin/sort"
++    cat    = "/bin/cat"     ; mkdir = "/bin/mkdir"   ; python   = "/bin/python3"
++    mv     = "/bin/mv"      ; grep  = "/bin/grep"    ; ssh      = "/bin/ssh"
++    sh     = "/bin/sh"      ; tar   = "/bin/tar"     ; tail     = "/bin/tail"
++    tee    = "/bin/tee"     ; sync  = "/bin/sync"    ; cp       = "/bin/cp"
++    chattr = "/bin/chattr"  ; lsattr= "/bin/lsattr"  ; sha256sum= "/bin/sha256sum"
++    cmp    = "/bin/cmp"     ; gzip  = "/bin/gzip"    ; env      = "/bin/env"
++    ps     = "/bin/ps"      ; uniq  = "/bin/uniq"    ; ionice   = "/bin/ionice"
++    qvm_run= "/bin/qvm-run" ; rm    = "/bin/rm"      ; find     = "/bin/find"
++    findmnt= "/bin/findmnt"
++    thin_delta = "/bin/thin_delta" ; filefrag = "/bin/filefrag"  ; lvm = "/bin/lvm"
++    blkdiscard = "/bin/blkdiscard"     ; dmsetup  = "/bin/dmsetup"   ; xargs = "/bin/xargs"
++    btrfs      = "/bin/btrfs"
+ 
+ 
+ 

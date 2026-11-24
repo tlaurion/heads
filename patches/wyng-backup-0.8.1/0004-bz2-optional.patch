@@ -1,0 +1,50 @@
+# Needed: tool substitution.
+# Make bz2 optional: the target CPython ships no _bz2/libbz2 (modules/cpython
+# v1 has no bzip2), so the upstream top-level `import bz2` aborts every wyng
+# invocation at startup.  Register the bz2 compressor only when the module
+# imports, and report an unknown --compression value as OptionError.
+diff --git a/src/wyng b/src/wyng
+index bc56a7b..07508ca 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -22,7 +22,7 @@
+ 
+ 
+ import sys, signal, os, pwd, grp, stat, shutil, subprocess as SPr, time, datetime
+-import re, mmap, bz2, zlib, gzip, tarfile, io, fcntl, tempfile
++import re, mmap, zlib, gzip, tarfile, io, fcntl, tempfile
+ import argparse, configparser, copy, hashlib, hmac, functools, uuid
+ import getpass, base64, platform, resource, itertools, string, struct
+ import xml.etree.ElementTree, json, ctypes, ctypes.util, atexit
+@@ -35,6 +35,11 @@ try:
+ except:
+     zstd = None
+ 
++try:
++    import bz2
++except:
++    bz2 = None
++
+ try:
+     from Cryptodome.Cipher import ChaCha20 as Cipher_ChaCha20
+     from Cryptodome.Cipher import ChaCha20_Poly1305 as Cipher_ChaCha20_Poly1305
+@@ -2201,7 +2206,7 @@ def arch_init(aset):
+             compression, compr_level = opts.compression.strip().split(":")
+         else:
+             compression = opts.compression.strip()
+-            compr_level = str(compressors[compression][1])
++            compr_level = str(compressors[compression][1]) if compression in compressors else ""
+         compression = compression.strip()   ; compr_level = compr_level.strip()
+         if compression not in compressors.keys() or not is_num(compr_level):
+             raise OptionError("Invalid compression spec.")
+@@ -5809,8 +5814,8 @@ try:
+     shutil.rmtree("/tmp/"+prog_name+"-debug", ignore_errors=True)
+ 
+     # Dict of compressors in the form: (library, default_compress_level, compress_func)
+-    compressors =    {"zlib":   (zlib, 4, zlib.compress),
+-                      "bz2" :   (bz2,  9, bz2.compress)}
++    compressors =    {"zlib":   (zlib, 4, zlib.compress)}
++    if bz2:    compressors["bz2"]  = (bz2,  9, bz2.compress)
+     if zstd:   compressors["zstd"] = (zstd, 3, lambda data, lvl: zstd.compress(data, lvl, 3))
+ 
+     hash_funcs  = {"hmac-sha256": None,

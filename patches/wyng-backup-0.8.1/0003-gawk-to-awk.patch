@@ -1,0 +1,33 @@
+# Needed: tool substitution.
+# Point CP.awk at busybox /bin/awk (the initrd ships no gawk) and convert the
+# reflink-extent awk program's GNU \s escapes to POSIX [[:space:]] classes.
+# Without this, every awk pipeline fails at exec and the rlnk extent scan
+# cannot parse the filefrag header.
+diff --git a/src/wyng b/src/wyng
+index 06a55ee..610fa54 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -1420,7 +1420,7 @@ class DataCryptography:
+ # CP: Define absolute paths of commands
+ 
+ class CP:
+-    awk    = "/bin/gawk"    ; sed   = "/bin/sed"     ; sort     = "/bin/sort"
++    awk    = "/bin/awk"     ; sed   = "/bin/sed"     ; sort     = "/bin/sort"
+     cat    = "/bin/cat"     ; mkdir = "/bin/mkdir"   ; python   = "/bin/python3"
+     mv     = "/bin/mv"      ; grep  = "/bin/grep"    ; ssh      = "/bin/ssh"
+     sh     = "/bin/sh"      ; tar   = "/bin/tar"     ; tail     = "/bin/tail"
+@@ -3734,11 +3734,11 @@ def get_reflink_deltas(storage, aset, datavols, retry=3):
+               # then must compare the rest of the line.  gsub removes punctuation.
+               # 'outp' is used to redirect output for only one side (other side goes to stdout).
+               [CP.awk, "-v", "SD="+side,
+-                  r'BEGIN {PAT="^\\s*ext:\\s+logical_offset:\\s+physical_offset:\\s+length:"}'
++                  r'BEGIN {PAT="^[[:space:]]*ext:[[:space:]]+logical_offset:[[:space:]]+physical_offset:[[:space:]]+length:"}'
+                   r' NR<4 && $0 ~ PAT {HDR="Y"}'
+-                  r' /^\s*[0-9]+:/ {gsub(/\.|:/, " "); sub(/unknown|delalloc|0x/, SD"W-&", $NF);'
++                  r' /^[[:space:]]*[0-9]+:/ {gsub(/\.|:/, " "); sub(/unknown|delalloc|0x/, SD"W-&", $NF);'
+                                    r' print '+side+', $2, $6, $3, $4, $5, $NF'+outp+r'}'
+-                  r' END {if ($0 ~ /\s0 extents found$/) {print "00 0 1 0 0 0 wyng"'+outp+r'}'
++                  r' END {if ($0 ~ /[[:space:]]0 extents found$/) {print "00 0 1 0 0 0 wyng"'+outp+r'}'
+                          r' else if (!(HDR=="Y" && $0 ~ /extents? found$/)) exit 2}']
+              ])
+ 

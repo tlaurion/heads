@@ -1,0 +1,51 @@
+# Needed: busybox applet.
+# Replace GNU \s/\S escapes with POSIX [[:space:]]/[^[:space:]] classes in the
+# grep/sed pipelines: busybox grep/sed read them as literal s/S, which silently
+# breaks merge_sessions rename/trim lists, receive_volume's sparse list, and
+# the thin_delta <same> filter.
+diff --git a/src/wyng b/src/wyng
+index 80521a7..8ec47fd 100755
+--- a/src/wyng
++++ b/src/wyng
+@@ -3623,7 +3623,7 @@ def get_lvm_deltas(storage, aset, datavols):
+                                         "--thin1=" + lvols[lv.snap1].thin_id,
+                                         "--thin2=" + lvols[lv.snap2].thin_id,
+                                         "/dev/mapper/"+vgname+"-"+poolname+"_tmeta"],
+-                        [CP.grep, "-v", r"^\s*<same .*\/>$"],
++                        [CP.grep, "-v", r"^[[:space:]]*<same .*\/>$"],
+                         [CP.gzip, "-2"]
+                         ]
+                 do_exec(cmds,  out=tmpdir+"/delta."+datavol)
+@@ -4807,10 +4807,10 @@ def merge_sessions(volume, sources, target, clear_sources=False):
+                 [CP.awk, r"$2<="+lc_filter] if vol_shrank else None,
+                 [CP.sed, "-E",
+ 
+-                r"s|^0 x(\S{" +str(address_split[0])+ r"})(\S+)\s+(S_\S+)|"
++                r"s|^0 x([^[:space:]]{" +str(address_split[0])+ r"})([^[:space:]]+)[[:space:]]+(S_[^[:space:]]+)|"
+                 r"-rm " +merge_target+ r"/\1/x\1\2|; t; "
+ 
+-                r"s|^\S+\s+x(\S{" +str(address_split[0])+ r"})(\S+)\s+(S_\S+)|"
++                r"s|^[^[:space:]]+[[:space:]]+x([^[:space:]]{" +str(address_split[0])+ r"})([^[:space:]]+)[[:space:]]+(S_[^[:space:]]+)|"
+                 r"rename \3/\1/x\1\2 " +merge_target+ r"/\1/x\1\2|"
+                 ]
+                 ], infile=m_tmp+"/manifest.one", out=">>merge.lst")
+@@ -4818,7 +4818,7 @@ def merge_sessions(volume, sources, target, clear_sources=False):
+         if vol_shrank:
+             # If volume size shrank in this period then make trim list.
+             do_exec([[CP.awk, r"$2>"+lc_filter, m_tmp+"/manifest.two"],
+-                     [CP.sed, "-E", r"s|^\S+\s+x(\S{" + str(address_split[0]) + r"})(\S+)|"
++                     [CP.sed, "-E", r"s|^[^[:space:]]+[[:space:]]+x([^[:space:]]{" + str(address_split[0]) + r"})([^[:space:]]+)|"
+                                     r"-rm " + merge_target + r"/\1/x\1\2|"]
+                     ], out=">>merge.lst")
+ 
+@@ -5083,8 +5083,8 @@ def receive_volume(storage, vol, select_ses="", ses_strict=False, save_path="",
+ 
+     if not (sparse or diff_local):
+         cmds = [[CP.sed, "-E", r"/" +last_chunkx+ r"/q", manifest],  ## Enh: detect vol_shrank
+-                [CP.sed, "-E", r"/^0\s/ d; "
+-                r"s|^\S+\s+x(\S{" +str(address_split[0])+ r"})(\S+)\s+(S_\S+)|\3/\1/x\1\2|;"],
++                [CP.sed, "-E", r"/^0[[:space:]]/ d; "
++                r"s|^[^[:space:]]+[[:space:]]+x([^[:space:]]{" +str(address_split[0])+ r"})([^[:space:]]+)[[:space:]]+(S_[^[:space:]]+)|\3/\1/x\1\2|;"],
+                 [CP.gzip, "-c", "-4"
+                 ],
+                 dest.run_args(["cat >"+dest.dtmp+"/dest.lst.gz"]),

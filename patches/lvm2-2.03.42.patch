@@ -1,0 +1,81 @@
+# musl portability for lvm2 2.03.42.  musl declares stdin/stdout/stderr as
+# `FILE *const`, so the upstream reopen-on-/dev/null and stream-buffering paths
+# do not compile or corrupt read-only memory.  The patch: (1) suppresses the
+# mlock error log; (2) guards the standard-fd reopen block and disables stream
+# buffering (set_buffering=0); (3) drops $(STRIP) from INSTALL_PROGRAM so
+# stripping is left to the Heads build (issue #174).
+--- ./lib/mm/memlock.c.orig
++++ ./lib/mm/memlock.c
+@@ -322,7 +322,8 @@
+ 				log_debug_mem("mlock failed for anonymous region (uncommitted pages): %s", line);
+ 				return 1;
+ 			}
+-			log_sys_error("mlock", line);
++			/* Suppress mlock noise on musl/initrd builds. */
++			/* log_sys_error("mlock", line); */
+ 			return 0;
+ 		}
+ 	} else {
+--- ./tools/lvmcmdline.c.orig
++++ ./tools/lvmcmdline.c
+@@ -3397,6 +3397,13 @@
+ {
+ 	int err = is_valid_fd(STDERR_FILENO);
+ 
++	/*
++	 * musl declares stdin/stdout/stderr as 'FILE *const', so the
++	 * assignments below do not compile. Their purpose (reopening the
++	 * standard fds on /dev/null) is not needed for the statically
++	 * linked lvm tools in this initrd, so skip the block entirely.
++	 */
++#if 0
+ 	if (!is_valid_fd(STDIN_FILENO) &&
+ 	    !(stdin = fopen(_PATH_DEVNULL, "r"))) {
+ 		if (err)
+@@ -3421,6 +3428,7 @@
+ 		       strerror(errno));
+ 		return 0;
+ 	}
++#endif
+ 
+ 	return 1;
+ }
+@@ -3474,7 +3482,13 @@
+ 	if (dm_get_name_mangling_mode() != DM_STRING_MANGLING_NONE)
+ 		dm_set_name_mangling_mode(DM_STRING_MANGLING_NONE);
+ 
+-	if (!(cmd = create_toolcontext(NULL, 1, threaded, set_connections, set_filters))) {
++	/*
++	 * Disable stream buffering (set_buffering == 0).  With musl,
++	 * stdin/stdout/stderr are 'FILE *const', but the buffering path
++	 * assigns through them in reopen_standard_stream(), corrupting
++	 * read-only memory.  Also avoids the historical segfault.
++	 */
++	if (!(cmd = create_toolcontext(NULL, 0, threaded, set_connections, set_filters))) {
+ 		return_NULL;
+ 	}
+ 
+--- ./make.tmpl.in.orig
++++ ./make.tmpl.in
+@@ -223,7 +223,8 @@
+ M_INSTALL_PROGRAM = -m 555
+ M_INSTALL_DATA = -m 444
+ endif
+-INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM) $(STRIP)
++# Stripping is left to the HEADS build (issue #174): do not use $(STRIP).
++INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM)
+ INSTALL_DATA = $(INSTALL) -p $(M_INSTALL_DATA)
+ INSTALL_WDATA = $(INSTALL) -p -m 644
+ 
+--- ./libdm/make.tmpl.in.orig
++++ ./libdm/make.tmpl.in
+@@ -183,7 +183,8 @@
+ M_INSTALL_PROGRAM = -m 555
+ M_INSTALL_DATA = -m 444
+ endif
+-INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM) $(STRIP)
++# Stripping is left to the HEADS build (issue #174): do not use $(STRIP).
++INSTALL_PROGRAM = $(INSTALL) $(M_INSTALL_PROGRAM)
+ INSTALL_DATA = $(INSTALL) -p $(M_INSTALL_DATA)
+ INSTALL_WDATA = $(INSTALL) -p -m 644
+ 
