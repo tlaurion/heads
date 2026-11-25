@@ -280,7 +280,7 @@ if filefrag is absent, reflink storage fails early with `StorageError(7)`.
 
 `findmnt` is **not** shipped.  wyng falls back to `/proc/self/mountinfo` +
 `/dev/disk/by-uuid` to resolve the mountpoint/fstype and fs UUID (see
-`get_fs_type()` in `src/wyng`).
+`get_fs_type()` in `src/wyng09a`).
 
 ## Summary of required BusyBox workarounds
 

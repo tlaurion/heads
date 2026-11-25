@@ -10,9 +10,8 @@
 #
 # Dependency direction: extension modules depend on cpython (the interpreter
 # they are built against) and setuptools (build-only, provides the build
-# front-end); cpython never depends on them.  setuptools' `_depends` entry only
-# orders the build -- it does not flip CONFIG_SETUPTOOLS on -- so require the
-# gate explicitly, matching modules/wyng-backup and modules/python-zstd.
+# front-end); cpython never depends on them. Config gates are declared in
+# modules/cryptodome.requires; `_depends` owns build ordering.
 #
 # GMP: since pycryptodome 3.9.0 GMP is NOT a build-time dependency -- setup.py
 # links no GMP and never probes for headers/static libraries.  The
@@ -74,17 +73,8 @@
 # ---------------------------------------------------------------------------
 CONFIG_CRYPTODOME ?= n
 
-# `_depends` only orders builds; it does NOT auto-enable the cpython or
-# setuptools gates.  Test for `y` (not `!=n`) so the guards stay quiet when
-# CONFIG_CRYPTODOME is n or empty.
-ifeq "$(CONFIG_CRYPTODOME)" "y"
-ifneq "$(CONFIG_CPYTHON)" "y"
-$(error CONFIG_CRYPTODOME=y requires CONFIG_CPYTHON=y)
-endif
-ifneq "$(CONFIG_SETUPTOOLS)" "y"
-$(error CONFIG_CRYPTODOME=y requires CONFIG_SETUPTOOLS=y)
-endif
-endif
+# Config requirements are declared in modules/cryptodome.requires and enabled
+# by the global Makefile before module load. `_depends` owns build ordering.
 
 modules-$(CONFIG_CRYPTODOME) += cryptodome
 
@@ -242,5 +232,5 @@ cryptodome_tools_depends := $(build)/$(cryptodome_dir)/.build
 # Smoke-test against build tree (module is staged into tools.cpio, not INSTALL).
 cryptodome_cpython_smoke_pythonpath := $(build)/$(cryptodome_dir)/lib
 
-# OpenWrt-split/Heads-minimal: provide hashlib/openssl capability when selected.
-cryptodome_cpython_depends := libffi openssl
+# Build-only CPython capability deps; runtime profile is owned by the consumer.
+cryptodome_cpython_depends := openssl

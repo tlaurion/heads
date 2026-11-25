@@ -14,41 +14,19 @@
 # wyng-util-qubes 10alpha branch: https://codeberg.org/tasket/wyng-util-qubes/src/branch/10alpha
 # Not a release tag; revisit pin when upstream stabilizes/releases.
 #
-# The `wyng` script is staged from src/wyng relative to the clone root and is
-# flattened to /bin/wyng by the Makefile's initrd bin rule.
+# The `wyng09a` script is staged from src/wyng09a relative to the clone root;
+# /bin/wyng is an explicit symlink to that flattened basename.
 #
 # Dependency direction: the script's extensions (cpython, cryptodome,
 # python-zstd) must be staged first, hence they are listed as dependencies.
 CONFIG_WYNG_BACKUP ?= n
 
-# `_depends` only orders builds; it does NOT auto-enable a dependency's
-# config gate.  Every wyng action needs the OpenSSH client (`ssh`/`scp`) plus
-# the cpython/cryptodome/python-zstd extension modules staged, so require each
-# of those gates explicitly.  Test for `y` (not `!=n`) so the guards stay quiet
-# when CONFIG_WYNG_BACKUP is n or empty.
+# Config requirements are declared in modules/wyng-backup.requires and enabled
+# by the global Makefile before module files are loaded. `_depends` below owns
+# build ordering.
 #
-# `thin_delta` (thin-provisioning-tools, Rust) is deliberately NOT required
-# here.  It is used only by the BACKUP actions `send`/`monitor` (wyng's
-# check_support() / get_lvm_deltas(), reachable only from monitor_send); the
-# RESTORE actions `receive`/`verify`/`diff` never call it.  A restore-only
-# wyng build therefore needs no Rust toolchain and no thin-provisioning-tools.
-# Enable CONFIG_THIN_PROVISIONING_TOOLS=y for a backup-capable build; if a
-# backup build ships without it, `send` fails at runtime with a clear
-# StorageError(7) when the tool is absent.
-ifeq "$(CONFIG_WYNG_BACKUP)" "y"
-ifneq "$(CONFIG_CPYTHON)" "y"
-$(error CONFIG_WYNG_BACKUP=y requires CONFIG_CPYTHON=y)
-endif
-ifneq "$(CONFIG_CRYPTODOME)" "y"
-$(error CONFIG_WYNG_BACKUP=y requires CONFIG_CRYPTODOME=y)
-endif
-ifneq "$(CONFIG_PYTHON_ZSTD)" "y"
-$(error CONFIG_WYNG_BACKUP=y requires CONFIG_PYTHON_ZSTD=y)
-endif
-ifneq "$(CONFIG_OPENSSH_CLIENT)" "y"
-$(error CONFIG_WYNG_BACKUP=y requires CONFIG_OPENSSH_CLIENT=y)
-endif
-endif
+# This board stack is restore-only. BACKUP actions `send`/`monitor` additionally
+# need thin_delta (thin-provisioning-tools/Rust), which is not wired yet.
 
 modules-$(CONFIG_WYNG_BACKUP) += wyng-backup
 
@@ -73,14 +51,7 @@ wyng-backup_patch_version := 0.9alpha
 wyng-backup_base_dir := wyng-backup-$(wyng-backup_version)
 wyng-backup_dir := $(wyng-backup_base_dir)
 
-wyng-backup_depends := cpython cryptodome python-zstd openssh
-# thin-provisioning-tools is backup-only (see the guard comment above).  Add
-# the build-order dependency only when its gate is enabled; when it is off the
-# module is not part of modules-y, so naming it here would make make demand a
-# non-existent $(build)/thin-provisioning-tools-1.3.4/.build target.
-ifeq "$(CONFIG_THIN_PROVISIONING_TOOLS)" "y"
-wyng-backup_depends += thin-provisioning-tools
-endif
+wyng-backup_depends := cpython cryptodome python-zstd openssh libffi zlib openssl setuptools lvm2 e2fsprogs util-linux
 
 # No compile step: the upstream repo has no Makefile.  Write a trivial
 # no-op Makefile so the module's `make -C $(build)/$(wyng-backup_dir)` build
@@ -90,13 +61,20 @@ wyng-backup_target := -f Makefile.nobuild
 
 wyng-backup_output := src/wyng09a
 
-# `wyng help-doc` (src/wyng, patch 0011) runs
+ifeq "$(CONFIG_WYNG_BACKUP)" "y"
+initrd_bins += $(initrd_bin_dir)/wyng
+$(initrd_bin_dir)/wyng: $(build)/$(wyng-backup_dir)/.build
+	$(call do,INSTALL-LINK,wyng -> wyng09a,\
+		ln -sfn wyng09a "$@")
+endif
+
+# `wyng help-doc` (src/wyng09a, patch 0011) runs
 # `less -R /usr/share/doc/wyng/0.9/Wyng_User_Reference.txt`.  The initrd has
 # no /usr/share tree, so stage the upstream ANSI-formatted guide (the .txt
 # sibling of the .md; it carries the escape sequences that `less -R` renders)
 # under the exact path the script expects.
 wyng-backup_data += \
-	$(build)/$(wyng-backup_dir)/doc/Wyng_User_Reference.txt|usr/share/doc/wyng/0.8/Wyng_User_Reference.txt
+	$(build)/$(wyng-backup_dir)/doc/Wyng_User_Reference.txt|usr/share/doc/wyng/0.9/Wyng_User_Reference.txt
 
 # D7: stage_data_file attaches no .build prerequisite, so declare the module
 # sentinel here and let the Makefile add it to the data.cpio prerequisites
@@ -106,7 +84,7 @@ wyng-backup_data_depends := $(build)/$(wyng-backup_dir)/.build
 
 # Runtime smoke/import expectations for CPython profile validation.
 wyng-backup_cpython_smoke_imports := \
-	hashlib ssl zlib ctypes json xml.etree.ElementTree argparse configparser \
+	hashlib zlib ctypes json xml.etree.ElementTree argparse configparser \
 	copy tempfile subprocess shutil tarfile gzip io fcntl mmap \
 	Cryptodome.Cipher.ChaCha20 Cryptodome.Hash.SHA512 \
 	Cryptodome.Protocol.KDF Cryptodome.Random zstd

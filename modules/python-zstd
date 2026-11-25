@@ -9,9 +9,8 @@
 #
 # Dependency direction: extension modules depend on cpython (the interpreter
 # they are built against) and setuptools (build-only, provides the build
-# front-end); cpython never depends on them.  setuptools' `_depends` entry only
-# orders the build -- it does not flip CONFIG_SETUPTOOLS on -- so require the
-# gate explicitly, matching modules/wyng-backup.
+# front-end); cpython never depends on them. Config gates are declared in
+# modules/python-zstd.requires; `_depends` owns build ordering.
 #
 # The extension is built by the *target* interpreter, launched through the
 # *cross-toolchain's* musl loader: the target $(INSTALL)/lib ships no loader,
@@ -47,14 +46,8 @@
 # ---------------------------------------------------------------------------
 CONFIG_PYTHON_ZSTD ?= n
 
-# `_depends` only orders builds; it does NOT auto-enable the setuptools gate.
-# Test for `y` (not `!=n`) so the guard stays quiet when CONFIG_PYTHON_ZSTD is
-# n or empty.
-ifeq "$(CONFIG_PYTHON_ZSTD)" "y"
-ifneq "$(CONFIG_SETUPTOOLS)" "y"
-$(error CONFIG_PYTHON_ZSTD=y requires CONFIG_SETUPTOOLS=y)
-endif
-endif
+# Config requirements are declared in modules/python-zstd.requires and enabled
+# by the global Makefile before module load. `_depends` owns build ordering.
 
 modules-$(CONFIG_PYTHON_ZSTD) += python-zstd
 
