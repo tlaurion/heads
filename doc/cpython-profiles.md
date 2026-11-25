@@ -1,4 +1,4 @@
-# CPython Profiles (wyng-poc)
+# CPython Profiles (module-driven)
 
 Additive, per-profile CPython stdlib/extension selection. Modules declare
 Python runtime needs; `modules/cpython` merges selected profiles into
@@ -40,9 +40,19 @@ Merge semantics:
 
 - **Keep-lists are unioned.** Module profiles should be deltas over `base`.
 - **Setup.local disables are intersected.** A module is disabled only if every
-  selected profile disables it. `_hashlib` is never disabled.
+  selected profile disables it. Capability enablement is profile-owned; the
+  merge script does not force `_hashlib` (or any other module) to stay enabled.
 - Keep-lists are a closed allowlist: missing entries cause runtime import
   failures; validate with smoke/import traces before trimming.
+
+## Packaging reference
+
+`base` follows OpenWrt's `python3-base` intent: interpreter startup plus the
+small smoke-import set, not OpenWrt's larger `python3-light` default. Module
+profiles behave like OpenWrt's split stdlib/capability packages; capability
+build/runtime dependencies are declared by the module via
+`<mod>_cpython_depends`. Build mechanics and musl/reproducibility choices are
+checked against Alpine's musl CPython APKBUILD.
 
 ## Selection
 
@@ -100,13 +110,15 @@ modules for the selected board.
 | `<mod>_cpython_profiles` / `_cpython_profile` | module needing runtime profile | Adds profile delta (`config/python/profiles/<name>/`) | `make ... cpython_profile` stamp, board build |
 | `<mod>_cpython_build_required_stdlib` | module built against target CPython | Stdlib kept in INSTALL build tree only (not staged runtime) | module build, `cpython_smoke` |
 | `<mod>_cpython_build_required_dynload` | module built against target CPython | Dynload kept in INSTALL build tree only | module build, `cpython_smoke` |
+| `<mod>_cpython_depends` | module/profile owning an external capability | Build/runtime dependency selected only for enabled modules (for example libffi/openssl/zlib) | module configure/build |
 | `<mod>_cpython_runtime_required_encodings` | module needing extra encodings | Generated per-board `build/<board>/cpython-runtime-required-encodings.txt` | runtime smoke/import trace |
 | `<mod>_cpython_smoke_imports` | module/runtime consumer | Per-board smoke imports aggregated by `modules/cpython` | `make BOARD=<board> cpython_smoke` |
 | `<mod>_cpython_smoke_pythonpath` | module staged as tools.cpio tree | Extra PYTHONPATH for smoke against build tree artifacts | `make BOARD=<board> cpython_smoke` |
 
 Base defaults (always present): base profile; base smoke imports
-`sys os io encodings codecs stat posixpath genericpath warnings site`; base
-runtime encodings `__init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py`.
+`sys os io encodings codecs stat posixpath genericpath site sysconfig
+_collections_abc abc types`; base runtime encodings
+`__init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py`.
 
 ## Per-Board Smoke/Test
 
