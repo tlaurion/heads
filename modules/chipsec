@@ -10,6 +10,12 @@
 # - Declares additive CPython profile `chipsec` (`chipsec_cpython_profiles`).
 # - Declares per-board smoke imports (`chipsec_cpython_smoke_imports`).
 # - Pinned upstream commit hash recorded for future packaging work.
+# - Default pin currently tracks chipsec/chipsec PR2945 test commit
+#   30e5aa61544ea69c25163415ecca1fba426a283d (Add common.pltrst_gpio_lock
+#   module), branch dscott/pltrst_gpio_lock, base chipsec2; not merged upstream.
+#   https://github.com/chipsec/chipsec/pull/2945
+#   https://github.com/chipsec/chipsec/commit/30e5aa61544ea69c25163415ecca1fba426a283d
+#   Revisit pin when PR2945 is merged/superseded.
 #
 # Not implemented yet (TODO):
 # - Fetch/build/package CHIPSEC Python sources into initrd/site-packages.
@@ -56,10 +62,14 @@ modules-$(CONFIG_CHIPSEC) += chipsec
 chipsec_cpython_profiles += chipsec
 
 # Pinned upstream source identity (packaging TODO; not fetched/built yet).
+# Testing chipsec/chipsec PR2945 (Add common.pltrst_gpio_lock module):
+# https://github.com/chipsec/chipsec/pull/2945
+# PR head: 30e5aa61544ea69c25163415ecca1fba426a283d (branch dscott/pltrst_gpio_lock, base chipsec2)
+# https://github.com/chipsec/chipsec/commit/30e5aa61544ea69c25163415ecca1fba426a283d
 chipsec_version := git
 chipsec_dir := chipsec-git
 chipsec_repo := https://github.com/chipsec/chipsec.git
-chipsec_commit_hash := 25457060db45217c74b46f61cc934098ddff8d64
+chipsec_commit_hash := 30e5aa61544ea69c25163415ecca1fba426a283d
 
 chipsec_depends := cpython $(musl_dep)
 
