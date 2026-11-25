@@ -14,8 +14,10 @@
 # Not implemented yet (TODO):
 # - Fetch/build/package CHIPSEC Python sources into initrd/site-packages.
 # - Install chipsec entrypoints/wrappers (`chipsec_main.py`, etc.) as needed.
-# - Linux helper/driver strategy: driver-backed checks require chipsec.ko built
-#   against the exact Heads kernel and staged/loaded in initrd (separate module).
+# - Linux helper/driver strategy: driver-backed checks require chipsec.ko;
+#   build/staging is a separate opt-in module: `modules/chipsec-km`
+#   (CONFIG_CHIPSEC_KM=y). It builds against $(build)/$(linux_dir) and stages
+#   /lib/modules/chipsec.ko into modules.cpio. No auto-insmod.
 # - QEMU automated QA: no automated QEMU boot/command-flow test in CI. Current
 #   `make BOARD=<board> cpython_test` validates module-declared Python imports
 #   only; it does not execute CHIPSEC commands inside a booted image.
@@ -34,12 +36,12 @@
 #   an xz/liblzma module and cpython build wiring exist. Re-add only with traced
 #   need and verified build/runtime support.
 #
-# Kernel module (future, separate concern):
-# - Full Linux helper functionality may require out-of-tree chipsec.ko built
-#   against $(build)/$(linux_dir) and loaded via insmod from initrd.
-# - Kernel must provide module support; busybox insmod/lsmod required.
-# - Keep as separate module/contract (e.g. chipsec-km) to avoid conflating
-#   Python userspace packaging with kernel driver build/staging.
+# Kernel module (separate, implemented as draft module):
+# - modules/chipsec-km builds chipsec.ko from pinned chipsec source against
+#   $(build)/$(linux_dir) and stages /lib/modules/chipsec.ko into modules.cpio.
+# - Requires CONFIG_CHIPSEC_KM=y, CONFIG_CHIPSEC=y, CONFIG_LINUX=y, kernel
+#   CONFIG_MODULES=y, busybox insmod/lsmod. No auto-load.
+# - QEMU validates wiring/build only; driver-backed checks are hardware-specific.
 CONFIG_CHIPSEC ?= n
 
 ifeq "$(CONFIG_CHIPSEC)" "y"

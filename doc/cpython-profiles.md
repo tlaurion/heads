@@ -65,7 +65,7 @@ Implemented:
 Not implemented / TODO:
 - CHIPSEC Python package/entrypoint staging into initrd.
 - `lzma/_lzma`: omitted until xz/liblzma module + CPython build wiring exists.
-- Kernel-driver path (`chipsec.ko`) as separate module/contract.
+- Kernel-driver path: draft `modules/chipsec-km` builds/stages `/lib/modules/chipsec.ko` into modules.cpio (opt-in, no auto-load). QEMU validates wiring; hardware QA needed for driver-backed checks.
 - Automated QEMU command-flow QA for CHIPSEC; current smoke is import-only.
 
 ## Build / Verification

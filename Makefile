@@ -428,6 +428,18 @@ $(foreach m,$(modules-y),$(eval tools_files += $($(m)_tools)))
 tools_depends :=
 $(foreach m,$(modules-y),$(eval tools_depends += $($(m)_tools_depends)))
 
+# Kernel modules staged into modules.cpio. Each module should set
+# <modulename>_modules += src|dst. Out-of-tree modules own stripping if needed.
+# Also include opt-in out-of-tree modules not in modules-y define_module flow.
+modules_files :=
+$(foreach m,$(modules-y),$(eval modules_files += $($(m)_modules)))
+modules_depends :=
+$(foreach m,$(modules-y),$(eval modules_depends += $($(m)_modules_depends)))
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+modules_files += $(chipsec-km_modules)
+modules_depends += $(chipsec-km_modules_depends)
+endif
+
 define bins =
 $(foreach m,$1,$(call prefix,$(build)/$($m_dir)/,$($m_output)))
 endef
@@ -450,7 +462,7 @@ endef
 #
 define do-cpio =
 	$(call do,CPIO     ,$1,\
-		( cd "$2"; \
+		( cd "$2" || exit 1; \
 		find . \
 		| cpio \
 			--quiet \
@@ -937,11 +949,46 @@ $(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) $(data_depends) FORCE
 initrd-y += $(build)/$(initrd_dir)/data.cpio
 endif
 
-# --- MODULES.CPIO ---
+# --- MODULES.CPIO STAGING ---
 
-# modules.cpio is built from kernel modules staged in a temp dir by modules/linux
-# The temp dir is cleaned up after cpio creation.
-# (see modules/linux for details)
+# Staging directory for modules.cpio. In-tree kernel modules come from
+# modules/linux; out-of-tree modules (e.g. chipsec-km) use stage_module_file.
+# modules.cpio is created from this dir and the dir is removed afterwards.
+initrd_modules_dir := $(build)/$(initrd_dir)/modules
+module_initrd_files :=
+
+# stage_module_file stages a kernel module or module tree into modules.cpio,
+# preserving relative path. Stripping is caller responsibility for out-of-tree
+# modules where needed.
+# Arguments:
+#   1: Source path (file or directory)
+#   2: Destination path inside initrd (relative path inside archive)
+define stage_module_file =
+$(initrd_modules_dir)/$2: $(modules_depends) | $1
+	$(call do,INSTALL-MODULE,$(1:$(pwd)/%=%) => $2,\
+		if [ -d "$1" ]; then \
+			mkdir -p "$(initrd_modules_dir)/$2"; \
+			cp -a "$1"/. "$(initrd_modules_dir)/$2"/; \
+		else \
+			mkdir -p "$(dir $(initrd_modules_dir)/$2)"; \
+			cp -a "$1" "$(initrd_modules_dir)/$2"; \
+		fi; \
+	)
+module_initrd_files += $(initrd_modules_dir)/$2
+endef
+
+# Expand all modules_files entries. Each entry: "src_path|dest_path"
+$(foreach entry,$(modules_files),\
+  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
+  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
+  $(eval $(call stage_module_file,$(src),$(dst))) \
+)
+
+# modules.cpio is built from staged kernel modules.
+# FORCE keeps cpio-clean/do-cpio content-hash behavior visible.
+$(build)/$(initrd_dir)/modules.cpio: $(module_initrd_files) $(modules_depends) FORCE
+	$(call do-cpio,$@,$(initrd_modules_dir))
+	@$(RM) -rf "$(initrd_modules_dir)"
 
 # --- TOOLS.CPIO STAGING (path-preserving libraries) ---
 

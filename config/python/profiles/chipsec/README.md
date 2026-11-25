@@ -52,9 +52,15 @@ CHIPSEC in Heads CI. Before claiming CHIPSEC support, define and implement:
    config/module support, `insmod` staging, and QEMU/hardware test matrix.
 4. CI policy: opt-in job, artifact/log capture, known limits documented.
 
-## Kernel driver (separate, future)
+## Kernel driver (separate, draft module: `chipsec-km`)
 
-Full Linux helper functionality may require out-of-tree `chipsec.ko` built
-against the exact Heads kernel (`build/<arch>/$(linux_dir)`) and loaded in
-initrd. Treat as a separate module/contract; do not conflate with Python
-userspace packaging.
+`modules/chipsec-km` (CONFIG_CHIPSEC_KM=y, requires CONFIG_CHIPSEC/CPYTHON/LINUX):
+- Builds `drivers/linux/chipsec.ko` from pinned chipsec commit against
+  `$(build)/$(linux_dir)`.
+- Strips and stages as `/lib/modules/chipsec.ko` in `modules.cpio` via generic
+  `modules_files` staging.
+- Load manually when needed: `insmod /lib/modules/chipsec.ko`.
+- No auto-load; upstream `insmod.sh` PCR-measure behavior is not copied blindly.
+- QEMU: build/staging/load wiring only; driver-backed CHIPSEC checks mostly
+  hardware-specific. Automated QA TODO.
+

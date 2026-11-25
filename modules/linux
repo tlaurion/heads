@@ -192,6 +192,7 @@ $(build)/$(BOARD)/modules.cpio: $(module_initrd_lib_dir)/$(notdir $1)
 # --strip-unneeded keeps the symbols the loader needs for relocation and drops
 # the rest, so only the symbol-table mass is removed.
 $(module_initrd_lib_dir)/$(notdir $1): $(build)/$(linux_dir)/$1
+	@mkdir -p "$(dir $$@)"
 	$(call do,INSTALL-MODULE,$1, \
 		$(CROSS)strip \
 			--preserve-dates \
@@ -199,14 +200,13 @@ $(module_initrd_lib_dir)/$(notdir $1): $(build)/$(linux_dir)/$1
 			-o "$$@" \
 			"$$<" \
 	)
+module_initrd_files += $(module_initrd_lib_dir)/$(notdir $1)
 endef
 
 $(call map,linux_module,$(linux_modules-y))
 
-# We can't rebuild the module initrd until the kernel has been rebuilt
-$(build)/$(BOARD)/modules.cpio: $(build)/$(linux_dir)/.build FORCE
-	$(call do-cpio,$@,$(module_initrd_dir))
-	@$(RM) -rf "$(module_initrd_dir)"
+# Rebuild modules.cpio when the kernel build changes.
+$(build)/$(BOARD)/modules.cpio: $(build)/$(linux_dir)/.build
 
 
 # The output of the linux.intermediate is usually the bzImage in the
