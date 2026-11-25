@@ -106,6 +106,10 @@ cpython_configure = \
 	CFLAGS="-Os -ffunction-sections -fdata-sections" \
 	LDFLAGS="-Wl,--gc-sections" \
 	SOURCE_DATE_EPOCH=$(cpython_source_date_epoch) \
+	CPATH= C_INCLUDE_PATH= CPLUS_INCLUDE_PATH= LIBRARY_PATH= \
+	PKG_CONFIG_LIBDIR="$(INSTALL)/lib/pkgconfig:$(INSTALL)/share/pkgconfig" \
+	PKG_CONFIG_SYSROOT_DIR="$(INSTALL)" \
+	PKG_CONFIG_PATH="" \
 	./configure \
 		--build=x86_64-pc-linux-gnu \
 		--host=$(target) \
