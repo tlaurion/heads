@@ -357,11 +357,9 @@ $(build)/$(coreboot_dir)/.build: \
 # This produces a ROM image that is written with the flashrom program
 ifneq ($(CONFIG_COREBOOT),)
 
-# Always rebuild the ROM and update package: the version-stamped filename
-# changes across commits/builds, and cheap post-processing (cbfstool print,
-# IFD validation/HAP/GPR0) should reflect current config even when coreboot
-# .build inputs are unchanged.
-$(build)/$(BOARD)/$(CB_OUTPUT_FILE): $(build)/$(coreboot_dir)/.build FORCE
+# Let make rebuild the ROM only when inputs change; downstream logic
+# will ensure expensive post-processing (like GPG injection) is skipped when up-to-date.
+$(build)/$(BOARD)/$(CB_OUTPUT_FILE): $(build)/$(coreboot_dir)/.build
 	# Use coreboot.rom, because custom output files might not be processed by cbfstool
 	"$(build)/$(coreboot_dir)/cbfstool" "$(dir $<)coreboot.rom" print
 	@echo ""

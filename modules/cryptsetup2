@@ -29,7 +29,6 @@ cryptsetup2_configure := \
 	--disable-selinux \
 	--disable-udev \
 	--disable-external-tokens \
-	--disable-blkid \
 	--with-crypto_backend=kernel \
 	--with-tmpfilesdir=$(INSTALL)/lib/tmpfiles.d
 

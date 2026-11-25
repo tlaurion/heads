@@ -609,6 +609,7 @@ define define_module =
 		echo "INFO: Cleaning repository directory (including payloads and util/cbmem)" && \
 		git clean -df && \
 		git clean -dffx payloads util/cbmem && \
+		rm -f "$(build)/$($1_base_dir)/.patched" && \
 		echo "INFO: Synchronizing submodules" && \
 		git submodule sync && \
 		echo "INFO: Updating submodules (init and checkout)" && \
@@ -620,38 +621,30 @@ define define_module =
 		echo "INFO: Updating .canary file with new repo info" && \
 		echo -n '$($1_repo)|$($1_commit_hash)' > "$$@" ; \
 	fi
-    # Invalidate the patch marker when the patch set changes.  The wildcard
-    # file prerequisites make an added or edited patch newer than the marker,
-    # and the patch directory prerequisite catches additions and removals
-    # because its mtime changes.  The .canary prerequisite is order-only:
-    # it must exist first, but refreshing it must not force a re-apply.
-    $(build)/$($1_base_dir)/.patched: \
-		$(wildcard patches/$($1_patch_name).patch) \
-		$(wildcard patches/$($1_patch_name)/*.patch) \
-		$(wildcard patches/$($1_patch_name)) \
-		| $(build)/$($1_base_dir)/.canary
-	@echo "INFO: Patch marker $(build)/$($1_base_dir)/.patched missing or stale. Beginning patch application for $1"
-	if [ -r patches/$($1_patch_name).patch ]; then \
-		echo "INFO: Applying single patch file: patches/$($1_patch_name).patch" && \
-		if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch; then \
-			echo "ERROR: Failed to apply patch: patches/$($1_patch_name).patch. Reversing and reapplying." && \
-			git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || true && \
-			git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || exit 1; \
-		fi; \
-	fi; \
-	if [ -d patches/$($1_patch_name) ]; then \
-		echo "INFO: Applying multiple patch files from directory: patches/$($1_patch_name)" && \
-		for patch in patches/$($1_patch_name)/*.patch; do \
-			echo "INFO: Applying patch file: $$$$patch" && \
-			if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch"; then \
-				echo "ERROR: Failed to apply patch: $$$$patch. Reversing and reapplying." && \
-				git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || true && \
-				git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || exit 1; \
+	if [ ! -e "$(build)/$($1_base_dir)/.patched" ]; then \
+		echo "INFO: .patched file not found. Beginning patch application for $1" && \
+		if [ -r patches/$($1_patch_name).patch ]; then \
+			echo "INFO: Applying single patch file: patches/$($1_patch_name).patch" && \
+			if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch; then \
+				echo "ERROR: Failed to apply patch: patches/$($1_patch_name).patch. Reversing and reapplying." && \
+				git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || true && \
+				git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < patches/$($1_patch_name).patch || exit 1; \
 			fi; \
-		done; \
-	fi; \
-	echo "INFO: Patches applied successfully. Creating .patched file." && \
-	touch "$$@"
+		fi; \
+		if [ -d patches/$($1_patch_name) ]; then \
+			echo "INFO: Applying multiple patch files from directory: patches/$($1_patch_name)" && \
+			for patch in patches/$($1_patch_name)/*.patch; do \
+				echo "INFO: Applying patch file: $$$$patch" && \
+				if ! git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch"; then \
+					echo "ERROR: Failed to apply patch: $$$$patch. Reversing and reapplying." && \
+					git apply --reverse --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || true && \
+					git apply --verbose --reject --binary --directory build/$(CONFIG_TARGET_ARCH)/$($1_base_dir) < "$$$$patch" || exit 1; \
+				fi; \
+			done; \
+		fi; \
+		echo "INFO: Patches applied successfully. Creating .patched file." && \
+		touch "$(build)/$($1_base_dir)/.patched"; \
+	fi
   else
     # Versioned modules (each version a separate module) don't need to include
     # the version a second time.  (The '-' separator is also omitted then.)
