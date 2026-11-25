@@ -2,9 +2,17 @@
 #
 # Source is a git clone pinned to a specific commit, while the Heads patch
 # series is keyed by the upstream release version so it lives in
-# patches/wyng-backup-$(wyng-backup_version)/ (matching the convention used
+# patches/wyng-backup-$(wyng-backup_patch_version)/ (matching the convention used
 # by git-fork modules such as coreboot-dasharo_v56, which keep a commit pin
 # and a separate _patch_version).
+#
+# Default pin tracks wyng-backup 09alpha branch head d7f30364904da2a9092b389e3cd142e634ed80b4
+# (Fix _delete_volume call names), required by wyng-util-qubes 10alpha API work:
+# https://codeberg.org/tasket/wyng-util-qubes/issues/36#issuecomment-28202081
+# wyng-backup commit: https://codeberg.org/tasket/wyng-backup/commit/d7f30364904da2a9092b389e3cd142e634ed80b4
+# wyng-backup 09alpha branch: https://codeberg.org/tasket/wyng-backup/src/branch/09alpha
+# wyng-util-qubes 10alpha branch: https://codeberg.org/tasket/wyng-util-qubes/src/branch/10alpha
+# Not a release tag; revisit pin when upstream stabilizes/releases.
 #
 # The `wyng` script is staged from src/wyng relative to the clone root and is
 # flattened to /bin/wyng by the Makefile's initrd bin rule.
@@ -50,13 +58,13 @@ modules-$(CONFIG_WYNG_BACKUP) += wyng-backup
 wyng-backup_cpython_profiles += wyng
 
 wyng-backup_repo := https://codeberg.org/tasket/wyng-backup.git
-wyng-backup_commit_hash := 0af2e76aad23cf6a27505e6818a50ad0fec8129a
-wyng-backup_version := 0.8.1
-wyng-backup_patch_version := 0.8.1
-# Provenance for the v0.8.1 tag: Codeberg release archive
-# https://codeberg.org/tasket/wyng-backup/archive/v0.8.1.tar.gz sha256
-# 791d1edb3a1bb8afb821ba2b9a8980b526ed2fe62cfdc0ab3c89b8750320777a.
-# The build clones the tag commit above (git-module path), not the archive.
+# 09alpha required by wyng-util-qubes 10alpha API work (tasket, 2026-11-21):
+# https://codeberg.org/tasket/wyng-util-qubes/issues/36#issuecomment-28202081
+wyng-backup_commit_hash := d7f30364904da2a9092b389e3cd142e634ed80b4
+wyng-backup_version := 0.9alpha
+wyng-backup_patch_version := 0.9alpha
+# Provenance: Codeberg wyng-backup 09alpha branch head d7f3036 (Fix _delete_volume
+# call names), fetched as git-module commit, not release archive.
 
 # Deterministic clone path (version-named, board-independent), following the
 # coreboot/linux git-module convention: _base_dir is the checkout root and
@@ -80,10 +88,10 @@ endif
 wyng-backup_configure := printf 'all:\n\ttouch .built\n' > Makefile.nobuild
 wyng-backup_target := -f Makefile.nobuild
 
-wyng-backup_output := src/wyng
+wyng-backup_output := src/wyng09a
 
 # `wyng help-doc` (src/wyng, patch 0011) runs
-# `less -R /usr/share/doc/wyng/0.8/Wyng_User_Reference.txt`.  The initrd has
+# `less -R /usr/share/doc/wyng/0.9/Wyng_User_Reference.txt`.  The initrd has
 # no /usr/share tree, so stage the upstream ANSI-formatted guide (the .txt
 # sibling of the .md; it carries the escape sequences that `less -R` renders)
 # under the exact path the script expects.

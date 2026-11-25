@@ -69,6 +69,7 @@ queue
 quopri
 _random
 random
+secrets
 re
 reprlib
 resource
