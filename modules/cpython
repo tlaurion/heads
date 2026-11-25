@@ -261,7 +261,7 @@ cpython_smoke_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/l
 endif
 cpython_smoke_script := $(pwd)/bin/cpython-smoke.sh
 cpython_smoke_profile := $(build)/$(BOARD)/cpython-profile.stamp
-cpython_smoke: $(cpython_runtime_lib_dep)
+cpython_smoke: $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
 	$(call do,CPYTHON-SMOKE,$(BOARD), \
 		CPYTHON_SMOKE_IMPORTS="$(cpython_smoke_imports)" \
 		CPYTHON_SMOKE_PYTHONPATH="$(cpython_smoke_pythonpath)" \
