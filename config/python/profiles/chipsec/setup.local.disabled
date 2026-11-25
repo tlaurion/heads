@@ -1,9 +1,16 @@
-# Chipsec CPython profile disable list.
-# Follows wyng/base disable posture; no extra CPython modules enabled here.
-# ssl remains disabled by default; enable only with a clear TLS consumer.
+# Chipsec CPython profile.
 *disabled*
+_ctypes
+_gdbm
+_hashlib
+_sqlite3
+_ssl
+_tkinter
 _uuid
+bz2
 curses
 dbm
+lzma
 nis
-ssl
+readline
+zlib

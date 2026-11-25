@@ -40,14 +40,9 @@
 # like zstd (option B), so _bz2 is built/installed only if libbz2 is present
 # and there is no libbz2 dependency here.
 CONFIG_CPYTHON ?= n
-# CONFIG_CPYTHON requires libffi for _ctypes (both configure-time pkg-config probe
-# and runtime dlopen of libffi.so.8); enforcing it here avoids a silent build
-# failure when a board enables cpython without CONFIG_LIBFFI=y.
-ifeq "$(CONFIG_CPYTHON)" "y"
-ifneq "$(CONFIG_LIBFFI)" "y"
-$(error CONFIG_CPYTHON=y requires CONFIG_LIBFFI=y)
-endif
-endif
+# Base CPython is minimal (OpenWrt python3-base intent). External deps like
+# libffi/openssl/zlib are required only when a selected profile/module needs
+# them; modules own those deps via module_cpython_depends.
 modules-$(CONFIG_CPYTHON) += cpython
 
 # Profile selection: base is always included; modules declare additive needs via
@@ -67,12 +62,12 @@ cpython_profile_stdlib := $(cpython_profile_out)cpython-stdlib-keep.txt
 cpython_profile_dynload := $(cpython_profile_out)cpython-dynload-keep.txt
 cpython_profile_setup := $(cpython_profile_out)cpython-Setup.local
 
-cpython_version := 3.13.15
+cpython_version := 3.13.18
 cpython_mm := $(word 1,$(subst ., ,$(cpython_version))).$(word 2,$(subst ., ,$(cpython_version)))
 cpython_dir := Python-$(cpython_version)
 cpython_tar := Python-$(cpython_version).tar.xz
 cpython_url := https://www.python.org/ftp/python/$(cpython_version)/$(cpython_tar)
-cpython_hash := 1e66a7945a48390ee4c2a4268a0e4185884059a13c4aab6d148aa208deea4a76
+cpython_hash := abb0102e6d4ae027509bcb82327d9dd85515b44a3ba8ad538cfc5e9847029f68
 cpython_source_date_epoch := 0
 
 # Same-source host interpreter used as --with-build-python (modules/cpython-host).
@@ -99,13 +94,10 @@ cpython_host_python = $(build)/$(cpython-host_dir)/python
 # may re-enable by omitting a disable in their fragment (intersection keeps a
 # disable only when every selected profile disables it).
 #
-# _hashlib is the one entry that must NOT be disabled: hashlib.scrypt is
-# imported from it unconditionally and has no builtin fallback, so wyng cannot
-# derive an archive key without it.  Note that Setup.local is a disable list --
-# makesetup honours "first rule wins" across Setup.local, Setup.stdlib and
-# Setup, so a name there turns a module off and its absence leaves it on.  It
-# also needs openssl in cpython_depends below, so the in-tree libcrypto.pc is
-# staged before the target configures and the .so has a runtime provider.
+# Setup.local is a disable list (makesetup "first rule wins"): names present
+# are disabled; absent names follow CPython default detection. Base profile
+# keeps a minimal OpenWrt-python3-base-like footprint; module profiles re-enable
+# capabilities by omitting disables in their own setup.local.disabled.
 cpython_configure = \
 	cp "$(cpython_profile_setup)" "$(build)/$(cpython_dir)/Modules/Setup.local" && \
 	CONFIG_SITE="$(pwd)/config/python-cross-cache-$(MUSL_ARCH)" \
@@ -250,7 +242,7 @@ cpython_output := python
 # Modules declare required runtime imports via <module>_cpython_smoke_imports.
 # cpython aggregates enabled modules for the current board; base imports are
 # always validated.
-cpython_smoke_base_imports := sys os io encodings codecs stat posixpath genericpath warnings site
+cpython_smoke_base_imports := sys os io encodings codecs stat posixpath genericpath site sysconfig _collections_abc abc types
 # Recursive expansion: module smoke-import vars may be defined after cpython.
 cpython_smoke_modules = $(filter-out cpython cpython-host,$(modules-y))
 cpython_smoke_imports = $(strip $(cpython_smoke_base_imports) \
@@ -287,7 +279,8 @@ cpython_tools := $(cpython_runtime_lib)|lib/python$(cpython_mm)
 # D7: stage_tools_file attaches no .build prerequisite; use runtime marker.
 cpython_tools_depends := $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
 
-cpython_depends := cpython-host libffi zlib openssl $(musl_dep)
+cpython_extra_depends = $(foreach m,$(modules-y),$($(m)_cpython_depends))
+cpython_depends := cpython-host $(sort $(cpython_extra_depends)) $(musl_dep)
 
 # D6: /bin/python3 and /bin/python$(cpython_mm) -> /bin/python.  The automatic
 # bin_modules staging flattens by basename and cannot create symlinks, so

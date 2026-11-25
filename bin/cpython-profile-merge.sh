@@ -19,7 +19,7 @@ merge_union() {
 merge_disable_intersection() {
   out_file=$1; shift
   # Setup.local is a disable list: keep a module disabled only if every selected
-  # profile disables it.  _hashlib must never be disabled.
+  # profile disables it. Module/profile data owns enablement; no global force.
   if [ $# -eq 1 ]; then cp "$1" "$out_file"; return; fi
   tmp="$out_file.tmp.$$"
   : > "$tmp.all"
@@ -35,7 +35,7 @@ merge_disable_intersection() {
     echo "# A name present in *every* selected profile remains disabled."
     echo "*disabled*"
     awk -v n="$n" '{c[$0]++} END{for(k in c) if(c[k]==n) print k}' "$tmp.all" | \
-      awk 'NR==FNR{ok[$0]=1; next} $0=="_hashlib"{next} ok[$0]{print; delete ok[$0]}' - "$tmp.1"
+      awk 'NR==FNR{ok[$0]=1; next} ok[$0]{print; delete ok[$0]}' - "$tmp.1"
   } > "$out_file"
   rm -f "$tmp".* "$tmp.all"
 }

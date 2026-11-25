@@ -146,3 +146,5 @@ python-zstd_tools_depends := $(build)/$(python-zstd_dir)/.build
 
 # Smoke-test against build tree (module is staged into tools.cpio, not INSTALL).
 python-zstd_cpython_smoke_pythonpath := $(build)/$(python-zstd_dir)/src
+
+python-zstd_cpython_depends := zlib

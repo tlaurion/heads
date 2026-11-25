@@ -68,7 +68,7 @@ if [ -s "$build_req_stdlib" ]; then
 		case "$name" in lib-dynload | site-packages) continue ;; esac
 		# Absolute interpreter/build failsafe. Keep this tiny and explicit.
 		case "$name" in
-			__future__ | _sitebuiltins | _sysconfigdata_* | abc | codecs | encodings | genericpath | io | os | posixpath | site | stat | types | warnings ) continue ;;
+			__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakrefset | abc | codecs | encodings | genericpath | io | os | posixpath | site | stat | sysconfig | types ) continue ;;
 		esac
 		in_keep "$name" "$build_req_stdlib" || rm -rf "$entry"
 	done
@@ -78,7 +78,7 @@ if [ -s "$build_req_dynload" ]; then
 		[ -e "$so" ] || continue
 		name=$(basename "$so")
 		name=${name%%.*}
-		case "$name" in _opcode | _socket | _hashlib) continue ;; esac
+		case "$name" in _sysconfigdata_*) continue ;; esac
 		in_keep "$name" "$build_req_dynload" || rm -f "$so"
 	done
 fi
@@ -99,7 +99,7 @@ if [ -s "$cfg/cpython-stdlib-keep.txt" ]; then
 		# _sysconfigdata_* is arch-generated; keep to avoid sysconfig import
 		# failures when profile needs sysconfig.
 		case "$name" in
-			__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakref | abc | codecs | collections | encodings | genericpath | io | os | posixpath | site | stat | types | warnings ) continue ;;
+			__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakrefset | abc | codecs | collections | encodings | genericpath | io | os | posixpath | site | stat | sysconfig | types | warnings ) continue ;;
 		esac
 		in_keep "$name" "$cfg/cpython-stdlib-keep.txt" || rm -rf "$entry"
 	done
@@ -110,7 +110,7 @@ if [ -s "$cfg/cpython-dynload-keep.txt" ]; then
 		[ -e "$so" ] || continue
 		name=$(basename "$so")
 		name=${name%%.*}
-		case "$name" in _hashlib | _opcode | _socket) continue ;; esac
+		case "$name" in _sysconfigdata_*) continue ;; esac
 		in_keep "$name" "$cfg/cpython-dynload-keep.txt" || rm -f "$so"
 	done
 fi

@@ -1,5 +1,2 @@
-# Minimal base dynload keep-list for CPython startup + required _hashlib.
-# Module profiles add runtime extensions via union merge.
-_hashlib
-_opcode
-_socket
+# Minimal base dynload keep-list.
+# No optional extension modules by default; module profiles add them.

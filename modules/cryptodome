@@ -241,3 +241,6 @@ cryptodome_tools_depends := $(build)/$(cryptodome_dir)/.build
 
 # Smoke-test against build tree (module is staged into tools.cpio, not INSTALL).
 cryptodome_cpython_smoke_pythonpath := $(build)/$(cryptodome_dir)/lib
+
+# OpenWrt-split/Heads-minimal: provide hashlib/openssl capability when selected.
+cryptodome_cpython_depends := libffi openssl

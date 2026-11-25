@@ -87,3 +87,6 @@ chipsec_target := \
 # CHIPSEC command/import traces before widening.
 chipsec_cpython_smoke_imports := \
 	decimal csv logging concurrent.futures multiprocessing plistlib pprint
+
+# Capability deps for CPython profile (chipsec runtime/crypto needs may vary).
+chipsec_cpython_depends := libffi openssl

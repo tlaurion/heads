@@ -110,3 +110,6 @@ wyng-backup_cpython_smoke_imports := \
 	copy tempfile subprocess shutil tarfile gzip io fcntl mmap \
 	Cryptodome.Cipher.ChaCha20 Cryptodome.Hash.SHA512 \
 	Cryptodome.Protocol.KDF Cryptodome.Random zstd
+
+# Capability deps for CPython profile (OpenWrt-split/minimal base).
+wyng-backup_cpython_depends := libffi zlib openssl
