@@ -38,3 +38,7 @@ chipsec_target := \
 # TODO: stage selected chipsec package/scripts into site-packages or /bin.
 # chipsec_output :=
 # chipsec_tools :=
+
+# Runtime smoke/import expectations for chipsec profile.
+chipsec_cpython_smoke_imports := \
+	lzma decimal csv logging concurrent.futures multiprocessing plistlib pprint

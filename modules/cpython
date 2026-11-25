@@ -232,6 +232,22 @@ $(build)/$(cpython_dir)/.build: \
 # `python` is the in-source build artifact; bin_modules flattens it to /bin/python.
 cpython_output := python
 
+# Per-board smoke tests: explicit, module/profile-driven.
+cpython_smoke_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
+ifeq "$(cpython_smoke_loader)" "libc.so"
+cpython_smoke_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+endif
+cpython_smoke_script := $(pwd)/bin/cpython-smoke.sh
+cpython_smoke_profile := $(build)/$(BOARD)/cpython-profile.stamp
+cpython_smoke: $(cpython_runtime_lib_dep)
+	$(call do,CPYTHON-SMOKE,$(BOARD), \
+		CPYTHON_SMOKE_LOADER="$(cpython_smoke_loader)" \
+		CPYTHON_SMOKE_LIBPATH="$(INSTALL)/lib" \
+		sh "$(cpython_smoke_script)" \
+			"$(INSTALL)/bin/python$(cpython_mm)" \
+			"$(cpython_smoke_profile)" \
+			$(cpython_profiles))
+
 # Stage the pruned RUNTIME stdlib, not INSTALL.  INSTALL retains build-only
 # stdlib needed by cryptodome/python-zstd wheel builds.
 cpython_tools := $(cpython_runtime_lib)|lib/python$(cpython_mm)

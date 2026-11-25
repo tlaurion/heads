@@ -1,0 +1,59 @@
+#!/bin/sh
+# CPython runtime smoke/import-trace gate.
+#
+# Runs inside docker_repro/build environment with a staged tools.cpio or
+# runtime tree.  Explicitly validates module-declared runtime requirements.
+#
+# Usage:
+#   cpython-smoke.sh <python-bin> <profile-file|-> <modules...>
+# Environment:
+#   CPYTHON_SMOKE_TRACE=1  print imported module names
+set -eu
+py=$1; shift
+profiles=${1:--}; shift || true
+loader=${CPYTHON_SMOKE_LOADER:-}
+libpath=${CPYTHON_SMOKE_LIBPATH:-}
+[ -e "$py" ] || { echo "cpython-smoke: missing python: $py" >&2; exit 1; }
+run_py() {
+  if [ -n "$loader" ]; then
+    "$loader" ${libpath:+--library-path "$libpath"} "$py" "$@"
+  else
+    "$py" "$@"
+  fi
+}
+
+# Base interpreter startup/import sanity.
+run_py -c 'import sys,encodings,io,os; print(sys.version.split()[0])' >/dev/null
+
+# Profile-driven checks.
+has_profile() { [ "$profiles" != - ] && grep -qxF "$1" "$profiles"; }
+
+
+if has_profile wyng || echo " $* " | grep -q ' wyng-backup '; then
+  run_py - <<'PY'
+import importlib
+mods = [
+ 'hashlib','ssl','zlib','ctypes','sqlite3','json','xml.etree.ElementTree',
+ 'Cryptodome.Cipher.ChaCha20','zstd'
+]
+for m in mods:
+    try:
+        importlib.import_module(m)
+    except Exception as e:
+        raise SystemExit(f'MISSING:{m}:{e}')
+print('WYNG_OK')
+PY
+fi
+
+if has_profile chipsec || echo " $* " | grep -q ' chipsec '; then
+  run_py - <<'PY'
+import importlib
+mods = ['lzma','decimal','csv','logging','concurrent.futures','multiprocessing','plistlib','pprint']
+for m in mods:
+    try:
+        importlib.import_module(m)
+    except Exception as e:
+        raise SystemExit(f'MISSING:{m}:{e}')
+print('CHIPSEC_OK')
+PY
+fi

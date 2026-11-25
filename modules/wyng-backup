@@ -94,3 +94,11 @@ wyng-backup_data += \
 # sentinel here and let the Makefile add it to the data.cpio prerequisites
 # (collected from <modulename>_data_depends for every enabled module).
 wyng-backup_data_depends := $(build)/$(wyng-backup_dir)/.build
+
+
+# Runtime smoke/import expectations for CPython profile validation.
+wyng-backup_cpython_smoke_imports := \
+	hashlib ssl zlib ctypes json xml.etree.ElementTree argparse configparser \
+	copy tempfile subprocess shutil tarfile gzip io fcntl mmap \
+	Cryptodome.Cipher.ChaCha20 Cryptodome.Hash.SHA512 \
+	Cryptodome.Protocol.KDF Cryptodome.Random zstd

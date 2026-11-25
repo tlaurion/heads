@@ -1,0 +1,5 @@
+# CPython per-board smoke requirements.
+# Format consumed by bin/cpython-smoke.sh via make target.
+CPYTHON_SMOKE_BASE_IMPORTS := sys os io encodings codecs stat posixpath genericpath warnings site
+CPYTHON_SMOKE_WYNG_IMPORTS := hashlib zlib ctypes json xml.etree.ElementTree Cryptodome.Cipher.ChaCha20 zstd
+CPYTHON_SMOKE_CHIPSEC_IMPORTS := lzma decimal csv logging concurrent.futures multiprocessing plistlib pprint
