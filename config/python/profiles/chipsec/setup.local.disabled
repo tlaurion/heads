@@ -1,5 +1,5 @@
 # Chipsec CPython profile disable list.
-# Based on wyng profile but enables lzma (_lzma) for UEFI compression paths.
+# Follows wyng/base disable posture; no extra CPython modules enabled here.
 # ssl remains disabled by default; enable only with a clear TLS consumer.
 *disabled*
 _uuid

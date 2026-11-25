@@ -1,15 +1,45 @@
 # chipsec: Intel CHIPSEC platform security assessment framework (userspace).
 #
-# DRAFT / OPT-IN.  Not wired into any board by default.
+# STATUS: DRAFT / OPT-IN. Not wired into default boards.
 #
-# Heads integration intent: provide chipsec userspace tooling in initrd for
-# platform security checks where appropriate.  This module packages Python
-# sources only; Linux helper/driver strategy is separate and may require
-# kernel module support or native helpers not included here.
+# Purpose:
+# - Model CHIPSEC Python userspace requirements in Heads CPython profile system.
+# - Provide an explicit, board-testable CPython runtime contract for chipsec.
 #
-# Python dependency model: selects cpython profile "chipsec" (additive merge).
-# The profile widens stdlib/dynload allowlists vs wyng (e.g. lzma, csv,
-# logging, concurrent/multiprocessing, decimal).  Keep image impact reviewed.
+# Current scope (implemented):
+# - Declares additive CPython profile `chipsec` (`chipsec_cpython_profiles`).
+# - Declares per-board smoke imports (`chipsec_cpython_smoke_imports`).
+# - Pinned upstream commit hash recorded for future packaging work.
+#
+# Not implemented yet (TODO):
+# - Fetch/build/package CHIPSEC Python sources into initrd/site-packages.
+# - Install chipsec entrypoints/wrappers (`chipsec_main.py`, etc.) as needed.
+# - Linux helper/driver strategy: driver-backed checks require chipsec.ko built
+#   against the exact Heads kernel and staged/loaded in initrd (separate module).
+# - QEMU automated QA: no automated QEMU boot/command-flow test in CI. Current
+#   `make BOARD=<board> cpython_test` validates module-declared Python imports
+#   only; it does not execute CHIPSEC commands inside a booted image.
+#
+# Dependency contract:
+# - CONFIG_CHIPSEC=y requires CONFIG_CPYTHON=y.
+# - CPython profile selection is module-driven: modules/cpython unions
+#   `<mod>_cpython_profile(s)` from enabled modules-y.
+# - This module owns chipsec profile/smoke declarations; modules/cpython only
+#   aggregates them.
+#
+# Runtime/profile notes:
+# - Profile adds stdlib/dynload needed by common CHIPSEC imports (csv, logging,
+#   concurrent/multiprocessing, plistlib, pprint, decimal/_decimal).
+# - lzma/_lzma intentionally omitted: target CPython does not build _lzma until
+#   an xz/liblzma module and cpython build wiring exist. Re-add only with traced
+#   need and verified build/runtime support.
+#
+# Kernel module (future, separate concern):
+# - Full Linux helper functionality may require out-of-tree chipsec.ko built
+#   against $(build)/$(linux_dir) and loaded via insmod from initrd.
+# - Kernel must provide module support; busybox insmod/lsmod required.
+# - Keep as separate module/contract (e.g. chipsec-km) to avoid conflating
+#   Python userspace packaging with kernel driver build/staging.
 CONFIG_CHIPSEC ?= n
 
 ifeq "$(CONFIG_CHIPSEC)" "y"
@@ -20,10 +50,10 @@ endif
 
 modules-$(CONFIG_CHIPSEC) += chipsec
 
-# Declare CPython profile requirements for module-driven merge.
+# CPython profile contract (consumed by modules/cpython).
 chipsec_cpython_profiles += chipsec
 
-# Pin to a reviewed commit/tag; do not float.
+# Pinned upstream source identity (packaging TODO; not fetched/built yet).
 chipsec_version := git
 chipsec_dir := chipsec-git
 chipsec_repo := https://github.com/chipsec/chipsec.git
@@ -31,14 +61,17 @@ chipsec_commit_hash := 25457060db45217c74b46f61cc934098ddff8d64
 
 chipsec_depends := cpython $(musl_dep)
 
-# No build step yet; packaging/install rules TBD after helper strategy decided.
+# No build/package step yet. Keep target explicit/no-op until packaging lands.
 chipsec_target := \
 	true
 
-# TODO: stage selected chipsec package/scripts into site-packages or /bin.
+# TODO(packaging): stage selected CHIPSEC package/scripts into site-packages and
+# add wrappers/entrypoints as needed. Keep staged surface minimal and audited.
 # chipsec_output :=
 # chipsec_tools :=
 
-# Runtime smoke/import expectations for chipsec profile.
+# Per-board CPython smoke contract (aggregated by modules/cpython).
+# Keep this list aligned with config/python/profiles/chipsec/* and actual
+# CHIPSEC command/import traces before widening.
 chipsec_cpython_smoke_imports := \
 	decimal csv logging concurrent.futures multiprocessing plistlib pprint

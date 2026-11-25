@@ -1,51 +1,60 @@
-# chipsec CPython profile
+# chipsec CPython profile (draft)
 
-Additive profile for running CHIPSEC userspace tools in Heads initrd.
+Additive CPython profile for CHIPSEC userspace on Heads. **Opt-in, draft**.
 
-Status: **draft/opt-in**. Not enabled by default; wyng profile remains default.
+## Status
 
-Rationale:
-- CHIPSEC (Linux userspace) imports broad stdlib including logging, csv, concurrent/multiprocessing, plistlib, pprint, decimal.
-- `lzma`/`_lzma` intentionally omitted until an xz/liblzma module is wired into Heads; adding the name alone does not build the C extension.
-- Keep closed allowlist explicit; expand only with smoke-tested imports.
+- **Implemented**: module-driven profile merge + per-board CPython smoke imports.
+- **Not implemented**: CHIPSEC Python package staging, entrypoints/wrappers,
+  kernel driver build/staging, automated QEMU boot/command-flow QA.
 
-Notes:
-- If chipsec needs LZMA, add a liblzma/xz module and wire cpython build deps; then re-add `lzma`/`_lzma`.
-- CHIPSEC helper/kernel driver strategy is separate from Python packaging.
-- Add modules only after tracing actual selected CHIPSEC commands.
+## Contract
 
-## Heads module dependency contract (draft)
+- Selected by `modules/chipsec` via `chipsec_cpython_profiles += chipsec`.
+- `CONFIG_CHIPSEC=y` requires `CONFIG_CPYTHON=y`.
+- Keep-lists are closed allowlists; add entries only with traced CHIPSEC
+  command/import evidence and smoke validation.
 
-chipsec (Python userspace):
-- CONFIG_CHIPSEC=y
-- requires: CONFIG_CPYTHON=y (auto-adds CPYTHON profile `chipsec`)
-- python profile adds: csv,logging,concurrent,multiprocessing,plistlib,pprint,decimal,_decimal
-- build deps: cpython, setuptools? (only if packaging), musl_dep
-- runtime deps: chipsec helper strategy; for full functionality likely chipsec.ko
-- initrd staging: TBD (site-packages/chipsec + /bin/chipsec_util/chipsec_main wrappers)
+## Runtime additions over `base`
 
-chipsec-km (out-of-tree kernel module, required for driver-backed helper):
-- CONFIG_CHIPSEC_KM=y (proposed)
-- requires: CONFIG_CHIPSEC=y, CONFIG_LINUX=y, kernel modules support in target kernel, busybox insmod/rmmod/lsmod as needed
-- build deps: linux kernel build dir ($(build)/$(linux_dir)), nasm, cross toolchain
-- artifact: chipsec.ko staged into modules.cpio/lib/modules or /lib/modules load path
-- runtime: insmod/modprobe path; chipsec linuxhelper looks for chipsec.ko / modprobe chipsec
+- stdlib: `csv`, `logging`, `concurrent`, `multiprocessing`, `plistlib`,
+  `pprint`, `decimal` (and supporting stdlib pulled by profile keep-list).
+- dynload: `_decimal`.
+- `setup.local.disabled`: follows base/wyng disable posture; merge policy never
+  disables `_hashlib`.
 
-## Explicit dependency matrix (Heads)
+## Explicit omissions
 
-### Python (chipsec userspace)
-- REQUIRED: `CONFIG_CPYTHON=y`
-- PROFILE: `chipsec` (auto-added when `CONFIG_CHIPSEC=y`, else set `CPYTHON_PROFILES_EXTRA=chipsec`)
-- Extra keeplist needs (unioned): stdlib adds `csv,logging,concurrent,multiprocessing,plistlib,pprint,decimal,_pydecimal`; dynload adds `_decimal` (see `config/python/profiles/chipsec/*`)
-- Setup.local: intersection of selected profiles removes `lzma` disable (enables `_lzma`); `curses/dbm/nis/ssl` remain disabled by wyng base unless another profile enables them (none do here)
-- Staged as: `chipsec` package under `lib/python$(MM)/site-packages/chipsec` + any entrypoints/wrappers (TODO: not yet packaged)
+- `lzma/_lzma`: omitted intentionally. Target CPython does not build `_lzma`
+  without an xz/liblzma module and cpython build wiring. Do not add name-only
+  entries; re-add only after dependency wiring is verified.
+- `ssl`, `curses`, `dbm`, `nis`, `_uuid`: remain disabled unless a traced CHIPSEC
+  path requires them and security/size impact is reviewed.
 
-### Kernel driver (required for Linux `linuxhelper` full behavior)
-- REQUIRED (for driver-backed): build/install `chipsec.ko` (from `drivers/linux/`, x86 asm) against the Heads-built kernel (`$(build)/$(linux_dir)`), stage into initrd `modules.cpio`
-- Runtime load: `insmod.sh` (BusyBox `insmod`) measures+extends PCR5 then loads; kernel must have `CONFIG_MODULES`/module support enabled (verify board/kernel config)
-- BusyBox: `CONFIG_INSMOD=y`, `CONFIG_LSMOD=y` enabled in current `config/busybox.config`; `modprobe/rmmod` not enabled (insmod.sh uses `busybox insmod`)
-- Heads TODO: add `modules/chipsec-km` (or equivalent) with `depends := linux`, build step `make -C $(KSRC) M=... modules`, copy `chipsec.ko` into module staging dir, ensure load order (kernel modules loaded after kernel/initramfs setup as per board flow)
+## Validation
 
-### “Dynamic per module” contract (intended)
-- Today: explicit hook in `modules/cpython` sets `CPYTHON_PROFILES_EXTRA += chipsec` when `CONFIG_CHIPSEC=y`.
-- Target: modules declare `$(name)_cpython_profile` / `$(name)_cpython_profiles` and cpython unions them for `modules-y` (less fragile than editing cpython per consumer). Not yet implemented.
+```sh
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec cpython_test
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec cpython_test
+```
+
+This validates module-declared Python imports through target Python. It does
+**not** boot QEMU, run `chipsec_main.py`, or validate kernel-driver behavior.
+
+## QEMU / automated QA strategy
+
+**Unclear/TODO.** There is currently no automated QEMU command-flow test for
+CHIPSEC in Heads CI. Before claiming CHIPSEC support, define and implement:
+
+1. Packaging: stage CHIPSEC package + selected entrypoints into initrd.
+2. Smoke: run minimal CHIPSEC command in booted QEMU image (non-driver path first).
+3. Driver-backed tests: separate `chipsec-km`/kernel-module contract, kernel
+   config/module support, `insmod` staging, and QEMU/hardware test matrix.
+4. CI policy: opt-in job, artifact/log capture, known limits documented.
+
+## Kernel driver (separate, future)
+
+Full Linux helper functionality may require out-of-tree `chipsec.ko` built
+against the exact Heads kernel (`build/<arch>/$(linux_dir)`) and loaded in
+initrd. Treat as a separate module/contract; do not conflate with Python
+userspace packaging.

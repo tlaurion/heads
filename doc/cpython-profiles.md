@@ -56,10 +56,17 @@ selected profiles and input hashes; changing profiles forces reconfigure/prune.
 
 ## Chipsec Status
 
-`modules/chipsec` is draft/opt-in. Python deps are modeled by the chipsec
-profile; full Linux helper capability also requires an out-of-tree `chipsec.ko`
-built against the Heads kernel and loaded in initrd (`insmod`/modules.cpio).
-Kernel-module bundling is not implemented.
+`modules/chipsec` is draft/opt-in and explicitly documented in-module.
+
+Implemented:
+- CPython profile `chipsec` selected via module-driven merge.
+- Per-board smoke imports declared by module and validated by `cpython_test`.
+
+Not implemented / TODO:
+- CHIPSEC Python package/entrypoint staging into initrd.
+- `lzma/_lzma`: omitted until xz/liblzma module + CPython build wiring exists.
+- Kernel-driver path (`chipsec.ko`) as separate module/contract.
+- Automated QEMU command-flow QA for CHIPSEC; current smoke is import-only.
 
 ## Build / Verification
 
