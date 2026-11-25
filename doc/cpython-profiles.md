@@ -101,18 +101,21 @@ Base defaults (always present): base profile; base smoke imports
 `sys os io encodings codecs stat posixpath genericpath warnings site`; base
 runtime encodings `__init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py`.
 
-## Per-Board Smoke
+## Per-Board Smoke/Test
+
+Explicit target: `cpython_test` (alias of `cpython_smoke`).
 
 ```sh
-HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython cpython_smoke
-HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-wyng cpython_smoke
-HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec cpython_smoke
-HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec cpython_smoke
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython cpython_test
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-wyng cpython_test
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec cpython_test
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec cpython_test
 ```
 
-Smoke runs target Python through musl loader with `INSTALL/lib` in library path
-and module-declared PYTHONPATH for tools.cpio-staged packages. It validates
+Smoke runs target Python through musl loader with `INSTALL/lib:lib64` and
+module-declared PYTHONPATH for tools.cpio-staged packages. It validates
 module-declared imports; it does not boot QEMU or exercise full command flows.
+It is a per-board/module requirement gate, not a full runtime integration test.
 
 ## Adding a Module Requirement
 

@@ -276,6 +276,10 @@ cpython_smoke: $(cpython_runtime_lib_dep)
 			"$(cpython_smoke_profile)" \
 			$(cpython_profiles))
 
+# Per-board CPython requirement smoke. Use as explicit board test target.
+cpython_test: cpython_smoke
+.PHONY: cpython_smoke cpython_test
+
 # Stage the pruned RUNTIME stdlib, not INSTALL.  INSTALL retains build-only
 # stdlib needed by cryptodome/python-zstd wheel builds.
 cpython_tools := $(cpython_runtime_lib)|lib/python$(cpython_mm)
