@@ -20,7 +20,7 @@
 # inline ` # ...` comments stripped.
 #
 # Usage:
-#   cpython-prune.sh <install-root> <profile-out-dir> <build-cfg-dir> <strip> <py-mm> <runtime-lib-dir> [build-stdlib-file] [build-dynload-file]
+#   cpython-prune.sh <install-root> <profile-out-dir> <build-cfg-dir> <strip> <py-mm> <runtime-lib-dir> [build-stdlib-file] [build-dynload-file] [runtime-encodings-file]
 set -eu
 
 inst=$1
@@ -28,7 +28,15 @@ cfg=$2
 build_cfg=$3
 strip=$4
 py_mm=${5:-3.13}
+if [ -z "$inst" ] || [ "$inst" = / ]; then
+	echo "cpython-prune: install root must be a non-root directory" >&2
+	exit 1
+fi
 runtime=${6:-$inst/lib/python$py_mm.runtime}
+if [ -z "$runtime" ] || [ "$runtime" = / ]; then
+	echo "cpython-prune: runtime must be a non-root directory" >&2
+	exit 1
+fi
 build_req_stdlib=${7:-$build_cfg/build-required-stdlib.txt}
 build_req_dynload=${8:-$build_cfg/build-required-dynload.txt}
 runtime_encodings_file=${9:-$build_cfg/runtime-required-encodings.txt}
@@ -46,42 +54,59 @@ in_keep() {
 	normalize_keep "$2" | grep -qxF "$1"
 }
 
+in_any_keep() {
+	# $1=name, remaining args=keepfiles
+	name=$1; shift
+	for keep_file in "$@"; do
+		in_keep "$name" "$keep_file" && return 0
+	done
+	return 1
+}
+
 # Strip dynload .so files in INSTALL and any previous runtime tree.
 find "$py" -name '*.so' -exec "$strip" --strip-unneeded {} + 2>/dev/null || true
-[ -d "$runtime" ] && find "$runtime" -name '*.so' -exec "$strip" --strip-unneeded {} + 2>/dev/null || true
+if [ -d "$runtime" ]; then
+	find "$runtime" -name '*.so' -exec "$strip" --strip-unneeded {} + 2>/dev/null || true
+fi
 
 # Known-dead extras, then bytecode caches.
 for dead in test idlelib tkinter turtledemo pydoc_data ensurepip venv lib2to3; do
-	rm -rf "$py/$dead" "$runtime/$dead"
+	rm -rf "${py:?}/$dead" "${runtime:?}/$dead"
 done
 rm -rf "$py"/config-"$py_mm"-* "$runtime"/config-"$py_mm"-* 2>/dev/null || true
 find "$py" "$runtime" -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 find "$py" "$runtime" -type f -name '*.pyc' -exec rm -f {} + 2>/dev/null || true
 
+# Keep-lists are closed allowlists. Missing files are an error; an existing
+# empty file is valid and means "keep no optional entries".
+for keep_file in \
+	"$build_req_stdlib" "$build_req_dynload" \
+	"$cfg/cpython-stdlib-keep.txt" "$cfg/cpython-dynload-keep.txt"; do
+	[ -f "$keep_file" ] || {
+		echo "cpython-prune: missing keep-list: $keep_file" >&2
+		exit 1
+	}
+done
+
 # INSTALL tree: keep build-required superset. This intentionally keeps more
 # than runtime so later module builds (cryptodome/python-zstd) can import
 # Python stdlib they need. It is never staged into tools.cpio.
-if [ -s "$build_req_stdlib" ]; then
-	for entry in "$py"/*; do
-		name=$(basename "$entry")
-		name=${name%.py}
-		case "$name" in lib-dynload | site-packages) continue ;; esac
-		# Absolute interpreter/build failsafe. Keep this tiny and explicit.
-		case "$name" in
-			__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakrefset | abc | codecs | encodings | genericpath | io | os | posixpath | site | stat | sysconfig | types ) continue ;;
-		esac
-		in_keep "$name" "$build_req_stdlib" || rm -rf "$entry"
-	done
-fi
-if [ -s "$build_req_dynload" ]; then
-	for so in "$py"/lib-dynload/*.so; do
-		[ -e "$so" ] || continue
-		name=$(basename "$so")
-		name=${name%%.*}
-		case "$name" in _sysconfigdata_*) continue ;; esac
-		in_keep "$name" "$build_req_dynload" || rm -f "$so"
-	done
-fi
+for entry in "$py"/*; do
+	name=$(basename "$entry")
+	name=${name%.py}
+	case "$name" in lib-dynload | site-packages) continue ;; esac
+	# Absolute interpreter/build failsafe. Keep this tiny and explicit.
+	case "$name" in
+		__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakrefset | abc | codecs | collections | encodings | genericpath | io | os | posixpath | site | stat | sysconfig | types | warnings ) continue ;;
+	esac
+	in_any_keep "$name" "$build_req_stdlib" "$cfg/cpython-stdlib-keep.txt" || rm -rf "$entry"
+done
+for so in "$py"/lib-dynload/*.so; do
+	[ -e "$so" ] || continue
+	name=$(basename "$so")
+	name=${name%%.*}
+	in_any_keep "$name" "$build_req_dynload" "$cfg/cpython-dynload-keep.txt" || rm -f "$so"
+done
 
 # RUNTIME tree: copy INSTALL then prune to merged runtime profile allowlist.
 # site-packages is copied as-is (extensions staged by other modules).
@@ -89,31 +114,26 @@ rm -rf "$runtime"
 mkdir -p "$(dirname "$runtime")"
 cp -a "$py" "$runtime"
 
-if [ -s "$cfg/cpython-stdlib-keep.txt" ]; then
-	for entry in "$runtime"/*; do
-		name=$(basename "$entry")
-		name=${name%.py}
-		case "$name" in lib-dynload | site-packages) continue ;; esac
-		# Runtime failsafe is deliberately minimal and explicit; every entry
-		# must be justified by interpreter startup/import behavior.
-		# _sysconfigdata_* is arch-generated; keep to avoid sysconfig import
-		# failures when profile needs sysconfig.
-		case "$name" in
-			__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakrefset | abc | codecs | collections | encodings | genericpath | io | os | posixpath | site | stat | sysconfig | types | warnings ) continue ;;
-		esac
-		in_keep "$name" "$cfg/cpython-stdlib-keep.txt" || rm -rf "$entry"
-	done
-fi
+for entry in "$runtime"/*; do
+	name=$(basename "$entry")
+	name=${name%.py}
+	case "$name" in lib-dynload | site-packages) continue ;; esac
+	# Runtime failsafe is deliberately minimal and explicit; every entry
+	# must be justified by interpreter startup/import behavior.
+	# _sysconfigdata_* is arch-generated; keep to avoid sysconfig import
+	# failures when profile needs sysconfig.
+	case "$name" in
+		__future__ | _collections_abc | _sitebuiltins | _sysconfigdata_* | _weakrefset | abc | codecs | collections | encodings | genericpath | io | os | posixpath | site | stat | sysconfig | types | warnings ) continue ;;
+	esac
+	in_keep "$name" "$cfg/cpython-stdlib-keep.txt" || rm -rf "$entry"
+done
 
-if [ -s "$cfg/cpython-dynload-keep.txt" ]; then
-	for so in "$runtime"/lib-dynload/*.so; do
-		[ -e "$so" ] || continue
-		name=$(basename "$so")
-		name=${name%%.*}
-		case "$name" in _sysconfigdata_*) continue ;; esac
-		in_keep "$name" "$cfg/cpython-dynload-keep.txt" || rm -f "$so"
-	done
-fi
+for so in "$runtime"/lib-dynload/*.so; do
+	[ -e "$so" ] || continue
+	name=$(basename "$so")
+	name=${name%%.*}
+	in_keep "$name" "$cfg/cpython-dynload-keep.txt" || rm -f "$so"
+done
 
 # Encodings: profile keeps 'encodings' package but not every codec file.
 # Selection is explicit and auditable:

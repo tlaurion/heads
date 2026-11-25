@@ -38,5 +38,4 @@ tmpDir/
 .code-graph/
 
 # board-local python profile merge artifacts (generated)
-/build/*/qemu-coreboot-fbwhiptail-tpm2-wyng/cpython-*
-/build/*/*/cpython-profile.stamp
+/build/*/*/cpython-*

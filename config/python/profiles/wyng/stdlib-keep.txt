@@ -87,7 +87,6 @@ string
 _struct
 struct
 subprocess
-_sysconfigdata__linux_x86_64-linux-musl
 tarfile
 tempfile
 termios

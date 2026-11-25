@@ -12,12 +12,10 @@ ac_cv_func_dlopen=yes
 ac_cv_little_endian_double=yes
 ac_cv_broken_sem_getvalue=no
 ac_cv_posix_semaphores_enabled=yes
-# _bz2/_lzma are deliberately not built.  v1 ships no libbz2 dependency
-# (`import bz2` is guarded by wyng patch 0004) and never uses _lzma.  The
-# dev-env image exposes a stale bzip2/xz pkg-config path whose -dev include
-# tree has no bzlib.h/lzma.h, so configure detects them "yes" and then the
-# module build dies on the missing headers.  PY_STDLIB_MOD (configure.ac)
-# only skips a module when py_cv_module_<name>=n/a; "disabled"/"no" are
-# overwritten by the have_bzip2/have_liblzma probe, so n/a is required.
+# _bz2/_lzma are deliberately not built. v1 ships no libbz2 dependency
+# (`import bz2` is guarded by wyng patch 0004) and never uses _lzma.
+# PY_STDLIB_MOD (configure.ac) only skips a module when
+# py_cv_module_<name>=n/a; "disabled"/"no" are overwritten by the
+# have_bzip2/have_liblzma probe, so n/a is required.
 py_cv_module__bz2=n/a
 py_cv_module__lzma=n/a

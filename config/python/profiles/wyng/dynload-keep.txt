@@ -5,10 +5,12 @@ _bisect
 _blake2
 _ctypes
 _datetime
+_hashlib
 _elementtree
 fcntl
 grp
 _json
+_opcode
 math
 _md5
 mmap
@@ -18,6 +20,7 @@ _random
 resource
 select
 _sha1
+_socket
 _sha2
 _sha3
 _struct

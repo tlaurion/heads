@@ -5,12 +5,12 @@
 # runtime tree.  Explicitly validates module-declared runtime requirements.
 #
 # Usage:
-#   cpython-smoke.sh <python-bin> <profile-file|-> <modules...>
+#   cpython-smoke.sh <python-bin>
 # Environment:
-#   CPYTHON_SMOKE_TRACE=1  print imported module names
+#   CPYTHON_SMOKE_IMPORTS   space-separated imports to validate
+#   CPYTHON_SMOKE_PYTHONPATH extra build-tree package paths
 set -eu
-py=$1; shift
-profiles=${1:--}; shift || true
+py=$1
 loader=${CPYTHON_SMOKE_LOADER:-}
 libpath=${CPYTHON_SMOKE_LIBPATH:-}
 smoke_pythonpath=${CPYTHON_SMOKE_PYTHONPATH:-}
@@ -25,9 +25,6 @@ run_py() {
 
 # Base interpreter startup/import sanity.
 run_py -c 'import sys,encodings,io,os; print(sys.version.split()[0])' >/dev/null
-
-# Profile-driven checks. profiles arg may be stamp/file/list; treat as text.
-has_profile() { [ "$profiles" != - ] && [ -e "$profiles" ] && grep -q "$1" "$profiles"; }
 
 # Module-declared smoke imports are passed by modules/cpython as:
 #   CPYTHON_SMOKE_IMPORTS="mod1 mod2"

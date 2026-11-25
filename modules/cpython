@@ -16,8 +16,8 @@
 # python3, autoconf/automake/libtool, pkg-config, ...).  A dev-image or
 # flake.lock/nixpkgs bump, or a musl-cross-make (GCC/binutils/musl) bump,
 # therefore requires re-validating the whole cross C/C++ build: rebuild cpython
-# plus its cross-built stack (cpython-host, libffi, openssl, openssh,
-# cryptodome, python-zstd and any other autoconf-based dependency), re-check the
+# plus its selected cross-built capability stack (cpython-host and any enabled
+# libffi/openssl/openssh/cryptodome/python-zstd dependencies), re-check the
 # CONFIG_SITE autoconf cache (config/python-cross-cache-$(MUSL_ARCH)) and patch
 # application/rebasing (source checksums do not change; patches/configure may
 # need rebasing), confirm SOURCE_DATE_EPOCH=0 still holds, and re-run the
@@ -42,7 +42,7 @@
 CONFIG_CPYTHON ?= n
 # Base CPython is minimal (OpenWrt python3-base intent). External deps like
 # libffi/openssl/zlib are required only when a selected profile/module needs
-# them; modules own those deps via module_cpython_depends.
+# them; modules own those deps via <mod>_cpython_depends.
 modules-$(CONFIG_CPYTHON) += cpython
 
 # Profile selection: base is always included; modules declare additive needs via
@@ -109,7 +109,8 @@ cpython_configure = \
 	CPATH= C_INCLUDE_PATH= CPLUS_INCLUDE_PATH= LIBRARY_PATH= \
 	PKG_CONFIG_LIBDIR="$(INSTALL)/lib/pkgconfig:$(INSTALL)/share/pkgconfig" \
 	PKG_CONFIG_SYSROOT_DIR="$(INSTALL)" \
-	PKG_CONFIG_PATH="" \
+	PKG_CONFIG_PATH="" PKG_CONFIG_PATH_FOR_TARGET="" \
+	PKG_CONFIG_PATH_x86_64_unknown_linux_gnu="" \
 	./configure \
 		--build=x86_64-pc-linux-gnu \
 		--host=$(target) \
@@ -147,9 +148,8 @@ cpython_configure = \
 #
 # RISK: this is a closed allowlist -- anything not listed is deleted, so a new
 # consumer import path needs a matching line in its profile or it fails at
-# runtime (a smoke test after any change is required).  Each loop in the script
-# is guarded by an `[ -s ... ]` test so a missing/empty keep file skips pruning
-# instead of wiping the stdlib.
+# runtime (a smoke test after any change is required). Keep-list files must
+# exist; an empty dynload allowlist is valid and prunes every optional `.so`.
 #
 # The allowlist comes from an import trace, which only exercises the paths a
 # trace can reach.  It cannot see a capability imported lazily, nor one that is
@@ -157,18 +157,30 @@ cpython_configure = \
 # ever asks for it.  _hashlib is the worked example: the trace never reached
 # hashlib.scrypt because wyng aborts on the missing attribute first, so no line
 # was ever added and the prune went on deleting the .so that would have
-# supplied it.  When a runtime-only failure names a module or an
-# hashlib/openssl capability, check both allowlists before regenerating a
-# trace, and prefer stating the requirement outright -- as Setup.local and the
-# dynload list now do for _hashlib -- over re-deriving it from a trace.
-cpython_runtime_lib := $(build)/$(cpython_dir)/runtime-lib/python$(cpython_mm)
-cpython_runtime_lib_dep := $(build)/$(cpython_dir)/.runtime-lib
+# supplied it.  When a runtime-only failure names a module or capability, check
+# the owning profile's Setup.local/dynload declarations before regenerating a
+# trace; do not assume a global base dependency.
+cpython_runtime_root := $(build)/$(BOARD)/python-runtime
+cpython_runtime_lib := $(cpython_runtime_root)/lib/python$(cpython_mm)
+cpython_runtime_lib_dep := $(cpython_runtime_root)/.pruned
+
+# The source build and INSTALL tree are shared across boards, but their pruned
+# payload is board-specific. This content-checked identity sentinel changes only
+# when the effective board/profile requirements change, forcing re-prune when
+# make switches boards even if the new board's stamps are older.
+cpython_board_identity := $(build)/$(cpython_dir)/.board-profile
+$(cpython_board_identity): FORCE
+	@mkdir -p "$(dir $@)"
+	@printf '%s\n' '$(BOARD)' '$(cpython_profiles)' \
+		'$(cpython_build_required_stdlib)' '$(cpython_build_required_dynload)' \
+		'$(cpython_runtime_required_encodings)' > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
 # Build-time CPython requirements owned by dependent modules.
-cpython_build_required_stdlib := $(strip \
+cpython_build_required_stdlib = $(strip \
 	$(foreach m,$(modules-y),$($(m)_cpython_build_required_stdlib)) \
 	$(CPYTHON_BUILD_REQUIRED_STDLIB_EXTRA))
-cpython_build_required_dynload := $(strip \
+cpython_build_required_dynload = $(strip \
 	$(foreach m,$(modules-y),$($(m)_cpython_build_required_dynload)) \
 	$(CPYTHON_BUILD_REQUIRED_DYNLOAD_EXTRA))
 cpython_build_required_stdlib_file := $(build)/$(BOARD)/cpython-build-required-stdlib.txt
@@ -177,22 +189,22 @@ cpython_build_required_dynload_file := $(build)/$(BOARD)/cpython-build-required-
 # Runtime encodings are explicit, module-owned requirements. Base keeps a tiny
 # failsafe for interpreter/text startup; modules add codecs they trace/need.
 cpython_runtime_required_encodings_base := __init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py
-cpython_runtime_required_encodings := $(strip $(cpython_runtime_required_encodings_base) \
+cpython_runtime_required_encodings = $(strip $(cpython_runtime_required_encodings_base) \
 	$(foreach m,$(modules-y),$($(m)_cpython_runtime_required_encodings)) \
 	$(CPYTHON_RUNTIME_REQUIRED_ENCODINGS_EXTRA))
 cpython_runtime_required_encodings_file := $(build)/$(BOARD)/cpython-runtime-required-encodings.txt
 
-$(cpython_build_required_stdlib_file): $(CONFIG)
+$(cpython_build_required_stdlib_file): $(CONFIG) $(wildcard modules/*)
 	@mkdir -p "$(dir $@)"
 	@{ for x in $(cpython_build_required_stdlib); do echo "$$x"; done; } | sort -u > "$@.tmp"
 	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
-$(cpython_build_required_dynload_file): $(CONFIG)
+$(cpython_build_required_dynload_file): $(CONFIG) $(wildcard modules/*)
 	@mkdir -p "$(dir $@)"
 	@{ for x in $(cpython_build_required_dynload); do echo "$$x"; done; } | sort -u > "$@.tmp"
 	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
-$(cpython_runtime_required_encodings_file): $(CONFIG)
+$(cpython_runtime_required_encodings_file): $(CONFIG) $(wildcard modules/*)
 	@mkdir -p "$(dir $@)"
 	@{ for x in $(cpython_runtime_required_encodings); do echo "$$x"; done; } | sort -u > "$@.tmp"
 	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
@@ -200,6 +212,7 @@ $(cpython_runtime_required_encodings_file): $(CONFIG)
 # INSTALL keeps build-required stdlib for dependent module builds.
 # RUNTIME is a separately pruned tree staged into tools.cpio.
 cpython_target := \
+	SOURCE_DATE_EPOCH=$(cpython_source_date_epoch) \
 	$(MAKE_JOBS) \
 	$(CROSS_TOOLS) \
 	DESTDIR="$(INSTALL)" \
@@ -215,23 +228,25 @@ cpython_target := \
 # Merge selected profile files into board-local effective files.  This keeps the
 # wyng default identical while allowing additive module profiles (chipsec, etc).
 $(cpython_profile_stamp): \
-		$(pwd)/bin/cpython-profile-merge.sh \
-		$(foreach d,$(cpython_profile_dirs),$(d)/stdlib-keep.txt $(d)/dynload-keep.txt $(d)/setup.local.disabled)
+		$(pwd)/bin/cpython-profile-merge.sh
 	$(call do,CPYTHON-PROFILE,$(cpython_profiles), \
 		sh "$(pwd)/bin/cpython-profile-merge.sh" \
 			"$(cpython_profile_out)" \
 			$(cpython_profile_dirs))
 	@touch "$@"
 
-# Setup.local is copied into Modules/ before configure (see cpython_configure);
-# depend on the merged profile so an edit forces a reconfigure.
-$(build)/$(cpython_dir)/.configured: $(cpython_profile_stamp)
+# Setup.local is copied into Modules/ before configure (see cpython_configure).
+# The configure tree is shared, so both the board-local profile stamp and the
+# board identity must be newer before switching profiles can reuse it.
+$(build)/$(cpython_dir)/.configured: \
+	$(cpython_board_identity) $(cpython_profile_stamp)
 
 # Re-run install+prune whenever merged allowlists change.  The scripts are read
 # at recipe time, so a script edit must also force the module to rebuild: the
 # module file itself is already a .configured prerequisite, but depend on the
 # merge/prune helpers explicitly as well.
 $(build)/$(cpython_dir)/.build: \
+	$(cpython_board_identity) \
 	$(cpython_profile_stamp) \
 	$(cpython_build_required_stdlib_file) \
 	$(cpython_build_required_dynload_file) \
@@ -260,17 +275,15 @@ ifeq "$(cpython_smoke_loader)" "libc.so"
 cpython_smoke_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
 endif
 cpython_smoke_script := $(pwd)/bin/cpython-smoke.sh
-cpython_smoke_profile := $(build)/$(BOARD)/cpython-profile.stamp
 cpython_smoke: $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
 	$(call do,CPYTHON-SMOKE,$(BOARD), \
 		CPYTHON_SMOKE_IMPORTS="$(cpython_smoke_imports)" \
 		CPYTHON_SMOKE_PYTHONPATH="$(cpython_smoke_pythonpath)" \
 		CPYTHON_SMOKE_LOADER="$(cpython_smoke_loader)" \
 		CPYTHON_SMOKE_LIBPATH="$(INSTALL)/lib:$(INSTALL)/lib64" \
+		PYTHONHOME="$(cpython_runtime_root)" \
 		sh "$(cpython_smoke_script)" \
-			"$(INSTALL)/bin/python$(cpython_mm)" \
-			"$(cpython_smoke_profile)" \
-			$(cpython_profiles))
+			"$(INSTALL)/bin/python$(cpython_mm)")
 
 # Per-board CPython requirement smoke. Use as explicit board test target.
 cpython_test: cpython_smoke
@@ -284,7 +297,9 @@ cpython_tools := $(cpython_runtime_lib)|lib/python$(cpython_mm)
 cpython_tools_depends := $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
 
 cpython_extra_depends = $(foreach m,$(modules-y),$($(m)_cpython_depends))
-cpython_depends := cpython-host $(sort $(cpython_extra_depends)) $(musl_dep)
+# Recursive: modules/cpython is included before later module files, so expand
+# capability deps only when define_module consumes this after all modules load.
+cpython_depends = cpython-host $(sort $(cpython_extra_depends)) $(musl_dep)
 
 # D6: /bin/python3 and /bin/python$(cpython_mm) -> /bin/python.  The automatic
 # bin_modules staging flattens by basename and cannot create symlinks, so
