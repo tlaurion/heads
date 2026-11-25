@@ -37,9 +37,9 @@ holds both INSTALL-BIN output (executables) and INSTALL-LIB output (libraries).
 Macro map (authoritative; the three Makefile macros):
 | Macro | File class | Lands in |
 |-------|------------|----------|
-| `INSTALL-BIN` (Makefile:764) | Executables the kernel can run directly — files under `bin/` with +x AND a valid interpreter (ELF or `#!` shebang) | tools.cpio |
-| `INSTALL-LIB` (Makefile:771) | Libraries — anything under `lib/`, every `.a`/`.la`/`.so`/`.pc` that is a runtime dep; mixed dirs containing both `.py` and `.so` | tools.cpio |
-| `INSTALL-DATA` (Makefile:893) | Data files the runtime READS at a fixed path — keymaps, locale, fonts, `share/`, docs, fixed configs | data.cpio |
+| `INSTALL-BIN` | Executables the kernel can run directly — files under `bin/` with +x AND a valid interpreter (ELF or `#!` shebang) | tools.cpio |
+| `INSTALL-LIB` | Libraries — anything under `lib/`, every `.a`/`.la`/`.so`/`.pc` that is a runtime dep; mixed dirs containing both `.py` and `.so` | tools.cpio |
+| `INSTALL-DATA` | Data files the runtime READS at a fixed path — keymaps, locale, fonts, `share/`, docs, fixed configs | data.cpio |
 
 Classification tests (apply in order):
 
@@ -56,6 +56,21 @@ Classification tests (apply in order):
 Quick verification recipe for any new module or build: extract `data.cpio` from the ROM and grep for `\.(so|a)$|lib/|bin/` — those names are FORBIDDEN in `data.cpio`. Their presence means a module's macro is wrong.
 
 If you are writing or reviewing a module's install recipe, see `modules.md` for how `bin_modules-$(CONFIG_FOO)` interacts with this rule.
+
+### CPython profile/runtime freshness
+
+CPython keeps a build-only `INSTALL` tree and a separately pruned, board-local
+`RUNTIME` tree. Changes to selected profile inputs regenerate the board-local
+`cpython-profile.stamp`. A content-checked board/profile identity also forces
+the shared CPython configure tree to reconfigure when make switches boards.
+The resulting `python-runtime/lib/python3.13` is staged into `tools.cpio`;
+build-only stdlib retained for extension builds is not staged.
+
+`cpython_test` depends on the CPython `.build` and on every enabled module that
+declares `*_cpython_smoke_pythonpath`, so Cryptodome/python-zstd are built before
+the import gate runs. Use it after changing a profile, dependency, or CPython
+version. A plain incremental board build does not replace this explicit smoke
+gate.
 
 The final packaging rule:
 ```makefile

@@ -115,17 +115,32 @@ Three files interact to determine what goes into `tools.cpio` (the initrd):
 |------|------|------|
 | `boards/<board>/<board>.config` | `CONFIG_FOO=y` | Board-specific Make variable (e.g. `CONFIG_GPG2=y` enables GPG) |
 | `modules/<name>` | `CONFIG_FOO ?= y` | Module default — only sets the variable if the board config did not |
-| `Makefile` | `include modules/*` | Loads all module files into the Make namespace |
+| `Makefile` | load `modules/*.requires`, then `modules/*` | Enables module-owned config requirements before loading implementations |
 | `Makefile` | `bin_modules-$(CONFIG_FOO) += foo` | Conditionally builds and adds the module to `tools.cpio` |
 
 Module authors must choose the right INSTALL macro (INSTALL-BIN / INSTALL-LIB / INSTALL-DATA — see `build-freshness.md`) for each payload; the rule is by file class, not by which cpio the file lands in.
+
+Modules declare config-gate requirements in `modules/<feature>.requires`:
+
+```make
+<feature>_requires_config := CONFIG_FEATURE
+<feature>_requires_deps   := CONFIG_DEP1 CONFIG_DEP2
+```
+
+The global Makefile loads these sidecars before `modules/*`, resolves the
+transitive `CONFIG_*` closure, and enables required gates. Board configs select
+features only; they do not repeat dependency lists. Build ordering remains
+explicit in `<mod>_depends`, which the module harness turns into `.build`
+prerequisites. A sidecar may describe a feature gate that shares an
+implementation module with another feature.
 
 **The inclusion decision tree for any board:**
 
 1. `include $(CONFIG)` loads the board config — any `CONFIG_FOO=y`
    (no `export` needed) becomes a Make variable.
-2. `include modules/*` loads every module file.  Each module
-   can set a default with `?=` which only applies if the board config didn't already
+2. The Makefile loads `modules/*.requires`, enables their transitive
+   `CONFIG_*` closure, then loads every module implementation. Each module can
+   set a default with `?=` which only applies if the board config did not already
    set the variable.
 3. `bin_modules-$(CONFIG_FOO) += foo` conditionally adds the
    module to `tools.cpio` — when `CONFIG_FOO` is `y`, the module is built and included;
@@ -211,14 +226,6 @@ Full ROM build (all modules + initrd + ROM assembly):
 nix develop --command make BOARD=$BOARD
 ```
 
-Payload build (bzImage + initrd.cpio.xz only, no ROM assembly — faster
-iteration on initrd/kernel changes):
-
-```bash
-nix develop --command make BOARD=$BOARD payload
-./docker_repro.sh make BOARD=$BOARD payload
-```
-
 ### Maintenance targets
 
 | Target | What it does |
@@ -228,10 +235,6 @@ nix develop --command make BOARD=$BOARD payload
 | `real.gitclean_keep_packages` | `git clean -fxd -e "packages"` — keep `packages/`; Git still skips nested repositories |
 | `real.remove_canary_files-extract_patch_rebuild_what_changed` | Source/board-output freshness purge: remove every `build/**/.canary`, clear `install/*/*`, remove the board-specific `coreboot-VERSION/<board>` directory including that board's coreboot `.build`, and remove shared board output.  Non-coreboot module trees/objects and their `.build` stamps plus the coreboot source clone normally remain; this is not a from-scratch full rebuild. |
 | `real.gitclean_keep_packages_and_build` | `git clean -fxd -e "packages" -e "build"` — keep `packages/` and `build/` |
-| `payload` | Build bzImage + initrd.cpio.xz only; no coreboot ROM assembly (see above) |
-| `validate_cbfs_ifd` | Validate coreboot CBFS size against the IFD BIOS region (`bin/validate_cbfs_ifd_fit.sh --coreboot-dir … --board-dir … --config …`) |
-| `fix_cbfs_ifd` | Same as validate, with `--fix` — auto-size the CBFS to match the IFD BIOS region |
-| `modules.clean` | Clean all module build dirs and remove `.configured` sentinels |
 
 All run under `nix develop` (local) or `./docker_repro.sh` (Docker):
 
@@ -246,7 +249,8 @@ The build is stamp-driven.  A tarball source recipe extracts the archive,
 applies patches, and then creates `.canary`.  A git source recipe attempts to
 reset or initialize the pinned source before writing or updating `.canary`; when
 `.patched` is absent, its patch branch processes zero or more configured patches
-and then creates `.patched`, including the no-patch case.  `.configured`
+and then creates `.patched`, including the no-patch case. A pin/reset removes
+`.patched` so the replacement checkout is patched before configure. `.configured`
 depends on `.canary`, and `.build` depends on `.configured` and dependency-module
 `.build` stamps.  Plain `make` does not
 infer arbitrary source-file or `CFLAGS` changes.  The `.clean` targets remove
@@ -317,18 +321,6 @@ Two caveats:
   Run the appropriate clean target,
   then build normally so `.configured` is regenerated before `.build`; explicit
   `.build` removal remains optional.
-
-### Board lifecycle targets
-
-| Target | What it does |
-|--------|-------------|
-| `board.move_untested_to_tested` | Rename UNTESTED_ board config + directory to tested and update `.circleci/config.yml` |
-| `board.move_unmaintained_to_tested` | Move a board from `unmaintained_boards/` to `boards/` as tested |
-| `board.move_untested_to_unmaintained` | Move an UNTESTED_ board to UNMAINTAINED_ |
-| `board.move_tested_to_untested` | Add the UNTESTED_ prefix to a tested board |
-| `board.move_tested_to_EOL` | Add the EOL_ prefix to a tested board |
-| `board.move_tested_to_unmaintained` | Move a tested board to UNMAINTAINED_ |
-| `echo_modules` | Print `$(module_dirs)` — module dirs excluding slow-to-build ones (musl, musl-cross-make, kernel_headers) |
 
 ### Module-level helpers
 

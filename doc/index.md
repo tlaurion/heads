@@ -54,6 +54,7 @@ Quick reference: read the relevant doc when working on a topic.
 | `BOARDS_AND_TESTERS.md` | Board EOL/ESU status, CPU generations, tester registry |
 | `busybox_perks.md` | GNU vs BusyBox command differences for initrd scripts |
 | [`config.md`](config.md) | Board config hierarchy, module selection, and architecture/output settings |
+| [`cpython-profiles.md`](cpython-profiles.md) | Minimal CPython base, module-owned profiles/dependencies, pruning, and smoke tests |
 | `development.md` | Development environment setup and contribution workflow |
 | `faq.md` | Frequently asked questions |
 | `logging.md` | Message levels (STATUS, WARN, NOTE, INFO, DEBUG, TRACE) |
