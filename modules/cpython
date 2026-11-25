@@ -178,6 +178,14 @@ cpython_build_required_dynload := $(strip \
 cpython_build_required_stdlib_file := $(build)/$(BOARD)/cpython-build-required-stdlib.txt
 cpython_build_required_dynload_file := $(build)/$(BOARD)/cpython-build-required-dynload.txt
 
+# Runtime encodings are explicit, module-owned requirements. Base keeps a tiny
+# failsafe for interpreter/text startup; modules add codecs they trace/need.
+cpython_runtime_required_encodings_base := __init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py
+cpython_runtime_required_encodings := $(strip $(cpython_runtime_required_encodings_base) \
+	$(foreach m,$(modules-y),$($(m)_cpython_runtime_required_encodings)) \
+	$(CPYTHON_RUNTIME_REQUIRED_ENCODINGS_EXTRA))
+cpython_runtime_required_encodings_file := $(build)/$(BOARD)/cpython-runtime-required-encodings.txt
+
 $(cpython_build_required_stdlib_file): $(CONFIG)
 	@mkdir -p "$(dir $@)"
 	@{ for x in $(cpython_build_required_stdlib); do echo "$$x"; done; } | sort -u > "$@.tmp"
@@ -186,6 +194,11 @@ $(cpython_build_required_stdlib_file): $(CONFIG)
 $(cpython_build_required_dynload_file): $(CONFIG)
 	@mkdir -p "$(dir $@)"
 	@{ for x in $(cpython_build_required_dynload); do echo "$$x"; done; } | sort -u > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+$(cpython_runtime_required_encodings_file): $(CONFIG)
+	@mkdir -p "$(dir $@)"
+	@{ for x in $(cpython_runtime_required_encodings); do echo "$$x"; done; } | sort -u > "$@.tmp"
 	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
 # INSTALL keeps build-required stdlib for dependent module builds.
@@ -198,7 +211,8 @@ cpython_target := \
 	sh "$(pwd)/bin/cpython-prune.sh" \
 		"$(INSTALL)" "$(cpython_profile_out)" "$(dir $(cpython_build_required_stdlib_file))" \
 		"$(CROSS)strip" "$(cpython_mm)" "$(cpython_runtime_lib)" \
-		"$(cpython_build_required_stdlib_file)" "$(cpython_build_required_dynload_file)" && \
+		"$(cpython_build_required_stdlib_file)" "$(cpython_build_required_dynload_file)" \
+		"$(cpython_runtime_required_encodings_file)" && \
 	mkdir -p "$(dir $(cpython_runtime_lib_dep))" && \
 	touch "$(cpython_runtime_lib_dep)"
 
@@ -225,9 +239,9 @@ $(build)/$(cpython_dir)/.build: \
 	$(cpython_profile_stamp) \
 	$(cpython_build_required_stdlib_file) \
 	$(cpython_build_required_dynload_file) \
+	$(cpython_runtime_required_encodings_file) \
 	$(pwd)/bin/cpython-profile-merge.sh \
-	$(pwd)/bin/cpython-prune.sh \
-	$(pwd)/config/cpython/runtime-required-encodings.txt
+	$(pwd)/bin/cpython-prune.sh
 
 # `python` is the in-source build artifact; bin_modules flattens it to /bin/python.
 cpython_output := python

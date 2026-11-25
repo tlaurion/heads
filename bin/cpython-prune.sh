@@ -31,6 +31,7 @@ py_mm=${5:-3.13}
 runtime=${6:-$inst/lib/python$py_mm.runtime}
 build_req_stdlib=${7:-$build_cfg/build-required-stdlib.txt}
 build_req_dynload=${8:-$build_cfg/build-required-dynload.txt}
+runtime_encodings_file=${9:-$build_cfg/runtime-required-encodings.txt}
 
 py="$inst/lib/python$py_mm"
 [ -d "$py" ] || exit 0
@@ -117,13 +118,13 @@ fi
 # Encodings: profile keeps 'encodings' package but not every codec file.
 # Selection is explicit and auditable:
 #   1) $cfg/cpython-encodings-keep.txt (merged profile override), else
-#   2) $build_cfg/runtime-required-encodings.txt (repo default), else
+#   2) module-owned generated runtime-required-encodings.txt, else
 #   3) tiny built-in failsafe (utf_8/ascii/latin_1/aliases/__init__).
 enc_keep=""
 if [ -s "$cfg/cpython-encodings-keep.txt" ]; then
 	enc_keep="$cfg/cpython-encodings-keep.txt"
-elif [ -s "$build_cfg/runtime-required-encodings.txt" ]; then
-	enc_keep="$build_cfg/runtime-required-encodings.txt"
+elif [ -s "$runtime_encodings_file" ]; then
+	enc_keep="$runtime_encodings_file"
 fi
 if [ -d "$runtime/encodings" ]; then
 	for f in "$runtime"/encodings/*.py; do
