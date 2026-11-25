@@ -1366,6 +1366,31 @@ enable_usb_keyboard() {
 fi
 }
 
+# Load out-of-tree CHIPSEC kernel module when explicitly enabled.
+# Not auto-called on boot: loading has security/runtime impact and driver-backed
+# CHIPSEC checks are hardware-specific. Caller decides when to load.
+load_chipsec_km() {
+	TRACE_FUNC
+	# Config guard: no-op unless board/runtime explicitly enabled chipsec-km.
+	[ "$CONFIG_CHIPSEC_KM" = "y" ] || {
+		DEBUG "load_chipsec_km: CONFIG_CHIPSEC_KM!=y, skipping"
+		return 0
+	}
+
+	local mod=/lib/modules/chipsec.ko
+	[ -f "$mod" ] || {
+		# Actionable: enabled but modules.cpio/staging missing.
+		WARN "chipsec-km enabled but $mod missing; rebuild with CONFIG_CHIPSEC_KM=y"
+		return 1
+	}
+
+	STATUS "Loading CHIPSEC kernel module"
+	# insmod.sh extends PCR[MODULE_PCR] (default 5) with module content+params,
+	# then loads via busybox insmod; keeps measurement/audit trail consistent.
+	insmod.sh "$mod" || DIE "chipsec.ko: module load failed"
+	STATUS_OK "CHIPSEC kernel module loaded"
+}
+
 # ------- End of functions coming from /etc/ash_functions
 
 # Print <hidden> or <empty> depending on whether $1 is empty.  Useful to mask an
