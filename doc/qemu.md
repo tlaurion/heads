@@ -111,6 +111,36 @@ the current worktree.  The default is a QCOW2 image named `root.qcow2`:
   run
 ```
 
+## CPython/chipsec QA test shell
+
+These branch-specific QA boards boot the real Heads init and then enter a
+minimal serial shell instead of the GUI:
+
+- `qemu-coreboot-fbwhiptail-tpm2-cpython`
+- `qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec`
+- `qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec`
+- `qemu-coreboot-fbwhiptail-tpm2-wyng`
+
+They set `CONFIG_BOOTSCRIPT=/bin/test-shell.sh` and disable the authenticated
+recovery shell on `ttyS0`; the test shell redirects its I/O directly to serial,
+leaving it available to automation. The
+script prints `HEADS_TEST_SHELL_READY` and starts Bash with the
+`heads-test> ` prompt. Production boards are unchanged; use the regular
+`qemu-coreboot-fbwhiptail-tpm2` board for normal GUI testing.
+
+Run a QA board with the existing Docker/QEMU target:
+
+```sh
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython run
+```
+
+A serial automation harness can wait for `HEADS_TEST_SHELL_READY`, send
+commands such as `/bin/python3 -c 'import sys; print(sys.version)'`, capture
+their output, and finish with `/bin/busybox reboot -f`. This shell is a QA
+affordance only;
+it bypasses the GUI and authenticated recovery flow and must not be selected
+by production board configs.
+
 ## Saving Disk Images from Build-Dir Wipes
 
 **The current worktree is bind-mounted at the same path inside the container**

@@ -818,9 +818,10 @@ release_scdaemon() {
 # gpg-agent.conf; the socket only exists while gpg-agent is running.
 setup_gpg_agent_ssh_socket() {
 	TRACE_FUNC
-	local _sock
-	_sock="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "${GNUPGHOME:-$HOME/.gnupg}/S.gpg-agent.ssh")"
-	export SSH_AUTH_SOCK="$_sock"
+	local _home=${HOME:-/}
+	case "$_home" in */) ;; *) _home=$_home/ ;; esac
+	local _gnupg=${GNUPGHOME:-${_home}.gnupg}
+	export SSH_AUTH_SOCK="${_gnupg%/}/S.gpg-agent.ssh"
 	DEBUG "SSH_AUTH_SOCK set to $SSH_AUTH_SOCK"
 }
 
