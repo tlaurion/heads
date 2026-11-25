@@ -207,8 +207,9 @@ cryptodome_target := all
 
 cryptodome_depends := cpython setuptools $(musl_dep)
 
-# CPython build-time stdlib/dynload requirements owned by this module.
-# cpython prune uses these when building INSTALL (not staged runtime).
+# CPython build/runtime requirements owned by cryptodome module.
+# build_required_*: INSTALL-tree superset for setup.py build_ext; not staged runtime.
+# smoke_pythonpath: module staged into tools.cpio, smoke imports from build tree.
 cryptodome_cpython_build_required_stdlib := \
 	functools operator collections itertools enum types abc _collections_abc \
 	importlib contextlib warnings re traceback linecache token tokenize \
