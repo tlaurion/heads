@@ -20,7 +20,7 @@
 # inline ` # ...` comments stripped.
 #
 # Usage:
-#   cpython-prune.sh <install-root> <profile-out-dir> <build-cfg-dir> <strip> <py-mm> <runtime-lib-dir> [build-stdlib-file] [build-dynload-file] [runtime-encodings-file]
+#   cpython-prune.sh <install-root> <profile-out-dir> <build-cfg-dir> <strip> <py-mm> <runtime-lib-dir> [build-stdlib-file] [build-dynload-file] [runtime-encodings-file] [source-root]
 set -eu
 
 inst=$1
@@ -40,6 +40,7 @@ fi
 build_req_stdlib=${7:-$build_cfg/build-required-stdlib.txt}
 build_req_dynload=${8:-$build_cfg/build-required-dynload.txt}
 runtime_encodings_file=${9:-$build_cfg/runtime-required-encodings.txt}
+source_root=${10:-$(pwd)}
 
 py="$inst/lib/python$py_mm"
 [ -d "$py" ] || exit 0
@@ -113,6 +114,15 @@ done
 rm -rf "$runtime"
 mkdir -p "$(dirname "$runtime")"
 cp -a "$py" "$runtime"
+
+# The generated sysconfig module embeds absolute compiler/build paths. Keep the
+# INSTALL copy intact for extension builds, but normalize the shipped runtime
+# copy so checkout paths cannot change archive hashes or leak into the image.
+source_root_sed=$(printf '%s' "$source_root" | sed 's/[][\\.^$*&|]/\\&/g')
+for sysconfig in "$runtime"/_sysconfigdata__*.py; do
+	[ -e "$sysconfig" ] || continue
+	sed -i "s|$source_root_sed|/heads|g" "$sysconfig"
+done
 
 for entry in "$runtime"/*; do
 	name=$(basename "$entry")

@@ -217,11 +217,12 @@ cpython_target := \
 	$(CROSS_TOOLS) \
 	DESTDIR="$(INSTALL)" \
 	install && \
+	rm -rf "$(cpython_runtime_root)/python$(cpython_mm)" && \
 	sh "$(pwd)/bin/cpython-prune.sh" \
 		"$(INSTALL)" "$(cpython_profile_out)" "$(dir $(cpython_build_required_stdlib_file))" \
 		"$(CROSS)strip" "$(cpython_mm)" "$(cpython_runtime_lib)" \
 		"$(cpython_build_required_stdlib_file)" "$(cpython_build_required_dynload_file)" \
-		"$(cpython_runtime_required_encodings_file)" && \
+		"$(cpython_runtime_required_encodings_file)" "$(pwd)" && \
 	mkdir -p "$(dir $(cpython_runtime_lib_dep))" && \
 	touch "$(cpython_runtime_lib_dep)"
 
