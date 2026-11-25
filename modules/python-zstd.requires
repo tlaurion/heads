@@ -1,0 +1,3 @@
+# Module-owned build/runtime requirements. Loaded by Makefile before modules/*.
+python-zstd_requires_config := CONFIG_PYTHON_ZSTD
+python-zstd_requires_deps := CONFIG_CPYTHON CONFIG_SETUPTOOLS CONFIG_ZLIB

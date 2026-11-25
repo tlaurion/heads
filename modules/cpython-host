@@ -16,7 +16,7 @@
 # The eventually-shipped modules/cpython, cryptodome, python-zstd and
 # wyng-backup are a different thing entirely: those are musl target
 # cross-builds using $(CROSS)/$(heads_cc), packed into tools.cpio (/bin, /lib,
-# site-packages) like every other module.  Because _data-staged files
+# site-packages) like every other module. Because _tools-staged files
 # (site-packages/*.so, stdlib) are not covered by the initrd strip helpers,
 # those modules must strip their own .so explicitly in their _target before
 # staging.
@@ -32,6 +32,8 @@ cpython-host_dir := Python-$(cpython-host_version)-host
 cpython-host_tar := Python-$(cpython-host_version).tar.xz
 cpython-host_url := https://www.python.org/ftp/python/$(cpython-host_version)/$(cpython-host_tar)
 cpython-host_hash := $(cpython_hash)
+# modules/cpython owns the shared tarball download rule for this same source.
+cpython-host_source_rule := shared
 
 # Host build only: no CROSS_TOOLS, no target flags, no --prefix/install.
 # --build pins config.guess so the triplet does not depend on the host kernel.

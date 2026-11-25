@@ -1,0 +1,3 @@
+# Module-owned build/runtime requirements. Loaded by Makefile before modules/*.
+cryptodome_requires_config := CONFIG_CRYPTODOME
+cryptodome_requires_deps := CONFIG_CPYTHON CONFIG_SETUPTOOLS CONFIG_OPENSSL

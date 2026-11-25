@@ -398,10 +398,44 @@ endef
 # The main Makefile will collect all data files from enabled modules:
 #   $(call data,$(modules-y))
 
-# Bring in all of the module definitions;
-# these are the external pieces that will be downloaded and built
-# as part of creating the Heads firmware image.
-include modules/*
+# Module-owned config requirements.  These sidecar files are loaded before
+# module implementations so selecting a feature in a board config enables its
+# required CONFIG_* gates before modules-y is populated.  Build ordering remains
+# explicit in each module's <mod>_depends list.
+module_requirement_files := $(sort $(wildcard modules/*.requires))
+include $(module_requirement_files)
+module_requirement_modules := $(patsubst modules/%.requires,%,$(module_requirement_files))
+
+# Resolve the transitive CONFIG_* closure. A .requires file declares:
+#   <feature>_requires_config := CONFIG_FEATURE
+#   <feature>_requires_deps   := CONFIG_DEP1 CONFIG_DEP2
+# The requires_* prefix avoids colliding with the module harness's own
+# <mod>_config variable. Multiple sidecars may describe distinct feature gates
+# that share an implementation module (for example OpenSSH client/server).
+module_requirement_roots = $(foreach m,$(module_requirement_modules),$(if $(filter y,$($($(m)_requires_config))),$($(m)_requires_config)))
+module_requirement_deps = $(foreach m,$(module_requirement_modules),$(if $(filter $(1),$($(m)_requires_config)),$($(m)_requires_deps)))
+module_requirement_step = $(sort $(1) $(foreach c,$(1),$(call module_requirement_deps,$(c))))
+module_requirement_resolve = $(if $(filter-out $(1),$(2)),\
+	$(call module_requirement_resolve,$(2),$(call module_requirement_step,$(2))),$(1))
+module_requirement_closure := $(call module_requirement_resolve,,$(module_requirement_roots))
+$(foreach c,$(module_requirement_closure),$(eval override $(c) := y))
+
+# Bring in all of the module definitions; .requires sidecars were handled above.
+module_files := $(filter-out %.requires,$(wildcard modules/*))
+include $(module_files)
+
+# CPython smoke imports from build-tree PYTHONPATHs must wait for the owning
+# modules to finish building. Add these prerequisites after all module files are
+# loaded so later module declarations (cryptodome/python-zstd) are visible.
+cpython_smoke_build_depends := $(foreach m,$(filter-out cpython cpython-host,$(modules-y)),\
+	$(if $($(m)_cpython_smoke_pythonpath),$(build)/$($(m)_dir)/.build))
+cpython_smoke: $(cpython_smoke_build_depends)
+
+# Profile inputs are selected only after every module file has declared its
+# profiles; attach them here rather than expanding too early in modules/cpython.
+cpython_profile_inputs := $(foreach d,$(cpython_profile_dirs),\
+	$(d)/stdlib-keep.txt $(d)/dynload-keep.txt $(d)/setup.local.disabled)
+$(cpython_profile_stamp): $(cpython_profile_inputs)
 
 # Collect all data files from enabled modules
 data_files :=
@@ -624,12 +658,15 @@ define define_module =
     # $1_patch_version can still be defined manually.
     $(eval $1_patch_version ?= $(if $(filter %-$($1_version),$1),,$($1_version)))
     $(eval $1_patch_name = $1$(if $($1_patch_version),-,)$($1_patch_version))
-    # Fetch and verify the source tar file
-    # wget creates it early, so we have to cleanup if it fails
+    # Fetch and verify the source tar file. Modules sharing one pinned source
+    # archive can defer the download rule to the first module that declares it.
+    # wget creates it early, so we have to cleanup if it fails.
+    ifneq "$($1_source_rule)" "shared"
     $(packages)/$($1_tar):
 	$(call do,WGET,$($1_url),\
 		WGET="$(WGET)" bin/fetch_source_archive.sh "$($1_url)" "$$@" "$($1_hash)"
 	)
+    endif
 
     # Target to fetch all packages, for seeding mirrors
     packages: $(packages)/$($1_tar)
@@ -822,7 +859,7 @@ bin_modules-$(CONFIG_GPG2) += gpg2
 bin_modules-$(CONFIG_PINENTRY) += pinentry
 bin_modules-$(CONFIG_LVM2) += lvm2
 bin_modules-$(CONFIG_DROPBEAR) += dropbear
-bin_modules-$(CONFIG_OPENSSH) += openssh
+bin_modules-$(CONFIG_OPENSSH_CLIENT) += openssh
 bin_modules-$(CONFIG_FLASHTOOLS) += flashtools
 bin_modules-$(CONFIG_NEWT) += newt
 bin_modules-$(CONFIG_CAIRO) += cairo
@@ -846,7 +883,6 @@ bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 bin_modules-$(CONFIG_NVMUTIL) += nvmutil
 bin_modules-$(CONFIG_CPYTHON) += cpython
-bin_modules-$(CONFIG_THIN_PROVISIONING_TOOLS) += thin-provisioning-tools
 bin_modules-$(CONFIG_WYNG_BACKUP) += wyng-backup
 
 $(foreach m, $(bin_modules-y), \
