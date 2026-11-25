@@ -170,6 +170,12 @@ linux_target := \
 # We cross compile linux now
 linux_depends := musl-cross-make
 
+# chipsec-km is not a define_module module; attach its out-of-tree build to
+# the canonical kernel tree after linux_dir is known.
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+$(chipsec-km_ko_src): $(build)/$(linux_dir)/.build
+endif
+
 #
 # Linux kernel module installation
 #

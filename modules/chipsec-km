@@ -24,36 +24,40 @@
 CONFIG_CHIPSEC_KM ?= n
 
 ifeq "$(CONFIG_CHIPSEC_KM)" "y"
-ifneq "$(CONFIG_CHIPSEC)" "y"
-$(error CONFIG_CHIPSEC_KM=y requires CONFIG_CHIPSEC=y)
-endif
+# CONFIG_CHIPSEC/CONFIG_CPYTHON are enabled by modules/chipsec-km.requires.
+# The runtime loader checks this gate, so publish it in /etc/config.
+export CONFIG_CHIPSEC_KM
 ifeq "$(CONFIG_LINUX_VERSION)" ""
 $(error CONFIG_CHIPSEC_KM=y requires CONFIG_LINUX_VERSION to be set)
 endif
 endif
 
 # Not a normal define_module module: it reuses chipsec source dir/canary.
-# Hooked via explicit rules below when enabled.
+# Hooked via explicit rules below when enabled. Recursive aliases resolve after
+# modules/linux is loaded, avoiding a second kernel-directory calculation.
 chipsec-km_dir = $(chipsec_dir)
-# Compute linux build dir independently (modules/linux loads alphabetically later).
-chipsec-km_linux_kconfig = $(or $(CONFIG_LINUX_CONFIG),config/linux.config)
-chipsec-km_linux_dir = linux-$(CONFIG_LINUX_VERSION)/$(notdir $(basename $(chipsec-km_linux_kconfig)))
 chipsec-km_linux_arch = $(LINUX_ARCH)
-chipsec-km_depends := linux chipsec
 
 ifeq "$(CONFIG_CHIPSEC_KM)" "y"
-ifneq "$(CONFIG_CPYTHON)" "y"
-$(error CONFIG_CHIPSEC_KM=y requires CONFIG_CPYTHON=y (chipsec userspace profile))
-endif
-
 chipsec-km_ko_src := $(build)/$(chipsec-km_dir)/drivers/linux/chipsec.ko
 chipsec-km_ko_staged := $(build)/$(BOARD)/chipsec-km/chipsec.ko
+chipsec-km_kernel_identity := $(build)/$(chipsec-km_dir)/.board-kernel
+
+# Kbuild writes chipsec.ko into the shared source tree. Refresh a
+# content-checked identity when switching boards/kernel configs so an older
+# module cannot be staged for a different kernel.
+$(chipsec-km_kernel_identity): FORCE
+	@mkdir -p "$(dir $@)"
+	@printf '%s\n' '$(BOARD)' '$(linux_dir)' '$(LINUX_ARCH)' \
+		'$(linux_version)' '$(CROSS)' > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
 # Build out-of-tree chipsec.ko against the Heads kernel build tree.
 # chipsec driver needs nasm for amd64 asm; use coreboot crossgcc nasm.
 chipsec-km_nasm_path = $(build)/coreboot-$(CONFIG_COREBOOT_VERSION)/util/crossgcc/xgcc/bin:$(build)/coreboot-25.09/util/crossgcc/xgcc/bin
 
-$(chipsec-km_ko_src): $(build)/$(chipsec_dir)/.canary $(build)/$(chipsec-km_linux_dir)/.build
+$(chipsec-km_ko_src): \
+	$(build)/$(chipsec_dir)/.canary $(chipsec-km_kernel_identity)
 	$(call do,MAKE,chipsec-km,\
 		PATH="$(chipsec-km_nasm_path):$$PATH" \
 		$(CROSS_TOOLS) \

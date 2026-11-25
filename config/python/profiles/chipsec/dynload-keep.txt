@@ -1,2 +1,18 @@
-# Chipsec runtime dynload additions over base profile.
+# Chipsec smoke/runtime dynload additions over base.
+_csv
+_datetime
 _decimal
+_json
+_multiprocessing
+_opcode
+_pickle
+_posixshmem
+_posixsubprocess
+_socket
+_struct
+array
+binascii
+math
+pyexpat
+select
+zlib

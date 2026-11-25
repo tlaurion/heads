@@ -6,12 +6,13 @@ Additive CPython profile for CHIPSEC userspace on Heads. **Opt-in, draft**.
 
 - **Implemented**: module-driven profile merge + per-board CPython smoke imports.
 - **Not implemented**: CHIPSEC Python package staging, entrypoints/wrappers,
-  kernel driver build/staging, automated QEMU boot/command-flow QA.
+  automated QEMU boot/command-flow QA.
+- **Draft kernel path**: `chipsec-km` builds/stages `chipsec.ko`; see below.
 
 ## Contract
 
 - Selected by `modules/chipsec` via `chipsec_cpython_profiles += chipsec`.
-- `CONFIG_CHIPSEC=y` requires `CONFIG_CPYTHON=y`.
+- `modules/chipsec.requires` enables `CONFIG_CPYTHON` when CHIPSEC is selected.
 - Keep-lists are closed allowlists; add entries only with traced CHIPSEC
   command/import evidence and smoke validation.
 
@@ -19,9 +20,11 @@ Additive CPython profile for CHIPSEC userspace on Heads. **Opt-in, draft**.
 
 - stdlib: `csv`, `logging`, `concurrent`, `multiprocessing`, `plistlib`,
   `pprint`, `decimal` (and supporting stdlib pulled by profile keep-list).
-- dynload: `_decimal`.
-- `setup.local.disabled`: follows base/wyng disable posture; merge policy never
-  disables `_hashlib`.
+- dynload: the traced smoke closure (`_csv`, `_datetime`, `_decimal`, `_json`,
+  `_multiprocessing`, `_opcode`, `_pickle`, `_posixshmem`, `_posixsubprocess`,
+  `_socket`, `_struct`, `array`, `binascii`, `math`, `pyexpat`, `select`, `zlib`).
+- `setup.local.disabled`: disables optional capabilities not required by the
+  chipsec profile; module/profile data owns enablement.
 
 ## Explicit omissions
 
@@ -63,4 +66,3 @@ CHIPSEC in Heads CI. Before claiming CHIPSEC support, define and implement:
 - No auto-load; upstream `insmod.sh` PCR-measure behavior is not copied blindly.
 - QEMU: build/staging/load wiring only; driver-backed CHIPSEC checks mostly
   hardware-specific. Automated QA TODO.
-

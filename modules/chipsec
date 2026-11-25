@@ -29,7 +29,7 @@
 #   only; it does not execute CHIPSEC commands inside a booted image.
 #
 # Dependency contract:
-# - CONFIG_CHIPSEC=y requires CONFIG_CPYTHON=y.
+# - modules/chipsec.requires enables CONFIG_CPYTHON when CHIPSEC is selected.
 # - CPython profile selection is module-driven: modules/cpython unions
 #   `<mod>_cpython_profile(s)` from enabled modules-y.
 # - This module owns chipsec profile/smoke declarations; modules/cpython only
@@ -50,12 +50,7 @@
 # - QEMU validates wiring/build only; driver-backed checks are hardware-specific.
 CONFIG_CHIPSEC ?= n
 
-ifeq "$(CONFIG_CHIPSEC)" "y"
-ifneq "$(CONFIG_CPYTHON)" "y"
-$(error CONFIG_CHIPSEC=y requires CONFIG_CPYTHON=y)
-endif
-endif
-
+# CONFIG_CPYTHON is enabled by modules/chipsec.requires before module load.
 modules-$(CONFIG_CHIPSEC) += chipsec
 
 # CPython profile contract (consumed by modules/cpython).
@@ -73,9 +68,10 @@ chipsec_commit_hash := 30e5aa61544ea69c25163415ecca1fba426a283d
 
 chipsec_depends := cpython $(musl_dep)
 
-# No build/package step yet. Keep target explicit/no-op until packaging lands.
-chipsec_target := \
-	true
+# No build/package step yet. Generate a no-op Makefile so the module harness's
+# explicit `make chipsec` target works until packaging lands.
+chipsec_configure := printf '.PHONY: true\ntrue:\n' > Makefile.nobuild
+chipsec_target := -f Makefile.nobuild
 
 # TODO(packaging): stage selected CHIPSEC package/scripts into site-packages and
 # add wrappers/entrypoints as needed. Keep staged surface minimal and audited.
@@ -88,5 +84,5 @@ chipsec_target := \
 chipsec_cpython_smoke_imports := \
 	decimal csv logging concurrent.futures multiprocessing plistlib pprint
 
-# Capability deps for CPython profile (chipsec runtime/crypto needs may vary).
-chipsec_cpython_depends := libffi openssl
+# Chipsec smoke/profile currently needs no external CPython capability library.
+# Add <mod>_cpython_depends only when a traced chipsec path requires one.
