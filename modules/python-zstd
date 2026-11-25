@@ -141,3 +141,6 @@ python-zstd_tools := \
 # sentinel here and let the Makefile add it to the tools.cpio prerequisites
 # (collected from <modulename>_tools_depends for every enabled module).
 python-zstd_tools_depends := $(build)/$(python-zstd_dir)/.build
+
+# Smoke-test against build tree (module is staged into tools.cpio, not INSTALL).
+python-zstd_cpython_smoke_pythonpath := $(build)/$(python-zstd_dir)/src

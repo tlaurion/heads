@@ -233,6 +233,18 @@ $(build)/$(cpython_dir)/.build: \
 cpython_output := python
 
 # Per-board smoke tests: explicit, module/profile-driven.
+# Modules declare required runtime imports via <module>_cpython_smoke_imports.
+# cpython aggregates enabled modules for the current board; base imports are
+# always validated.
+cpython_smoke_base_imports := sys os io encodings codecs stat posixpath genericpath warnings site
+# Recursive expansion: module smoke-import vars may be defined after cpython.
+cpython_smoke_modules = $(filter-out cpython cpython-host,$(modules-y))
+cpython_smoke_imports = $(strip $(cpython_smoke_base_imports) \
+	$(foreach m,$(cpython_smoke_modules),$($(m)_cpython_smoke_imports)))
+empty :=
+space := $(empty) $(empty)
+cpython_smoke_pythonpath = $(subst $(space),:,$(strip \
+	$(foreach m,$(cpython_smoke_modules),$($(m)_cpython_smoke_pythonpath))))
 cpython_smoke_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
 ifeq "$(cpython_smoke_loader)" "libc.so"
 cpython_smoke_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
@@ -241,8 +253,10 @@ cpython_smoke_script := $(pwd)/bin/cpython-smoke.sh
 cpython_smoke_profile := $(build)/$(BOARD)/cpython-profile.stamp
 cpython_smoke: $(cpython_runtime_lib_dep)
 	$(call do,CPYTHON-SMOKE,$(BOARD), \
+		CPYTHON_SMOKE_IMPORTS="$(cpython_smoke_imports)" \
+		CPYTHON_SMOKE_PYTHONPATH="$(cpython_smoke_pythonpath)" \
 		CPYTHON_SMOKE_LOADER="$(cpython_smoke_loader)" \
-		CPYTHON_SMOKE_LIBPATH="$(INSTALL)/lib" \
+		CPYTHON_SMOKE_LIBPATH="$(INSTALL)/lib:$(INSTALL)/lib64" \
 		sh "$(cpython_smoke_script)" \
 			"$(INSTALL)/bin/python$(cpython_mm)" \
 			"$(cpython_smoke_profile)" \

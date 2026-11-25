@@ -13,12 +13,13 @@ py=$1; shift
 profiles=${1:--}; shift || true
 loader=${CPYTHON_SMOKE_LOADER:-}
 libpath=${CPYTHON_SMOKE_LIBPATH:-}
+smoke_pythonpath=${CPYTHON_SMOKE_PYTHONPATH:-}
 [ -e "$py" ] || { echo "cpython-smoke: missing python: $py" >&2; exit 1; }
 run_py() {
   if [ -n "$loader" ]; then
-    "$loader" ${libpath:+--library-path "$libpath"} "$py" "$@"
+    PYTHONPATH="${smoke_pythonpath}${PYTHONPATH:+:$PYTHONPATH}"     "$loader" ${libpath:+--library-path "$libpath"} "$py" "$@"
   else
-    "$py" "$@"
+    PYTHONPATH="${smoke_pythonpath}${PYTHONPATH:+:$PYTHONPATH}" "$py" "$@"
   fi
 }
 
@@ -28,17 +29,10 @@ run_py -c 'import sys,encodings,io,os; print(sys.version.split()[0])' >/dev/null
 # Profile-driven checks. profiles arg may be stamp/file/list; treat as text.
 has_profile() { [ "$profiles" != - ] && [ -e "$profiles" ] && grep -q "$1" "$profiles"; }
 
-# Module-declared smoke imports can be passed as env:
+# Module-declared smoke imports are passed by modules/cpython as:
 #   CPYTHON_SMOKE_IMPORTS="mod1 mod2"
+# Fallback: no module imports declared; only base interpreter sanity runs.
 imports=${CPYTHON_SMOKE_IMPORTS:-}
-if [ -z "$imports" ]; then
-  if has_profile wyng || echo " $* " | grep -q ' wyng-backup ' || echo " $* " | grep -q ' wyng '; then
-    imports="$imports hashlib zlib ctypes json xml.etree.ElementTree Cryptodome.Cipher.ChaCha20 zstd"
-  fi
-  if has_profile chipsec || echo " $* " | grep -q ' chipsec '; then
-    imports="$imports decimal csv logging concurrent.futures multiprocessing plistlib pprint"
-  fi
-fi
 
 if [ -n "$imports" ]; then
   CPYTHON_SMOKE_IMPORTS="$imports" run_py - <<'PY'
