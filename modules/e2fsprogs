@@ -16,10 +16,17 @@ e2fsprogs_hash := fd5bf388cbdbe006a3d3b318d983b2948382440acc85a87f1e7d108653e8db
 
 # See doc/modules.md "Shared module build flags" for the section-GC/unwind rationale.
 
+# ac_cv_* overrides: e2fsprogs ships internal libblkid headers but configure
+# probes the install sysroot for blkid probe APIs; when util-linux is installed
+# first, detection succeeds while plausible.c still compiles against internal
+# blkid headers, causing blkid_probe type/API mismatches. Force internal API.
 e2fsprogs_configure := \
 	$(CROSS_TOOLS) \
 	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables"  \
 	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
+	ac_cv_lib_blkid_blkid_probe_enable_partitions=no \
+	ac_cv_lib_blkid_blkid_probe_get_topology=no \
+	ac_cv_lib_blkid_blkid_topology_get_dax=no \
 	./configure \
 	--host $(MUSL_ARCH)-linux-musl \
 	--prefix "" \
