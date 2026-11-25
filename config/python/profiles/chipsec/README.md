@@ -6,11 +6,11 @@ Status: **draft/opt-in**. Not enabled by default; wyng profile remains default.
 
 Rationale:
 - CHIPSEC (Linux userspace) imports broad stdlib including logging, csv, concurrent/multiprocessing, plistlib, pprint, decimal.
-- CHIPSEC UEFI compression paths can use `lzma` when available; wyng disables it.
+- `lzma`/`_lzma` intentionally omitted until an xz/liblzma module is wired into Heads; adding the name alone does not build the C extension.
 - Keep closed allowlist explicit; expand only with smoke-tested imports.
 
 Notes:
-- Enabling `lzma` requires liblzma build dependency in image; verify before enabling on boards.
+- If chipsec needs LZMA, add a liblzma/xz module and wire cpython build deps; then re-add `lzma`/`_lzma`.
 - CHIPSEC helper/kernel driver strategy is separate from Python packaging.
 - Add modules only after tracing actual selected CHIPSEC commands.
 
@@ -19,7 +19,7 @@ Notes:
 chipsec (Python userspace):
 - CONFIG_CHIPSEC=y
 - requires: CONFIG_CPYTHON=y (auto-adds CPYTHON profile `chipsec`)
-- python profile adds: lzma/_lzma,csv,logging,concurrent,multiprocessing,plistlib,pprint,decimal,_decimal
+- python profile adds: csv,logging,concurrent,multiprocessing,plistlib,pprint,decimal,_decimal
 - build deps: cpython, setuptools? (only if packaging), musl_dep
 - runtime deps: chipsec helper strategy; for full functionality likely chipsec.ko
 - initrd staging: TBD (site-packages/chipsec + /bin/chipsec_util/chipsec_main wrappers)
@@ -36,7 +36,7 @@ chipsec-km (out-of-tree kernel module, required for driver-backed helper):
 ### Python (chipsec userspace)
 - REQUIRED: `CONFIG_CPYTHON=y`
 - PROFILE: `chipsec` (auto-added when `CONFIG_CHIPSEC=y`, else set `CPYTHON_PROFILES_EXTRA=chipsec`)
-- Extra keeplist needs (unioned): stdlib adds `csv,logging,concurrent,multiprocessing,plistlib,pprint,decimal,_pydecimal,lzma`; dynload adds `_lzma,_decimal` (see `config/python/profiles/chipsec/*`)
+- Extra keeplist needs (unioned): stdlib adds `csv,logging,concurrent,multiprocessing,plistlib,pprint,decimal,_pydecimal`; dynload adds `_decimal` (see `config/python/profiles/chipsec/*`)
 - Setup.local: intersection of selected profiles removes `lzma` disable (enables `_lzma`); `curses/dbm/nis/ssl` remain disabled by wyng base unless another profile enables them (none do here)
 - Staged as: `chipsec` package under `lib/python$(MM)/site-packages/chipsec` + any entrypoints/wrappers (TODO: not yet packaged)
 

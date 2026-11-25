@@ -41,4 +41,4 @@ chipsec_target := \
 
 # Runtime smoke/import expectations for chipsec profile.
 chipsec_cpython_smoke_imports := \
-	lzma decimal csv logging concurrent.futures multiprocessing plistlib pprint
+	decimal csv logging concurrent.futures multiprocessing plistlib pprint

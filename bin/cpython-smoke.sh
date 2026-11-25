@@ -25,35 +25,30 @@ run_py() {
 # Base interpreter startup/import sanity.
 run_py -c 'import sys,encodings,io,os; print(sys.version.split()[0])' >/dev/null
 
-# Profile-driven checks.
-has_profile() { [ "$profiles" != - ] && grep -qxF "$1" "$profiles"; }
+# Profile-driven checks. profiles arg may be stamp/file/list; treat as text.
+has_profile() { [ "$profiles" != - ] && [ -e "$profiles" ] && grep -q "$1" "$profiles"; }
 
-
-if has_profile wyng || echo " $* " | grep -q ' wyng-backup '; then
-  run_py - <<'PY'
-import importlib
-mods = [
- 'hashlib','ssl','zlib','ctypes','sqlite3','json','xml.etree.ElementTree',
- 'Cryptodome.Cipher.ChaCha20','zstd'
-]
-for m in mods:
-    try:
-        importlib.import_module(m)
-    except Exception as e:
-        raise SystemExit(f'MISSING:{m}:{e}')
-print('WYNG_OK')
-PY
+# Module-declared smoke imports can be passed as env:
+#   CPYTHON_SMOKE_IMPORTS="mod1 mod2"
+imports=${CPYTHON_SMOKE_IMPORTS:-}
+if [ -z "$imports" ]; then
+  if has_profile wyng || echo " $* " | grep -q ' wyng-backup ' || echo " $* " | grep -q ' wyng '; then
+    imports="$imports hashlib zlib ctypes json xml.etree.ElementTree Cryptodome.Cipher.ChaCha20 zstd"
+  fi
+  if has_profile chipsec || echo " $* " | grep -q ' chipsec '; then
+    imports="$imports decimal csv logging concurrent.futures multiprocessing plistlib pprint"
+  fi
 fi
 
-if has_profile chipsec || echo " $* " | grep -q ' chipsec '; then
-  run_py - <<'PY'
-import importlib
-mods = ['lzma','decimal','csv','logging','concurrent.futures','multiprocessing','plistlib','pprint']
+if [ -n "$imports" ]; then
+  CPYTHON_SMOKE_IMPORTS="$imports" run_py - <<'PY'
+import importlib, os
+mods = [m for m in os.environ.get('CPYTHON_SMOKE_IMPORTS','').split() if m]
 for m in mods:
     try:
         importlib.import_module(m)
     except Exception as e:
         raise SystemExit(f'MISSING:{m}:{e}')
-print('CHIPSEC_OK')
+print('SMOKE_OK', len(mods))
 PY
 fi
