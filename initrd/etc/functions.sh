@@ -1376,6 +1376,11 @@ load_chipsec_km() {
 		DEBUG "load_chipsec_km: CONFIG_CHIPSEC_KM!=y, skipping"
 		return 0
 	}
+	# Safety gate: only load in debug/info modes; quiet/production mode skips.
+	if [ "$CONFIG_DEBUG_OUTPUT" != "y" ] && [ "$CONFIG_QUIET_MODE" = "y" ]; then
+		WARN "chipsec-km: module load skipped in quiet mode; enable debug/info output mode to load"
+		return 1
+	fi
 
 	local mod=/lib/modules/chipsec.ko
 	[ -f "$mod" ] || {
