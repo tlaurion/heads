@@ -19,12 +19,14 @@ board-local keep-lists and prunes the CPython install.
   - `build/<arch>/<board>/cpython-Setup.local`
   - `build/<arch>/<board>/cpython-profiles.txt`
 - `bin/cpython-prune.sh` — prunes stdlib/lib-dynload using merged keep-lists.
+  Splits INSTALL (build-required superset) from RUNTIME (profile-only, staged).
 - `config/python/profiles/base/` — minimal common CPython runtime.
 - `config/python/profiles/wyng/` — wyng runtime additions over base.
 - `config/python/profiles/chipsec/` — opt-in chipsec additions over base.
-- `modules/cpython` — profile selection, merge stamp, configure/install/prune.
-- `modules/wyng-backup` — declares `wyng-backup_cpython_profiles += wyng`.
-- `modules/chipsec` — draft module; declares `chipsec_cpython_profiles += chipsec`.
+- `modules/cpython` — profile selection, merge stamp, prune, smoke aggregation.
+- `modules/wyng-backup` — declares wyng profile/smoke/build requirements.
+- `modules/chipsec` — draft module; declares chipsec profile/smoke/build reqs.
+- `modules/cryptodome`, `modules/python-zstd` — declare build-required stdlib/dynload and smoke PYTHONPATH.
 
 ## Profile Format
 
@@ -80,3 +82,45 @@ Verify default wyng profile:
 - Initrd contains `bin/python3`, `bin/python3.13`, `lib/python3.13/...`,
   `_hashlib`; no `_lzma` for wyng-only profile; no doubled
   `lib/python3.13/python3.13`.
+
+## Module-Owned Requirements (explicit)
+
+Modules own CPython requirements. `modules/cpython` only aggregates enabled
+modules for the selected board.
+
+| Declaration | Owner | Purpose | Validation |
+|---|---|---|---|
+| `<mod>_cpython_profiles` / `_cpython_profile` | module needing runtime profile | Adds profile delta (`config/python/profiles/<name>/`) | `make ... cpython_profile` stamp, board build |
+| `<mod>_cpython_build_required_stdlib` | module built against target CPython | Stdlib kept in INSTALL build tree only (not staged runtime) | module build, `cpython_smoke` |
+| `<mod>_cpython_build_required_dynload` | module built against target CPython | Dynload kept in INSTALL build tree only | module build, `cpython_smoke` |
+| `<mod>_cpython_runtime_required_encodings` | module needing extra encodings | Generated per-board `build/<board>/cpython-runtime-required-encodings.txt` | runtime smoke/import trace |
+| `<mod>_cpython_smoke_imports` | module/runtime consumer | Per-board smoke imports aggregated by `modules/cpython` | `make BOARD=<board> cpython_smoke` |
+| `<mod>_cpython_smoke_pythonpath` | module staged as tools.cpio tree | Extra PYTHONPATH for smoke against build tree artifacts | `make BOARD=<board> cpython_smoke` |
+
+Base defaults (always present): base profile; base smoke imports
+`sys os io encodings codecs stat posixpath genericpath warnings site`; base
+runtime encodings `__init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py`.
+
+## Per-Board Smoke
+
+```sh
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython cpython_smoke
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-wyng cpython_smoke
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec cpython_smoke
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec cpython_smoke
+```
+
+Smoke runs target Python through musl loader with `INSTALL/lib` in library path
+and module-declared PYTHONPATH for tools.cpio-staged packages. It validates
+module-declared imports; it does not boot QEMU or exercise full command flows.
+
+## Adding a Module Requirement
+
+1. Add/extend `config/python/profiles/<name>/` only for runtime stdlib/dynload
+   needed in initrd.
+2. Declare `<mod>_cpython_profiles += <name>` and `<mod>_cpython_smoke_imports`.
+3. If module builds against target CPython, declare
+   `<mod>_cpython_build_required_{stdlib,dynload}` (build-only; not staged).
+4. If module is staged as tools.cpio package, declare
+   `<mod>_cpython_smoke_pythonpath`.
+5. Run `cpython_smoke` for affected boards and a board build.
