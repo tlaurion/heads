@@ -298,6 +298,13 @@ $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain: $(COREBOOT_TOOLCHAIN_DIR)/.canary
 
 $(build)/$(coreboot_dir)/.configured: $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain
 
+# chipsec-km is not a define_module module; its out-of-tree build needs the
+# coreboot crossgcc nasm toolchain.  Attach that prerequisite here, after
+# COREBOOT_TOOLCHAIN_DIR is known (modules/chipsec-km is included earlier).
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+$(chipsec-km_ko_src): $(COREBOOT_TOOLCHAIN_DIR)/.heads-toolchain
+endif
+
 ## Toolchain packages ##
 # coreboot likes to download its own toolchain packages, but these sources can
 # go down or move also.  Download them ahead of the toolchain build with

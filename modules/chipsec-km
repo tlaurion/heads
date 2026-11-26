@@ -53,8 +53,10 @@ $(chipsec-km_kernel_identity): FORCE
 	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
 # Build out-of-tree chipsec.ko against the Heads kernel build tree.
-# chipsec driver needs nasm for amd64 asm; use coreboot crossgcc nasm.
-chipsec-km_nasm_path = $(build)/coreboot-$(CONFIG_COREBOOT_VERSION)/util/crossgcc/xgcc/bin:$(build)/coreboot-25.09/util/crossgcc/xgcc/bin
+# chipsec driver needs nasm for amd64 asm; use the coreboot crossgcc nasm from
+# the toolchain provider.  COREBOOT_TOOLCHAIN_DIR is defined by modules/coreboot
+# (loaded later), so keep this recursive and let it expand in the recipe.
+chipsec-km_nasm_path = $(COREBOOT_TOOLCHAIN_DIR)/util/crossgcc/xgcc/bin
 
 $(chipsec-km_ko_src): \
 	$(build)/$(chipsec_dir)/.canary $(chipsec-km_kernel_identity)
