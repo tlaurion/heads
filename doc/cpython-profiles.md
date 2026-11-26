@@ -74,13 +74,17 @@ switches boards; each board then gets its own pruned runtime tree.
 
 Implemented:
 - CPython profile `chipsec` selected via module-driven merge.
-- Per-board smoke imports declared by module and validated by `cpython_test`.
+- Full pinned CHIPSEC package staged under site-packages with a `/bin/chipsec`
+  wrapper; the module owns its OpenSSL/_hashlib requirement.
+- Per-board imports validated by `cpython_test`.
+- Automated QEMU CLI smoke for version/help and module enumeration, including
+  the combined wyng + chipsec board.
 
 Not implemented / TODO:
-- CHIPSEC Python package/entrypoint staging into initrd.
 - `lzma/_lzma`: omitted until xz/liblzma module + CPython build wiring exists.
-- Kernel-driver path: draft `modules/chipsec-km` builds/stages `/lib/modules/chipsec.ko` into modules.cpio (opt-in, no auto-load). QEMU validates wiring; hardware QA needed for driver-backed checks.
-- Automated QEMU command-flow QA for CHIPSEC; current smoke is import-only.
+- Kernel-driver path: `modules/chipsec-km` builds/stages `/lib/modules/chipsec.ko`
+  (opt-in, no auto-load), but QEMU load and hardware-backed checks remain
+  unverified.
 
 ## Build / Verification
 
@@ -113,16 +117,17 @@ every ROM remains the fixed 16 MiB flash image.
 
 | Board profile | Runtime files | `tools.cpio` before → after | `initrd.cpio.xz` before → after |
 |---|---:|---:|---:|
-| base | 752,561 | 26,463,232 → 20,441,088 (−6,022,144) | 7,909,376 → 6,781,952 (−1,127,424) |
-| chipsec | 3,929,699 | 25,924,608 → 23,636,992 (−2,287,616) | 7,792,128 → 7,442,944 (−349,184) |
-| wyng + chipsec | 6,476,561 | 28,440,064 → 28,178,944 (−261,120) | 8,480,256 → 8,517,120 (+36,864) |
-| wyng | 5,384,785 | 28,435,968 → 27,076,096 (−1,359,872) | 8,480,256 → 8,298,496 (−181,760) |
+| base | 752,561 | 26,463,232 → 20,441,088 (−6,022,144) | 7,909,376 → 6,782,464 (−1,126,912) |
+| chipsec | 4,455,338 | 25,924,608 → 28,136,448 (+2,211,840) | 7,792,128 → 8,084,480 (+292,352) |
+| wyng + chipsec | 6,276,837 | 28,440,064 → 31,945,216 (+3,505,152) | 8,480,256 → 9,015,808 (+535,552) |
+| wyng | 5,384,785 | 28,435,968 → 27,076,096 (−1,359,872) | 8,480,256 → 8,300,544 (−179,712) |
 
 The base runtime contains no `lib-dynload/*.so`; chipsec and wyng pay only for
-their selected capability profiles. Against the matching non-CPython QEMU
-initrd measured earlier at 5,671,936 bytes (not a pristine `origin/master`
-rebuild), base adds 1,110,016 compressed bytes and chipsec adds 1,771,008. The
-chipsec profile itself adds 660,992 compressed bytes over CPython base.
+their selected capability profiles. The full CHIPSEC package adds about 3.9 MiB
+uncompressed. Against the matching non-CPython QEMU initrd measured earlier at
+5,671,936 bytes (not a pristine `origin/master` rebuild), base adds 1,110,528
+compressed bytes and functional chipsec adds 2,412,544. The packaged chipsec
+profile itself adds 1,302,016 compressed bytes over CPython base.
 
 ## Module-Owned Requirements (explicit)
 
@@ -160,7 +165,8 @@ Smoke runs target Python through the musl loader with
 module-declared PYTHONPATH for tools.cpio-staged packages. It validates
 module-declared imports; it does not boot QEMU or exercise full command flows.
 It is a per-board/module requirement gate, not a full runtime integration test.
-The four QA boards boot into a serial test shell for command-flow testing; see
+The four QA boards boot into a serial test shell. `make BOARD=<board> qemu_smoke`
+runs their command-flow plans automatically; see
 [qemu.md](qemu.md#cpythonchipsec-qa-test-shell).
 
 ## Adding a Module Requirement
