@@ -1,68 +1,80 @@
-# chipsec CPython profile (draft)
+# chipsec CPython profile
 
-Additive CPython profile for CHIPSEC userspace on Heads. **Opt-in, draft**.
+Additive CPython profile for the CHIPSEC userspace package on Heads. Opt-in
+(`CONFIG_CHIPSEC=y`), selected by `modules/chipsec`.
 
-## Status
+## Implemented packaging
 
-- **Implemented**: module-driven profile merge + per-board CPython smoke imports.
-- **Not implemented**: CHIPSEC Python package staging, entrypoints/wrappers,
-  automated QEMU boot/command-flow QA.
-- **Draft kernel path**: `chipsec-km` builds/stages `chipsec.ko`; see below.
+- `modules/chipsec` clones the pinned CHIPSEC source (PR2945 test commit
+  `30e5aa61544ea69c25163415ecca1fba426a283d`, which carries
+  `common.pltrst_gpio_lock`) and stages the **full upstream `chipsec/` package
+  plus `chipsec_main.py` and `chipsec_util.py`** into
+  `/lib/python$(cpython_mm)/site-packages` via `chipsec_tools`/tools.cpio.
+- The native layout is preserved deliberately: `chipsec_main.py` looks for
+  `chipsec/` as its sibling and reads `chipsec/VERSION` (2.0.10) and
+  `chipsec/options/cmd_options.ini` relative to its own directory. Flattening
+  the package would break those paths.
+- `drivers/`, `*.ko`, `setup.py`, the manual, `tests/`, the host `chipsec_tools/`
+  tree and other host-only build artifacts are **not** staged.
+- `modules/chipsec.requires` enables `CONFIG_CPYTHON` and `CONFIG_OPENSSL`.
+  `_hashlib` (hashlib's OpenSSL backend) is enabled in this profile's
+  `Setup.local` and its `libcrypto` dependency is owned here via
+  `chipsec_cpython_depends := openssl`, so chipsec-only boards are self-contained.
 
-## Contract
+## Wrapper
 
-- Selected by `modules/chipsec` via `chipsec_cpython_profiles += chipsec`.
-- `modules/chipsec.requires` enables `CONFIG_CPYTHON` when CHIPSEC is selected.
-- Keep-lists are closed allowlists; add entries only with traced CHIPSEC
-  command/import evidence and smoke validation.
+`chipsec_configure` generates an executable `chipsec-wrapper` in the module
+build dir:
 
-## Runtime additions over `base`
+```sh
+#!/bin/sh
+export PYTHONDONTWRITEBYTECODE=1
+exec /bin/python3 /lib/python3.13/site-packages/chipsec_main.py "$@"
+```
 
-- stdlib: `csv`, `logging`, `concurrent`, `multiprocessing`, `plistlib`,
-  `pprint`, `decimal` (and supporting stdlib pulled by profile keep-list).
-- dynload: the traced smoke closure (`_csv`, `_datetime`, `_decimal`, `_json`,
-  `_multiprocessing`, `_opcode`, `_pickle`, `_posixshmem`, `_posixsubprocess`,
-  `_socket`, `_struct`, `array`, `binascii`, `math`, `pyexpat`, `select`, `zlib`).
-- `setup.local.disabled`: disables optional capabilities not required by the
-  chipsec profile; module/profile data owns enablement.
+It is staged through `chipsec_output` to `/bin/chipsec-wrapper`, and `/bin/chipsec`
+is an explicit relative symlink to it, following the wyng-backup symlink pattern
+(the bin staging flattens by basename and cannot create links itself). The
+`make BOARD=... chipsec` target remains a clone/configure/no-op build.
 
-## Explicit omissions
+## Real CLI smoke
 
-- `lzma/_lzma`: omitted intentionally. Target CPython does not build `_lzma`
-  without an xz/liblzma module and cpython build wiring. Do not add name-only
-  entries; re-add only after dependency wiring is verified.
-- `ssl`, `curses`, `dbm`, `nis`, `_uuid`: remain disabled unless a traced CHIPSEC
-  path requires them and security/size impact is reviewed.
+`chipsec_cpython_smoke_pythonpath` points at the chipsec source tree and the
+smoke imports are `chipsec chipsec_main chipsec_util` plus the traced capability
+set (`hashlib _hashlib argparse configparser heapq locale platform uuid
+xml.etree.ElementTree`). `make BOARD=... cpython_test` therefore imports the
+real package through the target interpreter, not a stub.
+
+The keep-lists are closed allowlists derived from tracing
+`chipsec_main.py --help` and `chipsec_main.py -lm -nb` on the target Python:
+
+- stdlib additions: `argparse`, `configparser`, `hashlib`, `heapq`, `locale`,
+  `platform`, `uuid`, `json`, `gettext`, `glob`, `shutil`, `runpy`, `pkgutil`,
+  `bisect`, `fnmatch` (plus the XML/helper closure).
+- dynload additions: `_hashlib`, `_elementtree`, `mmap`, `resource`, `_heapq`,
+  `_bisect`, `_blake2` (plus the pre-existing `_csv`/`pyexpat`/... set).
+- Optional `cryptography`, `brotli`, `_lzma`, `_bz2`, `_uuid` remain absent:
+  their imports are guarded/optional and are not reached by the safe CLI paths.
+
+Two QEMU command-flow plans exercise the staged wrapper in a booted QA ROM:
+`config/qemu/qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec.smoke` runs
+`/bin/chipsec --help` (reports version 2.0.10) and `/bin/chipsec -lm -nb`
+(lists `common.pltrst_gpio_lock`); the combined `...-wyng-chipsec.smoke` adds
+the Wyng and zstd/Cryptodome checks. No insmod, hardware, or driver commands.
+
+## Remaining limits
+
+- `chipsec.ko` remains a separate opt-in module (`modules/chipsec-km`,
+  `CONFIG_CHIPSEC_KM=y`). It builds against the Heads kernel tree and stages
+  `/lib/modules/chipsec.ko`, but is never auto-loaded. Loading and
+  driver-backed checks are unverified in QEMU and remain hardware-specific.
+- The safe QEMU smoke proves package/wrapper staging and non-driver CLI
+  startup only; it does not execute CHIPSEC security modules or touch devices.
 
 ## Validation
 
 ```sh
-HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec cpython_test
-HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec cpython_test
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec chipsec
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec all cpython_test qemu_smoke
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec all cpython_test qemu_smoke
 ```
-
-This validates module-declared Python imports through target Python. It does
-**not** boot QEMU, run `chipsec_main.py`, or validate kernel-driver behavior.
-
-## QEMU / automated QA strategy
-
-**Unclear/TODO.** There is currently no automated QEMU command-flow test for
-CHIPSEC in Heads CI. Before claiming CHIPSEC support, define and implement:
-
-1. Packaging: stage CHIPSEC package + selected entrypoints into initrd.
-2. Smoke: run minimal CHIPSEC command in booted QEMU image (non-driver path first).
-3. Driver-backed tests: separate `chipsec-km`/kernel-module contract, kernel
-   config/module support, `insmod` staging, and QEMU/hardware test matrix.
-4. CI policy: opt-in job, artifact/log capture, known limits documented.
-
-## Kernel driver (separate, draft module: `chipsec-km`)
-
-`modules/chipsec-km` (CONFIG_CHIPSEC_KM=y, requires CONFIG_CHIPSEC/CPYTHON/LINUX):
-- Builds `drivers/linux/chipsec.ko` from pinned chipsec commit against
-  `$(build)/$(linux_dir)`.
-- Strips and stages as `/lib/modules/chipsec.ko` in `modules.cpio` via generic
-  `modules_files` staging.
-- Load manually when needed: `insmod /lib/modules/chipsec.ko`.
-- No auto-load; upstream `insmod.sh` PCR-measure behavior is not copied blindly.
-- QEMU: build/staging/load wiring only; driver-backed CHIPSEC checks mostly
-  hardware-specific. Automated QA TODO.

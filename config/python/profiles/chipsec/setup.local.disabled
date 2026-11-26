@@ -1,8 +1,12 @@
 # Chipsec CPython profile.
+# Disable list (makesetup "first rule wins"); intersection across profiles:
+# a capability is enabled when any selected profile omits its disable.
+# _hashlib is intentionally omitted so hashlib gets its OpenSSL backend;
+# modules/chipsec owns CONFIG_OPENSSL and chipsec_cpython_depends=openssl.
+# _uuid, bz2, lzma and readline stay disabled (traced but optional paths).
 *disabled*
 _ctypes
 _gdbm
-_hashlib
 _sqlite3
 _ssl
 _tkinter

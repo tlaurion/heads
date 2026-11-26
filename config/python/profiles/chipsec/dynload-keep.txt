@@ -1,18 +1,31 @@
 # Chipsec smoke/runtime dynload additions over base.
+# Closed allowlist derived from tracing chipsec_main.py --help and -lm -nb on
+# the target Python (a module is listed only when the trace actually loaded
+# its .so). _hashlib is hashlib's OpenSSL backend; CONFIG_OPENSSL is owned by
+# modules/chipsec. _elementtree, mmap and resource are loaded by the traced
+# XML/helper paths. _bisect, _blake2 and _heapq are the C accelerators reached
+# by bisect/hashlib/heapq during the same trace.
+array
+binascii
+_bisect
+_blake2
 _csv
 _datetime
 _decimal
+_elementtree
+_hashlib
+_heapq
 _json
+math
+mmap
 _multiprocessing
 _opcode
 _pickle
 _posixshmem
 _posixsubprocess
+pyexpat
+resource
+select
 _socket
 _struct
-array
-binascii
-math
-pyexpat
-select
 zlib

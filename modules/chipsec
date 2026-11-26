@@ -1,66 +1,61 @@
 # chipsec: Intel CHIPSEC platform security assessment framework (userspace).
 #
-# STATUS: DRAFT / OPT-IN. Not wired into default boards.
+# STATUS: OPT-IN userspace package. The driver/kernel path remains a separate
+# opt-in module (modules/chipsec-km); no driver is loaded by this module.
 #
-# Purpose:
-# - Model CHIPSEC Python userspace requirements in Heads CPython profile system.
-# - Provide an explicit, board-testable CPython runtime contract for chipsec.
+# Implemented scope:
+# - Clone the pinned CHIPSEC source (PR2945 test commit, see below).
+# - Stage the full upstream `chipsec/` package plus `chipsec_main.py` and
+#   `chipsec_util.py` into /lib/python$(cpython_mm)/site-packages via tools.cpio.
+#   The native layout is deliberately preserved: chipsec_main.py expects
+#   `chipsec/` as its sibling and reads chipsec/VERSION and
+#   chipsec/options/cmd_options.ini relative to its own directory.
+# - Generate an executable `chipsec-wrapper` in the module build dir and stage
+#   it through chipsec_output; /bin/chipsec is an explicit symlink to it
+#   (wyng-backup pattern -- bin_modules flattens by basename and cannot link).
+# - Declare the additive `chipsec` CPython profile and per-board smoke imports.
 #
-# Current scope (implemented):
-# - Declares additive CPython profile `chipsec` (`chipsec_cpython_profiles`).
-# - Declares per-board smoke imports (`chipsec_cpython_smoke_imports`).
-# - Pinned upstream commit hash recorded for future packaging work.
-# - Default pin currently tracks chipsec/chipsec PR2945 test commit
-#   30e5aa61544ea69c25163415ecca1fba426a283d (Add common.pltrst_gpio_lock
-#   module), branch dscott/pltrst_gpio_lock, base chipsec2; not merged upstream.
+# Not staged: drivers/, *.ko, setup.py, chipsec-manual.pdf, tests/,
+# chipsec_tools/, __install__/, docs/ and other host-only build artifacts.
+# Only the Python package and the two entrypoint scripts are staged, so no
+# host tool, kernel object, or manual lands in tools.cpio.
+#
+# Pinned upstream source identity (CHIPSEC, not Heads):
+# chipsec/chipsec PR2945 (Add common.pltrst_gpio_lock module), branch
+# dscott/pltrst_gpio_lock, base chipsec2; the smoke assertion
+# `common.pltrst_gpio_lock` depends on this commit. Not merged upstream yet;
+# revisit the pin when PR2945 lands.
 #   https://github.com/chipsec/chipsec/pull/2945
 #   https://github.com/chipsec/chipsec/commit/30e5aa61544ea69c25163415ecca1fba426a283d
-#   Revisit pin when PR2945 is merged/superseded.
 #
-# Not implemented yet (TODO):
-# - Fetch/build/package CHIPSEC Python sources into initrd/site-packages.
-# - Install chipsec entrypoints/wrappers (`chipsec_main.py`, etc.) as needed.
-# - Linux helper/driver strategy: driver-backed checks require chipsec.ko;
-#   build/staging is a separate opt-in module: `modules/chipsec-km`
-#   (CONFIG_CHIPSEC_KM=y). It builds against $(build)/$(linux_dir) and stages
-#   /lib/modules/chipsec.ko into modules.cpio. No auto-insmod.
-# - QEMU automated QA: no automated QEMU boot/command-flow test in CI. Current
-#   `make BOARD=<board> cpython_test` validates module-declared Python imports
-#   only; it does not execute CHIPSEC commands inside a booted image.
+# CPython profile contract:
+# - The keep-lists in config/python/profiles/chipsec are closed allowlists
+#   derived from tracing `chipsec_main.py --help` and `chipsec_main.py -lm -nb`
+#   on the target Python. They add hashlib/_hashlib, argparse, configparser,
+#   heapq, locale, platform, uuid, the XML/helper closure (_elementtree,
+#   pyexpat, gettext, glob, json, shutil, ...), and mmap/resource.
+# - _hashlib (hashlib's OpenSSL backend) needs libcrypto at runtime, so this
+#   module owns CONFIG_OPENSSL (modules/chipsec.requires) and lists `openssl`
+#   in chipsec_cpython_depends. A chipsec-only board therefore carries the
+#   library dependency it introduced.
+# - Optional cryptography / brotli / _lzma / _bz2 / _uuid stay absent: the
+#   trace attempts them only through guarded optional imports on paths the
+#   safe CLI commands do not take.
 #
-# Dependency contract:
-# - modules/chipsec.requires enables CONFIG_CPYTHON when CHIPSEC is selected.
-# - CPython profile selection is module-driven: modules/cpython unions
-#   `<mod>_cpython_profile(s)` from enabled modules-y.
-# - This module owns chipsec profile/smoke declarations; modules/cpython only
-#   aggregates them.
-#
-# Runtime/profile notes:
-# - Profile adds stdlib/dynload needed by common CHIPSEC imports (csv, logging,
-#   concurrent/multiprocessing, plistlib, pprint, decimal/_decimal).
-# - lzma/_lzma intentionally omitted: target CPython does not build _lzma until
-#   an xz/liblzma module and cpython build wiring exist. Re-add only with traced
-#   need and verified build/runtime support.
-#
-# Kernel module (separate, implemented as draft module):
-# - modules/chipsec-km builds chipsec.ko from pinned chipsec source against
-#   $(build)/$(linux_dir) and stages /lib/modules/chipsec.ko into modules.cpio.
-# - Requires CONFIG_CHIPSEC_KM=y, CONFIG_CHIPSEC=y, CONFIG_LINUX=y, kernel
-#   CONFIG_MODULES=y, busybox insmod/lsmod. No auto-load.
-# - QEMU validates wiring/build only; driver-backed checks are hardware-specific.
+# Driver limits (kept separate, never auto-loaded):
+# - Driver-backed checks require chipsec.ko, built/staged by modules/chipsec-km
+#   against the Heads kernel (CONFIG_CHIPSEC_KM=y); loading is manual. The QEMU
+#   smoke covers only non-driver CLI paths (--help, -lm -nb); hardware-backed
+#   checks remain hardware-specific and unverified in QEMU.
 CONFIG_CHIPSEC ?= n
 
-# CONFIG_CPYTHON is enabled by modules/chipsec.requires before module load.
+# CONFIG_CPYTHON/CONFIG_OPENSSL are enabled by modules/chipsec.requires before
+# module load; _depends below owns build ordering.
 modules-$(CONFIG_CHIPSEC) += chipsec
 
 # CPython profile contract (consumed by modules/cpython).
 chipsec_cpython_profiles += chipsec
 
-# Pinned upstream source identity (packaging TODO; not fetched/built yet).
-# Testing chipsec/chipsec PR2945 (Add common.pltrst_gpio_lock module):
-# https://github.com/chipsec/chipsec/pull/2945
-# PR head: 30e5aa61544ea69c25163415ecca1fba426a283d (branch dscott/pltrst_gpio_lock, base chipsec2)
-# https://github.com/chipsec/chipsec/commit/30e5aa61544ea69c25163415ecca1fba426a283d
 chipsec_version := git
 chipsec_dir := chipsec-git
 chipsec_repo := https://github.com/chipsec/chipsec.git
@@ -68,21 +63,54 @@ chipsec_commit_hash := 30e5aa61544ea69c25163415ecca1fba426a283d
 
 chipsec_depends := cpython $(musl_dep)
 
-# No build/package step yet. Generate a no-op Makefile so the module harness's
-# explicit `make chipsec` target works until packaging lands.
-chipsec_configure := printf '.PHONY: true\ntrue:\n' > Makefile.nobuild
+# modules/cpython is included after modules/chipsec (alphabetical glob), so
+# derive cpython_mm recursively and expand it only at recipe/tools use time.
+cpython_mm ?= $(word 1,$(subst ., ,$(cpython_version))).$(word 2,$(subst ., ,$(cpython_version)))
+
+# Keep the explicit `make chipsec` target a working no-op (clone/configure/
+# no-build) and generate the wrapper during configure. The configure command
+# runs through define_module -> eval -> recipe, so the wrapper's literal "$@"
+# is written as $$$$@ here: $$$$ -> $$ in the generated recipe, then $$ -> $
+# when make expands the recipe for the shell.
+chipsec_configure = \
+	printf '.PHONY: true\ntrue:\n' > Makefile.nobuild && \
+	printf '\#!/bin/sh\nexport PYTHONDONTWRITEBYTECODE=1\nexec /bin/python3 /lib/python$(cpython_mm)/site-packages/chipsec_main.py "$$$$@"\n' > chipsec-wrapper && \
+	chmod 755 chipsec-wrapper
 chipsec_target := -f Makefile.nobuild
 
-# TODO(packaging): stage selected CHIPSEC package/scripts into site-packages and
-# add wrappers/entrypoints as needed. Keep staged surface minimal and audited.
-# chipsec_output :=
-# chipsec_tools :=
+# chipsec-wrapper is built in $(build)/$(chipsec_dir) by _configure above;
+# chipsec_output paths are prefixed with the module build dir by `bins` and
+# flattened to /bin/chipsec-wrapper by initrd_bin_add.
+chipsec_output := chipsec-wrapper
 
-# Per-board CPython smoke contract (aggregated by modules/cpython).
-# Keep this list aligned with config/python/profiles/chipsec/* and actual
-# CHIPSEC command/import traces before widening.
+# /bin/chipsec -> chipsec-wrapper (relative symlink inside tools/bin).
+ifeq "$(CONFIG_CHIPSEC)" "y"
+initrd_bins += $(initrd_bin_dir)/chipsec
+$(initrd_bin_dir)/chipsec: $(build)/$(chipsec_dir)/.build
+	$(call do,INSTALL-LINK,chipsec -> chipsec-wrapper,\
+		ln -sfn chipsec-wrapper "$@")
+endif
+
+# Full native package layout under site-packages. Recursive (=) so
+# $(cpython_mm) resolves after modules/cpython has loaded.
+chipsec_tools = \
+	$(build)/$(chipsec_dir)/chipsec|lib/python$(cpython_mm)/site-packages/chipsec \
+	$(build)/$(chipsec_dir)/chipsec_main.py|lib/python$(cpython_mm)/site-packages/chipsec_main.py \
+	$(build)/$(chipsec_dir)/chipsec_util.py|lib/python$(cpython_mm)/site-packages/chipsec_util.py
+
+# D7: stage_tools_file attaches no .build prerequisite; declare the module
+# sentinel here so tools.cpio rebuilds with the staged package.
+chipsec_tools_depends := $(build)/$(chipsec_dir)/.build
+
+# Per-board CPython smoke contract: import the real package from the source
+# tree (the staged copy lives in tools.cpio, not INSTALL) plus the capabilities
+# the traced CLI commands need.
+chipsec_cpython_smoke_pythonpath := $(build)/$(chipsec_dir)
 chipsec_cpython_smoke_imports := \
-	decimal csv logging concurrent.futures multiprocessing plistlib pprint
+	chipsec chipsec_main chipsec_util \
+	hashlib _hashlib argparse configparser heapq locale platform uuid \
+	xml.etree.ElementTree
 
-# Chipsec smoke/profile currently needs no external CPython capability library.
-# Add <mod>_cpython_depends only when a traced chipsec path requires one.
+# _hashlib is hashlib's OpenSSL backend; its libcrypto dependency is owned
+# here (see modules/chipsec.requires).
+chipsec_cpython_depends := openssl
