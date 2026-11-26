@@ -1,0 +1,3 @@
+# Module-owned build/runtime requirements. Loaded by Makefile before modules/*.
+chipsec-km_requires_config := CONFIG_CHIPSEC_KM
+chipsec-km_requires_deps := CONFIG_CHIPSEC CONFIG_CPYTHON

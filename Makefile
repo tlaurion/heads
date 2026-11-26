@@ -22,6 +22,7 @@ GIT_VERSION_SUFFIX	:= $(HEADS_GIT_VERSION)
 else
 GIT_VERSION_SUFFIX	:= $(GIT_TIMESTAMP)-$(HEADS_GIT_VERSION)
 endif
+export PYTHONDONTWRITEBYTECODE=1  # any recipe invoking target python must not write bytecode into $(INSTALL)
 
 # Override BRAND_NAME to set the name displayed in the UI, filenames, versions, etc.
 BRAND_NAME	?= Heads
@@ -232,9 +233,12 @@ initrd_tools_dir	:= $(initrd_tmp_dir)/tools
 initrd_lib_dir		:= $(initrd_tools_dir)/lib
 initrd_bin_dir		:= $(initrd_tools_dir)/bin
 initrd_data_dir		:= $(initrd_tmp_dir)/data
+# modules.cpio staging is invocation-local too: build/<board>/modules persisted
+# across invocations and could carry stale payload into a rebuilt archive.
+initrd_modules_dir	:= $(initrd_tmp_dir)/modules
 modules-y += initrd
 
-$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)")
+$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)" "$(initrd_modules_dir)")
 
 # We are running our own version of make,
 # proceed with the build.
@@ -340,6 +344,18 @@ all payload:
 	@sha256sum $(<:$(pwd)/%=%) | tee -a "$(HASHES)"
 	@stat -c "%8s:%n" $(<:$(pwd)/%=%) | tee -a "$(SIZES)"
 
+# Generic QEMU serial smoke gate. Each profile owns its plan file; the harness
+# boots the board ROM, runs the plan's commands in the QA test shell and checks
+# the expected output. Only QA boards (CONFIG_BOOTSCRIPT=/bin/test-shell.sh)
+# can satisfy the ready marker/prompt.
+QEMU_SMOKE_PLAN	:= config/qemu/$(BOARD).smoke
+QEMU_SMOKE_LOG	:= $(board_build:$(pwd)/%=%)/qemu-smoke.log
+
+.PHONY: qemu_smoke
+qemu_smoke: $(board_build)/$(CB_OUTPUT_FILE)
+	@test -r "$(QEMU_SMOKE_PLAN)" || { echo "qemu_smoke: missing plan $(QEMU_SMOKE_PLAN)" >&2; exit 1; }
+	python3 bin/qemu-smoke.py --rom "$<" --plan "$(QEMU_SMOKE_PLAN)" --log "$(QEMU_SMOKE_LOG)"
+
 # Validate coreboot CBFS size against IFD BIOS region
 validate_cbfs_ifd:
 ifneq ($(CONFIG_COREBOOT),)
@@ -397,14 +413,81 @@ endef
 # The main Makefile will collect all data files from enabled modules:
 #   $(call data,$(modules-y))
 
-# Bring in all of the module definitions;
-# these are the external pieces that will be downloaded and built
-# as part of creating the Heads firmware image.
-include modules/*
+# Module-owned config requirements.  These sidecar files are loaded before
+# module implementations so selecting a feature in a board config enables its
+# required CONFIG_* gates before modules-y is populated.  Build ordering remains
+# explicit in each module's <mod>_depends list.
+module_requirement_files := $(sort $(wildcard modules/*.requires))
+include $(module_requirement_files)
+module_requirement_modules := $(patsubst modules/%.requires,%,$(module_requirement_files))
+
+# Resolve the transitive CONFIG_* closure. A .requires file declares:
+#   <feature>_requires_config := CONFIG_FEATURE
+#   <feature>_requires_deps   := CONFIG_DEP1 CONFIG_DEP2
+# The requires_* prefix avoids colliding with the module harness's own
+# <mod>_config variable. Multiple sidecars may describe distinct feature gates
+# that share an implementation module (for example OpenSSH client/server).
+module_requirement_roots = $(foreach m,$(module_requirement_modules),$(if $(filter y,$($($(m)_requires_config))),$($(m)_requires_config)))
+module_requirement_deps = $(foreach m,$(module_requirement_modules),$(if $(filter $(1),$($(m)_requires_config)),$($(m)_requires_deps)))
+module_requirement_step = $(sort $(1) $(foreach c,$(1),$(call module_requirement_deps,$(c))))
+module_requirement_resolve = $(if $(filter-out $(1),$(2)),\
+	$(call module_requirement_resolve,$(2),$(call module_requirement_step,$(2))),$(1))
+module_requirement_closure := $(call module_requirement_resolve,,$(module_requirement_roots))
+$(foreach c,$(module_requirement_closure),$(eval override $(c) := y))
+
+# Bring in all of the module definitions; .requires sidecars were handled above.
+module_files := $(filter-out %.requires,$(wildcard modules/*))
+include $(module_files)
+
+# CPython smoke imports from build-tree PYTHONPATHs must wait for the owning
+# modules to finish building. Add these prerequisites after all module files are
+# loaded so later module declarations (cryptodome/python-zstd) are visible.
+cpython_smoke_build_depends := $(foreach m,$(filter-out cpython cpython-host,$(modules-y)),\
+	$(if $($(m)_cpython_smoke_pythonpath),$(build)/$($(m)_dir)/.build))
+cpython_smoke: $(cpython_smoke_build_depends)
+
+# Profile inputs are selected only after every module file has declared its
+# profiles; attach them here rather than expanding too early in modules/cpython.
+cpython_profile_inputs := $(foreach d,$(cpython_profile_dirs),\
+	$(d)/stdlib-keep.txt $(d)/dynload-keep.txt $(d)/setup.local.disabled)
+$(cpython_profile_stamp): $(cpython_profile_inputs)
 
 # Collect all data files from enabled modules
 data_files :=
 $(foreach m,$(modules-y),$(eval data_files += $($(m)_data)))
+
+# Modules whose _data is produced by their own build (rather than shipped in
+# the source tree) may set <modulename>_data_depends to the sentinel(s) that
+# must exist before data.cpio staging starts.  stage_data_file has no .build
+# prerequisite, so without this site-packages/stdlib files could be staged
+# before they exist.
+data_depends :=
+$(foreach m,$(modules-y),$(eval data_depends += $($(m)_data_depends)))
+
+# Collect library payloads that need path-preserving staging from enabled
+# modules.  <modulename>_tools entries are staged into tools.cpio (built from
+# $(initrd_tools_dir)) via stage_tools_file with the INSTALL-LIB contract --
+# unlike initrd_lib_add, which flattens by basename (single .so only) and would
+# destroy a package tree such as lib/python3.13/site-packages/...  See
+# doc/build-freshness.md for the canonical tools.cpio/data.cpio split.
+tools_files :=
+$(foreach m,$(modules-y),$(eval tools_files += $($(m)_tools)))
+
+# Same sentinel mechanism as data_depends, keyed on <modulename>_tools_depends.
+tools_depends :=
+$(foreach m,$(modules-y),$(eval tools_depends += $($(m)_tools_depends)))
+
+# Kernel modules staged into modules.cpio. Each module should set
+# <modulename>_modules += src|dst. Out-of-tree modules own stripping if needed.
+# Also include opt-in out-of-tree modules not in modules-y define_module flow.
+modules_files :=
+$(foreach m,$(modules-y),$(eval modules_files += $($(m)_modules)))
+modules_depends :=
+$(foreach m,$(modules-y),$(eval modules_depends += $($(m)_modules_depends)))
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+modules_files += $(chipsec-km_modules)
+modules_depends += $(chipsec-km_modules_depends)
+endif
 
 define bins =
 $(foreach m,$1,$(call prefix,$(build)/$($m_dir)/,$($m_output)))
@@ -428,7 +511,7 @@ endef
 #
 define do-cpio =
 	$(call do,CPIO     ,$1,\
-		( cd "$2"; \
+		( cd "$2" || exit 1; \
 		find . \
 		| cpio \
 			--quiet \
@@ -541,6 +624,7 @@ define define_module =
 		echo "INFO: Cleaning repository directory (including payloads and util/cbmem)" && \
 		git clean -df && \
 		git clean -dffx payloads util/cbmem && \
+		rm -f "$(build)/$($1_base_dir)/.patched" && \
 		echo "INFO: Synchronizing submodules" && \
 		git submodule sync && \
 		echo "INFO: Updating submodules (init and checkout)" && \
@@ -582,12 +666,15 @@ define define_module =
     # $1_patch_version can still be defined manually.
     $(eval $1_patch_version ?= $(if $(filter %-$($1_version),$1),,$($1_version)))
     $(eval $1_patch_name = $1$(if $($1_patch_version),-,)$($1_patch_version))
-    # Fetch and verify the source tar file
-    # wget creates it early, so we have to cleanup if it fails
+    # Fetch and verify the source tar file. Modules sharing one pinned source
+    # archive can defer the download rule to the first module that declares it.
+    # wget creates it early, so we have to cleanup if it fails.
+    ifneq "$($1_source_rule)" "shared"
     $(packages)/$($1_tar):
 	$(call do,WGET,$($1_url),\
 		WGET="$(WGET)" bin/fetch_source_archive.sh "$($1_url)" "$$@" "$($1_hash)"
 	)
+    endif
 
     # Target to fetch all packages, for seeding mirrors
     packages: $(packages)/$($1_tar)
@@ -666,6 +753,7 @@ define define_module =
   # cross compilers and libraries might be messed up
   $(dir $($1_config_file_path)).configured: \
 		$(build)/$($1_base_dir)/.canary \
+		$(if $($1_repo),$(build)/$($1_base_dir)/.patched) \
 		$(foreach d,$($1_config_wait),$(build)/$($d_dir)/.build) \
 		$($1_config_file_path) \
 		modules/$($1_module_file)
@@ -779,6 +867,7 @@ bin_modules-$(CONFIG_GPG2) += gpg2
 bin_modules-$(CONFIG_PINENTRY) += pinentry
 bin_modules-$(CONFIG_LVM2) += lvm2
 bin_modules-$(CONFIG_DROPBEAR) += dropbear
+bin_modules-$(CONFIG_OPENSSH_CLIENT) += openssh
 bin_modules-$(CONFIG_FLASHTOOLS) += flashtools
 bin_modules-$(CONFIG_NEWT) += newt
 bin_modules-$(CONFIG_CAIRO) += cairo
@@ -801,6 +890,9 @@ bin_modules-$(CONFIG_ZSTD) += zstd
 bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 bin_modules-$(CONFIG_NVMUTIL) += nvmutil
+bin_modules-$(CONFIG_CPYTHON) += cpython
+bin_modules-$(CONFIG_CHIPSEC) += chipsec
+bin_modules-$(CONFIG_WYNG_BACKUP) += wyng-backup
 
 $(foreach m, $(bin_modules-y), \
 	$(call map,initrd_bin_add,$(call bins,$m)) \
@@ -879,7 +971,7 @@ initrd-$(CONFIG_HEADS) += $(build)/$(initrd_dir)/heads.cpio
 #   1: Source path (file or directory)
 #   2: Destination path inside initrd (relative path inside archive)
 define stage_data_file =
-$(initrd_data_dir)/$2: $1
+$(initrd_data_dir)/$2: $(data_depends) | $1
 	$(call do,INSTALL-DATA,$(1:$(pwd)/%=%) => $2,\
 		mkdir -p "$(dir $(initrd_data_dir)/$2)"; \
 		cp -R "$1" "$(initrd_data_dir)/$2"; \
@@ -896,17 +988,98 @@ $(foreach entry,$(data_files),\
 
 # Rule to build final data.cpio archive from staged files
 ifneq ($(strip $(data_files)),)
-$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) FORCE
+$(build)/$(initrd_dir)/data.cpio: $(data_initrd_files) $(data_depends) FORCE
 	$(call do-cpio,$@,$(initrd_data_dir))
 	@$(RM) -rf "$(initrd_data_dir)"
 initrd-y += $(build)/$(initrd_dir)/data.cpio
 endif
 
-# --- MODULES.CPIO ---
+# --- MODULES.CPIO STAGING ---
 
-# modules.cpio is built from kernel modules staged in a temp dir by modules/linux
-# The temp dir is cleaned up after cpio creation.
-# (see modules/linux for details)
+# Staging directory for modules.cpio is $(initrd_modules_dir), defined above
+# under $(initrd_tmp_dir) so each make invocation starts clean. In-tree kernel
+# modules come from modules/linux; out-of-tree modules (e.g. chipsec-km) use
+# stage_module_file. modules.cpio is created from this dir, then it is removed.
+module_initrd_files :=
+
+# stage_module_file stages a kernel module or module tree into modules.cpio,
+# preserving relative path. Stripping is caller responsibility for out-of-tree
+# modules where needed.
+# Arguments:
+#   1: Source path (file or directory)
+#   2: Destination path inside initrd (relative path inside archive)
+define stage_module_file =
+$(initrd_modules_dir)/$2: $(modules_depends) | $1
+	$(call do,INSTALL-MODULE,$(1:$(pwd)/%=%) => $2,\
+		if [ -d "$1" ]; then \
+			mkdir -p "$(initrd_modules_dir)/$2"; \
+			cp -a "$1"/. "$(initrd_modules_dir)/$2"/; \
+		else \
+			mkdir -p "$(dir $(initrd_modules_dir)/$2)"; \
+			cp -a "$1" "$(initrd_modules_dir)/$2"; \
+		fi; \
+	)
+module_initrd_files += $(initrd_modules_dir)/$2
+endef
+
+# Expand all modules_files entries. Each entry: "src_path|dest_path"
+$(foreach entry,$(modules_files),\
+  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
+  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
+  $(eval $(call stage_module_file,$(src),$(dst))) \
+)
+
+# modules.cpio is built from staged kernel modules.
+# FORCE keeps cpio-clean/do-cpio content-hash behavior visible.
+$(build)/$(initrd_dir)/modules.cpio: $(module_initrd_files) $(modules_depends) FORCE
+	$(call do-cpio,$@,$(initrd_modules_dir))
+	@$(RM) -rf "$(initrd_modules_dir)"
+
+# --- TOOLS.CPIO STAGING (path-preserving libraries) ---
+
+# stage_tools_file stages a library (lib* tree or *.so, i.e. anything loadable)
+# into tools.cpio, preserving its relative path.  initrd_lib_add flattens by
+# basename (single .so only) and would destroy a package tree like
+# lib/python3.13/site-packages/...; this macro is its path-preserving sibling
+# for directory/package payloads.  It emits INSTALL-LIB (the lib contract:
+# loadable .a/.la/.so/.pc → tools.cpio) and mirrors stage_data_file's shape,
+# only targeting $(initrd_tools_dir) so the payload lands in tools.cpio, not
+# data.cpio.
+# Arguments:
+#   1: Source path (file or directory)
+#   2: Destination path inside initrd (relative path inside archive)
+define stage_tools_file =
+# No generic FORCE: each staged target runs when its tools_depends sentinel (or
+# the file itself) changes. The one path where a child can pre-create the parent
+# is the CPython runtime tree, which gets its own FORCE rule after expansion
+# below; forcing every tools target would recopy unrelated payload needlessly.
+$(initrd_tools_dir)/$2: $(tools_depends)
+	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%) => $2,\
+		if [ -d "$1" ]; then \
+			mkdir -p "$(initrd_tools_dir)/$2"; \
+			cp -a "$1"/. "$(initrd_tools_dir)/$2"/; \
+		else \
+			mkdir -p "$(dir $(initrd_tools_dir)/$2)"; \
+			cp -a "$1" "$(initrd_tools_dir)/$2"; \
+		fi; \
+	)
+tools_initrd_files += $(initrd_tools_dir)/$2
+endef
+
+# Expand all tools_files entries. Each entry: "src_path|dest_path"
+$(foreach entry,$(tools_files),\
+  $(eval src := $(word 1,$(subst |, ,$(entry)))) \
+  $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
+  $(eval $(call stage_tools_file,$(src),$(dst))) \
+)
+
+# Nested package staging (site-packages/chipsec under lib/python$(cpython_mm))
+# can create this parent directory before the pruned CPython runtime is copied,
+# so directory existence alone cannot mean the runtime tree was staged. FORCE
+# just this parent: the runtime copy always runs, while every other tools target
+# stays sentinel/content-driven. No recipe here -- the stage_tools_file rule
+# above supplies the INSTALL-LIB recipe; this only adds FORCE as a prerequisite.
+$(initrd_tools_dir)/lib/python$(cpython_mm): FORCE
 
 # --- TOOLS.CPIO ---
 
@@ -914,6 +1087,8 @@ endif
 $(build)/$(initrd_dir)/tools.cpio: \
 	$(initrd_bins) \
 	$(initrd_libs) \
+	$(tools_initrd_files) \
+	$(tools_depends) \
 	$(initrd_tools_dir)/etc/config \
 	FORCE
 	$(call do-cpio,$@,$(initrd_tools_dir))

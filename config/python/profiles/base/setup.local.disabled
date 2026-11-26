@@ -1,0 +1,19 @@
+# Base CPython profile: disable optional/bulky stdlib extension modules.
+# DISABLE LIST (makesetup "first rule wins"). Kept disabled unless removed by
+# merge intersection with another selected profile.
+*disabled*
+_ctypes
+_decimal
+_gdbm
+_hashlib
+_sqlite3
+_ssl
+_tkinter
+_uuid
+bz2
+curses
+dbm
+lzma
+nis
+readline
+zlib

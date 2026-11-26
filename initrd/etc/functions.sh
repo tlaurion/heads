@@ -813,6 +813,18 @@ release_scdaemon() {
 	killall gpg-agent scdaemon >/dev/null 2>&1 || true
 }
 
+# Point SSH_AUTH_SOCK at gpg-agent's SSH socket so OpenSSH tools can use
+# GPG keys held on the security dongle.  Requires enable-ssh-support in
+# gpg-agent.conf; the socket only exists while gpg-agent is running.
+setup_gpg_agent_ssh_socket() {
+	TRACE_FUNC
+	local _home=${HOME:-/}
+	case "$_home" in */) ;; *) _home=$_home/ ;; esac
+	local _gnupg=${GNUPGHOME:-${_home}.gnupg}
+	export SSH_AUTH_SOCK="${_gnupg%/}/S.gpg-agent.ssh"
+	DEBUG "SSH_AUTH_SOCK set to $SSH_AUTH_SOCK"
+}
+
 cache_gpg_signing_pin() {
 	TRACE_FUNC
 
@@ -1353,6 +1365,36 @@ enable_usb_keyboard() {
 	wait_for_usb_devices
 	insmod.sh /lib/modules/usbhid.ko || DIE "usbhid: module load failed"
 fi
+}
+
+# Load out-of-tree CHIPSEC kernel module when explicitly enabled.
+# Not auto-called on boot: loading has security/runtime impact and driver-backed
+# CHIPSEC checks are hardware-specific. Caller decides when to load.
+load_chipsec_km() {
+	TRACE_FUNC
+	# Config guard: no-op unless board/runtime explicitly enabled chipsec-km.
+	[ "$CONFIG_CHIPSEC_KM" = "y" ] || {
+		DEBUG "load_chipsec_km: CONFIG_CHIPSEC_KM!=y, skipping"
+		return 0
+	}
+	# Safety gate: only load in debug/info modes; quiet/production mode skips.
+	if [ "$CONFIG_DEBUG_OUTPUT" != "y" ] && [ "$CONFIG_QUIET_MODE" = "y" ]; then
+		WARN "chipsec-km: module load skipped in quiet mode; enable debug/info output mode to load"
+		return 1
+	fi
+
+	local mod=/lib/modules/chipsec.ko
+	[ -f "$mod" ] || {
+		# Actionable: enabled but modules.cpio/staging missing.
+		WARN "chipsec-km enabled but $mod missing; rebuild with CONFIG_CHIPSEC_KM=y"
+		return 1
+	}
+
+	STATUS "Loading CHIPSEC kernel module"
+	# insmod.sh extends PCR[MODULE_PCR] (default 5) with module content+params,
+	# then loads via busybox insmod; keeps measurement/audit trail consistent.
+	insmod.sh "$mod" || DIE "chipsec.ko: module load failed"
+	STATUS_OK "CHIPSEC kernel module loaded"
 }
 
 # ------- End of functions coming from /etc/ash_functions

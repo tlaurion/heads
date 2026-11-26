@@ -1,0 +1,10 @@
+# Wyng profile: backup tool and the CPython modules it needs must be present.
+# Format: <command><TAB><Python regex expected in that command's output>.
+# Expected values are computed at runtime (never present verbatim in the echoed
+# command line), so a passing assertion proves the interpreter really ran.
+/bin/wyng version	Wyng 0\.9
+/bin/python3 -c 'import zstd, Cryptodome; print(12340 + 5)'	(?m)^12345$
+# Real ChaCha20 encrypt/decrypt round-trip: exercises the ctypes-resolved raw
+# symbols (chacha20_init/chacha20_encrypt) that -fvisibility=hidden used to
+# hide.  The marker is built by concatenation so the echo cannot satisfy it.
+/bin/python3 -c 'from Cryptodome.Cipher import ChaCha20 as C; k=b"K"*32; n=b"N"*12; p=b"roundtrip"; e=C.new(key=k,nonce=n); d=C.new(key=k,nonce=n); m="CHACHA20"+"_OK"; print(m if d.decrypt(e.encrypt(p))==p else "FAILED")'	CHACHA20_OK

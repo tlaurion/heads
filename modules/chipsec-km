@@ -1,0 +1,84 @@
+# chipsec-km: out-of-tree CHIPSEC Linux kernel module (chipsec.ko).
+#
+# STATUS: DRAFT / OPT-IN. Separate from userspace `modules/chipsec`.
+#
+# Purpose:
+# - Build chipsec.ko against the exact Heads-built kernel tree and stage it
+#   into modules.cpio for driver-backed CHIPSEC Linux helper functionality.
+#
+# Not automatic:
+# - Not enabled by default. No auto-insmod at boot. Loading a kernel module has
+#   security/runtime impact; load manually only when needed:
+#     insmod /lib/modules/chipsec.ko
+# - Upstream chipsec insmod.sh performs PCR measurement behavior; do not copy it
+#   blindly into Heads boot flow without security review.
+#
+# Prereqs / limits:
+# - Requires CONFIG_CHIPSEC=y and CONFIG_LINUX=y.
+# - Requires kernel module support (CONFIG_MODULES=y). modversions/unload not
+#   required for insmod path; busybox insmod/lsmod sufficient.
+# - Built against $(build)/$(linux_dir); vermagic/config must match running
+#   Heads kernel.
+# - QEMU can validate build/staging/load wiring only; most CHIPSEC driver-backed
+#   checks are hardware-specific. Automated QA remains TODO.
+CONFIG_CHIPSEC_KM ?= n
+
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+# CONFIG_CHIPSEC/CONFIG_CPYTHON are enabled by modules/chipsec-km.requires.
+# The runtime loader checks this gate, so publish it in /etc/config.
+export CONFIG_CHIPSEC_KM
+ifeq "$(CONFIG_LINUX_VERSION)" ""
+$(error CONFIG_CHIPSEC_KM=y requires CONFIG_LINUX_VERSION to be set)
+endif
+endif
+
+# Not a normal define_module module: it reuses chipsec source dir/canary.
+# Hooked via explicit rules below when enabled. Recursive aliases resolve after
+# modules/linux is loaded, avoiding a second kernel-directory calculation.
+chipsec-km_dir = $(chipsec_dir)
+chipsec-km_linux_arch = $(LINUX_ARCH)
+
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+chipsec-km_ko_src := $(build)/$(chipsec-km_dir)/drivers/linux/chipsec.ko
+chipsec-km_ko_staged := $(build)/$(BOARD)/chipsec-km/chipsec.ko
+chipsec-km_kernel_identity := $(build)/$(chipsec-km_dir)/.board-kernel
+
+# Kbuild writes chipsec.ko into the shared source tree. Refresh a
+# content-checked identity when switching boards/kernel configs so an older
+# module cannot be staged for a different kernel.
+$(chipsec-km_kernel_identity): FORCE
+	@mkdir -p "$(dir $@)"
+	@printf '%s\n' '$(BOARD)' '$(linux_dir)' '$(LINUX_ARCH)' \
+		'$(linux_version)' '$(CROSS)' > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+# Build out-of-tree chipsec.ko against the Heads kernel build tree.
+# chipsec driver needs nasm for amd64 asm; use the coreboot crossgcc nasm from
+# the toolchain provider.  COREBOOT_TOOLCHAIN_DIR is defined by modules/coreboot
+# (loaded later), so keep this recursive and let it expand in the recipe.
+chipsec-km_nasm_path = $(COREBOOT_TOOLCHAIN_DIR)/util/crossgcc/xgcc/bin
+
+$(chipsec-km_ko_src): \
+	$(build)/$(chipsec_dir)/.canary $(chipsec-km_kernel_identity)
+	$(call do,MAKE,chipsec-km,\
+		PATH="$(chipsec-km_nasm_path):$$PATH" \
+		$(CROSS_TOOLS) \
+		$(MAKE) -C "$(build)/$(linux_dir)" \
+			M="$(build)/$(chipsec-km_dir)/drivers/linux" \
+			ARCH="$(LINUX_ARCH)" \
+			CROSS_COMPILE="$(CROSS)" \
+			KSRC="$(build)/$(linux_dir)" \
+			KVER="$(linux_version)" \
+			SKIP_STACK_VALIDATION=1 \
+			modules)
+
+$(chipsec-km_ko_staged): $(chipsec-km_ko_src)
+	$(call do,INSTALL-MODULE,chipsec.ko,\
+		mkdir -p "$(dir $@)" && \
+		$(CROSS)strip --preserve-dates --strip-unneeded -o "$@" "$(chipsec-km_ko_src)")
+
+# Makefile collects these for modules.cpio staging when CONFIG_CHIPSEC_KM=y.
+chipsec-km_modules := $(chipsec-km_ko_staged)|lib/modules/chipsec.ko
+chipsec-km_modules_depends := $(chipsec-km_ko_staged)
+
+endif

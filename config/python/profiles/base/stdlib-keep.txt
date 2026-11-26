@@ -1,0 +1,23 @@
+# Minimal base stdlib keep-list (OpenWrt python3-base intent).
+# Interpreter startup + base smoke imports only; modules add capabilities.
+__future__
+_collections_abc
+_sitebuiltins
+_weakrefset
+abc
+codecs
+collections
+encodings
+genericpath
+importlib
+io
+linecache
+os
+posixpath
+site
+stat
+sysconfig
+threading
+types
+warnings
+zipimport

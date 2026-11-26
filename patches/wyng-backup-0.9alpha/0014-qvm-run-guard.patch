@@ -1,0 +1,18 @@
+# Needed: optional feature.
+# Reject qubes/qubes-ssh destinations when qvm-run is absent: those target
+# types only work under Qubes OS, and without this the first dest.run() raises
+# an uncaught FileNotFoundError from Popen instead of a clean OptionError.
+diff --git a/src/wyng09a b/src/wyng09a
+index cfdd38f..4c24ab4 100755
+--- a/src/wyng09a
++++ b/src/wyng09a
+@@ -2893,6 +2893,9 @@ class Destination:
+         or (dtype in ("ssh","qubes","qubes-ssh") and not dparts.netloc) \
+         or (dtype == "qubes-ssh" and not all(dparts.netloc.partition(":"))) :
+             raise OptionError("Malformed --dest specification.")
++        if dtype in ("qubes","qubes-ssh") and not shutil.which(CP.qvm_run):
++            raise OptionError("'"+dtype+"' destination requires Qubes OS, "
++                              "but qvm-run was not found in this build.")
+ 
+         self.sys    = dparts.netloc                   ; self.writable         = not ro
+         self.path   = os.path.normpath(dparts.path)   ; self.archive_ini_hash = "none"

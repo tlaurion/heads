@@ -1,0 +1,3 @@
+# Module-owned build/runtime requirements. Loaded by Makefile before modules/*.
+openssh-client_requires_config := CONFIG_OPENSSH_CLIENT
+openssh-client_requires_deps := CONFIG_OPENSSL CONFIG_ZLIB

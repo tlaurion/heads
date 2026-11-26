@@ -33,6 +33,7 @@ e2fsprogs_target := $(MAKE_JOBS) \
 		DESTDIR="$(INSTALL)" \
 		install
 
-e2fsprogs_output := misc/mke2fs
+# wyng restore scans reflink extents with filefrag; keep it out of non-wyng boards.
+e2fsprogs_output := misc/mke2fs $(if $(filter y,$(CONFIG_WYNG_BACKUP)),misc/filefrag,)
 
 e2fsprogs_depends := $(musl_dep)

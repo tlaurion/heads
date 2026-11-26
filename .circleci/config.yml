@@ -113,7 +113,11 @@ jobs:
           name: Creating all modules and patches digest (All modules cache digest)
           command: |
             # TODO: Add .circleci/config.yml back once cache model is stable
-            find ./Makefile ./flake.lock ./patches/ ./modules/ -type f | sort -h |xargs sha256sum > ./tmpDir/all_modules_and_patches.sha256sums
+            find ./Makefile ./flake.lock ./patches/ ./modules/ \
+              ./bin/cpython-*.sh ./bin/cryptodome-prune.sh \
+              ./config/python ./config/python-cross-cache-* \
+              ./config/cryptodome-keep.txt -type f | \
+              sort -h | xargs sha256sum > ./tmpDir/all_modules_and_patches.sha256sums
       - run:
           name: Creating coreboot (and associated patches) and musl-cross-make modules digest (musl-cross-make and coreboot cache digest)
           command: |
@@ -796,6 +800,35 @@ workflows:
           name: qemu-coreboot-fbwhiptail-tpm2-hotp
           target: qemu-coreboot-fbwhiptail-tpm2-hotp
           subcommand: ""
+          requires:
+            - EOL_t480-hotp-maximized [seed:coreboot-26.09]
+
+      # CPython/module-profile boards: full ROM build plus explicit import gate.
+      - build:
+          name: qemu-coreboot-fbwhiptail-tpm2-cpython
+          target: qemu-coreboot-fbwhiptail-tpm2-cpython
+          subcommand: "all cpython_test qemu_smoke"
+          requires:
+            - EOL_t480-hotp-maximized [seed:coreboot-26.09]
+
+      - build:
+          name: qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec
+          target: qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec
+          subcommand: "all cpython_test qemu_smoke"
+          requires:
+            - EOL_t480-hotp-maximized [seed:coreboot-26.09]
+
+      - build:
+          name: qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec
+          target: qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec
+          subcommand: "all cpython_test qemu_smoke"
+          requires:
+            - EOL_t480-hotp-maximized [seed:coreboot-26.09]
+
+      - build:
+          name: qemu-coreboot-fbwhiptail-tpm2-wyng
+          target: qemu-coreboot-fbwhiptail-tpm2-wyng
+          subcommand: "all cpython_test qemu_smoke"
           requires:
             - EOL_t480-hotp-maximized [seed:coreboot-26.09]
 

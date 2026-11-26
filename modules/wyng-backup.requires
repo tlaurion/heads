@@ -1,0 +1,14 @@
+# Module-owned build/runtime requirements. Loaded by Makefile before modules/*.
+wyng-backup_requires_config := CONFIG_WYNG_BACKUP
+wyng-backup_requires_deps := \
+	CONFIG_CPYTHON \
+	CONFIG_CRYPTODOME \
+	CONFIG_PYTHON_ZSTD \
+	CONFIG_OPENSSH_CLIENT \
+	CONFIG_LIBFFI \
+	CONFIG_ZLIB \
+	CONFIG_OPENSSL \
+	CONFIG_SETUPTOOLS \
+	CONFIG_LVM2 \
+	CONFIG_E2FSPROGS \
+	CONFIG_UTIL_LINUX

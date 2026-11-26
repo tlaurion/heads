@@ -7,8 +7,8 @@ openssl_tar := openssl-$(openssl_version).tar.gz
 openssl_url := https://www.openssl.org/source/$(openssl_tar)
 openssl_hash := 6c13d2bf38fdf31eac3ce2a347073673f5d63263398f1f69d0df4a41253e4b3e
 
-# The only optional algorithm that's enabled is SM3.  tpm2-tss uses SHA, AES,
-# and SM3.
+# tpm2-tss uses SHA/AES/SM3. OpenSSH and CPython's _hashlib additionally need
+# DH/ECDH/ECDSA and scrypt, so those capabilities stay enabled.
 # See doc/modules.md "Shared module build flags" for the section-GC/unwind rationale.
 
 openssl_configure := \
@@ -17,6 +17,7 @@ openssl_configure := \
 	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
 	./Configure \
 		--prefix="/" \
+		--libdir="lib" \
 		linux-$(strip $(arch)) \
 		no-aria \
 		no-bf \
@@ -26,10 +27,8 @@ openssl_configure := \
 		no-chacha \
 		no-cmac \
 		no-des \
-		no-dh \
+		enable-dh \
 		no-dsa \
-		no-ecdh \
-		no-ecdsa \
 		no-idea \
 		no-md4 \
 		no-mdc2 \
@@ -38,7 +37,6 @@ openssl_configure := \
 		no-rc2 \
 		no-rc4 \
 		no-rmd160 \
-		no-scrypt \
 		no-seed \
 		no-siphash \
 		no-siv \
@@ -47,14 +45,8 @@ openssl_configure := \
 		no-tests \
 		no-whirlpool \
 
-openssl_target := $(MAKE_JOBS) \
-	build_programs \
-	&& \
-	$(MAKE) \
-		-C "$(build)/$(openssl_dir)" \
-		DESTDIR="$(INSTALL)" \
-		LIBDIR="lib" \
-		install_sw \
+# Heads ships libcrypto only; install libraries/headers without building apps.
+openssl_target := $(MAKE_JOBS) install_dev DESTDIR="$(INSTALL)"
 
 # Only libcrypto is needed currently, libssl is not included in initrd
 openssl_libraries := \

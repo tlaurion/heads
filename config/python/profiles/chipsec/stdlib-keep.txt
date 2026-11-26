@@ -1,0 +1,59 @@
+# Chipsec smoke/runtime stdlib additions over base.
+# Closed allowlist derived from tracing the pinned 2.0.10 entrypoints on the
+# target Python: chipsec_main.py --help and chipsec_main.py -lm -nb.
+# Every entry below was proven necessary by that trace (or is an existing
+# declared-smoke capability retained from the previous allowlist).
+_colorize
+_compat_pickle
+_opcode_metadata
+argparse
+ast
+bisect
+concurrent
+configparser
+contextlib
+copy
+copyreg
+csv
+dataclasses
+datetime
+decimal
+dis
+enum
+fnmatch
+functools
+gettext
+glob
+hashlib
+heapq
+inspect
+json
+keyword
+locale
+logging
+multiprocessing
+numbers
+opcode
+operator
+pickle
+pkgutil
+platform
+plistlib
+pprint
+re
+reprlib
+runpy
+selectors
+shutil
+signal
+socket
+string
+struct
+textwrap
+token
+tokenize
+traceback
+typing
+uuid
+weakref
+xml

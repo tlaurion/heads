@@ -1,0 +1,338 @@
+# Target CPython (musl cross-build), shipped in the Heads initrd.
+#
+# This is the interpreter that runs wyng-backup (and its cryptodome /
+# python-zstd extensions).  It is built dynamically against the Heads musl
+# toolchain -- no `-static`, no static libpython -- so dlopen() keeps working
+# for lib-dynload/*.so and the interpreter links /lib/ld-musl-<arch>.so.1.
+#
+# The build interpreter required by the cross-configure is modules/cpython-host
+# (same pinned 3.13.x source, built natively in the pinned dev-env image); the
+# image's Python 3.11 cannot build a 3.13 target, so major.minor must match by
+# construction.  cpython-host is a build tool only and is never staged.
+#
+# TOOLCHAIN COUPLING: the cross compiler is built in-repo by
+# modules/musl-cross-make (pinned commit, installed to crossgcc/$(CONFIG_TARGET_ARCH));
+# the dev-env image / flake supplies only the host tools (host gcc, perl, make,
+# python3, autoconf/automake/libtool, pkg-config, ...).  A dev-image or
+# flake.lock/nixpkgs bump, or a musl-cross-make (GCC/binutils/musl) bump,
+# therefore requires re-validating the whole cross C/C++ build: rebuild cpython
+# plus its selected cross-built capability stack (cpython-host and any enabled
+# libffi/openssl/openssh/cryptodome/python-zstd dependencies), re-check the
+# CONFIG_SITE autoconf cache (config/python-cross-cache-$(MUSL_ARCH)) and patch
+# application/rebasing (source checksums do not change; patches/configure may
+# need rebasing), confirm SOURCE_DATE_EPOCH=0 still holds, and re-run the
+# pruned-Python smoke (wyng version/--help/list) because the keep-list prune is
+# a closed allowlist.
+#
+# Staging: the interpreter flattens into /bin/python via bin_modules; the
+# stdlib under /lib/python$(cpython_mm) is staged through _tools into tools.cpio.
+# /bin/python3 and /bin/python$(cpython_mm) are added as explicit symlinks (see D6
+# below); bin_modules cannot create them because it flattens by basename.
+#
+# Profiles: config/python/profiles/<name>/ contains stdlib-keep.txt,
+# dynload-keep.txt, setup.local.disabled.  Base is always included; enabled
+# modules declare additive needs via <mod>_cpython_profile(s), collected from
+# modules-y.  CPYTHON_PROFILE/CPYTHON_PROFILES_EXTRA are manual overrides.
+# Keep-lists are unioned; Setup.local disables are intersected so a feature is
+# enabled only when any selected profile requires it.
+#
+# v1 ships no bzip2: `import bz2` is guarded in the wyng patch series exactly
+# like zstd (option B), so _bz2 is built/installed only if libbz2 is present
+# and there is no libbz2 dependency here.
+CONFIG_CPYTHON ?= n
+# Base CPython is minimal (OpenWrt python3-base intent). External deps like
+# libffi/openssl/zlib are required only when a selected profile/module needs
+# them; modules own those deps via <mod>_cpython_depends.
+modules-$(CONFIG_CPYTHON) += cpython
+
+# Profile selection: base is always included; modules declare additive needs via
+# <mod>_cpython_profile(s), collected from modules-y.  CPYTHON_PROFILE/
+# CPYTHON_PROFILES_EXTRA remain for manual/debug overrides.
+CPYTHON_PROFILE ?=
+CPYTHON_PROFILES_EXTRA ?=
+cpython_module_profiles = $(foreach m,$(modules-y),$($(m)_cpython_profile) $($(m)_cpython_profiles))
+cpython_profiles_raw = base $(CPYTHON_PROFILE) $(CPYTHON_PROFILES_EXTRA) $(cpython_module_profiles)
+# Resolve/dedupe in recipe to keep make -n/-p stable; order preserved by awk.
+cpython_profiles_cmd = printf '%s\n' $(cpython_profiles_raw) | awk 'NF && !seen[$$0]++'
+cpython_profiles = $(shell $(cpython_profiles_cmd))
+cpython_profile_dirs = $(foreach p,$(cpython_profiles),$(pwd)/config/python/profiles/$(p))
+cpython_profile_stamp := $(build)/$(BOARD)/cpython-profile.stamp
+cpython_profile_out := $(dir $(cpython_profile_stamp))
+cpython_profile_stdlib := $(cpython_profile_out)cpython-stdlib-keep.txt
+cpython_profile_dynload := $(cpython_profile_out)cpython-dynload-keep.txt
+cpython_profile_setup := $(cpython_profile_out)cpython-Setup.local
+
+cpython_version := 3.13.18
+cpython_mm := $(word 1,$(subst ., ,$(cpython_version))).$(word 2,$(subst ., ,$(cpython_version)))
+cpython_dir := Python-$(cpython_version)
+cpython_tar := Python-$(cpython_version).tar.xz
+cpython_url := https://www.python.org/ftp/python/$(cpython_version)/$(cpython_tar)
+cpython_hash := abb0102e6d4ae027509bcb82327d9dd85515b44a3ba8ad538cfc5e9847029f68
+cpython_source_date_epoch := 0
+
+# Same-source host interpreter used as --with-build-python (modules/cpython-host).
+cpython_host_python = $(build)/$(cpython-host_dir)/python
+
+# CONFIG_SITE supplies the per-arch autoconf cache (config/python-cross-cache-<MUSL_ARCH>)
+# so the cross configure does not attempt to run target test programs.
+# --build is pinned for reproducibility; --host=$(target) matches modules/bash.
+# --without-static-libpython: no libpython3.13.a is produced/installed.
+# --disable-ipv6 / --without-readline / --without-doc-strings trim the image;
+# --without-ensurepip / --disable-test-modules keep build-time payload small.
+# --disable-idle3/pydoc/tk/lib2to3/pyc-build drop dev-only bits (install size).
+# OPT="-Os" overrides CPython configure's own default (-O3 / -O2 for debug):
+# -Os is the tree norm and the size goal here (the interpreter ships in the
+# Heads initrd and is run, not benchmarked).
+# CFLAGS/LDFLAGS enable section GC: -ffunction-sections/-fdata-sections put
+# each function/global in its own section and --gc-sections drops unreferenced
+# ones at link time.  CFLAGS must repeat -Os (it does not inherit OPT) so the
+# section flags compose with the same optimization level.
+#
+# CPython 3.13 dropped many --without-* configure flags; unused stdlib
+# extensions are disabled via merged profile Setup.local fragments copied into
+# Modules/ before configure.  Base disables optional modules; module profiles
+# may re-enable by omitting a disable in their fragment (intersection keeps a
+# disable only when every selected profile disables it).
+#
+# Setup.local is a disable list (makesetup "first rule wins"): names present
+# are disabled; absent names follow CPython default detection. Base profile
+# keeps a minimal OpenWrt-python3-base-like footprint; module profiles re-enable
+# capabilities by omitting disables in their own setup.local.disabled.
+cpython_configure = \
+	cp "$(cpython_profile_setup)" "$(build)/$(cpython_dir)/Modules/Setup.local" && \
+	CONFIG_SITE="$(pwd)/config/python-cross-cache-$(MUSL_ARCH)" \
+	$(CROSS_TOOLS) \
+	OPT="-Os" \
+	CFLAGS="-Os -ffunction-sections -fdata-sections" \
+	LDFLAGS="-Wl,--gc-sections" \
+	SOURCE_DATE_EPOCH=$(cpython_source_date_epoch) \
+	CPATH= C_INCLUDE_PATH= CPLUS_INCLUDE_PATH= LIBRARY_PATH= \
+	PKG_CONFIG_LIBDIR="$(INSTALL)/lib/pkgconfig:$(INSTALL)/share/pkgconfig" \
+	PKG_CONFIG_SYSROOT_DIR="$(INSTALL)" \
+	PKG_CONFIG_PATH="" PKG_CONFIG_PATH_FOR_TARGET="" \
+	PKG_CONFIG_PATH_x86_64_unknown_linux_gnu="" \
+	./configure \
+		--build=x86_64-pc-linux-gnu \
+		--host=$(target) \
+		--with-build-python="$(cpython_host_python)" \
+		--prefix=/ \
+		--without-ensurepip \
+		--disable-test-modules \
+		--disable-idle3 \
+		--disable-pydoc \
+		--disable-tk \
+		--disable-lib2to3 \
+		--disable-pyc-build \
+		--without-doc-strings \
+		--without-readline \
+		--disable-ipv6 \
+		--without-static-libpython
+
+# The post-install work (strip the dynload .so files, then prune everything not
+# on the trace-derived allowlists) lives in bin/cpython-prune.sh.  It must
+# not be inlined here: the harness runs the _target through
+# `$(MAKE) -C <dir> $(_target)`, so after this variable's `$$name` is expanded
+# to `$name` once, make re-scans the recipe and eats `$name` as the undefined
+# make variable `$n` followed by `ame`.  Every loop variable was thus mangled to
+# empty and the allowlist loops silently no-opped (the payload shipped the full
+# stdlib).  A script keeps the shell expansions intact.
+#
+# wyng runs on this target interpreter, so the wyng profile keep lists come
+# from the real `wyng version`/`--help`/`list` import trace.  Other profiles
+# are additive: selected profiles are merged into board-local effective files.
+#   config/python/profiles/<p>/stdlib-keep.txt  -- top-level stdlib entries to keep
+#                                                  under lib/python$(cpython_mm).
+#   config/python/profiles/<p>/dynload-keep.txt -- lib-dynload basenames to keep.
+# lib-dynload and site-packages are excluded from the top-level sweep: the
+# dynload list governs the former, and site-packages holds staged extensions.
+#
+# RISK: this is a closed allowlist -- anything not listed is deleted, so a new
+# consumer import path needs a matching line in its profile or it fails at
+# runtime (a smoke test after any change is required). Keep-list files must
+# exist; an empty dynload allowlist is valid and prunes every optional `.so`.
+#
+# The allowlist comes from an import trace, which only exercises the paths a
+# trace can reach.  It cannot see a capability imported lazily, nor one that is
+# already missing for an unrelated reason and therefore raises before the trace
+# ever asks for it.  _hashlib is the worked example: the trace never reached
+# hashlib.scrypt because wyng aborts on the missing attribute first, so no line
+# was ever added and the prune went on deleting the .so that would have
+# supplied it.  When a runtime-only failure names a module or capability, check
+# the owning profile's Setup.local/dynload declarations before regenerating a
+# trace; do not assume a global base dependency.
+cpython_runtime_root := $(build)/$(BOARD)/python-runtime
+cpython_runtime_lib := $(cpython_runtime_root)/lib/python$(cpython_mm)
+cpython_runtime_lib_dep := $(cpython_runtime_root)/.pruned
+
+# Consumers of the marker need it ordered after the install+prune (.build) step
+# that produces it.  `.build` already prerequires the content-checked board
+# identity, so profile changes force a re-prune before this marker can satisfy
+# a consumer.  Keep the marker's producer in cpython_target; this rule only
+# makes the dependency explicit so make cannot consider a stale marker current.
+$(cpython_runtime_lib_dep): $(build)/$(cpython_dir)/.build
+	@mkdir -p "$(dir $@)"
+	@touch "$@"
+
+# The source build and INSTALL tree are shared across boards, but their pruned
+# payload is board-specific. This content-checked identity sentinel changes only
+# when the effective board/profile requirements change, forcing re-prune when
+# make switches boards even if the new board's stamps are older.
+cpython_board_identity := $(build)/$(cpython_dir)/.board-profile
+$(cpython_board_identity): FORCE
+	@mkdir -p "$(dir $@)"
+	@printf '%s\n' '$(BOARD)' '$(cpython_profiles)' \
+		'$(cpython_build_required_stdlib)' '$(cpython_build_required_dynload)' \
+		'$(cpython_runtime_required_encodings)' > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+# Build-time CPython requirements owned by dependent modules.
+cpython_build_required_stdlib = $(strip \
+	$(foreach m,$(modules-y),$($(m)_cpython_build_required_stdlib)) \
+	$(CPYTHON_BUILD_REQUIRED_STDLIB_EXTRA))
+cpython_build_required_dynload = $(strip \
+	$(foreach m,$(modules-y),$($(m)_cpython_build_required_dynload)) \
+	$(CPYTHON_BUILD_REQUIRED_DYNLOAD_EXTRA))
+cpython_build_required_stdlib_file := $(build)/$(BOARD)/cpython-build-required-stdlib.txt
+cpython_build_required_dynload_file := $(build)/$(BOARD)/cpython-build-required-dynload.txt
+
+# Runtime encodings are explicit, module-owned requirements. Base keeps a tiny
+# failsafe for interpreter/text startup; modules add codecs they trace/need.
+cpython_runtime_required_encodings_base := __init__.py aliases.py ascii.py cp437.py latin_1.py utf_8.py
+cpython_runtime_required_encodings = $(strip $(cpython_runtime_required_encodings_base) \
+	$(foreach m,$(modules-y),$($(m)_cpython_runtime_required_encodings)) \
+	$(CPYTHON_RUNTIME_REQUIRED_ENCODINGS_EXTRA))
+cpython_runtime_required_encodings_file := $(build)/$(BOARD)/cpython-runtime-required-encodings.txt
+
+$(cpython_build_required_stdlib_file): $(CONFIG) $(wildcard modules/*) $(cpython_board_identity)
+	@mkdir -p "$(dir $@)"
+	@{ for x in $(cpython_build_required_stdlib); do echo "$$x"; done; } | sort -u > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+$(cpython_build_required_dynload_file): $(CONFIG) $(wildcard modules/*) $(cpython_board_identity)
+	@mkdir -p "$(dir $@)"
+	@{ for x in $(cpython_build_required_dynload); do echo "$$x"; done; } | sort -u > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+$(cpython_runtime_required_encodings_file): $(CONFIG) $(wildcard modules/*) $(cpython_board_identity)
+	@mkdir -p "$(dir $@)"
+	@{ for x in $(cpython_runtime_required_encodings); do echo "$$x"; done; } | sort -u > "$@.tmp"
+	@if ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
+
+# INSTALL keeps build-required stdlib for dependent module builds.
+# RUNTIME is a separately pruned tree staged into tools.cpio.
+cpython_target := \
+	SOURCE_DATE_EPOCH=$(cpython_source_date_epoch) \
+	$(MAKE_JOBS) \
+	$(CROSS_TOOLS) \
+	DESTDIR="$(INSTALL)" \
+	install && \
+	rm -rf "$(cpython_runtime_root)/python$(cpython_mm)" && \
+	sh "$(pwd)/bin/cpython-prune.sh" \
+		"$(INSTALL)" "$(cpython_profile_out)" "$(dir $(cpython_build_required_stdlib_file))" \
+		"$(CROSS)strip" "$(cpython_mm)" "$(cpython_runtime_lib)" \
+		"$(cpython_build_required_stdlib_file)" "$(cpython_build_required_dynload_file)" \
+		"$(cpython_runtime_required_encodings_file)" "$(pwd)" && \
+	mkdir -p "$(dir $(cpython_runtime_lib_dep))" && \
+	touch "$(cpython_runtime_lib_dep)"
+
+# Merge selected profile files into board-local effective files.  This keeps the
+# wyng default identical while allowing additive module profiles (chipsec, etc).
+# The board identity is a content-checked prerequisite of every generated
+# manifest (below as well as here): profile-set changes on the SAME board (e.g.
+# CPYTHON_PROFILES_EXTRA add/remove) do not touch $(CONFIG) or modules/*, so
+# without it make would consider these files up to date and keep stale content.
+$(cpython_profile_stamp): \
+		$(cpython_board_identity) \
+		$(pwd)/bin/cpython-profile-merge.sh
+	$(call do,CPYTHON-PROFILE,$(cpython_profiles), \
+		sh "$(pwd)/bin/cpython-profile-merge.sh" \
+			"$(cpython_profile_out)" \
+			$(cpython_profile_dirs))
+	@touch "$@"
+
+# Setup.local is copied into Modules/ before configure (see cpython_configure).
+# The configure tree is shared, so both the board-local profile stamp and the
+# board identity must be newer before switching profiles can reuse it.
+$(build)/$(cpython_dir)/.configured: \
+	$(cpython_board_identity) $(cpython_profile_stamp)
+
+# Re-run install+prune whenever merged allowlists change.  The scripts are read
+# at recipe time, so a script edit must also force the module to rebuild: the
+# module file itself is already a .configured prerequisite, but depend on the
+# merge/prune helpers explicitly as well.
+$(build)/$(cpython_dir)/.build: \
+	$(cpython_board_identity) \
+	$(cpython_profile_stamp) \
+	$(cpython_build_required_stdlib_file) \
+	$(cpython_build_required_dynload_file) \
+	$(cpython_runtime_required_encodings_file) \
+	$(pwd)/bin/cpython-profile-merge.sh \
+	$(pwd)/bin/cpython-prune.sh
+
+# `python` is the in-source build artifact; bin_modules flattens it to /bin/python.
+cpython_output := python
+
+# Per-board smoke tests: explicit, module/profile-driven.
+# Modules declare required runtime imports via <module>_cpython_smoke_imports.
+# cpython aggregates enabled modules for the current board; base imports are
+# always validated.
+cpython_smoke_base_imports := sys os io encodings codecs stat posixpath genericpath site sysconfig _collections_abc abc types
+# Recursive expansion: module smoke-import vars may be defined after cpython.
+cpython_smoke_modules = $(filter-out cpython cpython-host,$(modules-y))
+cpython_smoke_imports = $(strip $(cpython_smoke_base_imports) \
+	$(foreach m,$(cpython_smoke_modules),$($(m)_cpython_smoke_imports)))
+empty :=
+space := $(empty) $(empty)
+cpython_smoke_pythonpath = $(subst $(space),:,$(strip \
+	$(foreach m,$(cpython_smoke_modules),$($(m)_cpython_smoke_pythonpath))))
+# Musl dynamic loader: resolve at recipe time (=), not parse time (:=).
+# modules/* are included before the crossgcc toolchain is built, so a
+# parse-time query can run with a missing $(CROSS)gcc and yield an empty string
+# or the bare name "libc.so".  Treat both as unresolved and fall back to the
+# deterministic sysroot libc.so -- the same path modules/musl-cross-make
+# declares.  This mirrors the deferred queries in modules/cryptodome and
+# modules/python-zstd; recipe usage of $(cpython_smoke_loader) is unchanged.
+cpython_smoke_loader_query = $(shell $(CROSS)gcc --print-file-name=libc.so 2>/dev/null)
+cpython_smoke_loader_fallback = $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+cpython_smoke_loader = $(or $(filter-out libc.so,$(cpython_smoke_loader_query)),$(cpython_smoke_loader_fallback))
+cpython_smoke_script := $(pwd)/bin/cpython-smoke.sh
+cpython_smoke: $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
+	$(call do,CPYTHON-SMOKE,$(BOARD), \
+		CPYTHON_SMOKE_IMPORTS="$(cpython_smoke_imports)" \
+		CPYTHON_SMOKE_PYTHONPATH="$(cpython_smoke_pythonpath)" \
+		CPYTHON_SMOKE_LOADER="$(cpython_smoke_loader)" \
+		CPYTHON_SMOKE_LIBPATH="$(INSTALL)/lib:$(INSTALL)/lib64" \
+		PYTHONHOME="$(cpython_runtime_root)" \
+		sh "$(cpython_smoke_script)" \
+			"$(INSTALL)/bin/python$(cpython_mm)")
+
+# Per-board CPython requirement smoke. Use as explicit board test target.
+cpython_test: cpython_smoke
+.PHONY: cpython_smoke cpython_test
+
+# Stage the pruned RUNTIME stdlib, not INSTALL.  INSTALL retains build-only
+# stdlib needed by cryptodome/python-zstd wheel builds.
+cpython_tools := $(cpython_runtime_lib)|lib/python$(cpython_mm)
+
+# D7: stage_tools_file attaches no .build prerequisite; use runtime marker.
+cpython_tools_depends := $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
+
+cpython_extra_depends = $(foreach m,$(modules-y),$($(m)_cpython_depends))
+# Recursive: modules/cpython is included before later module files, so expand
+# capability deps only when define_module consumes this after all modules load.
+cpython_depends = cpython-host $(sort $(cpython_extra_depends)) $(musl_dep)
+
+# D6: /bin/python3 and /bin/python$(cpython_mm) -> /bin/python.  The automatic
+# bin_modules staging flattens by basename and cannot create symlinks, so
+# enumerate them in initrd_bins and create them with an explicit rule,
+# modelled on modules/busybox (initrd_bins + applets/install.sh --symlinks).
+ifeq "$(CONFIG_CPYTHON)" "y"
+initrd_bins += \
+	$(initrd_bin_dir)/python3 \
+	$(initrd_bin_dir)/python$(cpython_mm)
+
+$(initrd_bin_dir)/python3 \
+$(initrd_bin_dir)/python$(cpython_mm): $(build)/$(cpython_dir)/.build
+	$(call do,INSTALL-LINK,$(notdir $@) -> /bin/python,\
+		ln -sfn /bin/python "$@")
+endif

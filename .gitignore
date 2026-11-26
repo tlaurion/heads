@@ -36,3 +36,6 @@ result
 .claude/
 tmpDir/
 .code-graph/
+
+# board-local python profile merge artifacts (generated)
+/build/*/*/cpython-*

@@ -170,28 +170,31 @@ linux_target := \
 # We cross compile linux now
 linux_depends := musl-cross-make
 
+# chipsec-km is not a define_module module; attach its out-of-tree build to
+# the canonical kernel tree after linux_dir is known.
+ifeq "$(CONFIG_CHIPSEC_KM)" "y"
+$(chipsec-km_ko_src): $(build)/$(linux_dir)/.build
+endif
+
 #
 # Linux kernel module installation
 #
-# This is special cases since we have to do a special strip operation on
-# the kernel modules to make them fit into the ROM image.
+# Strip in-tree kernel modules into a fresh temp dir, then register them for
+# generic modules.cpio staging. Temp staging preserves freshness: no stale .ko
+# files can leak into modules.cpio across builds.
 #
-module_initrd_dir	:= $(shell mktemp -d)
-module_initrd_lib_dir	:= $(module_initrd_dir)/lib/modules
-FOO := $(shell mkdir -p "$(module_initrd_lib_dir)")
+linux_module_staging_dir := $(shell mktemp -d)
+FOO := $(shell mkdir -p "$(linux_module_staging_dir)/lib/modules")
 
 define linux_module =
 
 # Each module depends on building the Linux kernel
 $(build)/$(linux_dir)/$1: $(build)/$(linux_dir)/$(linux_output)
 
-# The cpio file will depend on every module
-$(build)/$(BOARD)/modules.cpio: $(module_initrd_lib_dir)/$(notdir $1)
-
-# Strip the modules when we install them.
-# --strip-unneeded keeps the symbols the loader needs for relocation and drops
-# the rest, so only the symbol-table mass is removed.
-$(module_initrd_lib_dir)/$(notdir $1): $(build)/$(linux_dir)/$1
+# Strip the module into temp staging; stage_module_file copies it into
+# initrd_modules_dir for modules.cpio packing.
+$(linux_module_staging_dir)/lib/modules/$(notdir $1): $(build)/$(linux_dir)/$1
+	@mkdir -p "$(dir $$@)"
 	$(call do,INSTALL-MODULE,$1, \
 		$(CROSS)strip \
 			--preserve-dates \
@@ -199,14 +202,14 @@ $(module_initrd_lib_dir)/$(notdir $1): $(build)/$(linux_dir)/$1
 			-o "$$@" \
 			"$$<" \
 	)
+
+linux_modules += $(linux_module_staging_dir)/lib/modules/$(notdir $1)|lib/modules/$(notdir $1)
 endef
 
 $(call map,linux_module,$(linux_modules-y))
 
-# We can't rebuild the module initrd until the kernel has been rebuilt
-$(build)/$(BOARD)/modules.cpio: $(build)/$(linux_dir)/.build FORCE
-	$(call do-cpio,$@,$(module_initrd_dir))
-	@$(RM) -rf "$(module_initrd_dir)"
+# Rebuild modules.cpio when the kernel build changes.
+linux_modules_depends += $(build)/$(linux_dir)/.build
 
 
 # The output of the linux.intermediate is usually the bzImage in the

@@ -56,6 +56,23 @@ or `hardcode_into_libs` in generated configure scripts.  `modules/cairo`
 rewrites the same variables in the generated `libtool` file post-configure.
 `modules/util-linux` removes `.la` libtool files post-install.
 
+## CPython
+
+`modules/cpython` pins the source tarball and sets `SOURCE_DATE_EPOCH=0` for
+target and host builds. It clears `CPATH`, `C_INCLUDE_PATH`,
+`CPLUS_INCLUDE_PATH`, and `LIBRARY_PATH`, and restricts pkg-config to
+`$(INSTALL)/lib/pkgconfig:$(INSTALL)/share/pkgconfig` under
+`PKG_CONFIG_SYSROOT_DIR=$(INSTALL)`. It also clears the pinned dev-image's
+Nix pkg-config wrapper role path. This prevents host/nix include and library
+paths from leaking into generated extension flags (notably `binascii`/zlib)
+and keeps the cross-build reproducible. The build/runtime
+stdlib split is pruned by `bin/cpython-prune.sh`; dynload objects are stripped
+with `--strip-unneeded`. The shipped runtime copy of `_sysconfigdata` has the
+checkout prefix normalized to `/heads` so compiler/build paths cannot change
+archive hashes; the INSTALL copy keeps the real paths for extension builds. CPython
+version/profile changes require a clean rebuild and `cpython_test` before
+same-commit hash comparison.
+
 ## gpg2
 
 `--disable-tpm2d` in `gpg2_configure` eliminates the entire TPM probe chain,

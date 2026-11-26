@@ -1,0 +1,55 @@
+# OpenSSH client (ssh), required by wyng-backup.
+#
+# Dropbear was disqualified (stale, unbuildable, no modern key/handshake
+# support). Only the client is built and staged; wyng invokes /bin/ssh.
+#
+# Pinned to 10.5p1 (Void Linux musl-tested portable release). musl notes:
+# pass LD=$CC (here LD="$(heads_cc)") because the stock configure probe fails
+# on musl, and force ac_cv_header_sys_cdefs_h=false.
+#
+# Config requirements are declared in modules/openssh-client.requires. The
+# global Makefile enables OpenSSL/zlib before this module is loaded; `_depends`
+# owns build ordering.
+CONFIG_OPENSSH_CLIENT ?= n
+modules-$(CONFIG_OPENSSH_CLIENT) += openssh
+
+openssh_version := 10.5p1
+openssh_dir := openssh-$(openssh_version)
+openssh_tar := $(openssh_dir).tar.gz
+openssh_url := https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/$(openssh_tar)
+openssh_hash := d44d28a839ea9daf969cc69150fde59910b2b39361dad81a3bd6cbd19218db11
+
+openssh_depends := openssl zlib $(musl_dep)
+
+# See doc/modules.md "Shared module build flags" for section-GC/unwind.
+openssh_configure := \
+	$(CROSS_TOOLS) \
+	CFLAGS="-Os -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables" \
+	LDFLAGS="-Wl,--gc-sections -Wl,--no-eh-frame-hdr" \
+	LD="$(heads_cc)" \
+	./configure \
+	--host $(MUSL_ARCH)-linux-musl \
+	--prefix "/" \
+	--sysconfdir "/etc/ssh" \
+	--with-ssl-dir="$(INSTALL)" \
+	--with-zlib="$(INSTALL)" \
+	--without-pam \
+	--without-kerberos5 \
+	--without-selinux \
+	--without-audit \
+	--without-rpath \
+	--disable-strip \
+	--disable-utmp \
+	--disable-wtmp \
+	--disable-ssh1 \
+	--disable-libedit \
+	--disable-pkcs11 \
+	--disable-security-key \
+	--disable-manpages \
+	ac_cv_header_sys_cdefs_h=false
+
+openssh_target := $(MAKE_JOBS) ssh
+openssh_output := ssh
+
+# No _libraries: OpenSSH ships none. It links libcrypto and libz, staged by
+# _depends.

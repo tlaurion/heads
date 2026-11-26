@@ -1,0 +1,3 @@
+# Base CPython profile: interpreter must report the pinned 3.13.18 runtime.
+# Format: <command><TAB><Python regex expected in that command's output>.
+/bin/python3 -c 'import sys; print(sys.version.split()[0])'	3\.13\.18

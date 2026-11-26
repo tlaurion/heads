@@ -1,0 +1,39 @@
+# Needed: busybox applet.
+# busybox sort rejects --batch-size/--files0-from, breaking merge_manifests;
+# feed the NUL-separated manifest list through `xargs -0 cat` instead.
+# --batch-size was a memory-tuning knob only, so the output is unchanged.
+diff --git a/src/wyng09a b/src/wyng09a
+index 6c58050..1649fa1 100755
+--- a/src/wyng09a
++++ b/src/wyng09a
+@@ -5048,7 +5048,11 @@ def _merge_manifests(vol, msessions=[], vsize=None, addcol=False, rdiff=[], outf
+     else:
+         cdir  = vol.path     ; slsort  = slist[0]
+ 
+-    cmds = [[CP.sort, "-umsd", "-k2,2", "--batch-size=16", "--files0-from="+slsort]]
++    # busybox sort lacks the GNU long options --batch-size/--files0-from.
++    # Feed the NUL-separated filename list through xargs -0 instead; the
++    # former was a memory-tuning knob only and does not affect the result.
++    cmds = [[CP.xargs, "-0", "cat"],
++            [CP.sort, "-umsd", "-k2,2"]]
+ 
+     if rdiff and (rdsize := vol.sessions[rdiff[-1]].volsize) > 0:
+         # merge a different set of manifests, use their address column to filter the main merge:
+@@ -5062,7 +5066,7 @@ def _merge_manifests(vol, msessions=[], vsize=None, addcol=False, rdiff=[], outf
+         # session vol size shrank, so filter result by requested vsize
+         cmds.append([CP.awk, r'$2<="'+vol.last_chunk_addr(vsize)[1]+'"'])
+ 
+-    do_exec(cmds, out=outfile.file, cwd=cdir)    ; outfile.close()
++    do_exec(cmds, out=outfile.file, cwd=cdir, infile=slsort)    ; outfile.close()
+ 
+     if not debug:
+         for f in slist:  os.remove(f)
+@@ -5122,7 +5126,7 @@ def _merge_sessions(vol, sources, target, clear_sources=False):
+             print("###", file=lstf)
+ 
+         # Unique-merge filenames: one for rename, one for new full manifest.
+-        do_exec([[CP.sort, "-umsd", "-k2,2", "--batch-size=16"] + manifests],
++        do_exec([[CP.sort, "-umsd", "-k2,2"] + manifests],
+                 out="manifest.one", cwd=m_tmp)
+         do_exec([[CP.sort, "-umsd", "-k2,2", "manifest.one",
+                 pjoin(vol.path, merge_target, "manifest")]],

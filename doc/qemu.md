@@ -111,6 +111,40 @@ the current worktree.  The default is a QCOW2 image named `root.qcow2`:
   run
 ```
 
+## CPython/chipsec QA test shell
+
+These branch-specific QA boards boot the real Heads init and then enter a
+minimal serial shell instead of the GUI:
+
+- `qemu-coreboot-fbwhiptail-tpm2-cpython`
+- `qemu-coreboot-fbwhiptail-tpm2-cpython-chipsec`
+- `qemu-coreboot-fbwhiptail-tpm2-cpython-wyng-chipsec`
+- `qemu-coreboot-fbwhiptail-tpm2-wyng`
+
+They set `CONFIG_BOOTSCRIPT=/bin/test-shell.sh` and disable the authenticated
+recovery shell on `ttyS0`; the test shell redirects its I/O directly to serial,
+leaving it available to automation. The
+script prints `HEADS_TEST_SHELL_READY` and starts Bash with the
+`heads-test> ` prompt. Production boards are unchanged; use the regular
+`qemu-coreboot-fbwhiptail-tpm2` board for normal GUI testing.
+
+Run a QA board with the existing Docker/QEMU target:
+
+```sh
+HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython run
+```
+
+`make BOARD=<qa-board> qemu_smoke` runs `bin/qemu-smoke.py`, a stdlib-only
+serial harness. It waits for `HEADS_TEST_SHELL_READY`, executes the board's
+TAB-separated command/regex plan under `config/qemu/`, captures a normalized
+transcript in `build/<arch>/<board>/qemu-smoke.log`, and finishes with
+`/bin/busybox reboot -f`. QEMU uses TCG, so the gate also runs in CircleCI.
+The CHIPSEC plans execute only `/bin/chipsec --help` and `/bin/chipsec -lm -nb`;
+they do not load drivers or access hardware.
+
+This shell is a QA affordance only; it bypasses the GUI and authenticated
+recovery flow and must not be selected by production board configs.
+
 ## Saving Disk Images from Build-Dir Wipes
 
 **The current worktree is bind-mounted at the same path inside the container**

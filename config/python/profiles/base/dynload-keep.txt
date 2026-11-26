@@ -1,0 +1,2 @@
+# Minimal base dynload keep-list.
+# No optional extension modules by default; module profiles add them.

@@ -115,15 +115,32 @@ Three files interact to determine what goes into `tools.cpio` (the initrd):
 |------|------|------|
 | `boards/<board>/<board>.config` | `CONFIG_FOO=y` | Board-specific Make variable (e.g. `CONFIG_GPG2=y` enables GPG) |
 | `modules/<name>` | `CONFIG_FOO ?= y` | Module default — only sets the variable if the board config did not |
-| `Makefile` | `include modules/*` | Loads all module files into the Make namespace |
+| `Makefile` | load `modules/*.requires`, then `modules/*` | Enables module-owned config requirements before loading implementations |
 | `Makefile` | `bin_modules-$(CONFIG_FOO) += foo` | Conditionally builds and adds the module to `tools.cpio` |
+
+Module authors must choose the right INSTALL macro (INSTALL-BIN / INSTALL-LIB / INSTALL-DATA — see `build-freshness.md`) for each payload; the rule is by file class, not by which cpio the file lands in.
+
+Modules declare config-gate requirements in `modules/<feature>.requires`:
+
+```make
+<feature>_requires_config := CONFIG_FEATURE
+<feature>_requires_deps   := CONFIG_DEP1 CONFIG_DEP2
+```
+
+The global Makefile loads these sidecars before `modules/*`, resolves the
+transitive `CONFIG_*` closure, and enables required gates. Board configs select
+features only; they do not repeat dependency lists. Build ordering remains
+explicit in `<mod>_depends`, which the module harness turns into `.build`
+prerequisites. A sidecar may describe a feature gate that shares an
+implementation module with another feature.
 
 **The inclusion decision tree for any board:**
 
 1. `include $(CONFIG)` loads the board config — any `CONFIG_FOO=y`
    (no `export` needed) becomes a Make variable.
-2. `include modules/*` loads every module file.  Each module
-   can set a default with `?=` which only applies if the board config didn't already
+2. The Makefile loads `modules/*.requires`, enables their transitive
+   `CONFIG_*` closure, then loads every module implementation. Each module can
+   set a default with `?=` which only applies if the board config did not already
    set the variable.
 3. `bin_modules-$(CONFIG_FOO) += foo` conditionally adds the
    module to `tools.cpio` — when `CONFIG_FOO` is `y`, the module is built and included;
@@ -209,6 +226,10 @@ Full ROM build (all modules + initrd + ROM assembly):
 nix develop --command make BOARD=$BOARD
 ```
 
+The CPython/chipsec/wyng QA boards also provide `qemu_smoke`, which boots the
+built ROM under TCG and runs the board's serial command plan. Run it through
+`./docker_repro.sh`; see [qemu.md](qemu.md#cpythonchipsec-qa-test-shell).
+
 ### Maintenance targets
 
 | Target | What it does |
@@ -232,7 +253,8 @@ The build is stamp-driven.  A tarball source recipe extracts the archive,
 applies patches, and then creates `.canary`.  A git source recipe attempts to
 reset or initialize the pinned source before writing or updating `.canary`; when
 `.patched` is absent, its patch branch processes zero or more configured patches
-and then creates `.patched`, including the no-patch case.  `.configured`
+and then creates `.patched`, including the no-patch case. A pin/reset removes
+`.patched` so the replacement checkout is patched before configure. `.configured`
 depends on `.canary`, and `.build` depends on `.configured` and dependency-module
 `.build` stamps.  Plain `make` does not
 infer arbitrary source-file or `CFLAGS` changes.  The `.clean` targets remove

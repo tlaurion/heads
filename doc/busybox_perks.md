@@ -12,13 +12,13 @@ UROOT configuration can set `CONFIG_BUSYBOX=n`, `CONFIG_ZSTD=n`,
 ## BusyBox applets when `CONFIG_BUSYBOX=y` (from `busybox --list`)
 
 ```
-[, [[, arch, arp, ascii, ash, awk, base32, basename, blkid, blockdev,
+[, [[, arch, arp, ascii, ash, awk, base32, basename, blkdiscard, blkid, blockdev,
 bunzip2, bzcat, bzip2, cat, chattr, chmod, chroot, clear, cmp, cp,
 cpio, crc32, cttyhack, cut, date, dc, dd, devmem, df, diff, dirname,
 dmesg, du, echo, env, expr, factor, fallocate, false, fdisk, find,
 fold, fsck, fsfreeze, getopt, grep, groups, gunzip, gzip, hd, head,
 hexdump, hexedit, hostid, hwclock, i2cdetect, i2cdump, i2cget, i2cset,
-id, ifconfig, insmod, install, ip, kill, killall, killall5, less, link,
+id, ifconfig, insmod, install, ionice, ip, kill, killall, killall5, less, link,
 ln, loadkmap, losetup, ls, lsattr, lsmod, lsof, lsscsi, lsusb, lzcat,
 lzma, md5sum, mkdir, mkdosfs, mkfifo, mkfs.vfat, mknod, mktemp,
 modinfo, more, mount, mv, nc, nl, nproc, nslookup, ntpd, partprobe,
@@ -42,6 +42,19 @@ enabled, its builtins take precedence in the initrd.
 ### awk
 BusyBox awk supports `-F SEP` (field separator) and `-v VAR=VAL`.
 Sufficient for all Heads usage: `awk '{print $2}' /proc/mounts`, `index()`.
+GNU awk escapes such as `\s` and `\S` are non-POSIX; portable scripts should use
+`[[:space:]]` and `[^[:space:]]`. `CONFIG_FEATURE_AWK_GNU_EXTENSIONS=y` is
+enabled (BusyBox awk understands `\s` natively), but callers should not rely on
+that extension.
+
+### blkdiscard
+BusyBox `blkdiscard [-o OFS] [-l LEN] [-s] DEVICE` discards sectors on a block
+device: `-o OFS` (byte offset, default 0), `-l LEN` (bytes to discard, default
+rest-of-device), `-s` (secure discard via `BLKSECDISCARD`). **Quirk:** BusyBox
+issues a single `BLKDISCARD` ioctl for the whole
+`[offset, length]` range and has no fallback loop to chunk oversized ranges (GNU
+`blkdiscard` splits large ranges and falls back to writing zeros on devices that
+do not support discard).
 
 ### blkid
 BusyBox `blkid` emits `TYPE="..."` only when `CONFIG_FEATURE_BLKID_TYPE=y`
@@ -57,6 +70,13 @@ detection.  `initrd/bin/mount-usb.sh` does not use blkid TYPE: it probes
 whole USB disks with an actual read-only `mount` via
 `first_mountable_usb_disk()`.
 
+### cp
+BusyBox `cp` supports `-a`, `-T`, and `--reflink[=always]` in this build
+(`CONFIG_FEATURE_CP_REFLINK=y`). Reflink cloning still requires filesystem
+support: tmpfs/initramfs returns `Not supported` even though the flag exists.
+Callers must handle clone failure rather than assuming the flag guarantees a
+reflink-capable filesystem.
+
 ### cpio
 **BusyBox quirk**: Stops at first TRAILER. GNU reads past it and exits 2.
 Heads pattern: `cpio -i -d "${CPIO_ARGS[@]}" 2>/dev/null || true`.
@@ -70,8 +90,20 @@ Heads usage: `dd bs=1 skip=497 count=1 status=none` (read single byte),
 `dd if="$file" bs=6 count=1 status=none` (read magic bytes).
 `bs=1` reads one byte per syscall  --  avoid on large ranges (use `tail -c+N` or larger `bs`).
 
+### df
+BusyBox `df -PT PATH` accepts the GNU-style flags, but on the Heads initramfs it
+cannot resolve `/` or subdirectories: `rootfs` is skipped and no matching mount
+entry exists, so it reports `can't find mount point`. Do not use `df` to measure
+free space on initramfs-backed paths. Use Python's `shutil.disk_usage(".").free`
+(or another `statvfs`-based API), which returns bytes directly.
+
 ### echo
 BusyBox `echo` has no `--help` flag. Prints arguments as-is. Supports `-n` (no newline).
+
+### env / shebangs
+`/usr/bin/env` is **not** shipped; `/bin/sh` is present. Use `#!/bin/sh` for
+initrd scripts and invoke them through `/bin/sh` (or a remote shell), not direct
+execution of an `/usr/bin/env` shebang.
 
 ### find
 Supports `-name PATTERN`, `-path PATTERN`, `-type f/d`, `-exec ... {} +`.
@@ -122,9 +154,21 @@ output to `od -A d -v -t x1` (7-digit zero-padded decimal offset + 16 hex bytes 
 ### head
 Supports `-n N` (first N lines), `-c N` (first N bytes), `-q` (no headers), `-v` (always headers).
 
+### ionice
+BusyBox `ionice` supports `-c N` (I/O class: 1 realtime, 2 best-effort, 3 idle),
+`-n N` (priority 0–7), and `-t` (ignore errors); it either sets an existing
+process (`-p PID`) or runs `PROG ARGS` under the new class. To run a command at
+idle priority, use `ionice -c3 PROG ARGS`.
+
 ### mktemp
 Supports `-d` (directory), `-t` (tmp dir prefix), `-p DIR` (base directory).
 Heads usage: `mktemp -p /tmp -t prefix.XXXXXX`.
+
+### ps
+BusyBox `ps` in this build supports only `w`, `l`, and `T`; GNU forms such as
+`ps -uUSER -o pid,command` and `ps -pPID` are rejected. Read `/proc/<pid>/status`
+for process metadata and `/proc/self/status` for current-process memory fields
+instead of relying on those options.
 
 ### sed
 
@@ -143,8 +187,13 @@ Supports `-i[SFX]` (in-place), `-n` (quiet), and `-r`/`-E` (extended regex).
 Heads usage: `sed 's|^/dev/||'`, `sed 's/^append //'`, `sed -i 's/a/b/g' file`.
 
 ### sort
-**BusyBox quirk:** `sort -k` keyed sort with `-u` deduplicates based on the
-**entire line**, not the sort key. GNU sort deduplicates by key alone.
+**BusyBox quirk (corrected):** both busybox sort and GNU sort deduplicate by
+the **sort key**, not the full line.  The apparent difference was standard `-k1`
+semantics: with no trailing comma, `-k1` means "field 1 through end of line", so
+`sort -k1 -u` behaves like a whole-line dedup; use `-k1,1` to limit the key to
+field 1.  BusyBox sort also **ignores `-m`** (always does a full in-memory sort),
+so GNU's external-merge disk-spill behavior is unavailable. Large merges such as
+`xargs -0 cat | sort -umsd -k2,2` keep all input in memory.
 Heads pattern: use `awk -F'|' '!seen[$1]++'` instead of `sort -t\| -k1 -u`.
 Supports `-n` (numeric), `-r` (reverse), `-t CHAR` (field separator), `-z` (NUL).
 
@@ -243,6 +292,15 @@ Built from kbd 2.6.1.  `CONFIG_KBD ?= y` in the Makefile makes it
 default-enabled, but board/UROOT configuration can set `CONFIG_KBD=n`.  When
 enabled, it provides keymap loading.
 
+### filefrag (e2fsprogs)
+Built from e2fsprogs 1.47.0. This is a standalone binary, not a BusyBox applet;
+availability is controlled by module staging. `filefrag -v` and `filefrag -s`
+report FIEMAP extent metadata.
+
+`findmnt` is **not** shipped. Resolve mountpoints and filesystem types from
+`/proc/self/mountinfo`; filesystem UUIDs can be matched through
+`/dev/disk/by-uuid` symlinks.
+
 ## Summary of required BusyBox workarounds
 
 | GNU feature | BusyBox limitation | Workaround |
@@ -250,7 +308,11 @@ enabled, it provides keymap loading.
 | `od -A d -v -t x1` | Not compiled in | `hexdump -v -e '"%07.7_ad " 16/1 "%02x " "\n"'` |
 | `grep -b` (byte offset) | Not available | `dd bs=1 skip=N count=M` |
 | `grep -E "a\|b"` | `\|` is literal in ERE | `grep -E "a|b"` |
-| `sort -k N -u` | Dedups by full line | `awk -F'|' '!seen[$1]++'` |
+| `df -PT .` on initramfs | rootfs skipped; subdirectory has no mount entry | Python `shutil.disk_usage(".").free` |
+| `ps -uUSER -o ...` / `ps -pPID` | only `w/l/T` supported | read `/proc/<pid>/status` or `/proc/self/status` |
+| `#!/usr/bin/env sh` | `/usr/bin/env` absent | `#!/bin/sh` and invoke through `/bin/sh` |
+| `cp --reflink=always` | flag exists; filesystem may not support clones | probe/handle clone failure explicitly |
+| `sort -k N -u` | `-k1` key = field-to-EOL | `sort -k1,1 -u` (or `awk -F'|' '!seen[$1]++'`) |
 | `xxd -p` (plain hex) | Pads to 60 columns | `xxd -p | tr -d '\n '` |
 | `xxd -p -r` (reverse) | Input must be 60-column | `fold -w 60 | xxd -p -r` |
 | `cpio` trailing data | GNU exits 2 | `cpio ... 2>/dev/null || true` |

@@ -1,0 +1,14 @@
+# Wyng CPython profile: base disables, but enable capabilities wyng/crypto need.
+*disabled*
+_decimal
+_gdbm
+_sqlite3
+_ssl
+_tkinter
+_uuid
+bz2
+curses
+dbm
+lzma
+nis
+readline
