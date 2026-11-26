@@ -1,0 +1,8 @@
+# CHIPSEC userspace profile: the /bin/chipsec wrapper must reach the staged
+# chipsec_main.py, report the pinned 2.0.10 runtime, and enumerate the PR2945
+# test module (no driver/hardware commands).
+# Format: <command><TAB><Python regex expected in that command's output>.
+# NOTE: the upstream banner prints "Version  :" (two spaces); \s+ matches both
+# that and the single-space spelling in the lane brief.
+/bin/chipsec --help	\[CHIPSEC\] Version\s+: 2\.0\.10
+/bin/chipsec -lm -nb	common\.pltrst_gpio_lock

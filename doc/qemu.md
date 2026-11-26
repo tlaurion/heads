@@ -134,12 +134,16 @@ Run a QA board with the existing Docker/QEMU target:
 HEADS_DISABLE_USB=1 ./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm2-cpython run
 ```
 
-A serial automation harness can wait for `HEADS_TEST_SHELL_READY`, send
-commands such as `/bin/python3 -c 'import sys; print(sys.version)'`, capture
-their output, and finish with `/bin/busybox reboot -f`. This shell is a QA
-affordance only;
-it bypasses the GUI and authenticated recovery flow and must not be selected
-by production board configs.
+`make BOARD=<qa-board> qemu_smoke` runs `bin/qemu-smoke.py`, a stdlib-only
+serial harness. It waits for `HEADS_TEST_SHELL_READY`, executes the board's
+TAB-separated command/regex plan under `config/qemu/`, captures a normalized
+transcript in `build/<arch>/<board>/qemu-smoke.log`, and finishes with
+`/bin/busybox reboot -f`. QEMU uses TCG, so the gate also runs in CircleCI.
+The CHIPSEC plans execute only `/bin/chipsec --help` and `/bin/chipsec -lm -nb`;
+they do not load drivers or access hardware.
+
+This shell is a QA affordance only; it bypasses the GUI and authenticated
+recovery flow and must not be selected by production board configs.
 
 ## Saving Disk Images from Build-Dir Wipes
 

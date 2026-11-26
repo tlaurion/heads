@@ -341,6 +341,18 @@ all payload:
 	@sha256sum $(<:$(pwd)/%=%) | tee -a "$(HASHES)"
 	@stat -c "%8s:%n" $(<:$(pwd)/%=%) | tee -a "$(SIZES)"
 
+# Generic QEMU serial smoke gate. Each profile owns its plan file; the harness
+# boots the board ROM, runs the plan's commands in the QA test shell and checks
+# the expected output. Only QA boards (CONFIG_BOOTSCRIPT=/bin/test-shell.sh)
+# can satisfy the ready marker/prompt.
+QEMU_SMOKE_PLAN	:= config/qemu/$(BOARD).smoke
+QEMU_SMOKE_LOG	:= $(board_build:$(pwd)/%=%)/qemu-smoke.log
+
+.PHONY: qemu_smoke
+qemu_smoke: $(board_build)/$(CB_OUTPUT_FILE)
+	@test -r "$(QEMU_SMOKE_PLAN)" || { echo "qemu_smoke: missing plan $(QEMU_SMOKE_PLAN)" >&2; exit 1; }
+	python3 bin/qemu-smoke.py --rom "$<" --plan "$(QEMU_SMOKE_PLAN)" --log "$(QEMU_SMOKE_LOG)"
+
 # Validate coreboot CBFS size against IFD BIOS region
 validate_cbfs_ifd:
 ifneq ($(CONFIG_COREBOOT),)
@@ -876,6 +888,7 @@ bin_modules-$(CONFIG_E2FSPROGS) += e2fsprogs
 bin_modules-$(CONFIG_EXFATPROGS) += exfatprogs
 bin_modules-$(CONFIG_NVMUTIL) += nvmutil
 bin_modules-$(CONFIG_CPYTHON) += cpython
+bin_modules-$(CONFIG_CHIPSEC) += chipsec
 bin_modules-$(CONFIG_WYNG_BACKUP) += wyng-backup
 
 $(foreach m, $(bin_modules-y), \
@@ -1033,7 +1046,10 @@ $(build)/$(initrd_dir)/modules.cpio: $(module_initrd_files) $(modules_depends) F
 #   1: Source path (file or directory)
 #   2: Destination path inside initrd (relative path inside archive)
 define stage_tools_file =
-$(initrd_tools_dir)/$2: $(tools_depends)
+# A child package may create this target's parent directory first (for example
+# site-packages/chipsec under lib/python3.13), so existence alone cannot mean
+# the runtime tree was copied. FORCE keeps staging complete on every invocation.
+$(initrd_tools_dir)/$2: $(tools_depends) FORCE
 	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%) => $2,\
 		if [ -d "$1" ]; then \
 			mkdir -p "$(initrd_tools_dir)/$2"; \

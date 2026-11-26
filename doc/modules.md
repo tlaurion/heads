@@ -226,6 +226,10 @@ Full ROM build (all modules + initrd + ROM assembly):
 nix develop --command make BOARD=$BOARD
 ```
 
+The CPython/chipsec/wyng QA boards also provide `qemu_smoke`, which boots the
+built ROM under TCG and runs the board's serial command plan. Run it through
+`./docker_repro.sh`; see [qemu.md](qemu.md#cpythonchipsec-qa-test-shell).
+
 ### Maintenance targets
 
 | Target | What it does |

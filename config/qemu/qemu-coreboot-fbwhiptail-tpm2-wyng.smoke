@@ -1,0 +1,4 @@
+# Wyng profile: backup tool and the CPython modules it needs must be present.
+# Format: <command><TAB><Python regex expected in that command's output>.
+/bin/wyng version	Wyng 0\.9
+/bin/python3 -c 'import zstd, Cryptodome; print(12345)'	12345
