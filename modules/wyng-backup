@@ -76,6 +76,12 @@ endif
 wyng-backup_data += \
 	$(build)/$(wyng-backup_dir)/doc/Wyng_User_Reference.txt|usr/share/doc/wyng/0.9/Wyng_User_Reference.txt
 
+# The doc is produced by the checkout, not by the no-op .build step. In a clean
+# parallel build stage_data_file's order-only prerequisite on this path has no
+# rule yet, so make would fail before the canary created the tree. Tie the path
+# to the checkout sentinel (no recipe: it appears as a side effect of .canary).
+$(build)/$(wyng-backup_dir)/doc/Wyng_User_Reference.txt: $(build)/$(wyng-backup_base_dir)/.canary
+
 # D7: stage_data_file attaches no .build prerequisite, so declare the module
 # sentinel here and let the Makefile add it to the data.cpio prerequisites
 # (collected from <modulename>_data_depends for every enabled module).

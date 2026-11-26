@@ -43,7 +43,19 @@ runtime_encodings_file=${9:-$build_cfg/runtime-required-encodings.txt}
 source_root=${10:-$(pwd)}
 
 py="$inst/lib/python$py_mm"
-[ -d "$py" ] || exit 0
+[ -d "$py" ] || {
+	echo "cpython-prune: missing CPython install tree: $py" >&2
+	exit 1
+}
+# Validate the strip tool once, up front, so a bad $(CROSS)strip cannot yield a
+# silently unstripped payload via the `|| true` on the find loops below. Resolve
+# PATH names via command -v, but test -x explicitly: dash's `command -v` accepts
+# a path that merely exists even when it is not executable.
+strip_path=$(command -v "$strip" 2>/dev/null) || strip_path=""
+if [ -z "$strip_path" ] || [ ! -x "$strip_path" ]; then
+	echo "cpython-prune: strip is not executable: $strip" >&2
+	exit 1
+fi
 
 normalize_keep() {
 	# Emit normalized keep entries: strip CR, comments, blank lines.

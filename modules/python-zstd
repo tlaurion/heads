@@ -76,12 +76,21 @@ python-zstd_so := src/$(python-zstd_so_name)
 # Musl dynamic loader.  `--print-file-name=ld-musl-$(MUSL_ARCH).so.1` cannot be
 # used: gcc reports the bare name (not on its search path) and the sysroot's
 # ld-musl-*.so.1 is a dangling symlink to /lib/libc.so.  musl's libc.so is the
-# real loader binary, so resolve that; fall back to the sysroot lib dir if gcc
-# still reports a bare name.
-python-zstd_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
-ifeq "$(python-zstd_loader)" "libc.so"
-python-zstd_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
-endif
+# real loader binary, so resolve that.
+#
+# Deferred (=), not parse-time (:=) + ifeq: modules/* are included before the
+# crossgcc toolchain is built, so a parse-time query can run with a missing
+# $(CROSS)gcc and yield an empty string, or the bare name "libc.so".  Both the
+# query and the resolution below are recursive so they are evaluated at
+# recipe/configure time, after the toolchain exists.  An empty result or the
+# bare name "libc.so" means gcc could not locate the loader, so fall back to
+# the deterministic sysroot libc.so -- the same path modules/musl-cross-make
+# declares for libc.so.  (Keep this in make's filter/if functions: a $(shell)
+# body with shell '$' substitutions is expanded through several recursive
+# variables here and the doubled '$' get consumed, corrupting the recipe.)
+python-zstd_loader_query = $(shell $(CROSS)gcc --print-file-name=libc.so 2>/dev/null)
+python-zstd_loader_fallback = $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+python-zstd_loader = $(or $(filter-out libc.so,$(python-zstd_loader_query)),$(python-zstd_loader_fallback))
 
 # Recursive (=) so $(setuptools_dir) resolves at recipe time: modules/* is
 # globbed alphabetically, so setuptools (s) is included after python-zstd (p)
@@ -91,6 +100,9 @@ endif
 # CFLAGS/LDFLAGS: -Os -fvisibility=hidden -ffunction-sections/-fdata-sections
 # + -Wl,--gc-sections for size (rationale in modules/cryptodome); the initrd
 # ships this extension, so -Os plus section GC shrink the vendored zstd build.
+# -fvisibility=hidden is kept here: this is a normal single-PyInit_zstd C
+# extension imported directly (unlike cryptodome's ctypes raw backends), so
+# hiding internal symbols is safe.
 python-zstd_build = \
 	PYTHONHOME="$(INSTALL)" \
 	PYTHONPATH="$(build)/$(setuptools_dir)" \

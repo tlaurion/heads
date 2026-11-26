@@ -233,9 +233,12 @@ initrd_tools_dir	:= $(initrd_tmp_dir)/tools
 initrd_lib_dir		:= $(initrd_tools_dir)/lib
 initrd_bin_dir		:= $(initrd_tools_dir)/bin
 initrd_data_dir		:= $(initrd_tmp_dir)/data
+# modules.cpio staging is invocation-local too: build/<board>/modules persisted
+# across invocations and could carry stale payload into a rebuilt archive.
+initrd_modules_dir	:= $(initrd_tmp_dir)/modules
 modules-y += initrd
 
-$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)")
+$(shell mkdir -p "$(initrd_lib_dir)" "$(initrd_bin_dir)" "$(initrd_data_dir)" "$(initrd_modules_dir)")
 
 # We are running our own version of make,
 # proceed with the build.
@@ -993,10 +996,10 @@ endif
 
 # --- MODULES.CPIO STAGING ---
 
-# Staging directory for modules.cpio. In-tree kernel modules come from
-# modules/linux; out-of-tree modules (e.g. chipsec-km) use stage_module_file.
-# modules.cpio is created from this dir and the dir is removed afterwards.
-initrd_modules_dir := $(build)/$(initrd_dir)/modules
+# Staging directory for modules.cpio is $(initrd_modules_dir), defined above
+# under $(initrd_tmp_dir) so each make invocation starts clean. In-tree kernel
+# modules come from modules/linux; out-of-tree modules (e.g. chipsec-km) use
+# stage_module_file. modules.cpio is created from this dir, then it is removed.
 module_initrd_files :=
 
 # stage_module_file stages a kernel module or module tree into modules.cpio,
@@ -1046,10 +1049,11 @@ $(build)/$(initrd_dir)/modules.cpio: $(module_initrd_files) $(modules_depends) F
 #   1: Source path (file or directory)
 #   2: Destination path inside initrd (relative path inside archive)
 define stage_tools_file =
-# A child package may create this target's parent directory first (for example
-# site-packages/chipsec under lib/python3.13), so existence alone cannot mean
-# the runtime tree was copied. FORCE keeps staging complete on every invocation.
-$(initrd_tools_dir)/$2: $(tools_depends) FORCE
+# No generic FORCE: each staged target runs when its tools_depends sentinel (or
+# the file itself) changes. The one path where a child can pre-create the parent
+# is the CPython runtime tree, which gets its own FORCE rule after expansion
+# below; forcing every tools target would recopy unrelated payload needlessly.
+$(initrd_tools_dir)/$2: $(tools_depends)
 	$(call do,INSTALL-LIB,$(1:$(pwd)/%=%) => $2,\
 		if [ -d "$1" ]; then \
 			mkdir -p "$(initrd_tools_dir)/$2"; \
@@ -1068,6 +1072,14 @@ $(foreach entry,$(tools_files),\
   $(eval dst := $(word 2,$(subst |, ,$(entry)))) \
   $(eval $(call stage_tools_file,$(src),$(dst))) \
 )
+
+# Nested package staging (site-packages/chipsec under lib/python$(cpython_mm))
+# can create this parent directory before the pruned CPython runtime is copied,
+# so directory existence alone cannot mean the runtime tree was staged. FORCE
+# just this parent: the runtime copy always runs, while every other tools target
+# stays sentinel/content-driven. No recipe here -- the stage_tools_file rule
+# above supplies the INSTALL-LIB recipe; this only adds FORCE as a prerequisite.
+$(initrd_tools_dir)/lib/python$(cpython_mm): FORCE
 
 # --- TOOLS.CPIO ---
 

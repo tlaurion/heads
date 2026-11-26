@@ -2,7 +2,10 @@
 # Merge selected CPython profile files into effective board-local allowlists.
 # Usage: cpython-profile-merge.sh <out-dir> <profile-dir> [profile-dir...]
 # Each profile dir must contain: stdlib-keep.txt, dynload-keep.txt, setup.local.disabled
+# Existing empty keep-lists mean "keep no optional entries"; missing files are
+# still errors. setup.local.disabled must remain non-empty.
 set -eu
+[ $# -ge 1 ] || { echo "cpython-profile-merge: usage: $0 <out-dir> <profile-dir>..." >&2; exit 1; }
 out=$1; shift
 [ $# -ge 1 ] || { echo "cpython-profile-merge: at least one profile required" >&2; exit 1; }
 mkdir -p "$out"
@@ -45,8 +48,11 @@ dynload_files=""
 setup_files=""
 for d in "$@"; do
   [ -d "$d" ] || { echo "cpython-profile-merge: missing profile dir $d" >&2; exit 1; }
-  for f in stdlib-keep.txt dynload-keep.txt setup.local.disabled; do
-    [ -s "$d/$f" ] || { echo "cpython-profile-merge: missing $d/$f" >&2; exit 1; }
+  # setup.local.disabled is never optional and must carry at least the
+  # *disabled* marker.
+  [ -s "$d/setup.local.disabled" ] || { echo "cpython-profile-merge: missing $d/setup.local.disabled" >&2; exit 1; }
+  for f in stdlib-keep.txt dynload-keep.txt; do
+    [ -f "$d/$f" ] || { echo "cpython-profile-merge: missing $d/$f" >&2; exit 1; }
   done
   stdlib_files="$stdlib_files $d/stdlib-keep.txt"
   dynload_files="$dynload_files $d/dynload-keep.txt"

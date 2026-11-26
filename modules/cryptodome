@@ -39,12 +39,14 @@
 #
 # Size optimization: cross-gcc defaults these extensions to -O0, and the
 # initrd ships every .so we build.  -Os is the tree norm (see modules/cpython,
-# OPT="-Os"); -fvisibility=hidden keeps non-API symbols out of the dynamic
-# symbol table -- the only symbol Python needs exported is the PyInit_* entry
-# point, which pycryptodomex declares PyMODINIT_FUNC (default visibility), so
-# the ABI is preserved; -ffunction-sections/-fdata-sections pair with
+# OPT="-Os"); -ffunction-sections/-fdata-sections pair with
 # LDFLAGS=-Wl,--gc-sections so the linker drops unreferenced functions/data.
-# distutils' build_ext reads CFLAGS/LDFLAGS from the environment
+# Deliberately NO -fvisibility=hidden: pycryptodomex's raw backends (e.g.
+# Cryptodome.Cipher._chacha20) are loaded with ctypes by
+# load_pycryptodome_raw_lib(), which resolves raw C symbols such as
+# chacha20_init/chacha20_encrypt from the dynamic symbol table.  Hiding them
+# makes those imports fail at runtime (ctypes: undefined symbol).  distutils'
+# build_ext reads CFLAGS/LDFLAGS from the environment
 # (distutils.sysconfig.customize_compiler appends them to the compiler/linker
 # command), so they are exported on the setup.py invocation below.  CXXFLAGS
 # is set for parity only (pycryptodomex is pure C, no C++ translation units).
@@ -131,12 +133,21 @@ cryptodome_prune = \
 # Musl dynamic loader.  `--print-file-name=ld-musl-$(MUSL_ARCH).so.1` cannot be
 # used: gcc reports the bare name (not on its search path) and the sysroot's
 # ld-musl-*.so.1 is a dangling symlink to /lib/libc.so.  musl's libc.so is the
-# real loader binary, so resolve that; fall back to the sysroot lib dir if gcc
-# still reports a bare name.
-cryptodome_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
-ifeq "$(cryptodome_loader)" "libc.so"
-cryptodome_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
-endif
+# real loader binary, so resolve that.
+#
+# Deferred (=), not parse-time (:=) + ifeq: modules/* are included before the
+# crossgcc toolchain is built, so a parse-time query can run with a missing
+# $(CROSS)gcc and yield an empty string, or the bare name "libc.so".  Both the
+# query and the resolution below are recursive so they are evaluated at
+# recipe/configure time, after the toolchain exists.  An empty result or the
+# bare name "libc.so" means gcc could not locate the loader, so fall back to
+# the deterministic sysroot libc.so -- the same path modules/musl-cross-make
+# declares for libc.so.  (Keep this in make's filter/if functions: a $(shell)
+# body with shell '$' substitutions is expanded through several recursive
+# variables here and the doubled '$' get consumed, corrupting the recipe.)
+cryptodome_loader_query = $(shell $(CROSS)gcc --print-file-name=libc.so 2>/dev/null)
+cryptodome_loader_fallback = $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+cryptodome_loader = $(or $(filter-out libc.so,$(cryptodome_loader_query)),$(cryptodome_loader_fallback))
 
 # Restore the pristine sdist tree before every (re)build.  cryptodome_prune is
 # destructive: it deletes everything outside config/cryptodome-keep.txt,
@@ -149,8 +160,12 @@ endif
 # prerequisite sentinel would miss at least one of those triggers.  Wiping the
 # package dir and re-extracting from the verified tarball is cheap and makes
 # `make cryptodome` idempotent from any tree state (pruned or pristine).
+# Also drop distutils' build/ cache: build_ext reuses objects whose .c is older
+# than the .o, so a CFLAGS change (e.g. dropping -fvisibility=hidden to keep
+# ctypes-resolved raw symbols exported) would otherwise reuse stale objects and
+# silently produce the same .so as before.
 cryptodome_restore = \
-	rm -rf "$(cryptodome_pkgpath)" && \
+	rm -rf "$(cryptodome_pkgpath)" "$(build)/$(cryptodome_dir)/build" && \
 	tar -xf "$(packages)/$(cryptodome_tar)" --strip 1 -C "$(build)/$(cryptodome_dir)"
 
 # Recursive (=) so $(setuptools_dir) resolves at recipe time: modules/* is
@@ -169,8 +184,8 @@ cryptodome_build = \
 	PYTHONPATH="$(build)/$(setuptools_dir)" \
 	PYTHONDONTWRITEBYTECODE=1 \
 	PYCRYPTODOME_DISABLE_GMP=1 \
-	CFLAGS="-Os -fvisibility=hidden -ffunction-sections -fdata-sections" \
-	CXXFLAGS="-Os -fvisibility=hidden -ffunction-sections -fdata-sections" \
+	CFLAGS="-Os -ffunction-sections -fdata-sections" \
+	CXXFLAGS="-Os -ffunction-sections -fdata-sections" \
 	LDFLAGS="-Wl,--gc-sections" \
 	$(CROSS_TOOLS) \
 	$(cryptodome_loader) \

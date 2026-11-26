@@ -53,7 +53,7 @@ Classification tests (apply in order):
 
 5. Anything else (data with no fixed-path requirement) → no initrd entry.
 
-Quick verification recipe for any new module or build: extract `data.cpio` from the ROM and grep for `\.(so|a)$|lib/|bin/` — those names are FORBIDDEN in `data.cpio`. Their presence means a module's macro is wrong.
+Quick verification recipe for any new module or build: extract `data.cpio` from the ROM and grep for `\.(so|a|la)$|bin/` — those names are FORBIDDEN in `data.cpio`. Their presence means a module's macro is wrong. (Do not flag every `lib/` path: data files legitimately live under `lib/`, and the `.py` siblings of staged extension packages are not a macro error. Only loadable `.so`/`.a`/`.la` and executable `bin/` entries are.)
 
 If you are writing or reviewing a module's install recipe, see `modules.md` for how `bin_modules-$(CONFIG_FOO)` interacts with this rule.
 
@@ -64,10 +64,11 @@ CPython keeps a build-only `INSTALL` tree and a separately pruned, board-local
 `cpython-profile.stamp`. A content-checked board/profile identity also forces
 the shared CPython configure tree to reconfigure when make switches boards.
 The resulting `python-runtime/lib/python3.13` is staged into `tools.cpio`;
-build-only stdlib retained for extension builds is not staged. Path-preserving
-tools staging runs on every invocation because a child package such as
-`site-packages/chipsec` can create the runtime parent directory before the
-runtime copy target is considered.
+build-only stdlib retained for extension builds is not staged. Only the CPython
+runtime parent target is FORCE-driven: a child package such as
+`site-packages/chipsec` can create that directory before the runtime copy is
+considered, so mere existence cannot prove the runtime tree was staged. Other
+tools targets are staged only when their sentinel inputs change.
 
 `cpython_test` depends on the CPython `.build` and on every enabled module that
 declares `*_cpython_smoke_pythonpath`, so Cryptodome/python-zstd are built before
