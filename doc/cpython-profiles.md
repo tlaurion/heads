@@ -83,8 +83,8 @@ Implemented:
 Not implemented / TODO:
 - `lzma/_lzma`: omitted until xz/liblzma module + CPython build wiring exists.
 - Kernel-driver path: `modules/chipsec-km` builds/stages `/lib/modules/chipsec.ko`
-  (opt-in, no auto-load), but QEMU load and hardware-backed checks remain
-  unverified.
+  (opt-in, no auto-load). QEMU `insmod` and `/dev/chipsec` creation are verified;
+  hardware-backed checks remain unverified.
 
 ## Build / Verification
 

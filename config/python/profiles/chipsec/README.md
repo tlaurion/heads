@@ -66,8 +66,9 @@ the Wyng and zstd/Cryptodome checks. No insmod, hardware, or driver commands.
 
 - `chipsec.ko` remains a separate opt-in module (`modules/chipsec-km`,
   `CONFIG_CHIPSEC_KM=y`). It builds against the Heads kernel tree and stages
-  `/lib/modules/chipsec.ko`, but is never auto-loaded. Loading and
-  driver-backed checks are unverified in QEMU and remain hardware-specific.
+  `/lib/modules/chipsec.ko`, but is never auto-loaded. A separate QEMU check
+  verified `insmod` return code 0 and `/dev/chipsec` creation; driver-backed
+  security checks remain hardware-specific and unverified.
 - The safe QEMU smoke proves package/wrapper staging and non-driver CLI
   startup only; it does not execute CHIPSEC security modules or touch devices.
 

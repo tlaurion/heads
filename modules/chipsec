@@ -44,9 +44,10 @@
 #
 # Driver limits (kept separate, never auto-loaded):
 # - Driver-backed checks require chipsec.ko, built/staged by modules/chipsec-km
-#   against the Heads kernel (CONFIG_CHIPSEC_KM=y); loading is manual. The QEMU
-#   smoke covers only non-driver CLI paths (--help, -lm -nb); hardware-backed
-#   checks remain hardware-specific and unverified in QEMU.
+#   against the Heads kernel (CONFIG_CHIPSEC_KM=y); loading is manual. A separate
+#   opt-in QEMU check verified insmod return code 0 and /dev/chipsec creation.
+#   The regular smoke covers only non-driver CLI paths (--help, -lm -nb);
+#   hardware-backed checks remain hardware-specific and unverified.
 CONFIG_CHIPSEC ?= n
 
 # CONFIG_CPYTHON/CONFIG_OPENSSL are enabled by modules/chipsec.requires before
