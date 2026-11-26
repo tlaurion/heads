@@ -1,0 +1,38 @@
+# Needed: CodeRabbit follow-ups for the current PR head (565d742).
+# The 0016 patch switched the remote free-space probe to `python3` (bytes) and
+# the parser to parts[1]; a failed probe now leaves Destination.free as None.
+# Guard the two consumers that would otherwise divide/compare None and raise a
+# TypeError before the destination's own StorageError can be reported:
+#   * arch-deduplicate (_dedup_existing): %d formatting of free//1024//1024;
+#   * send (_monitor_send / _autoprune): changed_bytes/free tally and the
+#     needed_space <= free check.
+# Both raise the same clear StorageError(7, "Destination free-space probe
+# failed."). The parser stays parts[1]; this patch only guards its consumers.
+# Hunks carry non-blank context only, so no diff context line has trailing space.
+diff --git a/src/wyng09a b/src/wyng09a
+--- a/src/wyng09a
++++ b/src/wyng09a
+@@ -4647,2 +4647,7 @@ def _dedup_existing(aset):
+     dest = aset.dest
++    # 0017: the python3 free-space probe in detect_state can fail while the
++    # destination is otherwise online, leaving dest.free as None.  Fail with a
++    # clear StorageError before the %-format below divides None (TypeError) and
++    # hides the destination's own error.  The parser stays parts[1] (bytes).
++    if dest.free is None:   raise StorageError(7, "Destination free-space probe failed.")
+     if not dest.hlinks:   raise StorageError("Hardlinks not supported on dest.")
+@@ -4672,2 +4677,6 @@ def _monitor_send(storage, aset, volnames, monitor_only, imports={}, ses_tags={}
+     opts, dest = aset.opts, aset.dest    ; status1 = not opts.unattended
++    # 0017: guard every send-side use of dest.free (changed_bytes comparison,
++    # running total, and _autoprune's needed_space check) against an unset
++    # probe.  A failed probe must report a clear error, not a TypeError.
++    if dest.free is None:   raise StorageError(7, "Destination free-space probe failed.")
+     ms_start = time.monotonic()    ; MB   = 1024**2
+@@ -5050,2 +5059,7 @@ def _autoprune(vol, needed_space=0, apmode="off", apdays=None, include=set(), al
+-        if removed_ct == 0 or nthresh == 0 or needed_space <= dest.free:
++        # 0017: keep the original short-circuit, but never let an unset probe
++        # reach the comparison below.  Raising here also covers callers of
++        # _autoprune outside the send path.
++        if removed_ct == 0 or nthresh == 0:   break # while
++        if dest.free is None:   raise StorageError(7, "Destination free-space probe failed.")
++        if needed_space <= dest.free:
+             break # while

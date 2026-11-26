@@ -164,6 +164,15 @@ cpython_runtime_root := $(build)/$(BOARD)/python-runtime
 cpython_runtime_lib := $(cpython_runtime_root)/lib/python$(cpython_mm)
 cpython_runtime_lib_dep := $(cpython_runtime_root)/.pruned
 
+# Consumers of the marker need it ordered after the install+prune (.build) step
+# that produces it.  `.build` already prerequires the content-checked board
+# identity, so profile changes force a re-prune before this marker can satisfy
+# a consumer.  Keep the marker's producer in cpython_target; this rule only
+# makes the dependency explicit so make cannot consider a stale marker current.
+$(cpython_runtime_lib_dep): $(build)/$(cpython_dir)/.build
+	@mkdir -p "$(dir $@)"
+	@touch "$@"
+
 # The source build and INSTALL tree are shared across boards, but their pruned
 # payload is board-specific. This content-checked identity sentinel changes only
 # when the effective board/profile requirements change, forcing re-prune when
@@ -276,10 +285,16 @@ empty :=
 space := $(empty) $(empty)
 cpython_smoke_pythonpath = $(subst $(space),:,$(strip \
 	$(foreach m,$(cpython_smoke_modules),$($(m)_cpython_smoke_pythonpath))))
-cpython_smoke_loader := $(shell $(CROSS)gcc --print-file-name=libc.so)
-ifeq "$(cpython_smoke_loader)" "libc.so"
-cpython_smoke_loader := $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
-endif
+# Musl dynamic loader: resolve at recipe time (=), not parse time (:=).
+# modules/* are included before the crossgcc toolchain is built, so a
+# parse-time query can run with a missing $(CROSS)gcc and yield an empty string
+# or the bare name "libc.so".  Treat both as unresolved and fall back to the
+# deterministic sysroot libc.so -- the same path modules/musl-cross-make
+# declares.  This mirrors the deferred queries in modules/cryptodome and
+# modules/python-zstd; recipe usage of $(cpython_smoke_loader) is unchanged.
+cpython_smoke_loader_query = $(shell $(CROSS)gcc --print-file-name=libc.so 2>/dev/null)
+cpython_smoke_loader_fallback = $(CROSS_PATH)/$(subst -,_,$(MUSL_ARCH))-linux-musl/lib/libc.so
+cpython_smoke_loader = $(or $(filter-out libc.so,$(cpython_smoke_loader_query)),$(cpython_smoke_loader_fallback))
 cpython_smoke_script := $(pwd)/bin/cpython-smoke.sh
 cpython_smoke: $(build)/$(cpython_dir)/.build $(cpython_runtime_lib_dep)
 	$(call do,CPYTHON-SMOKE,$(BOARD), \
