@@ -1,0 +1,150 @@
+# Needed: busybox/runtime guards.
+# Avoid BusyBox df's rootfs/subdirectory failure and ps's GNU-only option form,
+# use paths that exist in the Heads initrd, guard musl's unimplemented
+# os.getgroups(), and turn unsupported reflink clones into a clean StorageError.
+#
+# Also pass init=True for arch-init and exit before reading the closed context's
+# archive attribute. Without this, arch-init either skips archive creation or
+# raises AttributeError after creating it. Enable dedup before destination
+# detection for arch-deduplicate so hardlink support is probed before the action.
+diff --git a/src/wyng09a b/src/wyng09a
+--- a/src/wyng09a
++++ b/src/wyng09a
+@@ -1866,9 +1866,14 @@
+             ver = p[:5].decode("UTF-8").strip()    ; target_ver = "0.7.4"
+             if p and ver < target_ver:
+                 raise StorageError(7,"Thin provisioning tools version >= "+target_ver+" required.")
+-        elif self.pooltype == "rlnk" and self.fstype == "btrfs":
+-            # btrfs subvolume support is deferred in this build.
+-            raise StorageError(7, "btrfs unsupported in this build")
++        elif self.pooltype == "rlnk":
++            if self.fstype == "btrfs":
++                # btrfs subvolume support is deferred in this build.
++                raise StorageError(7, "btrfs unsupported in this build")
++            # Non-btrfs reflink storage still needs extent scanning and clone
++            # support. Fail before creating snapshots if either is unavailable.
++            for prg in (CP.filefrag, CP.cp):
++                if not shutil.which(prg): raise StorageError(7, prg+" command not found.")
+ 
+     def _btrfs_subvol_snapshot(self, delete=False, retry=False):
+         # btrfs support is deferred in this build: never shell out to btrfs.
+@@ -2186,8 +2191,11 @@
+         os.makedirs(self.pdir+subdir, exist_ok=True)
+         if snapshotfrom:
+             snap_path = self.storage.lvols[snapshotfrom].path
+-            do_exec([[CP.env, "-u", "LC_ALL", CP.cp, "-p", "--reflink=always",
+-                      snap_path, self.path]])
++            try:
++                do_exec([[CP.env, "-u", "LC_ALL", CP.cp, "-p", "--reflink=always",
++                          snap_path, self.path]])
++            except SPr.CalledProcessError as e:
++                raise StorageError(7, "Filesystem does not support reflink clones.") from e
+             if size is not None:   self.resize(size)
+ 
+         elif size is not None:
+@@ -3002,7 +3010,8 @@
+ 
+                 # check free space and archive.ini status on remote
+                 +NL+ r"set +e && printf '\nwyng_online\n'"
+-                +NL+ r"printf '\nwyng_check_free ' && df -PT . | tail -1"
++                +NL+ r"printf '\nwyng_check_free ' && " \
++                + "python3 -c 'import shutil; print(shutil.disk_usage(\".\").free)'"
+                 +NL+ r"printf '\nwyng_archive_ini '"
+                 +r"  && { if [ -e archive.ini ]; then"
+                 +NL+r"    sha256sum archive.ini"
+@@ -3042,8 +3051,8 @@
+             elif ln.startswith("wyng_owner_match"):
+                 self.umatch = True
+             elif ln.startswith("wyng_check_free"):
+-                if len(parts := ln.split()) > 5 and is_num(parts[5]):
+-                    self.free = int(parts[5]) * 1024
++                if len(parts := ln.split()) > 1 and is_num(parts[1]):
++                    self.free = int(parts[1])
+             elif ln.startswith("wyng_writable"):
+                 self.writable = True
+             elif ln.startswith("wyng_hlink"):
+@@ -3227,7 +3236,11 @@
+ cmd = sys.argv[1]   ; debug = "--debug" in sys.argv   ; msync = "--sync" in sys.argv
+ tmpdir = os.path.dirname(os.path.abspath(sys.argv[0]))  ; misc_procs = []; magic  = b"\xff\x11\x15"
+ exists = os.path.exists    ; replace = os.replace    ; remove = os.remove
+-err_out(f"{os.uname()}\nUser {os.getuid()}, Groups: {os.getgroups()}"
++try:
++    groups = os.getgroups()
++except OSError:
++    groups = []
++err_out(f"{os.uname()}\nUser {os.getuid()}, Groups: {groups}"
+         f"\n{sys.implementation}\nArgs:\n{sys.argv}\n")
+ 
+ if cmd in ("receive","dedup") and exists(tmpdir+"/dest.lst.gz"):
+@@ -4573,7 +4586,7 @@
+         if not debug:  return
+ 
+         print("\nIndexed in %.1f seconds." % (time.perf_counter()-ctime))
+-        vsz, rss = map(int, os.popen("ps -up"+str(os.getpid())).readlines()[-1].split()[4:6])
++        vsz, rss = get_self_mem_stat("VmSize"), get_self_mem_stat("VmRSS")
+         print("\nMemory use: Max %dMB, index count: %d, sessions: %d" %
+             (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * resource.getpagesize() // 1024//1024,
+             self.ict, len(ddsessions))
+@@ -4641,7 +4654,7 @@
+     print("linking...", end="", flush=True)
+     do_exec( [dest.run_args([
+                "/bin/cat >"+dest.dtmp+"/dest.lst.gz"
+-               +" && /usr/bin/python3 "+dest.dtmp+"/dest_helper.py dedup"
++               +" && python3 "+dest.dtmp+"/dest_helper.py dedup"
+                ], destcd=dest.path),
+               [CP.cat,"-v"],  [CP.tail,"-c","2000"]
+             ], infile=tmpdir+"/dedup.lst.gz", out=tmpdir+"/arch-dedup.log")
+@@ -5932,8 +5945,16 @@
+     return raw.astimezone().isoformat(sep=u" ")
+ 
+ 
++def get_self_mem_stat(field):
++    with open("/proc/self/status","r") as f:
++        for ln in f:
++            if ln.startswith(field+":"):
++                return int(ln.split()[1]) # kbytes
++    raise ValueError("Field not found: "+field)
++
++
+ def show_mem_stats():
+-    vsz, rss = map(int, os.popen("ps -up"+str(os.getpid())).readlines()[-1].split()[4:6])
++    vsz, rss = get_self_mem_stat("VmSize"), get_self_mem_stat("VmRSS")
+     print("\n  Memory use: Max %dMB" %
+         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * resource.getpagesize() // 1024//1024)
+         )
+@@ -6381,7 +6402,7 @@
+ 
+ admin_permission = os.getuid() == 0
+ LC_ALL           = os.environ.get("LC_ALL")   ; os.environ["LC_ALL"] = "C"
+-shell_prefix     = '#!/usr/bin/env sh\nset -e\n' #### + ('' if debug else 'rm "$0"\n')
++shell_prefix     = '#!/bin/sh\nset -e\n' #### + ('' if debug else 'rm "$0"\n')
+ orig_cdir        = os.path.abspath(os.curdir)
+ cpu_flags        = [x for x in open("/proc/cpuinfo") if x.startswith("flags")] [0].split()[1:]
+ 
+@@ -6537,18 +6558,21 @@
+         x_it(0)
+ 
+     # Passphrase input happens here; no stdin before this point!
+-    # Get context for the archive
++    # Get context for the archive. Destination detection must see dedup enabled
++    # for arch-deduplicate so it probes hardlink support before the action runs.
++    if action == "arch-deduplicate":   options.dedup = True
+     writing    = action in write_actions and not (action == "delete" and options.clean)
+     wyng_ctx   = WyngContext(options, action in dest_actions,
+                              action not in simple_actions | {"arch-init"},
+-                             ro=not writing)
+-    aset       = wyng_ctx.archive
++                             ro=not writing, init=action == "arch-init")
+ 
+-    # Process early commands.
++    # Process early commands. arch-init closes its context and removes the
++    # archive attribute, so exit before main() reads wyng_ctx.archive.
+     if action in {"arch-init"}:
+         x_it(0)
+ 
+-    elif action in {"arch-copy"}:
++    aset = wyng_ctx.archive
++    if action in {"arch-copy"}:
+         wyng_ctx._check_action(action) ####
+         _arch_copy(options, aset.dest, aset)
+         x_it(0)
