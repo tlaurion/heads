@@ -1,8 +1,11 @@
 # Combined Wyng + CHIPSEC profile: both userspace CLIs and their CPython
 # extensions must be present in the booted ROM. Format: <command><TAB><regex>.
-# (?m) anchors the zstd/Cryptodome result line without depending on where the
-# pty transcript starts (the harness does not strip command echo/prompt).
+# The harness strips the echoed command line from each assertion window, so
+# (?m) anchors each result to its own line rather than to a console position.
 /bin/chipsec --help	\[CHIPSEC\] Version\s+: 2\.0\.10
 /bin/chipsec -lm -nb	common\.pltrst_gpio_lock
 /bin/wyng version	Wyng 0\.9
-/bin/python3 -c 'import zstd, Cryptodome; print(12345)'	(?m)^12345$
+/bin/python3 -c 'import zstd, Cryptodome; print(12340 + 5)'	(?m)^12345$
+# Real ChaCha20 encrypt/decrypt round-trip; marker built by concatenation so
+# the command echo cannot satisfy the assertion on its own.
+/bin/python3 -c 'from Cryptodome.Cipher import ChaCha20 as C; k=b"K"*32; n=b"N"*12; p=b"roundtrip"; e=C.new(key=k,nonce=n); d=C.new(key=k,nonce=n); m="CHACHA20"+"_OK"; print(m if d.decrypt(e.encrypt(p))==p else "FAILED")'	(?m)^CHACHA20_OK$

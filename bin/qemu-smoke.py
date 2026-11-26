@@ -58,6 +58,24 @@ def normalize_stream(chunk, carry=""):
     return normalize(data), carry
 
 
+def strip_command_echo(output, command):
+    """Remove one exact leading normalized echo of ``command`` from ``output``.
+
+    The serial tty echoes the line we write before the shell runs it, so that
+    echo is the first thing in each per-command window.  It must not be allowed
+    to satisfy a plan regex: a command such as ``print(12345)`` would otherwise
+    always match ``12345`` even if the interpreter printed nothing.  Strip
+    exactly one leading ``normalize(command + "\\n")`` and leave every other
+    byte of real command output untouched.  If the echo is absent (ECHO off) or
+    split differently, nothing is stripped and the full output is still
+    matched, so this cannot hide a real result.
+    """
+    echo = normalize(command + "\n")
+    if output.startswith(echo):
+        return output[len(echo):]
+    return output
+
+
 # Distinct from an empty (escape-only) chunk and from "no data yet".
 EOF = object()
 
@@ -229,7 +247,7 @@ class QemuSmoke:
                 self.send(command)
                 self.read_until(self.prompt_re.pattern, self.command_timeout,
                                 "prompt after %r" % command, start=start)
-                output = self.transcript[start:]
+                output = strip_command_echo(self.transcript[start:], command)
                 if not compiled.search(output):
                     raise AssertionError(
                         "expected %r in output of %r; got:\n%s" %
