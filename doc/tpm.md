@@ -50,7 +50,7 @@ optional coreboot measured-boot features. Coreboot supports several modes:
 
 | coreboot mode | PCRs used | Status in Heads |
 | --- | --- | --- |
-| SRTM (Static Root of Trust for Measurement) | PCR 2 (`CONFIG_PCR_SRTM=2`) | **Active on TPM boards with measured boot — current coreboot uses `CONFIG_TPM_MEASURED_BOOT=y`; older forks (KGPE-D16, Librem L1UM) use the legacy `CONFIG_TPM_INIT=y`** |
+| SRTM (Static Root of Trust for Measurement) | PCR 2 (`CONFIG_PCR_SRTM=2`) | **Active on TPM boards with measured boot — current coreboot uses `CONFIG_TPM_MEASURED_BOOT=y`; older forks (Librem L1UM) use the legacy `CONFIG_TPM_INIT=y`** |
 | Boot mode measurement | PCR 1 (`CONFIG_PCR_BOOT_MODE=1`) | Not enabled |
 | Hardware ID measurement | PCR 1 (`CONFIG_PCR_HWID=1`) | Not enabled |
 | Runtime data | PCR 3 (`CONFIG_PCR_RUNTIME_DATA=3`) | Not enabled — `CONFIG_TPM_MEASURE_MRC_CACHE` is off and `CONFIG_TPM_MEASURED_BOOT_RUNTIME_DATA` is empty, so PCR 3 stays zero |
