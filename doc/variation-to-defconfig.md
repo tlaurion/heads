@@ -33,15 +33,18 @@ Run from the heads directory with `make BOARD=<board> <target>`:
 - **defconfig** (minimal): Only contains options that differ from the default. Preferred for PRs.
 - **oldconfig** (full): Contains all explicitly set options. Use for kernel version bumps to preserve all settings.
 
+**Note:** In-place defconfig regeneration drops `CONFIG_CBFS_SIZE`. Re-add it
+manually afterward, or use the `*_backup` variant to preserve a full copy.
+
 Example for kernel version bump:
 ```bash
 # First, save current config in oldconfig format
-make BOARD=kgpe-d16_server linux.save_in_oldconfig_format_in_place
+make BOARD=UNTESTED_kgpe-d16_server-tpm1 linux.save_in_olddefconfig_format_in_place
 # Then bump CONFIG_LINUX_VERSION in board config
 # Build to extract new linux tarball
-make BOARD=kgpe-d16_server
+make BOARD=UNTESTED_kgpe-d16_server-tpm1
 # Finally, prompt for new config options
-make BOARD=kgpe-d16_server linux.prompt_for_new_config_options_for_kernel_version_bump
+make BOARD=UNTESTED_kgpe-d16_server-tpm1 linux.prompt_for_new_config_options_for_kernel_version_bump
 ```
 
 ---
