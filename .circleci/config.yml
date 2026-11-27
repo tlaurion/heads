@@ -881,7 +881,7 @@ workflows:
           subcommand: ""
           coreboot_dir: coreboot-15h
           requires:
-            - x86-musl-cross-make
+            - x86-musl-cross-make [cross compiler]
 
       - build:
           name: UNTESTED_kgpe-d16_workstation-tpm2
