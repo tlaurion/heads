@@ -20,7 +20,7 @@ Run from the heads directory with `make BOARD=<board> <target>`:
 
 | Target | Description |
 |--------|-------------|
-| `linux.save_in_defconfig_format_in_place` | Regenerate minimal defconfig, overwrites `config/linux-<board>.config` |
+| `linux.save_in_defconfig_format_in_place` | Regenerate minimal defconfig, overwrites the file named by `CONFIG_LINUX_CONFIG` in the board config (often shared across boards) |
 | `linux.save_in_versioned_defconfig_format` | Save minimal defconfig to `config/linux-<board>.config_defconfig_<version>` |
 | `linux.save_in_olddefconfig_format_in_place` | Regenerate full config with new symbols set to defaults, overwrites in place |
 | `linux.save_in_versioned_oldconfig` | Save full config to `config/linux-<board>.config_oldconfig_<version>` |
@@ -36,15 +36,20 @@ Run from the heads directory with `make BOARD=<board> <target>`:
 **Note:** In-place defconfig regeneration drops `CONFIG_CBFS_SIZE`. Re-add it
 manually afterward, or use the `*_backup` variant to preserve a full copy.
 
+**Note:** Linux config targets write to `CONFIG_LINUX_CONFIG`, which may be shared across boards — verify the destination before regenerating.
+
 Example for kernel version bump:
 ```bash
-# First, save current config in oldconfig format
+# First, register the new kernel version in modules/linux
+# Then, save current config in oldconfig format
 make BOARD=UNTESTED_kgpe-d16_server-tpm1 linux.save_in_olddefconfig_format_in_place
 # Then bump CONFIG_LINUX_VERSION in board config
+# Prepare the Linux source before running the helpers
 # Build to extract new linux tarball
 make BOARD=UNTESTED_kgpe-d16_server-tpm1
 # Finally, prompt for new config options
 make BOARD=UNTESTED_kgpe-d16_server-tpm1 linux.prompt_for_new_config_options_for_kernel_version_bump
+# Rebuild the ROM after the option prompt
 ```
 
 ---
