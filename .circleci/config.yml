@@ -887,3 +887,64 @@ workflows:
           subcommand: ""
           requires:
             - novacustom-nv4x_adl [seed:coreboot-24.12]
+
+      # ── coreboot fam15h (AGESA 15h fork) ──────────────────────────────
+      # Downstream boards (all depend on the fam15h seed above):
+      # UNTESTED_kgpe-d16_workstation-tpm1 [seed], -tpm2, -usb_keyboard-tpm1/tpm2,
+      # -server-tpm1/tpm2, -server-whiptail-tpm1/tpm2
+      - x86_coreboot:
+          name: UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+          target: UNTESTED_kgpe-d16_workstation-tpm1
+          subcommand: ""
+          coreboot_dir: coreboot-15h
+          requires:
+            - x86-musl-cross-make [cross compiler]
+
+      - build:
+          name: UNTESTED_kgpe-d16_workstation-tpm2
+          target: UNTESTED_kgpe-d16_workstation-tpm2
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+
+      - build:
+          name: UNTESTED_kgpe-d16_workstation-usb_keyboard-tpm1
+          target: UNTESTED_kgpe-d16_workstation-usb_keyboard-tpm1
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+
+      - build:
+          name: UNTESTED_kgpe-d16_workstation-usb_keyboard-tpm2
+          target: UNTESTED_kgpe-d16_workstation-usb_keyboard-tpm2
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+
+      - build:
+          name: UNTESTED_kgpe-d16_server-tpm1
+          target: UNTESTED_kgpe-d16_server-tpm1
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+
+      - build:
+          name: UNTESTED_kgpe-d16_server-tpm2
+          target: UNTESTED_kgpe-d16_server-tpm2
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+
+      - build:
+          name: UNTESTED_kgpe-d16_server-whiptail-tpm1
+          target: UNTESTED_kgpe-d16_server-whiptail-tpm1
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]
+
+      - build:
+          name: UNTESTED_kgpe-d16_server-whiptail-tpm2
+          target: UNTESTED_kgpe-d16_server-whiptail-tpm2
+          subcommand: ""
+          requires:
+            - UNTESTED_kgpe-d16_workstation-tpm1 [seed:coreboot-15h]

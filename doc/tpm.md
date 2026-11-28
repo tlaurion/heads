@@ -50,7 +50,7 @@ optional coreboot measured-boot features. Coreboot supports several modes:
 
 | coreboot mode | PCRs used | Status in Heads |
 | --- | --- | --- |
-| SRTM (Static Root of Trust for Measurement) | PCR 2 (`CONFIG_PCR_SRTM=2`) | **Active on TPM boards with measured boot — current coreboot uses `CONFIG_TPM_MEASURED_BOOT=y`; older forks (KGPE-D16, Librem L1UM) use the legacy `CONFIG_TPM_INIT=y`** |
+| SRTM (Static Root of Trust for Measurement) | PCR 2 (`CONFIG_PCR_SRTM=2`) | **Active on TPM boards with measured boot — current coreboot uses `CONFIG_TPM_MEASURED_BOOT=y`; older forks (Librem L1UM) use the legacy `CONFIG_TPM_INIT=y`** |
 | Boot mode measurement | PCR 1 (`CONFIG_PCR_BOOT_MODE=1`) | Not enabled |
 | Hardware ID measurement | PCR 1 (`CONFIG_PCR_HWID=1`) | Not enabled |
 | Runtime data | PCR 3 (`CONFIG_PCR_RUNTIME_DATA=3`) | Not enabled — `CONFIG_TPM_MEASURE_MRC_CACHE` is off and `CONFIG_TPM_MEASURED_BOOT_RUNTIME_DATA` is empty, so PCR 3 stays zero |
@@ -101,7 +101,7 @@ PCRs 0, 1, and 3 are read live at seal time and are normally zero.
 #### Boards with different or absent coreboot measured boot
 
 `CONFIG_TPM_MEASURED_BOOT` is the config key used in current coreboot versions.
-Older coreboot releases (notably 4.11, used by KGPE-D16 and some Librem server
+Older coreboot releases (notably 4.11, used by some Librem server
 boards) used `CONFIG_TPM_INIT=y` before this key existed. The absence of
 `CONFIG_TPM_MEASURED_BOOT` in an older-coreboot config does not automatically
 mean measured boot is absent — it may use the older naming.
@@ -110,7 +110,6 @@ Notable exceptions from the standard SRTM path:
 
 | Board family | coreboot fork/version | TPM situation | Notes |
 | --- | --- | --- | --- |
-| KGPE-D16 server/workstation variants | 4.11 (unmaintained) | `CONFIG_TPM_INIT=y` (old key); no `CONFIG_TPM_MEASURED_BOOT` | Pre-dates the current measured boot config naming |
 | ThinkPad T520 | 4.22.01 (unmaintained) | `CONFIG_TPM_INIT_RAMSTAGE=y` but `CONFIG_TPM_MEASURED_BOOT` explicitly not set | TPM initialized but SRTM measurements disabled |
 | Librem l1um (original) | purism fork (unmaintained) | `CONFIG_TPM_INIT=y` (old key); no `CONFIG_TPM_MEASURED_BOOT` | Purism fork; pre-dates current measured boot naming |
 | Librem Mini, Librem Mini v2, Librem 11 | purism fork (maintained) | `CONFIG_NO_TPM=y` | No TPM hardware; falls back to ROM-hash HOTP mode (see below) |
