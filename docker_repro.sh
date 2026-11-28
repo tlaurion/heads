@@ -46,6 +46,10 @@ if [[ ! "${DOCKER_IMAGE}" =~ @sha256:[0-9a-f]{64} ]]; then
 	exit 1
 fi
 
+# Pass the resolved image identity into the container so build stamps reflect
+# the selected toolchain image, not raw override variables.
+export HEADS_BUILD_IMAGE="$DOCKER_IMAGE"
+
 # Extract digest for CircleCI validation
 DIGEST="${DOCKER_IMAGE#*@}"
 VERSION=$(grep '^# Version:' "$(dirname "$0")/docker/DOCKER_REPRO_DIGEST" 2>/dev/null | sed 's/# Version: //' | head -n1)
@@ -71,8 +75,13 @@ fi
 # Only perform host-side side-effects when executed directly (not when sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	require_docker || exit $?
+	if ! docker image inspect "$DOCKER_IMAGE" >/dev/null 2>&1; then
+		docker pull "$DOCKER_IMAGE" || { echo "Error: cannot pull image $DOCKER_IMAGE; aborting." >&2; exit 1; }
+	fi
+	HEADS_BUILD_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$DOCKER_IMAGE" 2>/dev/null)" || { echo "Error: cannot inspect image $DOCKER_IMAGE; aborting." >&2; exit 1; }
+	export HEADS_BUILD_IMAGE="$HEADS_BUILD_IMAGE_ID"
 
 	# Clean up host processes holding USB devices first (if applicable)
 	kill_usb_processes
-	run_docker "$DOCKER_IMAGE" "$@"
+	run_docker "$HEADS_BUILD_IMAGE_ID" "$@"
 fi
