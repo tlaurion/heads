@@ -1,3 +1,59 @@
+# Configuration Helper Targets
+
+Heads provides make targets for saving and modifying coreboot and Linux configurations in both defconfig (minimal) and oldconfig (full) formats.
+
+## Coreboot Config Helpers
+
+Run from the heads directory with `make BOARD=<board> <target>`:
+
+| Target | Description |
+|--------|-------------|
+| `coreboot.save_in_defconfig_format_in_place` | Regenerate minimal defconfig, overwrites `config/coreboot-<board>.config` |
+| `coreboot.save_in_oldconfig_format_in_place` | Regenerate full oldconfig, overwrites `config/coreboot-<board>.config` |
+| `coreboot.save_in_defconfig_format_backup` | Save minimal defconfig to `config/coreboot-<board>.config_defconfig` (backup) |
+| `coreboot.modify_defconfig_in_place` | Open menuconfig, then save minimal defconfig in place |
+| `coreboot.modify_and_save_oldconfig_in_place` | Open menuconfig, then save full config in place |
+
+## Linux Config Helpers
+
+Run from the heads directory with `make BOARD=<board> <target>`:
+
+| Target | Description |
+|--------|-------------|
+| `linux.save_in_defconfig_format_in_place` | Regenerate minimal defconfig, overwrites the file named by `CONFIG_LINUX_CONFIG` in the board config (often shared across boards) |
+| `linux.save_in_versioned_defconfig_format` | Save minimal defconfig to `config/linux-<board>.config_defconfig_<version>` |
+| `linux.save_in_olddefconfig_format_in_place` | Regenerate full config with new symbols set to defaults, overwrites in place |
+| `linux.save_in_versioned_oldconfig` | Save full config to `config/linux-<board>.config_oldconfig_<version>` |
+| `linux.modify_and_save_defconfig_in_place` | Open menuconfig, then save minimal defconfig in place |
+| `linux.modify_and_save_oldconfig_in_place` | Open menuconfig, then save full config in place |
+| `linux.prompt_for_new_config_options_for_kernel_version_bump` | Interactively prompt for new kernel config options during version bump |
+
+## Usage Notes
+
+- **defconfig** (minimal): Only contains options that differ from the default. Preferred for PRs.
+- **oldconfig** (full): Contains all explicitly set options. Use for kernel version bumps to preserve all settings.
+
+**Note:** In-place defconfig regeneration drops `CONFIG_CBFS_SIZE`. Re-add it
+manually afterward, or use the `*_backup` variant to preserve a full copy.
+
+**Note:** Linux config targets write to `CONFIG_LINUX_CONFIG`, which may be shared across boards — verify the destination before regenerating.
+
+Example for kernel version bump:
+```bash
+# First, register the new kernel version in modules/linux
+# Then, save current config in oldconfig format
+make BOARD=UNTESTED_kgpe-d16_server-tpm1 linux.save_in_olddefconfig_format_in_place
+# Then bump CONFIG_LINUX_VERSION in board config
+# Prepare the Linux source before running the helpers
+# Build to extract new linux tarball
+make BOARD=UNTESTED_kgpe-d16_server-tpm1
+# Finally, prompt for new config options
+make BOARD=UNTESTED_kgpe-d16_server-tpm1 linux.prompt_for_new_config_options_for_kernel_version_bump
+# Rebuild the ROM after the option prompt
+```
+
+---
+
 # Variation to defconfig (cleaned)
 
 This file lists coreboot Kconfig options found to be inconsistent across
